@@ -1,0 +1,35 @@
+{
+  "name": "smarteducationauthority",
+  "version": "1.0.0",
+  "description": "منصة تعليمية محمد رضوان - Smart Education Authority",
+  "main": "index.js",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@hookform/resolvers": "^5.4.0",
+    "@supabase/ssr": "^0.12.0",
+    "@supabase/supabase-js": "^2.108.2",
+    "framer-motion": "^12.41.0",
+    "lucide-react": "^0.512.0",
+    "next": "^16.2.9",
+    "next-themes": "^0.4.6",
+    "node-telegram-bot-api": "^1.1.1",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "react-dropzone": "^15.0.0",
+    "react-hook-form": "^7.80.0",
+    "react-hot-toast": "^2.6.0",
+    "tailwindcss": "^4.3.1",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.1",
+    "@types/node": "^26.0.1",
+    "autoprefixer": "^10.4.21",
+    "postcss": "^8.5.15"
+  }
+}
