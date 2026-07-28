@@ -17,3 +17,4 @@ node_modules/
 # Large files
 *.sst
 *.cache
+.next/
