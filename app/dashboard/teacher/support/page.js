@@ -1,0 +1,367 @@
+'use client';
+
+// ================================================================
+// 🛡️ المسار: app/dashboard/teacher/support/page.js
+// مركز الدعم الشامل للمعلم – النسخة الأسطورية V3.0
+// ================================================================
+// الميزات الجبارة:
+// - Realtime: تحديث فوري للإحصائيات وقوائم الشكاوى والأسئلة.
+// - إحصائيات متقدمة: متوسط وقت الرد، عدد المحظورين، نسبة الحل.
+// - أقسام منفصلة: الشكاوى الفنية، الأسئلة الأكاديمية.
+// - قائمة المحظورين مع إمكانية فك الحظر بنقرة واحدة.
+// - إجراءات سريعة: مراسلة طالب، إرسال إعلان، إضافة ملاحظة.
+// - روابط للإعلانات والمراسلات العامة من نفس اللوحة.
+// - دعم كامل للصلاحيات (معلم / مساعد).
+// - تصميم زجاجي فاخر مع تأثيرات حركية مبهرة.
+// ================================================================
+
+import { TeacherLayout } from '@/components/TeacherLayout';
+import { motion, AnimatePresence } from 'framer-motion';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import * as Icons from 'lucide-react';
+import { supabase } from '@/lib/supabaseClient';
+import { toast } from 'react-hot-toast';
+import { getCachedAssistantPermissions, hasPermission } from '@/lib/permissions';
+
+// ===== useTheme مدمج =====
+const useTheme = () => {
+  const [theme, setTheme] = useState(() => { try { return localStorage.getItem('teacherSupportTheme') || 'dark'; } catch { return 'dark'; } });
+  useEffect(() => { localStorage.setItem('teacherSupportTheme', theme); document.documentElement.className = theme; }, [theme]);
+  const toggleTheme = () => setTheme(t => t === 'dark' ? 'light' : 'dark');
+  const styles = {
+    dark: { bg: 'bg-[#0b0e1a]', text: 'text-white', subtext: 'text-gray-300', card: 'bg-white/5 backdrop-blur-sm border-white/10', input: 'bg-white/10 border-white/20 text-white placeholder-gray-300', hover: 'hover:border-yellow-400/50', border: 'border-white/10' },
+    light: { bg: 'bg-gray-50', text: 'text-gray-900', subtext: 'text-gray-700', card: 'bg-white/90 backdrop-blur-sm border-gray-200', input: 'bg-gray-100 border-gray-300 text-gray-900 placeholder-gray-400', hover: 'hover:border-yellow-400/70', border: 'border-gray-200' },
+  };
+  return { theme, toggleTheme, styles: styles[theme] };
+};
+
+const AnimatedCounter = ({ target }) => {
+  const [count, setCount] = useState(0);
+  const ref = useRef(null);
+  useEffect(() => {
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) {
+        let start = 0; const step = target / (1500 / 16);
+        const timer = setInterval(() => { start += step; if (start >= target) { setCount(target); clearInterval(timer); } else setCount(Math.floor(start)); }, 16);
+        return () => clearInterval(timer);
+      }
+    }, { threshold: 0.3 });
+    if (ref.current) observer.observe(ref.current);
+    return () => observer.disconnect();
+  }, [target]);
+  return <span ref={ref} className="font-extrabold">{count}</span>;
+};
+
+const StatCard = ({ icon: Icon, label, value, color, styles, delay = 0, suffix = '' }) => (
+  <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay }} whileHover={{ scale: 1.02 }}
+    className={`relative p-4 rounded-2xl border ${styles.border} ${styles.card} transition-shadow`}>
+    <div className="flex items-center justify-between gap-2">
+      <div>
+        <p className={`text-xs font-medium ${styles.subtext} mb-0.5`}>{label}</p>
+        <p className={`text-xl font-extrabold ${styles.text}`}><AnimatedCounter target={value} />{suffix}</p>
+      </div>
+      <div className={`p-2 rounded-lg bg-gradient-to-br ${color} bg-opacity-20`}><Icon className="h-5 w-5 text-white/90" /></div>
+    </div>
+  </motion.div>
+);
+
+export default function TeacherSupportHubPage() {
+  const router = useRouter();
+  const { theme, toggleTheme, styles } = useTheme();
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [permissions, setPermissions] = useState(null);
+  const [isAssistant, setIsAssistant] = useState(false);
+
+  // بيانات حية
+  const [technicalTickets, setTechnicalTickets] = useState([]);
+  const [academicTickets, setAcademicTickets] = useState([]);
+  const [bannedStudents, setBannedStudents] = useState([]);
+  const [stats, setStats] = useState({
+    technicalOpen: 0,
+    academicOpen: 0,
+    avgResponseHours: 0,
+    bannedCount: 0,
+    resolvedToday: 0,
+  });
+
+  // ===== جلب البيانات الأولية =====
+  const fetchInitialData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { data: { user: u } } = await supabase.auth.getUser();
+      if (!u) { router.push('/login'); return; }
+      setUser(u);
+
+      const perms = await getCachedAssistantPermissions(u.id);
+      if (perms !== null) { setIsAssistant(true); setPermissions(perms); }
+      else setIsAssistant(false);
+
+      if (isAssistant && !hasPermission(perms, 'tickets', 'can_view')) {
+        toast.error('غير مصرح لك بمشاهدة هذه الصفحة');
+        router.push('/dashboard/assistant');
+        return;
+      }
+
+      // جلب الشكاوى الفنية (مفتوحة ومعلقة)
+      const { data: techData, error: techError } = await supabase
+        .from('tickets')
+        .select('*, student:profiles!tickets_student_id_fkey(full_name, email), course:courses(title)')
+        .eq('assigned_to', u.id)
+        .eq('support_type', 'technical')
+        .order('created_at', { ascending: false });
+
+      if (techError) throw techError;
+
+      // جلب الأسئلة الأكاديمية
+      const { data: acadData, error: acadError } = await supabase
+        .from('tickets')
+        .select('*, student:profiles!tickets_student_id_fkey(full_name, email), course:courses(title)')
+        .eq('assigned_to', u.id)
+        .eq('support_type', 'academic')
+        .order('created_at', { ascending: false });
+
+      if (acadError) throw acadError;
+
+      // جلب المحظورين
+      const { data: bannedData } = await supabase
+        .from('support_bans')
+        .select('*, student:profiles!support_bans_student_id_fkey(full_name, email)')
+        .eq('teacher_id', u.id)
+        .is('unbanned_at', null);
+
+      const now = new Date();
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+
+      // حساب الإحصائيات
+      const technicalOpen = techData?.filter(t => t.status === 'open' || t.status === 'in_progress').length || 0;
+      const academicOpen = acadData?.filter(t => t.status === 'open' || t.status === 'in_progress').length || 0;
+      const resolvedToday = [...(techData || []), ...(acadData || [])].filter(t => 
+        (t.status === 'resolved' || t.status === 'closed') && new Date(t.updated_at).toISOString() >= todayStart
+      ).length;
+
+      // متوسط وقت الرد (من وقت الإنشاء إلى أول رد للمعلم)
+      let totalResponseHours = 0, responseCount = 0;
+      const allTickets = [...(techData || []), ...(acadData || [])];
+      for (const ticket of allTickets) {
+        if (ticket.first_reply_at) {
+          totalResponseHours += (new Date(ticket.first_reply_at) - new Date(ticket.created_at)) / (1000 * 60 * 60);
+          responseCount++;
+        }
+      }
+      const avgResponseHours = responseCount > 0 ? Math.round(totalResponseHours / responseCount) : 0;
+
+      setTechnicalTickets(techData || []);
+      setAcademicTickets(acadData || []);
+      setBannedStudents(bannedData || []);
+      setStats({
+        technicalOpen,
+        academicOpen,
+        avgResponseHours,
+        bannedCount: bannedData?.length || 0,
+        resolvedToday,
+      });
+
+    } catch (err) {
+      console.error(err);
+      toast.error('فشل جلب البيانات');
+    } finally {
+      setLoading(false);
+    }
+  }, [router, isAssistant, permissions]);
+
+  useEffect(() => { fetchInitialData(); }, [fetchInitialData]);
+
+  // ===== Realtime اشتراك =====
+  useEffect(() => {
+    if (!user) return;
+    const ticketsChannel = supabase
+      .channel('teacher-support-tickets')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tickets', filter: `assigned_to=eq.${user.id}` }, 
+        () => fetchInitialData() // إعادة جلب كل شيء للتحديث
+      )
+      .subscribe();
+
+    const bansChannel = supabase
+      .channel('teacher-support-bans')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'support_bans', filter: `teacher_id=eq.${user.id}` }, 
+        () => fetchInitialData()
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(ticketsChannel);
+      supabase.removeChannel(bansChannel);
+    };
+  }, [user, fetchInitialData]);
+
+  // ===== إجراءات سريعة =====
+  const handleUnban = async (studentId) => {
+    const { error } = await supabase.from('support_bans')
+      .update({ unbanned_at: new Date().toISOString() })
+      .eq('teacher_id', user.id).eq('student_id', studentId).is('unbanned_at', null);
+    if (error) { toast.error('فشل فك الحظر'); return; }
+    toast.success('تم فك الحظر');
+    fetchInitialData();
+  };
+
+  const formatDate = (date) => new Date(date).toLocaleDateString('ar-EG', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+  if (loading) return (
+    <TeacherLayout>
+      <div className="min-h-screen flex items-center justify-center"><div className="w-12 h-12 border-4 border-yellow-400/30 border-t-yellow-400 rounded-full animate-spin" /></div>
+    </TeacherLayout>
+  );
+
+  return (
+    <TeacherLayout>
+      <div className={`min-h-screen ${styles.bg} ${styles.text} p-4 md:p-6`}>
+        <div className="max-w-7xl mx-auto">
+          {/* الهيدر */}
+          <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col md:flex-row md:items-center justify-between mb-8">
+            <div>
+              <h1 className="text-3xl md:text-4xl font-extrabold bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-500 bg-clip-text text-transparent">
+                🛡️ مركز الدعم المتكامل
+              </h1>
+              <p className={`${styles.subtext} text-sm mt-1`}>إدارة الشكاوى والأسئلة، الحظر، والإعلانات – كل شيء في مكان واحد</p>
+            </div>
+            <div className="flex gap-3 mt-3 md:mt-0">
+              <button onClick={toggleTheme} className={`p-2 rounded-xl ${styles.card} border ${styles.border}`}>
+                {theme === 'dark' ? <Icons.Sun className="h-5 w-5 text-yellow-400" /> : <Icons.Moon className="h-5 w-5 text-gray-600" />}
+              </button>
+              <button onClick={fetchInitialData} className={`p-2 rounded-xl ${styles.card} border ${styles.border}`}><Icons.RefreshCw className="h-5 w-5" /></button>
+              {isAssistant && <button onClick={() => router.push('/dashboard/assistant')} className="px-4 py-2 bg-purple-500/20 text-purple-400 rounded-xl text-sm">العودة للوحة التحكم</button>}
+            </div>
+          </motion.div>
+
+          {/* إحصائيات متقدمة */}
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 mb-8">
+            <StatCard icon={Icons.Wrench} label="شكاوى فنية مفتوحة" value={stats.technicalOpen} color="from-red-400 to-orange-600" styles={styles} delay={0} />
+            <StatCard icon={Icons.BookOpen} label="أسئلة أكاديمية مفتوحة" value={stats.academicOpen} color="from-blue-400 to-indigo-600" styles={styles} delay={0.1} />
+            <StatCard icon={Icons.Clock} label="متوسط الرد (ساعة)" value={stats.avgResponseHours} color="from-green-400 to-emerald-600" styles={styles} delay={0.2} />
+            <StatCard icon={Icons.ShieldOff} label="طلاب محظورون" value={stats.bannedCount} color="from-red-500 to-pink-600" styles={styles} delay={0.3} />
+            <StatCard icon={Icons.CheckCircle} label="تم حلها اليوم" value={stats.resolvedToday} color="from-purple-400 to-violet-600" styles={styles} delay={0.4} />
+          </div>
+
+          {/* بطاقات الأقسام الرئيسية */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <Link href="/dashboard/teacher/support/technical" className={`group relative overflow-hidden rounded-2xl p-6 ${styles.card} border ${styles.border} hover:border-red-400/50 transition-all duration-500`}>
+              <div className="absolute inset-0 bg-gradient-to-br from-red-500/10 to-orange-600/10 opacity-0 group-hover:opacity-100 transition" />
+              <div className="relative z-10 flex items-start gap-4">
+                <div className="p-3 rounded-xl bg-gradient-to-br from-red-400 to-orange-600"><Icons.Wrench className="h-8 w-8 text-white" /></div>
+                <div className="flex-1">
+                  <h2 className="text-xl font-bold">الشكاوى الفنية</h2>
+                  <p className={`text-sm ${styles.subtext} mt-1`}>مشاكل تقنية (فيديو، امتحان، تصفح)</p>
+                  <div className="flex items-center gap-2 mt-2">
+                    <span className="text-xs font-bold text-red-400">{stats.technicalOpen} مفتوحة</span>
+                    <span className="text-xs text-gray-500">|</span>
+                    <span className="text-xs text-gray-400">{technicalTickets.length} إجمالي</span>
+                  </div>
+                </div>
+                <Icons.ArrowLeft className="h-6 w-6 text-gray-400 group-hover:translate-x-1 transition" />
+              </div>
+            </Link>
+
+            <Link href="/dashboard/teacher/support/academic" className={`group relative overflow-hidden rounded-2xl p-6 ${styles.card} border ${styles.border} hover:border-blue-400/50 transition-all duration-500`}>
+              <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-indigo-600/10 opacity-0 group-hover:opacity-100 transition" />
+              <div className="relative z-10 flex items-start gap-4">
+                <div className="p-3 rounded-xl bg-gradient-to-br from-blue-400 to-indigo-600"><Icons.BookOpen className="h-8 w-8 text-white" /></div>
+                <div className="flex-1">
+                  <h2 className="text-xl font-bold">الأسئلة الأكاديمية</h2>
+                  <p className={`text-sm ${styles.subtext} mt-1`}>استفسارات حول المنهج</p>
+                  <div className="flex items-center gap-2 mt-2">
+                    <span className="text-xs font-bold text-blue-400">{stats.academicOpen} مفتوحة</span>
+                    <span className="text-xs text-gray-500">|</span>
+                    <span className="text-xs text-gray-400">{academicTickets.length} إجمالي</span>
+                  </div>
+                </div>
+                <Icons.ArrowLeft className="h-6 w-6 text-gray-400 group-hover:translate-x-1 transition" />
+              </div>
+            </Link>
+          </div>
+
+          {/* صف متعدد: آخر الشكاوى، آخر الأسئلة، والمحظورين */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* آخر الشكاوى */}
+            <div className={`${styles.card} border ${styles.border} rounded-2xl p-5`}>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className={`font-bold ${styles.text} flex items-center gap-2`}><Icons.AlertTriangle className="h-5 w-5 text-red-400" /> شكاوى فنية</h3>
+                <Link href="/dashboard/teacher/support/technical" className="text-xs text-yellow-400">عرض الكل</Link>
+              </div>
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {technicalTickets.slice(0, 5).map(t => (
+                  <div key={t.id} className={`flex items-center justify-between p-2 hover:bg-white/5 rounded-lg text-sm`}>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium truncate">{t.subject}</p>
+                      <p className={`text-xs ${styles.subtext}`}>{t.student?.full_name} • {formatDate(t.created_at)}</p>
+                    </div>
+                    <Link href={`/dashboard/teacher/support/${t.id}`} className="text-yellow-400 text-xs ml-2">رد</Link>
+                  </div>
+                ))}
+                {technicalTickets.length === 0 && <p className={`text-xs ${styles.subtext} text-center py-4`}>لا توجد شكاوى</p>}
+              </div>
+            </div>
+
+            {/* آخر الأسئلة */}
+            <div className={`${styles.card} border ${styles.border} rounded-2xl p-5`}>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className={`font-bold ${styles.text} flex items-center gap-2`}><Icons.MessageCircle className="h-5 w-5 text-blue-400" /> أسئلة أكاديمية</h3>
+                <Link href="/dashboard/teacher/support/academic" className="text-xs text-yellow-400">عرض الكل</Link>
+              </div>
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {academicTickets.slice(0, 5).map(t => (
+                  <div key={t.id} className={`flex items-center justify-between p-2 hover:bg-white/5 rounded-lg text-sm`}>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium truncate">{t.subject}</p>
+                      <p className={`text-xs ${styles.subtext}`}>{t.student?.full_name} • {formatDate(t.created_at)}</p>
+                    </div>
+                    <Link href={`/dashboard/teacher/support/${t.id}`} className="text-yellow-400 text-xs ml-2">رد</Link>
+                  </div>
+                ))}
+                {academicTickets.length === 0 && <p className={`text-xs ${styles.subtext} text-center py-4`}>لا توجد أسئلة</p>}
+              </div>
+            </div>
+
+            {/* المحظورون */}
+            <div className={`${styles.card} border ${styles.border} rounded-2xl p-5`}>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className={`font-bold ${styles.text} flex items-center gap-2`}><Icons.ShieldOff className="h-5 w-5 text-red-400" /> محظورون</h3>
+                <span className="text-xs text-gray-400">{bannedStudents.length} طالب</span>
+              </div>
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {bannedStudents.map(b => (
+                  <div key={b.id} className="flex items-center justify-between p-2 hover:bg-white/5 rounded-lg text-sm">
+                    <div>
+                      <p className="font-medium">{b.student?.full_name || 'طالب'}</p>
+                      <p className={`text-xs ${styles.subtext}`}>منذ {new Date(b.banned_at).toLocaleDateString('ar-EG')}</p>
+                    </div>
+                    <button onClick={() => handleUnban(b.student_id)} className="text-xs text-green-400 hover:text-green-300">فك الحظر</button>
+                  </div>
+                ))}
+                {bannedStudents.length === 0 && <p className={`text-xs ${styles.subtext} text-center py-4`}>لا يوجد محظورين</p>}
+              </div>
+            </div>
+          </div>
+
+          {/* أزرار سريعة للإعلانات والمراسلات */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+            <Link href="/dashboard/teacher/announcements" className={`flex items-center gap-2 p-3 rounded-xl ${styles.card} border ${styles.border} hover:border-yellow-400/50 transition text-sm`}>
+              <Icons.Megaphone className="h-5 w-5 text-yellow-400" /> الإعلانات
+            </Link>
+            <Link href="/dashboard/teacher/messages" className={`flex items-center gap-2 p-3 rounded-xl ${styles.card} border ${styles.border} hover:border-yellow-400/50 transition text-sm`}>
+              <Icons.Mail className="h-5 w-5 text-blue-400" /> المراسلات
+            </Link>
+            <Link href="/dashboard/teacher/notes" className={`flex items-center gap-2 p-3 rounded-xl ${styles.card} border ${styles.border} hover:border-yellow-400/50 transition text-sm`}>
+              <Icons.StickyNote className="h-5 w-5 text-purple-400" /> الملاحظات
+            </Link>
+            <Link href="/dashboard/teacher/students" className={`flex items-center gap-2 p-3 rounded-xl ${styles.card} border ${styles.border} hover:border-yellow-400/50 transition text-sm`}>
+              <Icons.Users className="h-5 w-5 text-green-400" /> الطلاب
+            </Link>
+          </div>
+        </div>
+      </div>
+    </TeacherLayout>
+  );
+}

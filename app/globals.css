@@ -1,31 +1,236 @@
-@import "tailwindcss";
-
-@theme {
-  --font-cairo: 'Cairo', sans-serif;
-}
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 @layer base {
-  * {
-    @apply border-white/5;
+  /* ✅ حدود أكثر تحديداً لتجنب المشاكل */
+  .card, .input, .button, .modal, .sidebar {
+    border-color: var(--border-color);
   }
-  body {
-    @apply bg-[#0b0e1a] text-white font-cairo antialiased;
-  }
+  
   html {
     @apply scroll-smooth;
   }
+
+  /* ✅ تحسين الطباعة */
+  @media print {
+    body {
+      background: white !important;
+      color: black !important;
+    }
+    .no-print {
+      display: none !important;
+    }
+    .print-only {
+      display: block !important;
+    }
+  }
 }
 
+/* ===== متغيرات الثيم ===== */
+:root {
+  /* خلفيات */
+  --bg-primary: #f9fafb;
+  --bg-secondary: #ffffff;
+  --bg-card: #ffffff;
+  --bg-input: #f3f4f6;
+  --bg-hover: #f3f4f6;
+
+  /* نصوص */
+  --text-primary: #111827;
+  --text-secondary: #4b5563;
+  --text-muted: #6b7280;
+  --text-inverse: #ffffff;
+
+  /* حدود */
+  --border-color: #e5e7eb;
+  --border-light: #f3f4f6;
+
+  /* ظلال */
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+  --shadow: 0 1px 3px rgba(0,0,0,0.1);
+  --shadow-lg: 0 10px 15px rgba(0,0,0,0.1);
+
+  /* ألوان خاصة */
+  --gold: #c9a84c;
+  --gold-light: #fbbf24;
+  --gold-dark: #b8962e;
+
+  /* خطوط */
+  --font-primary: 'Cairo', 'Inter', 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+}
+
+/* ===== الوضع الداكن ===== */
+.dark {
+  --bg-primary: #0b0e1a;
+  --bg-secondary: #0f1326;
+  --bg-card: #0f1326;
+  --bg-input: #1a1f2e;
+  --bg-hover: #1a1f2e;
+
+  --text-primary: #f3f4f6;
+  --text-secondary: #9ca3af;
+  --text-muted: #6b7280;
+  --text-inverse: #111827;
+
+  --border-color: rgba(255, 255, 255, 0.08);
+  --border-light: rgba(255, 255, 255, 0.04);
+
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
+  --shadow: 0 1px 3px rgba(0,0,0,0.4);
+  --shadow-lg: 0 10px 15px rgba(0,0,0,0.5);
+}
+
+/* ===== تطبيق المتغيرات ===== */
+* {
+  transition: background-color 0.3s ease, 
+              color 0.3s ease, 
+              border-color 0.3s ease,
+              box-shadow 0.3s ease;
+}
+
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-primary);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ===== الروابط ===== */
+a {
+  color: var(--gold);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+a:hover {
+  color: var(--gold-light);
+}
+
+/* ===== الحقول ===== */
+input, textarea, select {
+  background-color: var(--bg-input);
+  color: var(--text-primary);
+  border-color: var(--border-color);
+}
+input:focus, textarea:focus, select:focus {
+  border-color: var(--gold);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(201, 168, 76, 0.15);
+}
+
+/* ===== البطاقات ===== */
+.card {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow);
+  border-radius: 16px;
+}
+.card:hover {
+  box-shadow: var(--shadow-lg);
+}
+
+/* ===== الأزرار ===== */
+.btn-primary {
+  background: linear-gradient(135deg, var(--gold-light), var(--gold));
+  color: var(--text-inverse);
+  font-weight: 700;
+  padding: 10px 24px;
+  border-radius: 12px;
+  transition: all 0.2s;
+}
+.btn-primary:hover {
+  transform: scale(1.02);
+  box-shadow: 0 4px 20px rgba(201, 168, 76, 0.3);
+}
+.btn-primary:active {
+  transform: scale(0.98);
+}
+
+/* ===== شريط التمرير ===== */
 ::-webkit-scrollbar {
   width: 8px;
+  height: 8px;
 }
 ::-webkit-scrollbar-track {
-  background: #0b0e1a;
+  background: var(--bg-primary);
 }
 ::-webkit-scrollbar-thumb {
-  background: #c9a84c;
+  background: var(--gold);
   border-radius: 10px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #b8962e;
+  background: var(--gold-dark);
+}
+
+/* ===== أنماط إضافية لبيئة الامتحان ===== */
+.focus-mode .question-sidebar {
+  display: none !important;
+}
+.focus-mode .exam-header {
+  opacity: 0.5;
+  transition: opacity 0.3s;
+}
+.focus-mode .exam-header:hover {
+  opacity: 1;
+}
+
+/* ===== تحسينات للوضع الفاتح ===== */
+:root {
+  /* إضافات للوضع الفاتح */
+  --text-on-gold: #000000;
+}
+
+.dark {
+  --text-on-gold: #000000;
+}
+
+/* ===== أنيميشن الاهتزاز (لآخر 10 ثوانٍ) ===== */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-8px); }
+  75% { transform: translateX(8px); }
+}
+.animate-shake {
+  animation: shake 0.5s ease-in-out;
+}
+
+/* ===== أنيميشن التدرج (للعناوين) ===== */
+@keyframes gradient {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+.animate-gradient {
+  background-size: 200% auto;
+  animation: gradient 4s ease infinite;
+}
+
+/* ===== دعم الطباعة ===== */
+@media print {
+  body {
+    background: white !important;
+    color: black !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .card {
+    border: 1px solid #ddd !important;
+    box-shadow: none !important;
+  }
+}
+
+/* ===== تحسين الجوال ===== */
+@media (max-width: 640px) {
+  .card {
+    padding: 16px !important;
+    border-radius: 12px !important;
+  }
+  .btn-primary {
+    padding: 8px 16px;
+    font-size: 14px;
+  }
 }

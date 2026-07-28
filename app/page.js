@@ -1,818 +1,1232 @@
+// app/page.js
+// ================================================================
+// 🏛️ الصفحة الرئيسية – منصة مستر محمد رضوان
+// نسخة متطورة – مع إضافة خانة الاتصال بالأرقام
+// ================================================================
+
 'use client';
 
-import { motion, AnimatePresence } from 'framer-motion';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { motion, useScroll, useTransform, AnimatePresence } from 'framer-motion';
 import * as Icons from 'lucide-react';
-import { useEffect, useState, useRef } from 'react';
+import { useTheme } from '@/lib/hooks/useTheme';
+import { supabase } from '@/lib/supabaseClient';
 
-// ===== بيانات الكورسات =====
-const coursesData = [
+// ================================================================
+// 📌 البيانات الثابتة – مميزات المنصة
+// ================================================================
+
+const PLATFORM_FEATURES = [
   {
-    id: 1,
-    title: 'جرامر الترم الأول',
-    description: 'شرح كامل لقواعد اللغة الإنجليزية للترم الأول مع تدريبات وامتحانات تفاعلية.',
-    price: 250,
-    originalPrice: 350,
-    level: 'ثانوية عامة',
-    students: 180,
-    rating: 4.9,
-    badge: 'الأكثر طلباً',
-    features: ['12 فيديو', '3 امتحانات', 'ملزمة تفاعلية'],
+    id: 'feature-1',
+    icon: Icons.Headphones,
+    title: 'دعم فني متواصل',
+    description: 'فريق دعم متاح طول اليوم لحل أي مشكلة تقنية في أسرع وقت.',
+    gradient: 'from-blue-400 to-cyan-400',
   },
   {
-    id: 2,
-    title: 'كلمات الترم الأول',
-    description: 'أهم المفردات والكلمات مع جمل أمثلة وتمارين حفظ مبتكرة.',
-    price: 100,
-    originalPrice: 150,
-    level: 'ثانوية عامة',
-    students: 95,
-    rating: 4.7,
-    badge: 'عرض خاص',
-    features: ['8 فيديو', 'قاموس تفاعلي', 'اختبارات أسبوعية'],
+    id: 'feature-2',
+    icon: Icons.GraduationCap,
+    title: 'متابعة شخصية من المستر',
+    description: 'مستر محمد رضوان يتابع أداءك ويحدد نقاط القوة والضعف لديك.',
+    gradient: 'from-green-400 to-emerald-400',
   },
   {
-    id: 3,
-    title: 'منهج ثانوية عامة (كامل)',
-    description: 'المنهج كامل للثانوية العامة: جرامر، كلمات، قراءة، كتابة، استماع، ومحادثة.',
-    price: 500,
-    originalPrice: 700,
-    level: 'ثانوية عامة',
-    students: 320,
-    rating: 4.9,
-    badge: 'الأفضل قيمة',
-    features: ['30 فيديو', '10 امتحانات', 'كتاب تفاعلي', 'بث مباشر أسبوعي'],
+    id: 'feature-3',
+    icon: Icons.StickyNote,
+    title: 'ملاحظاتك الخاصة',
+    description: 'مكان آمن لتسجيل ملاحظاتك والرجوع إليها في أي وقت.',
+    gradient: 'from-blue-400 to-indigo-400',
   },
   {
-    id: 4,
-    title: 'تأسيس اللغة (مبتدئ)',
-    description: 'من الصفر إلى الاحتراف: الحروف، الأرقام، الجمل البسيطة، والمحادثات اليومية.',
-    price: 200,
-    originalPrice: 280,
-    level: 'مبتدئ',
-    students: 210,
-    rating: 4.8,
-    badge: 'للمبتدئين',
-    features: ['15 فيديو', '5 اختبارات', 'كتاب تفاعلي'],
+    id: 'feature-4',
+    icon: Icons.Calendar,
+    title: 'جدول مذاكرة ذكي',
+    description: 'نظم وقتك بذكاء مع جدول مرن يناسب روتينك اليومي.',
+    gradient: 'from-green-400 to-teal-400',
   },
   {
-    id: 5,
-    title: 'المحادثة والاستماع (متوسط)',
-    description: 'تطوير مهارات الاستماع والتحدث عبر محادثات حقيقية وتمارين تفاعلية.',
-    price: 180,
-    originalPrice: 250,
-    level: 'متوسط',
-    students: 85,
-    rating: 4.6,
-    features: ['10 فيديو', '4 اختبارات', 'مكتبة صوتية'],
+    id: 'feature-5',
+    icon: Icons.MessageCircle,
+    title: 'تواصل مباشر مع المستر',
+    description: 'أرسل سؤالك على واتساب، وسيرد عليك المستر بنفسه.',
+    gradient: 'from-blue-400 to-sky-400',
   },
   {
-    id: 6,
-    title: 'الكتابة والتعبير (متقدم)',
-    description: 'إتقان الكتابة الأكاديمية والإبداعية مع تصحيح آلي وملاحظات.',
-    price: 220,
-    originalPrice: 300,
-    level: 'متقدم',
-    students: 60,
-    rating: 4.8,
-    badge: 'حصري',
-    features: ['12 فيديو', '6 اختبارات', 'ملزمة كتابة'],
+    id: 'feature-6',
+    icon: Icons.Inbox,
+    title: 'رسائل تهمك',
+    description: 'المستر يرسل لك تنبيهات وملاحظات لتحسين مستواك.',
+    gradient: 'from-green-400 to-lime-400',
   },
 ];
 
-// ===== بيانات المميزات (من المستند) =====
-const featuresData = [
+// ================================================================
+// 🎁 العروض الترويجية
+// ================================================================
+
+const PROMO_THIRD_SECONDARY = {
+  id: 'promo-third-secondary',
+  title: 'عرض خاص لطلاب 3 ثانوي',
+  subtitle: 'أعلى 3 طلاب في الامتحان الشامل = الترم التاني مجاني',
+  description: 'لو أنت في 3 ثانوي وكنت معانا وحققت من أعلى الدرجات في الامتحان الشامل (اللي من 60) على منصتنا، الترم التاني والمراجعة النهائية هيكونوا مجانيين بالكامل لأعلى 3 طلاب. ربنا يوفقكم جميعاً.',
+  cta: 'شارك الآن واحجز مكانك',
+  ctaLink: 'https://wa.me/201552191172',
+};
+
+const PROMO_GENERAL = {
+  id: 'promo-general',
+  title: '🎯 الترم التاني مجاناً',
+  subtitle: 'أعلى 3 طلاب يحققون أعلى الدرجات في امتحان الإنجليزي',
+  description: 'لو أنت من أوائل الطلاب اللي حققوا أعلى الدرجات في امتحان اللغة الإنجليزية في الترم الأول، الكورس الخاص بالترم التاني هيكون مجاني ليك بالكامل. بس لأعلى 3 طلاب هيبعتوا نتائجهم على واتساب المستر.',
+  cta: 'بادر بالمشاركة عشان تكون من الأعلى',
+  ctaLink: 'https://wa.me/201552191172',
+};
+
+// ================================================================
+// 🌐 روابط التواصل الاجتماعي (مع إضافة خانة الاتصال)
+// ================================================================
+
+const SOCIAL_LINKS = [
   {
-    icon: Icons.Video,
-    title: 'فيديوهات محمية',
-    description: 'تشفير متقدم، بصمة مائية ديناميكية، ومنع التحميل لحماية محتواك.',
-    badge: 'حصري',
-  },
-  {
-    icon: Icons.Shield,
-    title: 'امتحانات فائقة الأمان',
-    description: 'متصفح مؤمن، مراقبة بالذكاء الاصطناعي، وكشف الخروج الفوري.',
-    badge: 'مبتكر',
-  },
-  {
-    icon: Icons.BookOpen,
-    title: 'كتب رقمية تفاعلية',
-    description: 'إضافة ملاحظات، فيديوهات مدمجة، وحماية ضد الطباعة والتحميل.',
-  },
-  {
-    icon: Icons.Brain,
-    title: 'المعلم الذكي (AI)',
-    description: 'روبوت دردشة يجيب على أسئلتك بناءً على محتوى الأستاذ فقط 24/7.',
-    badge: 'ذكاء اصطناعي',
-  },
-  {
-    icon: Icons.Gamepad2,
-    title: 'ألعاب وتحديات',
-    description: 'نقاط، شخصيات افتراضية، ومسابقات أسبوعية على لوحة الشرف.',
-  },
-  {
-    icon: Icons.BarChart,
-    title: 'تحليلات معمقة',
-    description: 'خريطة حرارة للفيديو، تقارير نقاط الضعف، ومقارنة الأداء.',
-  },
-  {
+    id: 'social-youtube',
     icon: Icons.Play,
-    title: 'بث مباشر تفاعلي',
-    description: 'فصل افتراضي مع سبورة، رفع يد، استفتاءات، وغرف نقاش.',
+    label: 'يوتيوب',
+    url: 'https://www.youtube.com/@mohamedradwan.easy.english',
+    color: 'bg-red-500',
+    textColor: 'text-red-400',
+    isPrimary: true,
   },
   {
-    icon: Icons.Megaphone,
-    title: 'نظام تسويق مدمج',
-    description: 'كوبونات، اشتراكات، صفحة هبوط احترافية، وبوابات دفع متعددة.',
+    id: 'social-facebook',
+    icon: Icons.Share2,
+    label: 'فيسبوك',
+    url: 'https://www.facebook.com/share/1BTGeaLqLh/',
+    color: 'bg-blue-600',
+    textColor: 'text-blue-400',
+  },
+  {
+    id: 'social-whatsapp-master',
+    icon: Icons.MessageCircle,
+    label: 'واتساب (المستر)',
+    url: 'https://wa.me/201552191172',
+    color: 'bg-green-500',
+    textColor: 'text-green-400',
+  },
+  {
+    id: 'social-whatsapp-support',
+    icon: Icons.MessageCircle,
+    label: 'واتساب (الدعم)',
+    url: 'https://wa.me/201148553118',
+    color: 'bg-green-500',
+    textColor: 'text-green-400',
+  },
+  {
+    id: 'social-email',
+    icon: Icons.Mail,
+    label: 'البريد الإلكتروني',
+    url: 'mailto:mohamed.smartguy@gmail.com',
+    color: 'bg-gray-600',
+    textColor: 'text-gray-400',
+  },
+  // ✅ خانة سادسة – أرقام التواصل
+  {
+    id: 'social-phone',
+    icon: Icons.Phone,
+    label: 'اتصال',
+    url: 'tel:01552191172',
+    color: 'bg-purple-500',
+    textColor: 'text-purple-400',
+    isPhone: true,
+    phoneNumbers: ['01552191172', '01148553118'],
   },
 ];
 
-// ===== بيانات آراء الطلاب =====
-const testimonialsData = [
-  {
-    id: 1,
-    name: 'أحمد خالد',
-    role: 'طالب ثانوية عامة',
-    content: 'منصة غيرت طريقة تعلمي للغة الإنجليزية. الفيديوهات واضحة والامتحانات آمنة جداً.',
-    rating: 5,
-    avatar: 'أ',
-  },
-  {
-    id: 2,
-    name: 'سارة علي',
-    role: 'طالبة جامعية',
-    content: 'المعلم الذكي ساعدني في أوقات متأخرة، والألعاب جعلت التعلم ممتعاً.',
-    rating: 5,
-    avatar: 'س',
-  },
-  {
-    id: 3,
-    name: 'يوسف حسن',
-    role: 'طالب إعدادي',
-    content: 'الكورسات منظمة، والكتب التفاعلية ساعدتني في المراجعة بسرعة. أفضل منصة.',
-    rating: 5,
-    avatar: 'ي',
-  },
-  {
-    id: 4,
-    name: 'ليلى محمد',
-    role: 'طالبة جامعية',
-    content: 'نظام المراقبة بالذكاء الاصطناعي رائع، يمنع الغش ويشعرني بالعدالة.',
-    rating: 5,
-    avatar: 'ل',
-  },
-  {
-    id: 5,
-    name: 'نور إبراهيم',
-    role: 'طالبة متقدمة',
-    content: 'البث المباشر التفاعلي جعل الحصص أكثر حيوية، والسبورة الرقمية ساعدت في الفهم.',
-    rating: 5,
-    avatar: 'ن',
-  },
-];
+// ================================================================
+// 🎨 خلفية متطورة مع تأثيرات متحركة
+// ================================================================
 
-// ===== مكونات مساعدة =====
-const CourseCard = ({ course, index }) => (
-  <motion.div
-    initial={{ opacity: 0, y: 40 }}
-    whileInView={{ opacity: 1, y: 0 }}
-    transition={{ delay: index * 0.08, duration: 0.6 }}
-    viewport={{ once: true }}
-    whileHover={{ y: -12, scale: 1.01 }}
-    className="group relative"
-  >
-    <div className="absolute inset-0 bg-gradient-to-br from-yellow-400/10 to-purple-500/10 rounded-3xl blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
-    <div className="relative bg-white/5 backdrop-blur-md border border-white/10 rounded-3xl overflow-hidden hover:border-yellow-400/60 transition-all duration-500 hover:shadow-2xl hover:shadow-yellow-400/10">
-      <div className="relative h-56 bg-gradient-to-br from-yellow-400/20 via-purple-500/20 to-blue-500/20 overflow-hidden">
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="w-20 h-20 rounded-full bg-yellow-400/30 backdrop-blur flex items-center justify-center group-hover:scale-110 transition-transform duration-500">
-            <Icons.Play className="h-10 w-10 text-yellow-400 ml-1" />
-          </div>
+const ElegantBackground = ({ isDark }) => {
+  const [dots, setDots] = useState([]);
+  const { scrollY } = useScroll();
+
+  const y1 = useTransform(scrollY, [0, 1000], [0, -150]);
+  const y2 = useTransform(scrollY, [0, 1000], [0, 100]);
+  const scale = useTransform(scrollY, [0, 500], [1, 1.1]);
+
+  useEffect(() => {
+    const generatedDots = Array.from({ length: 60 }, () => ({
+      top: Math.random() * 100,
+      left: Math.random() * 100,
+      delay: Math.random() * 6,
+      duration: 3 + Math.random() * 5,
+      size: 1 + Math.random() * 3,
+    }));
+    setDots(generatedDots);
+  }, []);
+
+  return (
+    <div className="fixed inset-0 -z-10 pointer-events-none overflow-hidden">
+      <div
+        className={`absolute inset-0 transition-all duration-1000 ${
+          isDark ? 'bg-[#0a0e1a]' : 'bg-white'
+        }`}
+      />
+
+      <motion.div
+        style={{ y: y1, scale }}
+        className={`absolute top-[-40%] right-[-30%] w-[80%] h-[80%] rounded-full blur-3xl ${
+          isDark ? 'bg-blue-500/10' : 'bg-blue-400/8'
+        }`}
+      />
+      <motion.div
+        style={{ y: y2 }}
+        className={`absolute bottom-[-40%] left-[-30%] w-[70%] h-[70%] rounded-full blur-3xl ${
+          isDark ? 'bg-green-500/10' : 'bg-green-400/8'
+        }`}
+      />
+      <motion.div
+        animate={{
+          scale: [1, 1.2, 1],
+          opacity: [0.2, 0.5, 0.2],
+        }}
+        transition={{
+          duration: 15,
+          repeat: Infinity,
+          ease: 'easeInOut',
+        }}
+        className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[90%] h-[90%] rounded-full blur-3xl ${
+          isDark ? 'bg-blue-500/5' : 'bg-blue-400/5'
+        }`}
+      />
+
+      {dots.length > 0 && (
+        <div className="absolute inset-0">
+          {dots.map((dot, i) => (
+            <motion.div
+              key={i}
+              className={`absolute rounded-full ${
+                isDark ? 'bg-blue-400/30' : 'bg-blue-400/20'
+              }`}
+              style={{
+                top: `${dot.top}%`,
+                left: `${dot.left}%`,
+                width: dot.size,
+                height: dot.size,
+              }}
+              animate={{
+                opacity: [0.1, 0.8, 0.1],
+                scale: [1, 2.5, 1],
+              }}
+              transition={{
+                duration: dot.duration,
+                repeat: Infinity,
+                delay: dot.delay,
+              }}
+            />
+          ))}
         </div>
-        {course.badge && (
-          <div className="absolute top-4 right-4 bg-yellow-400/90 text-black text-xs font-bold px-4 py-1.5 rounded-full shadow-lg backdrop-blur border border-yellow-300/50">
-            {course.badge}
-          </div>
-        )}
-        <div className="absolute bottom-4 left-4 bg-black/60 backdrop-blur px-3 py-1 rounded-full text-xs text-gray-300 border border-white/10">
-          {course.level}
+      )}
+
+      <svg className="absolute inset-0 w-full h-full opacity-10" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style={{ stopColor: '#3B82F6', stopOpacity: 1 }} />
+            <stop offset="100%" style={{ stopColor: '#22C55E', stopOpacity: 0.3 }} />
+          </linearGradient>
+        </defs>
+        <motion.line
+          x1="0%" y1="20%" x2="100%" y2="20%"
+          stroke="url(#grad1)" strokeWidth="0.5"
+          initial={{ x: -100 }}
+          animate={{ x: 0 }}
+          transition={{ duration: 20, repeat: Infinity }}
+        />
+        <motion.line
+          x1="0%" y1="50%" x2="100%" y2="50%"
+          stroke="url(#grad1)" strokeWidth="0.5"
+          initial={{ x: 100 }}
+          animate={{ x: 0 }}
+          transition={{ duration: 25, repeat: Infinity }}
+        />
+        <motion.line
+          x1="0%" y1="80%" x2="100%" y2="80%"
+          stroke="url(#grad1)" strokeWidth="0.5"
+          initial={{ x: -80 }}
+          animate={{ x: 0 }}
+          transition={{ duration: 18, repeat: Infinity }}
+        />
+      </svg>
+    </div>
+  );
+};
+
+// ================================================================
+// 🧭 مؤشر التمرير
+// ================================================================
+
+const ScrollIndicator = ({ targetId }) => {
+  const [visible, setVisible] = useState(true);
+
+  useEffect(() => {
+    const handler = () => setVisible(window.scrollY < 100);
+    window.addEventListener('scroll', handler);
+    return () => window.removeEventListener('scroll', handler);
+  }, []);
+
+  if (!visible) return null;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 1.5, duration: 0.8 }}
+      className="absolute bottom-8 left-1/2 -translate-x-1/2 cursor-pointer z-20"
+      onClick={() => document.getElementById(targetId)?.scrollIntoView({ behavior: 'smooth' })}
+    >
+      <div className="flex flex-col items-center gap-3">
+        <motion.div
+          animate={{ y: [0, -12, 0] }}
+          transition={{ repeat: Infinity, duration: 2.5, ease: 'easeInOut' }}
+          className="w-px h-16 bg-gradient-to-b from-blue-400 to-transparent"
+        />
+        <div className="w-10 h-10 rounded-full border-2 border-blue-400/40 bg-white/5 backdrop-blur-xl flex items-center justify-center hover:border-blue-400/80 hover:scale-110 hover:bg-blue-400/10 transition-all duration-300 group">
+          <Icons.ChevronDown className="h-4 w-4 text-blue-400 group-hover:text-blue-300 transition-colors" />
         </div>
-        {course.originalPrice && (
-          <div className="absolute bottom-4 right-4 bg-black/60 backdrop-blur px-3 py-1 rounded-full text-xs text-gray-400 line-through">
-            {course.originalPrice} ج.م
-          </div>
-        )}
+        <span className="text-[7px] tracking-[0.3em] text-blue-400/40 font-light uppercase">
+          استكشف
+        </span>
       </div>
-      <div className="p-6">
-        <div className="flex justify-between items-start mb-2">
-          <h3 className="text-xl font-bold text-white group-hover:text-yellow-300 transition-colors duration-300">
-            {course.title}
-          </h3>
-          <span className="text-2xl font-extrabold text-yellow-400">
-            {course.price} <span className="text-sm font-normal text-gray-400">ج.م</span>
-          </span>
-        </div>
-        <p className="text-gray-400 text-sm leading-relaxed mb-4 line-clamp-2">
-          {course.description}
-        </p>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1 text-yellow-400">
-            <Icons.Star className="h-4 w-4 fill-yellow-400" />
-            <span className="text-sm font-semibold">{course.rating}</span>
-            <span className="text-gray-500 text-xs mx-1">•</span>
-            <Icons.Users className="h-4 w-4 text-gray-500" />
-            <span className="text-gray-400 text-sm">{course.students}</span>
-          </div>
-          <div className="flex gap-1">
-            {course.features.slice(0, 2).map((feat, i) => (
-              <span key={i} className="text-[10px] bg-white/5 px-2 py-1 rounded-full text-gray-400 border border-white/5">
-                {feat}
+    </motion.div>
+  );
+};
+
+// ================================================================
+// ⬆️ زر العودة للأعلى
+// ================================================================
+
+const ScrollToTopButton = ({ show, onClick }) => (
+  <AnimatePresence>
+    {show && (
+      <motion.button
+        initial={{ opacity: 0, scale: 0.8 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.8 }}
+        whileHover={{ scale: 1.1, rotate: -5 }}
+        whileTap={{ scale: 0.9 }}
+        onClick={onClick}
+        className="fixed bottom-6 right-6 z-50 p-4 rounded-full bg-gradient-to-r from-blue-500 to-green-500 text-white shadow-2xl shadow-blue-500/50 hover:shadow-blue-500/70 transition-all duration-300 group"
+      >
+        <Icons.ChevronUp className="h-5 w-5 group-hover:-translate-y-0.5 transition-transform" />
+      </motion.button>
+    )}
+  </AnimatePresence>
+);
+
+// ================================================================
+// 🃏 بطاقة الكورس – تصميم متطور مع تأثيرات 3D
+// ================================================================
+
+const CourseCard = ({ course, teacher, index }) => {
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
+  const router = useRouter();
+  const [isHovered, setIsHovered] = useState(false);
+  const cardRef = useRef(null);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 50 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.07, duration: 0.8, ease: [0.25, 0.1, 0.25, 1] }}
+      viewport={{ once: true }}
+      whileHover={{ y: -10 }}
+      className="group cursor-pointer perspective-1000"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      onClick={() => router.push(`/dashboard/student/courses/${course.id}`)}
+    >
+      <motion.div
+        ref={cardRef}
+        className={`relative overflow-hidden rounded-2xl border transition-all duration-700 ${
+          isDark
+            ? 'bg-white/10 border-white/15 hover:border-blue-400/60'
+            : 'bg-white/90 border-gray-200/60 hover:border-blue-400/70'
+        } backdrop-blur-2xl shadow-xl hover:shadow-3xl hover:shadow-blue-400/30`}
+        animate={{
+          rotateX: isHovered ? 3 : 0,
+          rotateY: isHovered ? 3 : 0,
+          scale: isHovered ? 1.02 : 1,
+        }}
+        transition={{ duration: 0.4 }}
+      >
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-400/15 via-transparent to-green-400/15 opacity-0 group-hover:opacity-100 transition-opacity duration-1000" />
+
+        <div className="relative h-52 overflow-hidden">
+          {course?.cover_image ? (
+            <motion.img
+              src={course.cover_image}
+              alt={course.title}
+              className="w-full h-full object-cover"
+              animate={{ scale: isHovered ? 1.1 : 1 }}
+              transition={{ duration: 0.7 }}
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-400/20 to-green-400/20">
+              <Icons.BookOpen className="h-16 w-16 text-gray-500/30" />
+            </div>
+          )}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+
+          <div className="absolute top-3 right-3 flex flex-col gap-1.5">
+            <motion.span
+              className={`text-[10px] px-3 py-1 rounded-full font-bold backdrop-blur-xl border border-white/20 ${
+                course?.is_free
+                  ? 'bg-green-500 text-white'
+                  : 'bg-blue-500 text-white'
+              }`}
+              whileHover={{ scale: 1.05 }}
+            >
+              {course?.is_free ? 'مجاني' : `${course?.price} ج.م`}
+            </motion.span>
+            {course?.is_published && (
+              <span className="text-[10px] px-3 py-1 rounded-full bg-blue-400 text-white font-bold backdrop-blur-xl border border-white/20">
+                متاح
               </span>
-            ))}
-            {course.features.length > 2 && (
-              <span className="text-[10px] bg-white/5 px-2 py-1 rounded-full text-gray-400 border border-white/5">
-                +{course.features.length - 2}
+            )}
+          </div>
+
+          <div className="absolute bottom-3 right-3 flex gap-1.5">
+            <span className="text-[8px] px-2.5 py-0.5 rounded-full bg-black/70 backdrop-blur-sm text-white/90 border border-white/10">
+              {course?.grade_stage === 'primary' ? 'ابتدائي' :
+               course?.grade_stage === 'middle' ? 'إعدادي' :
+               course?.grade_stage === 'secondary' ? 'ثانوي' : 'عام'}
+            </span>
+            {course?.grade_level && (
+              <span className="text-[8px] px-2.5 py-0.5 rounded-full bg-black/70 backdrop-blur-sm text-white/90 border border-white/10">
+                صف {course.grade_level}
               </span>
             )}
           </div>
         </div>
-        <div className="mt-5 pt-4 border-t border-white/5 flex gap-3">
-          <Link href={`/courses/${course.id}`} className="flex-1 text-center bg-yellow-400/20 hover:bg-yellow-400/30 text-yellow-300 text-sm font-semibold py-2.5 rounded-xl transition-colors duration-300">
-            تفاصيل
-          </Link>
-          <Link href={`/enroll/${course.id}`} className="flex-1 text-center bg-gradient-to-r from-yellow-400 to-yellow-600 hover:from-yellow-500 hover:to-yellow-700 text-black font-bold py-2.5 rounded-xl transition-all duration-300 shadow-lg shadow-yellow-400/20">
-            اشترك الآن
-          </Link>
+
+        <div className="p-5">
+          <h3 className={`text-lg font-bold mb-0.5 line-clamp-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+            {course?.title || 'كورس'}
+          </h3>
+          {teacher && (
+            <p className={`text-xs ${isDark ? 'text-gray-300' : 'text-gray-600'} flex items-center gap-1.5 mb-2`}>
+              <Icons.User className="h-3 w-3 text-blue-400" />
+              {teacher.full_name}
+            </p>
+          )}
+          <p className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'} leading-relaxed line-clamp-2 mb-3`}>
+            {course?.description || 'لا يوجد وصف'}
+          </p>
+          <div className="flex items-center justify-between pt-3 border-t border-white/10">
+            <div className="flex items-center gap-3 text-[11px] text-gray-400">
+              <span className="flex items-center gap-1">
+                <Icons.Clock className="h-3.5 w-3.5" />
+                {course?.subscription_duration_days || 30} يوم
+              </span>
+              <span className="flex items-center gap-1">
+                <Icons.Monitor className="h-3.5 w-3.5" />
+                {course?.max_devices || 2} جهاز
+              </span>
+            </div>
+            <motion.span
+              className={`text-xs font-bold ${isDark ? 'text-blue-400' : 'text-blue-600'} flex items-center gap-1`}
+              whileHover={{ x: -5 }}
+              transition={{ duration: 0.2 }}
+            >
+              {course?.is_free ? 'ابدأ مجاناً' : 'اشترك'}
+              <Icons.ArrowLeft className="h-3 w-3" />
+            </motion.span>
+          </div>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+};
+
+// ================================================================
+// 🃏 بطاقة المميزات – مع تأثيرات hover متقدمة
+// ================================================================
+
+const FeatureCard = ({ feature, index }) => {
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
+  const [isHovered, setIsHovered] = useState(false);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 30 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.05, duration: 0.6 }}
+      viewport={{ once: true }}
+      whileHover={{ y: -6 }}
+      className="group"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      <div
+        className={`p-6 rounded-xl border transition-all duration-500 ${
+          isDark
+            ? 'bg-white/10 border-white/15 hover:border-blue-400/50 hover:shadow-xl hover:shadow-blue-400/20'
+            : 'bg-white/80 border-gray-200/50 hover:border-blue-400/60 hover:shadow-xl hover:shadow-blue-400/20'
+        } backdrop-blur-xl relative overflow-hidden`}
+      >
+        <motion.div
+          className="absolute inset-0 bg-gradient-to-br from-blue-400/15 via-transparent to-green-400/15"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: isHovered ? 1 : 0 }}
+          transition={{ duration: 0.7 }}
+        />
+
+        <div className="flex items-start gap-4 relative z-10">
+          <motion.div
+            className={`flex-shrink-0 p-3 rounded-xl bg-gradient-to-br ${feature.gradient} bg-opacity-30`}
+            animate={{
+              rotate: isHovered ? [0, 8, -8, 0] : 0,
+              scale: isHovered ? 1.1 : 1,
+            }}
+            transition={{ duration: 0.5 }}
+          >
+            <feature.icon className={`h-5 w-5 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} />
+          </motion.div>
+          <div>
+            <h3 className={`text-base font-bold mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+              {feature.title}
+            </h3>
+            <p className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'} leading-relaxed`}>
+              {feature.description}
+            </p>
+          </div>
         </div>
       </div>
-    </div>
-  </motion.div>
-);
+    </motion.div>
+  );
+};
 
-const FeatureCard = ({ feature, index }) => (
-  <motion.div
-    initial={{ opacity: 0, y: 30 }}
-    whileInView={{ opacity: 1, y: 0 }}
-    transition={{ delay: index * 0.05, duration: 0.5 }}
-    viewport={{ once: true }}
-    whileHover={{ y: -8 }}
-    className="group"
-  >
-    <div className="h-full bg-white/5 backdrop-blur-sm border border-white/10 rounded-3xl p-8 text-center hover:border-yellow-400/60 transition-all duration-500 hover:bg-white/10 hover:shadow-2xl hover:shadow-yellow-400/10 relative overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-br from-yellow-400/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-      <div className="relative z-10">
-        <div className="inline-flex p-4 rounded-2xl bg-gradient-to-br from-yellow-400/20 to-yellow-600/20 mb-5 group-hover:scale-110 transition-transform duration-300">
-          <feature.icon className="h-10 w-10 text-yellow-400" strokeWidth={1.5} />
+// ================================================================
+// 🃏 بطاقة التواصل – مع دعم خانة الأرقام
+// ================================================================
+
+const SocialCard = ({ link, index }) => {
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
+  const isPrimary = link.isPrimary || false;
+  const isPhone = link.isPhone || false;
+
+  // إذا كانت بطاقة أرقام الهاتف
+  if (isPhone && link.phoneNumbers) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        transition={{ delay: index * 0.06, duration: 0.5 }}
+        viewport={{ once: true }}
+        whileHover={{ scale: 1.04, y: -5 }}
+        className={`flex items-center gap-4 p-4 rounded-xl border transition-all duration-300 ${
+          isDark
+            ? 'bg-white/10 border-white/15 hover:border-blue-400/50 hover:bg-white/15'
+            : 'bg-white/80 border-gray-200/50 hover:border-blue-400/60 hover:bg-white/90'
+        } backdrop-blur-xl`}
+      >
+        <div className={`p-2.5 rounded-xl ${link.color} bg-opacity-20 flex-shrink-0`}>
+          <link.icon className={`h-4 w-4 ${link.textColor}`} />
         </div>
-        {feature.badge && (
-          <span className="inline-block px-3 py-1 text-xs font-bold bg-yellow-400/20 text-yellow-300 rounded-full mb-3 border border-yellow-400/30">
-            {feature.badge}
-          </span>
-        )}
-        <h3 className="text-xl font-bold mb-3 text-white group-hover:text-yellow-300 transition-colors duration-300">
-          {feature.title}
-        </h3>
-        <p className="text-gray-400 text-sm leading-relaxed group-hover:text-gray-300 transition-colors duration-300">
-          {feature.description}
+        <div className="flex-1 min-w-0">
+          <p className={`text-sm font-bold ${isDark ? 'text-white' : 'text-gray-900'} whitespace-nowrap`}>
+            {link.label}
+          </p>
+          <div className="flex flex-col gap-0.5 mt-0.5">
+            {link.phoneNumbers.map((phone, idx) => (
+              <a
+                key={idx}
+                href={`tel:${phone}`}
+                className={`text-xs ${isDark ? 'text-gray-400 hover:text-blue-400' : 'text-gray-500 hover:text-blue-600'} transition font-mono`}
+                dir="ltr"
+              >
+                {phone}
+              </a>
+            ))}
+          </div>
+        </div>
+        <Icons.Phone className={`h-3.5 w-3.5 flex-shrink-0 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
+      </motion.div>
+    );
+  }
+
+  // البطاقات العادية (مع روابط)
+  return (
+    <motion.a
+      href={link.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      initial={{ opacity: 0, y: 20 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.06, duration: 0.5 }}
+      viewport={{ once: true }}
+      whileHover={{ scale: 1.04, y: -5 }}
+      className={`flex items-center gap-4 p-4 rounded-xl border transition-all duration-300 ${
+        isPrimary
+          ? isDark
+            ? 'bg-blue-400/20 border-blue-400/50 hover:border-blue-400/80 hover:bg-blue-400/30'
+            : 'bg-blue-400/20 border-blue-400/50 hover:border-blue-400/80 hover:bg-blue-400/30'
+          : isDark
+            ? 'bg-white/10 border-white/15 hover:border-blue-400/50 hover:bg-white/15'
+            : 'bg-white/80 border-gray-200/50 hover:border-blue-400/60 hover:bg-white/90'
+      } backdrop-blur-xl`}
+    >
+      <div className={`p-2.5 rounded-xl ${link.color} bg-opacity-20 flex-shrink-0`}>
+        <link.icon className={`h-4 w-4 ${link.textColor}`} />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className={`text-sm font-bold ${isDark ? 'text-white' : 'text-gray-900'} ${isPrimary ? 'text-blue-400' : ''} whitespace-nowrap`}>
+          {link.label}
+          {isPrimary && (
+            <span className="mr-2 text-[8px] bg-blue-400/30 text-blue-400 px-1.5 py-0.5 rounded-full whitespace-nowrap">
+              رئيسي
+            </span>
+          )}
+        </p>
+        <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'} truncate`}>
+          {link.url.replace(/^https?:\/\//, '').replace(/\/.*$/, '')}
         </p>
       </div>
-    </div>
-  </motion.div>
-);
+      <Icons.ExternalLink className={`h-3.5 w-3.5 flex-shrink-0 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
+    </motion.a>
+  );
+};
+
+// ================================================================
+// 📐 أقسام الصفحة الرئيسية
+// ================================================================
+
+const HeroSection = ({ isDark }) => {
+  const { scrollY } = useScroll();
+  const y = useTransform(scrollY, [0, 500], [0, 100]);
+
+  return (
+    <section className="relative min-h-screen flex items-center justify-center px-4 pt-28 pb-16 overflow-hidden">
+      <motion.div style={{ y }} className="container mx-auto max-w-6xl text-center relative z-10">
+        <motion.div
+          initial={{ opacity: 0, y: 50 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 1, ease: [0.25, 0.1, 0.25, 1] }}
+        >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.2, duration: 0.6 }}
+            className="mb-6"
+          >
+            <div className="inline-block px-6 py-2 rounded-full bg-blue-400/15 border border-blue-400/30 backdrop-blur-xl">
+              <p className="text-sm md:text-base text-blue-400 font-arabic tracking-wider">
+                اللهم صل على سيدنا محمد
+              </p>
+            </div>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3, duration: 0.5 }}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-400/20 border border-blue-400/30 text-blue-400 text-xs mb-6"
+          >
+            <Icons.Sparkles className="h-4 w-4 animate-pulse" />
+            <span>تعلم اللغة الإنجليزية بطريقة مختلفة</span>
+          </motion.div>
+
+          <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-bold leading-[1.05] mb-5 tracking-tight">
+            <span className="bg-gradient-to-r from-blue-400 via-cyan-400 to-green-400 bg-clip-text text-transparent bg-[length:200%] animate-gradient">
+              مستر محمد رضوان
+            </span>
+          </h1>
+
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.4, duration: 0.6 }}
+            className={`text-lg md:text-xl max-w-3xl mx-auto leading-relaxed mb-8 ${
+              isDark ? 'text-gray-200' : 'text-gray-700'
+            }`}
+          >
+            لو عايز تتعلم إنجليزي باحترافية، تفهم القواعد بسهولة، وتتكلم بثقة، فأنت في المكان الصح.
+            هنا مش هتلاقي مجرد فيديوهات، هتلاقي نظام متكامل بيخليك تحب اللغة وتتقدم خطوة بخطوة مع متابعة شخصية من المستر.
+          </motion.p>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5, duration: 0.6 }}
+            className="flex flex-wrap justify-center gap-4 mb-10"
+          >
+            <motion.a
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              href="#courses"
+              className="inline-flex items-center gap-2 bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-bold px-8 py-4 rounded-full shadow-2xl shadow-blue-500/50 hover:shadow-blue-500/70 transition-all duration-300 text-sm"
+            >
+              <Icons.Play className="h-4 w-4" />
+              شوف الكورسات
+            </motion.a>
+            <motion.a
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              href="#features"
+              className={`inline-flex items-center gap-2 px-8 py-4 rounded-full border-2 transition-all duration-300 text-sm font-bold ${
+                isDark
+                  ? 'border-blue-400/40 bg-white/5 hover:bg-white/10 hover:border-blue-400/70 text-white'
+                  : 'border-blue-400/40 bg-white/50 hover:bg-white hover:border-blue-400/70 text-gray-900'
+              }`}
+            >
+              <Icons.Eye className="h-4 w-4" />
+              شوف المميزات
+            </motion.a>
+          </motion.div>
+
+          {/* عرض ترويجي – PROMO_GENERAL مع تأثيرات متحركة */}
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.6, duration: 0.7, ease: [0.25, 0.1, 0.25, 1] }}
+            className="max-w-3xl mx-auto"
+          >
+            <div
+              className={`relative p-6 rounded-2xl border-2 ${
+                isDark
+                  ? 'bg-gradient-to-br from-blue-500/30 to-green-500/30 border-blue-400/60'
+                  : 'bg-gradient-to-br from-blue-100/90 to-green-100/90 border-blue-400/70'
+              } backdrop-blur-2xl shadow-2xl shadow-blue-400/40 hover:shadow-blue-400/60 transition-all duration-500 overflow-hidden`}
+            >
+              <div className="absolute inset-0 bg-gradient-to-br from-blue-400/15 via-transparent to-green-400/15 animate-pulse" />
+
+              <div className="relative flex flex-col md:flex-row items-center gap-4 text-center md:text-right">
+                <motion.div
+                  className="flex-shrink-0 p-4 rounded-full bg-gradient-to-br from-blue-400 to-green-400 shadow-lg shadow-blue-400/40"
+                  animate={{
+                    scale: [1, 1.05, 1],
+                    rotate: [0, 3, -3, 0],
+                  }}
+                  transition={{
+                    duration: 3,
+                    repeat: Infinity,
+                    ease: 'easeInOut',
+                  }}
+                >
+                  <Icons.Trophy className="h-8 w-8 text-white" />
+                </motion.div>
+
+                <div className="flex-1">
+                  <p className={`text-lg font-bold ${isDark ? 'text-blue-300' : 'text-blue-700'}`}>
+                    🎯 {PROMO_GENERAL.title}
+                  </p>
+                  <p className={`text-base font-bold ${isDark ? 'text-green-300' : 'text-green-700'}`}>
+                    {PROMO_GENERAL.subtitle}
+                  </p>
+                  <p className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'} max-w-lg mx-auto md:mx-0 mt-1 leading-relaxed`}>
+                    {PROMO_GENERAL.description}
+                  </p>
+                </div>
+
+                <motion.a
+                  href={PROMO_GENERAL.ctaLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-shrink-0 px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-bold rounded-xl hover:from-green-600 hover:to-emerald-600 transition shadow-xl shadow-green-500/40 hover:shadow-green-500/60 text-sm flex items-center gap-2"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  <Icons.MessageCircle className="h-4 w-4" />
+                  {PROMO_GENERAL.cta}
+                </motion.a>
+              </div>
+            </div>
+          </motion.div>
+        </motion.div>
+      </motion.div>
+
+      <ScrollIndicator targetId="courses" />
+    </section>
+  );
+};
+
+const CoursesSection = ({ isDark, courses, teachers, loading }) => {
+  if (loading) {
+    return (
+      <section className={`py-20 px-4 ${isDark ? 'bg-[#0a0e1a]' : 'bg-white'}`}>
+        <div className="container mx-auto max-w-7xl text-center py-20">
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ repeat: Infinity, duration: 1.2, ease: 'linear' }}
+            className="w-12 h-12 border-4 border-blue-400/30 border-t-blue-400 rounded-full mx-auto"
+          />
+          <p className={`text-sm mt-4 ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>جاري تحميل الكورسات...</p>
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <section id="courses" className={`py-20 px-4 ${isDark ? 'bg-[#0a0e1a]' : 'bg-white'}`}>
+      <div className="container mx-auto max-w-7xl">
+        <motion.div
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          transition={{ duration: 0.6 }}
+          viewport={{ once: true }}
+          className="text-center mb-12"
+        >
+          <h2 className={`text-3xl md:text-4xl font-bold mb-3 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+            كورسات <span className="text-blue-400">مستر محمد رضوان</span>
+          </h2>
+          <p className={`text-base max-w-2xl mx-auto ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+            اختار الكورس المناسب ليك، وابدأ رحلة التعلم بخطوات مدروسة.
+          </p>
+        </motion.div>
+
+        {courses.length === 0 ? (
+          <div className="text-center py-16">
+            <Icons.BookOpen className="h-20 w-20 text-gray-600/20 mx-auto mb-3" />
+            <h3 className={`text-xl font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>مفيش كورسات متاحة حالياً</h3>
+            <p className={`${isDark ? 'text-gray-300' : 'text-gray-600'} text-sm mt-1`}>هتنزل قريب جداً، تابعنا!</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {courses.map((course, index) => (
+              <CourseCard
+                key={course.id}
+                course={course}
+                teacher={teachers[course.teacher_id] || null}
+                index={index}
+              />
+            ))}
+          </div>
+        )}
+
+        {courses.length > 0 && (
+          <div className="text-center mt-10">
+            <Link
+              href="/dashboard/student/courses"
+              className={`inline-flex items-center gap-2 px-7 py-3.5 text-sm rounded-full border-2 transition-all duration-300 hover:scale-105 font-bold ${
+                isDark
+                  ? 'border-blue-400/40 bg-white/5 hover:bg-white/10 hover:border-blue-400/70 text-white'
+                  : 'border-blue-400/40 bg-white/50 hover:bg-white hover:border-blue-400/70 text-gray-900'
+              }`}
+            >
+              <Icons.ArrowLeft className="h-4 w-4" />
+              شوف كل الكورسات
+            </Link>
+          </div>
+        )}
+      </div>
+    </section>
+  );
+};
+
+const FeaturesSection = ({ isDark }) => {
+  return (
+    <section id="features" className={`py-20 px-4 ${isDark ? 'bg-[#0a0e1a]/80' : 'bg-white'}`}>
+      <div className="container mx-auto max-w-7xl">
+        <motion.div
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          transition={{ duration: 0.6 }}
+          viewport={{ once: true }}
+          className="text-center mb-12"
+        >
+          <h2 className={`text-3xl md:text-4xl font-bold mb-3 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+            إيه اللي هتستفيده معانا؟
+          </h2>
+          <p className={`text-base max-w-2xl mx-auto ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+            نظام تعليمي متكامل مصمم عشان تتعلم بسهولة وتوصل لهدفك.
+          </p>
+        </motion.div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          {PLATFORM_FEATURES.map((feature, index) => (
+            <FeatureCard key={feature.id} feature={feature} index={index} />
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+};
+
+const PromoSection = ({ isDark }) => {
+  return (
+    <section id="promo" className={`py-20 px-4 ${isDark ? 'bg-[#0a0e1a]' : 'bg-white'}`}>
+      <div className="container mx-auto max-w-4xl">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          whileInView={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.8, ease: [0.25, 0.1, 0.25, 1] }}
+          viewport={{ once: true }}
+          className={`relative overflow-hidden rounded-2xl p-8 md:p-12 text-center border-2 border-blue-400/50 ${
+            isDark ? 'bg-white/10' : 'bg-white/90'
+          } backdrop-blur-2xl shadow-2xl shadow-blue-400/20`}
+        >
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-400/20 via-transparent to-green-400/20 pointer-events-none" />
+          <div className="relative z-10">
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              whileInView={{ scale: 1, opacity: 1 }}
+              transition={{ duration: 0.5 }}
+              className="inline-flex p-4 rounded-full bg-blue-400/30 mb-5"
+            >
+              <Icons.Clock className="h-10 w-10 text-blue-400" />
+            </motion.div>
+            <h3 className={`text-2xl md:text-3xl font-bold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+              {PROMO_THIRD_SECONDARY.title}
+            </h3>
+            <p className={`text-lg mb-1 ${isDark ? 'text-blue-300' : 'text-blue-700'} font-bold`}>
+              {PROMO_THIRD_SECONDARY.subtitle}
+            </p>
+            <p className={`text-sm max-w-lg mx-auto mb-5 ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+              {PROMO_THIRD_SECONDARY.description}
+            </p>
+            <a
+              href={PROMO_THIRD_SECONDARY.ctaLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-7 py-3.5 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-bold rounded-xl hover:from-green-600 hover:to-emerald-600 transition shadow-xl shadow-green-500/30 text-sm"
+            >
+              <Icons.MessageCircle className="h-4 w-4" />
+              {PROMO_THIRD_SECONDARY.cta}
+            </a>
+            <p className={`text-xs mt-3 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+              * العرض لأعلى 3 طلاب يحققون أعلى الدرجات، ربنا يوفقكم جميعاً
+            </p>
+          </div>
+        </motion.div>
+      </div>
+    </section>
+  );
+};
+
+// ================================================================
+// 📞 قسم التواصل – مع خانة الأرقام الجديدة والحديث الشريف
+// ================================================================
+
+const ContactSection = ({ isDark }) => {
+  const sortedLinks = useMemo(() => {
+    // ترتيب: يوتيوب أولاً، ثم الباقي، مع وضع خانة الأرقام في النهاية
+    const primary = SOCIAL_LINKS.find(l => l.isPrimary);
+    const phone = SOCIAL_LINKS.find(l => l.isPhone);
+    const others = SOCIAL_LINKS.filter(l => !l.isPrimary && !l.isPhone);
+    return [primary, ...others, phone].filter(Boolean);
+  }, []);
+
+  return (
+    <section id="contact" className={`py-20 px-4 ${isDark ? 'bg-[#0a0e1a]/80' : 'bg-white'}`}>
+      <div className="container mx-auto max-w-5xl">
+        <motion.div
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          transition={{ duration: 0.6 }}
+          viewport={{ once: true }}
+          className="text-center mb-12"
+        >
+          <h2 className={`text-3xl md:text-4xl font-bold mb-3 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+            تواصل <span className="text-blue-400">مع مستر محمد رضوان</span>
+          </h2>
+          <p className={`text-base max-w-2xl mx-auto ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+            تابعنا على منصات التواصل، أو تواصل مباشرة مع المستر.
+          </p>
+        </motion.div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {sortedLinks.map((link, index) => (
+            <SocialCard key={link.id} link={link} index={index} />
+          ))}
+        </div>
+
+        {/* ✅ حديث شريف */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.3 }}
+          viewport={{ once: true }}
+          className={`mt-8 p-6 rounded-xl border text-center ${
+            isDark ? 'bg-white/10 border-white/15' : 'bg-white/80 border-gray-200/50'
+          } backdrop-blur-xl`}
+        >
+          <div className="max-w-2xl mx-auto">
+            <div className="flex justify-center mb-3">
+              <Icons.MessageCircle className="h-8 w-8 text-blue-400" />
+            </div>
+            <p className={`text-sm md:text-base leading-relaxed ${isDark ? 'text-gray-200' : 'text-gray-700'} font-arabic`}>
+              عن أبي سعيدٍ الخدري رضي الله عنه عن رسول الله صلى الله عليه وسلم قال:
+            </p>
+            <p className={`text-base md:text-lg font-bold leading-relaxed mt-2 ${isDark ? 'text-blue-300' : 'text-blue-700'} font-arabic`}>
+              "سيأتيكم أقوامٌ يطلبون العلم، فإذا رأيتموهم فقولوا لهم: مرحبًا مرحبًا بوصية رسول الله صلى الله عليه وسلم، واقْنُوهم"
+            </p>
+            <div className="flex justify-center gap-4 mt-4 text-xs text-gray-400">
+              <span>📖 صحيح</span>
+              <span>•</span>
+              <span>🤲 دعاء</span>
+              <span>•</span>
+              <span>💡 علم</span>
+            </div>
+          </div>
+        </motion.div>
+      </div>
+    </section>
+  );
+};
+
+const FooterSection = ({ isDark }) => {
+  return (
+    <footer className={`${isDark ? 'bg-[#030812]/90 border-white/5' : 'bg-white/90 border-gray-200/50'} border-t py-12 px-4 backdrop-blur-xl`}>
+      <div className="container mx-auto max-w-7xl">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="md:col-span-2">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="h-10 w-10 rounded-full overflow-hidden shadow-lg shadow-blue-400/30">
+                <img src="/images/logo.png" alt="مستر محمد رضوان" className="w-full h-full object-cover" />
+              </div>
+              <h3 className="text-lg font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
+                مستر محمد رضوان
+              </h3>
+            </div>
+            <p className={`text-sm max-w-md leading-relaxed ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+              منصة تعليمية متخصصة في تدريس اللغة الإنجليزية، نقدم تجربة تعلم مختلفة ومتطورة تجمع بين التقنية والتميز.
+            </p>
+            <div className="mt-3">
+              <p className={`text-xs ${isDark ? 'text-blue-400/40' : 'text-blue-600/40'} font-arabic tracking-wider`}>
+                اللهم صل على سيدنا محمد
+              </p>
+            </div>
+          </div>
+
+          <div>
+            <h4 className={`font-bold mb-3 text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>روابط سريعة</h4>
+            <ul className="space-y-2 text-sm">
+              <li><a href="#courses" className={`${isDark ? 'text-gray-300 hover:text-blue-400' : 'text-gray-600 hover:text-blue-600'} transition font-medium`}>الكورسات</a></li>
+              <li><a href="#features" className={`${isDark ? 'text-gray-300 hover:text-blue-400' : 'text-gray-600 hover:text-blue-600'} transition font-medium`}>المميزات</a></li>
+              <li><a href="#promo" className={`${isDark ? 'text-gray-300 hover:text-blue-400' : 'text-gray-600 hover:text-blue-600'} transition font-medium`}>العروض</a></li>
+              <li><a href="#contact" className={`${isDark ? 'text-gray-300 hover:text-blue-400' : 'text-gray-600 hover:text-blue-600'} transition font-medium`}>تواصل معنا</a></li>
+            </ul>
+          </div>
+        </div>
+
+        <div className={`border-t ${isDark ? 'border-white/5' : 'border-gray-300/50'} mt-8 pt-6 text-center ${isDark ? 'text-gray-500' : 'text-gray-400'} text-xs`}>
+          <p>&copy; 2026 مستر محمد رضوان – كل الحقوق محفوظة.</p>
+          <motion.div
+            initial={{ opacity: 0.6 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 2, repeat: Infinity, repeatType: 'reverse' }}
+            className="mt-2"
+          >
+            <p className="text-[9px] md:text-[10px] text-blue-400/40 font-mono tracking-widest">
+              ⚡ Built with ❤️ by{' '}
+              <span className="text-blue-400/60 font-bold hover:text-blue-400 transition">
+                Nour El-Saeed
+              </span>
+              {' '}
+              <span className="text-blue-400/20">•</span>
+              {' '}
+              <span className="text-blue-400/30 text-[8px]">
+                Developer &amp; Designer
+              </span>
+            </p>
+          </motion.div>
+        </div>
+      </div>
+    </footer>
+  );
+};
+
+// ================================================================
+// 🏠 الصفحة الرئيسية
+// ================================================================
 
 export default function Home() {
-  // ===== حالات اللغة والثيم =====
-  const [language, setLanguage] = useState('ar');
-  const [theme, setTheme] = useState('dark');
-  const [color, setColor] = useState('gold');
+  const { theme, toggleTheme } = useTheme();
+  const isDark = theme === 'dark';
+
   const [scrolled, setScrolled] = useState(false);
-  const [activeTestimonial, setActiveTestimonial] = useState(0);
-  const [isColorMenuOpen, setIsColorMenuOpen] = useState(false);
-  const heroRef = useRef(null);
+  const [showBackToTop, setShowBackToTop] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const [courses, setCourses] = useState([]);
+  const [teachers, setTeachers] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [scrollProgress, setScrollProgress] = useState(0);
 
-  // ===== ألوان متعددة =====
-  const colorOptions = [
-    { name: 'ذهبي', value: 'gold', color: '#c9a84c' },
-    { name: 'أزرق', value: 'blue', color: '#4a8fe0' },
-    { name: 'أخضر', value: 'green', color: '#38b27a' },
-    { name: 'أحمر', value: 'red', color: '#e05a5a' },
-    { name: 'بنفسجي', value: 'purple', color: '#9b6bcc' },
-  ];
+  const { scrollY } = useScroll();
 
-  // ===== تأثيرات التمرير =====
   useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 50);
+    const handleScroll = () => {
+      const scrollY = window.scrollY;
+      setScrolled(scrollY > 50);
+      setShowBackToTop(scrollY > 500);
+      const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+      setScrollProgress(maxScroll > 0 ? scrollY / maxScroll : 0);
+    };
     window.addEventListener('scroll', handleScroll);
+    handleScroll();
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // ===== دوال التنقل في آراء الطلاب =====
-  const nextTestimonial = () => {
-    setActiveTestimonial((prev) => (prev + 1) % testimonialsData.length);
-  };
-  const prevTestimonial = () => {
-    setActiveTestimonial((prev) => (prev - 1 + testimonialsData.length) % testimonialsData.length);
-  };
+  useEffect(() => {
+    const fetchCourses = async () => {
+      try {
+        const { data: coursesData, error: coursesError } = await supabase
+          .from('courses')
+          .select('*')
+          .eq('is_published', true)
+          .order('created_at', { ascending: false })
+          .limit(6);
 
-  // ===== تبديل اللغة =====
-  const toggleLanguage = () => {
-    setLanguage(language === 'ar' ? 'en' : 'ar');
-  };
+        if (coursesError) throw coursesError;
 
-  // ===== تبديل الثيم =====
-  const toggleTheme = () => {
-    const themes = ['dark', 'light'];
-    const currentIndex = themes.indexOf(theme);
-    setTheme(themes[(currentIndex + 1) % themes.length]);
-  };
-
-  // ===== تغيير اللون =====
-  const changeColor = (colorValue) => {
-    setColor(colorValue);
-    setIsColorMenuOpen(false);
-  };
-
-  // ===== نصوص متعددة اللغات =====
-  const texts = {
-    ar: {
-      brand: 'محمد رضوان',
-      subtitle: 'منصة تعليمية احترافية',
-      navCourses: 'الكورسات',
-      navFeatures: 'المميزات',
-      navTestimonials: 'آراء الطلاب',
-      navContact: 'اتصل بنا',
-      navRegister: 'سجل الآن',
-      heroBadge: 'منصة تعليمية متطورة 2026-2027',
-      heroTitle: 'منصة محمد رضوان',
-      heroDesc: 'تعلم الإنجليزية باحترافية مع أقوى نظام تعليمي تفاعلي، فيديوهات محمية، امتحانات آمنة، ومعلم ذكي يجاوبك 24/7.',
-      heroBtn1: 'استعرض الكورسات',
-      heroBtn2: 'اكتشف المميزات',
-      statsStudents: 'طلاب',
-      statsVideos: 'فيديو',
-      statsRating: 'نسبة رضا',
-      coursesTitle: 'كورسات محمد رضوان',
-      coursesSub: 'اختر ما يناسبك من كورساتنا المتنوعة، واستمتع بتجربة تعلم فريدة.',
-      coursesViewAll: 'عرض جميع الكورسات',
-      featuresTitle: 'مميزات تجعلنا الأفضل',
-      featuresSub: 'كل ما تحتاجه في مكان واحد، صمم خصيصاً ليكون الأكثر أماناً وتفاعلاً.',
-      testimonialsTitle: 'آراء طلابنا',
-      testimonialsSub: 'ما يقوله الطلاب عن تجربتهم مع منصة محمد رضوان.',
-      ctaTitle: 'انضم إلى منصة محمد رضوان اليوم',
-      ctaSub: 'احصل على تجربة تعلم استثنائية وكن الأفضل في لغتك مع أقوى نظام تعليمي في العالم العربي.',
-      ctaBtn: 'ابدأ رحلتك الآن',
-      ctaContact: 'تواصل معنا',
-      footerAbout: 'منصة تعليمية متكاملة تجمع بين التقنية والتميز، لتعلم الإنجليزية بكل احترافية وأمان.',
-      footerQuickLinks: 'روابط سريعة',
-      footerSupport: 'الدعم',
-      footerAboutUs: 'من نحن',
-      footerTerms: 'الشروط والأحكام',
-      footerPrivacy: 'سياسة الخصوصية',
-      footerFAQ: 'الأسئلة الشائعة',
-      footerRights: 'جميع الحقوق محفوظة. تصميم عربي متطور.',
-      contactPhone1: '01552191172',
-      contactPhone2: '01148553118',
-      aboutUs: 'منصة محمد رضوان هي منصة تعليمية مصرية متخصصة في تدريس اللغة الإنجليزية، أسسها الأستاذ محمد رضوان بهدف تقديم تعليم عالي الجودة للطلاب في جميع المراحل الدراسية. نقدم محتوى تعليمي متكامل يشمل فيديوهات محمية، امتحانات آمنة، كتب تفاعلية، ومعلم ذكي يعمل بالذكاء الاصطناعي. نهدف إلى تمكين الطلاب من إتقان اللغة الإنجليزية بأسلوب عصري ومبتكر، مع توفير بيئة تعليمية آمنة ومحفزة.',
-      terms: 'نرحب بكم في منصة محمد رضوان. باستخدامكم لهذه المنصة، فإنكم توافقون على الالتزام بالشروط والأحكام التالية: 1. جميع المحتويات المعروضة على المنصة هي ملكية فكرية للأستاذ محمد رضوان ولا يجوز نسخها أو توزيعها. 2. الاشتراكات المدفوعة غير قابلة للاسترداد بعد تفعيلها. 3. يتحمل الطالب مسؤولية الحفاظ على سرية بيانات حسابه. 4. يحق للمنصة إيقاف أي حساب يخالف قوانين الاستخدام. 5. الأسعار قابلة للتعديل وفقاً لتحديثات المحتوى.',
-      privacy: 'نحن في منصة محمد رضوان نلتزم بحماية خصوصية بياناتك: 1. لا نقوم بمشاركة بياناتك الشخصية مع أي طرف ثالث. 2. نستخدم بياناتك فقط لتقديم الخدمات التعليمية وتحسين تجربتك. 3. يمكنك طلب حذف حسابك وبياناتك في أي وقت. 4. جميع المدفوعات تتم عبر بوابات دفع آمنة ومشفرة. 5. نحن نلتزم بمعايير حماية البيانات العالمية (GDPR) لحماية معلوماتك.',
-    },
-    en: {
-      brand: 'Mohamed Radwan',
-      subtitle: 'Professional Education Platform',
-      navCourses: 'Courses',
-      navFeatures: 'Features',
-      navTestimonials: 'Testimonials',
-      navContact: 'Contact',
-      navRegister: 'Sign Up',
-      heroBadge: 'Advanced Education Platform 2026-2027',
-      heroTitle: 'Mohamed Radwan Platform',
-      heroDesc: 'Learn English professionally with the most powerful interactive educational system, protected videos, secure exams, and an AI tutor available 24/7.',
-      heroBtn1: 'Browse Courses',
-      heroBtn2: 'Discover Features',
-      statsStudents: 'Students',
-      statsVideos: 'Videos',
-      statsRating: 'Satisfaction',
-      coursesTitle: 'Mohamed Radwan Courses',
-      coursesSub: 'Choose from our diverse courses and enjoy a unique learning experience.',
-      coursesViewAll: 'View All Courses',
-      featuresTitle: 'Features That Make Us the Best',
-      featuresSub: 'Everything you need in one place, designed to be the most secure and interactive.',
-      testimonialsTitle: 'Our Students Say',
-      testimonialsSub: 'What students say about their experience with Mohamed Radwan Platform.',
-      ctaTitle: 'Join Mohamed Radwan Platform Today',
-      ctaSub: 'Get an exceptional learning experience and become the best in your language with the strongest educational system in the Arab world.',
-      ctaBtn: 'Start Your Journey',
-      ctaContact: 'Contact Us',
-      footerAbout: 'An integrated educational platform combining technology and excellence to learn English with professionalism and security.',
-      footerQuickLinks: 'Quick Links',
-      footerSupport: 'Support',
-      footerAboutUs: 'About Us',
-      footerTerms: 'Terms & Conditions',
-      footerPrivacy: 'Privacy Policy',
-      footerFAQ: 'FAQ',
-      footerRights: 'All rights reserved. Advanced Arabic Design.',
-      contactPhone1: '01552191172',
-      contactPhone2: '01148553118',
-      aboutUs: 'Mohamed Radwan Platform is an Egyptian educational platform specializing in teaching English, founded by Mr. Mohamed Radwan to provide high-quality education for students at all levels. We offer integrated educational content including protected videos, secure exams, interactive books, and an AI-powered smart tutor. We aim to empower students to master English in a modern and innovative way, providing a safe and stimulating learning environment.',
-      terms: 'Welcome to Mohamed Radwan Platform. By using this platform, you agree to comply with the following terms: 1. All content displayed is the intellectual property of Mr. Mohamed Radwan and may not be copied or distributed. 2. Paid subscriptions are non-refundable after activation. 3. Students are responsible for maintaining the confidentiality of their account data. 4. The platform reserves the right to suspend any account that violates usage rules. 5. Prices are subject to change based on content updates.',
-      privacy: 'At Mohamed Radwan Platform, we are committed to protecting your privacy: 1. We do not share your personal data with any third party. 2. We only use your data to provide educational services and improve your experience. 3. You can request to delete your account and data at any time. 4. All payments are processed through secure and encrypted payment gateways. 5. We comply with international data protection standards (GDPR) to safeguard your information.',
-    },
-  };
-
-  const t = texts[language];
-
-  // ===== ألوان الثيم =====
-  const getThemeStyles = () => {
-    const base = {
-      dark: { bg: 'bg-[#0b0e1a]', text: 'text-white', card: 'bg-white/5', border: 'border-white/10' },
-      light: { bg: 'bg-[#f5f7fa]', text: 'text-gray-900', card: 'bg-white/80', border: 'border-gray-200' },
+        if (coursesData?.length) {
+          setCourses(coursesData);
+          const teacherIds = [...new Set(coursesData.map(c => c.teacher_id).filter(Boolean))];
+          if (teacherIds.length) {
+            const { data: teachersData } = await supabase
+              .from('profiles')
+              .select('id, full_name')
+              .in('id', teacherIds);
+            if (teachersData) {
+              const map = {};
+              teachersData.forEach(t => map[t.id] = t);
+              setTeachers(map);
+            }
+          }
+        }
+        setLoading(false);
+      } catch (err) {
+        console.error('Error fetching courses:', err);
+        setLoading(false);
+      }
     };
-    return base[theme] || base.dark;
-  };
+    fetchCourses();
+  }, []);
 
-  const themeStyles = getThemeStyles();
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
-  // ===== ألوان مميزة =====
-  const getColorClass = () => {
-    const colors = {
-      gold: 'from-yellow-400 to-yellow-600',
-      blue: 'from-blue-400 to-blue-600',
-      green: 'from-green-400 to-green-600',
-      red: 'from-red-400 to-red-600',
-      purple: 'from-purple-400 to-purple-600',
-    };
-    return colors[color] || colors.gold;
-  };
+  const scrollToTop = useCallback(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
 
-  const colorClass = getColorClass();
+  if (!mounted) {
+    return (
+      <div className="min-h-screen bg-white">
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="w-12 h-12 border-4 border-blue-400/30 border-t-blue-400 rounded-full animate-spin" />
+        </div>
+      </div>
+    );
+  }
+
+  const headerBg = scrolled
+    ? isDark
+      ? 'bg-[#0a0e1a]/95 backdrop-blur-2xl border-b border-white/5'
+      : 'bg-white/95 backdrop-blur-2xl border-b border-gray-200/40'
+    : 'bg-transparent';
 
   return (
-    <div className={`min-h-screen ${themeStyles.bg} ${themeStyles.text} overflow-x-hidden transition-all duration-500 selection:bg-yellow-400/30 selection:text-black`}>
-      
-      {/* ===== شريط التنقل ===== */}
-      <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${scrolled ? `${themeStyles.bg}/95 backdrop-blur-xl border-b ${themeStyles.border} shadow-2xl` : 'bg-transparent'}`}>
-        <div className="container mx-auto px-4 md:px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className={`h-11 w-11 rounded-full bg-gradient-to-br ${colorClass} flex items-center justify-center text-black font-extrabold text-xl shadow-lg shadow-yellow-400/20`}>
-              {language === 'ar' ? 'م' : 'M'}
+    <div className={`min-h-screen ${isDark ? 'bg-[#0a0e1a]' : 'bg-white'} ${isDark ? 'text-white' : 'text-gray-900'} overflow-x-hidden transition-colors duration-500 antialiased`}>
+      <ElegantBackground isDark={isDark} />
+
+      <motion.div
+        className="fixed top-0 left-0 right-0 z-50 h-0.5 bg-gradient-to-r from-blue-400 via-cyan-400 to-green-400 origin-left"
+        style={{ scaleX: scrollProgress }}
+      />
+
+      <header className={`fixed top-0 left-0 right-0 z-40 transition-all duration-500 ${headerBg}`}>
+        <div className="container mx-auto px-4 md:px-6 py-3.5 flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-3 group">
+            <div className="h-11 w-11 rounded-full overflow-hidden shadow-lg shadow-blue-400/30 group-hover:scale-105 transition duration-300">
+              <img src="/images/logo.png" alt="مستر محمد رضوان" className="w-full h-full object-cover" />
             </div>
             <div>
-              <h1 className="text-xl font-extrabold bg-gradient-to-r from-yellow-300 to-yellow-500 bg-clip-text text-transparent leading-none">
-                {t.brand}
+              <h1 className="text-lg font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent leading-none">
+                مستر محمد رضوان
               </h1>
-              <p className="text-[10px] text-gray-500 leading-none mt-0.5">{t.subtitle}</p>
+              <p className={`text-[9px] leading-none mt-0.5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                منصة تعليمية متكاملة
+              </p>
             </div>
-          </div>
+          </Link>
 
-          <div className="hidden md:flex items-center gap-6 text-sm font-medium text-gray-400">
-            <Link href="#courses" className="hover:text-yellow-400 transition-colors duration-300 relative after:absolute after:bottom-0 after:right-0 after:w-0 after:h-0.5 after:bg-yellow-400 after:transition-all after:duration-300 hover:after:w-full">{t.navCourses}</Link>
-            <Link href="#features" className="hover:text-yellow-400 transition-colors duration-300 relative after:absolute after:bottom-0 after:right-0 after:w-0 after:h-0.5 after:bg-yellow-400 after:transition-all after:duration-300 hover:after:w-full">{t.navFeatures}</Link>
-            <Link href="#testimonials" className="hover:text-yellow-400 transition-colors duration-300 relative after:absolute after:bottom-0 after:right-0 after:w-0 after:h-0.5 after:bg-yellow-400 after:transition-all after:duration-300 hover:after:w-full">{t.navTestimonials}</Link>
-            <Link href="#contact" className="hover:text-yellow-400 transition-colors duration-300 relative after:absolute after:bottom-0 after:right-0 after:w-0 after:h-0.5 after:bg-yellow-400 after:transition-all after:duration-300 hover:after:w-full">{t.navContact}</Link>
+          <div className="hidden md:flex items-center gap-7 text-sm font-bold">
+            {['الكورسات', 'المميزات', 'العروض', 'تواصل'].map((item, i) => (
+              <a
+                key={i}
+                href={`#${['courses', 'features', 'promo', 'contact'][i]}`}
+                className={`${isDark ? 'text-gray-200 hover:text-blue-400' : 'text-gray-700 hover:text-blue-600'} transition relative after:absolute after:bottom-0 after:right-0 after:w-0 after:h-0.5 after:bg-blue-400 after:transition-all hover:after:w-full`}
+              >
+                {item}
+              </a>
+            ))}
           </div>
 
           <div className="flex items-center gap-2">
-            {/* ===== زر تبديل اللغة ===== */}
-            <button onClick={toggleLanguage} className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-full border border-white/20 hover:border-yellow-400/50 text-xs text-gray-300 hover:text-yellow-300 transition-all duration-300">
-              <Icons.Globe className="h-4 w-4" />
-              <span>{language === 'ar' ? 'English' : 'عربي'}</span>
-            </button>
-
-            {/* ===== زر تبديل الثيم ===== */}
-            <button onClick={toggleTheme} className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-full border border-white/20 hover:border-yellow-400/50 text-xs text-gray-300 hover:text-yellow-300 transition-all duration-300">
-              {theme === 'dark' ? <Icons.Sun className="h-4 w-4" /> : <Icons.Moon className="h-4 w-4" />}
-            </button>
-
-            {/* ===== زر اختيار اللون ===== */}
-            <div className="relative">
-              <button 
-                onClick={() => setIsColorMenuOpen(!isColorMenuOpen)}
-                className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-full border border-white/20 hover:border-yellow-400/50 text-xs text-gray-300 hover:text-yellow-300 transition-all duration-300"
+            <button
+              onClick={toggleTheme}
+              className="relative w-12 h-6 rounded-full bg-gradient-to-r from-blue-400 to-cyan-400 shadow-inner shadow-black/10 transition-all duration-500 hover:scale-105"
+            >
+              <span
+                className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow-md transition-all duration-500 flex items-center justify-center text-[10px] ${
+                  isDark ? 'translate-x-6' : 'translate-x-0'
+                }`}
               >
-                <Icons.Palette className="h-4 w-4" />
-              </button>
-              <AnimatePresence>
-                {isColorMenuOpen && (
-                  <motion.div 
-                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                    transition={{ duration: 0.2 }}
-                    className="absolute left-0 mt-2 p-3 bg-[#1a1f2e] backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl flex gap-2 z-50"
-                  >
-                    {colorOptions.map((c) => (
-                      <button
-                        key={c.value}
-                        onClick={() => changeColor(c.value)}
-                        className={`w-8 h-8 rounded-full transition-all duration-300 hover:scale-110 ${color === c.value ? 'ring-2 ring-white ring-offset-2 ring-offset-[#1a1f2e]' : ''}`}
-                        style={{ backgroundColor: c.color }}
-                        title={c.name}
-                      />
-                    ))}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
+                {isDark ? '🌙' : '☀️'}
+              </span>
+            </button>
 
-            <Link href="/register" className={`px-5 py-2.5 bg-gradient-to-r ${colorClass} text-black font-bold rounded-full text-sm shadow-lg shadow-yellow-400/20 hover:scale-105 transition-all duration-300 hover:shadow-yellow-400/40`}>
-              {t.navRegister}
+            <Link
+              href="/login"
+              className={`px-3.5 py-1.5 rounded-full text-xs font-bold border-2 transition-all duration-300 hover:scale-105 ${
+                isDark
+                  ? 'border-blue-400/40 text-blue-400 hover:bg-blue-400/10'
+                  : 'border-blue-400/40 text-blue-600 hover:bg-blue-400/10'
+              }`}
+            >
+              <Icons.LogIn className="h-3.5 w-3.5 inline ml-1" />
+              تسجيل الدخول
+            </Link>
+
+            <Link
+              href="/assistant-login"
+              className={`px-3.5 py-1.5 rounded-full text-xs font-bold border-2 transition-all duration-300 hover:scale-105 ${
+                isDark
+                  ? 'border-green-400/40 text-green-300 hover:bg-green-400/10'
+                  : 'border-green-400/40 text-green-700 hover:bg-green-400/10'
+              }`}
+            >
+              <Icons.UserCog className="h-3.5 w-3.5 inline ml-1" />
+              دخول المساعد
+            </Link>
+
+            <Link
+              href="/register"
+              className="px-4 py-1.5 bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-bold rounded-full text-xs shadow-2xl shadow-blue-500/30 hover:scale-105 transition-all duration-300 flex items-center gap-1"
+            >
+              <Icons.UserPlus className="h-3.5 w-3.5" />
+              اشترك دلوقتي
             </Link>
           </div>
         </div>
       </header>
 
-      {/* ===== القسم الترويجي (Hero) ===== */}
-      <section ref={heroRef} className="relative min-h-screen flex items-center justify-center px-4 pt-24 overflow-hidden">
-        {/* خلفية متحركة */}
-        <div className="absolute inset-0 -z-10">
-          <div className="absolute top-0 -left-20 w-[600px] h-[600px] bg-yellow-400/10 rounded-full blur-3xl animate-pulse" />
-          <div className="absolute bottom-0 -right-20 w-[700px] h-[700px] bg-purple-500/10 rounded-full blur-3xl animate-pulse delay-1000" />
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-blue-500/5 rounded-full blur-3xl" />
-          <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmZmZmYiIGZpbGwtb3BhY2l0eT0iMC4wMyI+PHBhdGggZD0iTTM2IDM0djItSDI0di0yaDEyek0zNiAyNHYySDI0di0yaDEyeiIvPjwvZz48L2c+PC9zdmc+')] opacity-30" />
-        </div>
+      <HeroSection isDark={isDark} />
+      <CoursesSection isDark={isDark} courses={courses} teachers={teachers} loading={loading} />
+      <FeaturesSection isDark={isDark} />
+      <PromoSection isDark={isDark} />
+      <ContactSection isDark={isDark} />
+      <FooterSection isDark={isDark} />
 
-        <div className="container mx-auto max-w-6xl text-center relative z-10">
-          <motion.div initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8 }}>
-            <div className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-yellow-400/10 border border-yellow-400/20 text-yellow-300 text-sm mb-8 backdrop-blur-sm">
-              <Icons.Sparkles className="h-4 w-4" />
-              <span>{t.heroBadge}</span>
-            </div>
-            <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-extrabold leading-[1.1] mb-6">
-              <span className="bg-gradient-to-r from-yellow-300 via-orange-400 to-yellow-300 bg-clip-text text-transparent bg-[length:200%] animate-gradient">
-                {t.heroTitle}
-              </span>
-            </h1>
-            <p className="text-xl md:text-2xl text-gray-300 max-w-3xl mx-auto leading-relaxed mb-8">
-              {t.heroDesc}
-            </p>
-            <div className="flex flex-wrap justify-center gap-4 mb-12">
-              <Link href="#courses" className={`inline-flex items-center gap-2 bg-gradient-to-r ${colorClass} text-black font-bold px-8 py-4 text-lg rounded-full shadow-2xl shadow-yellow-400/30 hover:scale-105 transition-all duration-300 hover:shadow-yellow-400/50`}>
-                <Icons.Play className="h-5 w-5" />
-                {t.heroBtn1}
-              </Link>
-              <Link href="#features" className="inline-flex items-center gap-2 px-8 py-4 text-lg rounded-full border-2 border-white/20 bg-white/5 backdrop-blur hover:bg-white/10 hover:border-yellow-400/50 transition-all duration-300">
-                <Icons.Eye className="h-5 w-5" />
-                {t.heroBtn2}
-              </Link>
-            </div>
-            <div className="grid grid-cols-3 gap-8 max-w-2xl mx-auto">
-              {[
-                { icon: Icons.Users, value: '+15,000', label: t.statsStudents },
-                { icon: Icons.Video, value: '+120', label: t.statsVideos },
-                { icon: Icons.Award, value: '98%', label: t.statsRating },
-              ].map((stat, i) => (
-                <motion.div key={i} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 + i * 0.1 }} className="text-center">
-                  <stat.icon className="h-8 w-8 text-yellow-400 mx-auto mb-2" />
-                  <p className="text-3xl md:text-4xl font-extrabold text-yellow-400">{stat.value}</p>
-                  <p className="text-gray-500 text-sm">{stat.label}</p>
-                </motion.div>
-              ))}
-            </div>
-          </motion.div>
-        </div>
+      <ScrollToTopButton show={showBackToTop} onClick={scrollToTop} />
 
-        {/* سهم التمرير */}
-        <motion.div animate={{ y: [0, -12, 0] }} transition={{ repeat: Infinity, duration: 2.5 }} className="absolute bottom-8 left-1/2 -translate-x-1/2">
-          <div className="w-6 h-10 border-2 border-white/20 rounded-full flex justify-center backdrop-blur-sm">
-            <div className="w-1.5 h-3 bg-yellow-400/60 rounded-full mt-2 animate-bounce" />
-          </div>
-        </motion.div>
-      </section>
-
-      {/* ===== قسم الكورسات ===== */}
-      <section id="courses" className={`py-24 px-4 ${theme === 'dark' ? 'bg-gradient-to-b from-[#0b0e1a] to-[#131826]' : 'bg-gradient-to-b from-[#f5f7fa] to-[#e8ecf4]'}`}>
-        <div className="container mx-auto max-w-7xl">
-          <motion.div initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} transition={{ duration: 0.6 }} viewport={{ once: true }} className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-extrabold mb-4">
-              {t.coursesTitle}
-            </h2>
-            <p className={`text-lg max-w-2xl mx-auto ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-              {t.coursesSub}
-            </p>
-          </motion.div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-            {coursesData.map((course, index) => (
-              <CourseCard key={course.id} course={course} index={index} />
-            ))}
-          </div>
-          <div className="text-center mt-14">
-            <Link href="/all-courses" className="inline-flex items-center gap-2 px-8 py-4 text-lg rounded-full border-2 border-white/20 bg-white/5 backdrop-blur hover:bg-white/10 hover:border-yellow-400/50 transition-all duration-300">
-              {t.coursesViewAll}
-              <Icons.ArrowLeft className="h-5 w-5" />
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* ===== قسم المميزات ===== */}
-      <section id="features" className={`py-24 px-4 ${theme === 'dark' ? 'bg-[#0b0e1a]' : 'bg-[#f5f7fa]'} relative overflow-hidden`}>
-        <div className="absolute inset-0 bg-gradient-to-b from-yellow-400/5 via-transparent to-purple-500/5 pointer-events-none" />
-        <div className="container mx-auto max-w-7xl relative z-10">
-          <motion.div initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} transition={{ duration: 0.6 }} viewport={{ once: true }} className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-extrabold mb-4">
-              {t.featuresTitle}
-            </h2>
-            <p className={`text-lg max-w-2xl mx-auto ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-              {t.featuresSub}
-            </p>
-          </motion.div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {featuresData.map((feature, index) => (
-              <FeatureCard key={index} feature={feature} index={index} />
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ===== قسم آراء الطلاب ===== */}
-      <section id="testimonials" className={`py-24 px-4 ${theme === 'dark' ? 'bg-gradient-to-b from-[#131826] to-[#0b0e1a]' : 'bg-gradient-to-b from-[#e8ecf4] to-[#f5f7fa]'}`}>
-        <div className="container mx-auto max-w-5xl">
-          <motion.div initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} transition={{ duration: 0.6 }} viewport={{ once: true }} className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-extrabold mb-4">
-              {t.testimonialsTitle}
-            </h2>
-            <p className={`text-lg max-w-2xl mx-auto ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-              {t.testimonialsSub}
-            </p>
-          </motion.div>
-          <div className="relative">
-            <div className="overflow-hidden rounded-3xl">
-              <motion.div
-                className="flex transition-transform duration-700 ease-in-out"
-                style={{ transform: `translateX(-${activeTestimonial * 100}%)` }}
-              >
-                {testimonialsData.map((t) => (
-                  <div key={t.id} className="w-full flex-shrink-0 px-4">
-                    <div className={`${theme === 'dark' ? 'bg-white/5 border-white/10' : 'bg-white/80 border-gray-200'} backdrop-blur-xl border rounded-3xl p-10 md:p-12 text-center hover:border-yellow-400/30 transition-all duration-500`}>
-                      <div className="flex justify-center gap-1 text-yellow-400 mb-6">
-                        {[...Array(5)].map((_, i) => (
-                          <Icons.Star key={i} className="h-5 w-5 fill-yellow-400" />
-                        ))}
-                      </div>
-                      <blockquote className={`text-lg md:text-xl ${theme === 'dark' ? 'text-gray-200' : 'text-gray-800'} leading-relaxed max-w-2xl mx-auto`}>
-                        "{t.content}"
-                      </blockquote>
-                      <div className="flex items-center justify-center gap-4 mt-8">
-                        <div className={`h-14 w-14 rounded-full bg-gradient-to-br ${colorClass} flex items-center justify-center text-black font-bold text-xl shadow-lg shadow-yellow-400/20`}>
-                          {t.avatar}
-                        </div>
-                        <div className="text-right">
-                          <p className={`font-bold text-lg ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{t.name}</p>
-                          <p className="text-gray-500 text-sm">{t.role}</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </motion.div>
-            </div>
-            <div className="flex justify-center gap-4 mt-10">
-              <button onClick={prevTestimonial} className="w-12 h-12 rounded-full border border-white/20 bg-white/5 backdrop-blur hover:bg-white/10 hover:border-yellow-400/50 transition-all duration-300 flex items-center justify-center">
-                <Icons.ChevronRight className="h-5 w-5" />
-              </button>
-              <div className="flex gap-2 items-center">
-                {testimonialsData.map((_, i) => (
-                  <button key={i} onClick={() => setActiveTestimonial(i)} className={`w-2.5 h-2.5 rounded-full transition-all duration-300 ${i === activeTestimonial ? 'bg-yellow-400 w-8' : 'bg-white/20 hover:bg-white/40'}`} />
-                ))}
-              </div>
-              <button onClick={nextTestimonial} className="w-12 h-12 rounded-full border border-white/20 bg-white/5 backdrop-blur hover:bg-white/10 hover:border-yellow-400/50 transition-all duration-300 flex items-center justify-center">
-                <Icons.ChevronLeft className="h-5 w-5" />
-              </button>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ===== قسم من نحن / الشروط / الخصوصية ===== */}
-      <section id="contact" className={`py-24 px-4 ${theme === 'dark' ? 'bg-[#0b0e1a]' : 'bg-[#f5f7fa]'} border-y border-white/5`}>
-        <div className="container mx-auto max-w-6xl">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-            {/* من نحن */}
-            <motion.div initial={{ opacity: 0, x: -30 }} whileInView={{ opacity: 1, x: 0 }} transition={{ duration: 0.6 }} viewport={{ once: true }}>
-              <h3 className="text-2xl font-bold mb-4 flex items-center gap-2">
-                <Icons.Info className="h-6 w-6 text-yellow-400" />
-                {t.footerAboutUs}
-              </h3>
-              <p className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'} leading-relaxed`}>
-                {t.aboutUs}
-              </p>
-              <div className="mt-6 space-y-2">
-                <p className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'} flex items-center gap-2`}>
-                  <Icons.Phone className="h-4 w-4 text-yellow-400" />
-                  <span dir="ltr">{t.contactPhone1}</span>
-                </p>
-                <p className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'} flex items-center gap-2`}>
-                  <Icons.Phone className="h-4 w-4 text-yellow-400" />
-                  <span dir="ltr">{t.contactPhone2}</span>
-                </p>
-                <p className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'} flex items-center gap-2`}>
-                  <Icons.Mail className="h-4 w-4 text-yellow-400" />
-                  <span>info@mohamedradwan.com</span>
-                </p>
-              </div>
-            </motion.div>
-
-            {/* الشروط والخصوصية */}
-            <motion.div initial={{ opacity: 0, x: 30 }} whileInView={{ opacity: 1, x: 0 }} transition={{ duration: 0.6 }} viewport={{ once: true }}>
-              <div className="space-y-6">
-                <div>
-                  <h3 className="text-xl font-bold mb-2 flex items-center gap-2">
-                    <Icons.FileText className="h-5 w-5 text-yellow-400" />
-                    {t.footerTerms}
-                  </h3>
-                  <p className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'} text-sm leading-relaxed`}>
-                    {t.terms}
-                  </p>
-                </div>
-                <div>
-                  <h3 className="text-xl font-bold mb-2 flex items-center gap-2">
-                    <Icons.Shield className="h-5 w-5 text-yellow-400" />
-                    {t.footerPrivacy}
-                  </h3>
-                  <p className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'} text-sm leading-relaxed`}>
-                    {t.privacy}
-                  </p>
-                </div>
-              </div>
-            </motion.div>
-          </div>
-        </div>
-      </section>
-
-      {/* ===== قسم الدعوة ===== */}
-      <section className={`py-24 px-4 bg-gradient-to-r from-yellow-400/10 via-yellow-500/5 to-yellow-400/10 border-y border-white/5 ${theme === 'dark' ? '' : 'bg-white/5'}`}>
-        <div className="container mx-auto max-w-4xl text-center">
-          <motion.div initial={{ opacity: 0, scale: 0.95 }} whileInView={{ opacity: 1, scale: 1 }} transition={{ duration: 0.6 }} viewport={{ once: true }}>
-            <h2 className="text-4xl md:text-5xl font-extrabold mb-4">
-              {t.ctaTitle}
-            </h2>
-            <p className={`text-lg max-w-2xl mx-auto mb-8 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-              {t.ctaSub}
-            </p>
-            <div className="flex flex-wrap justify-center gap-4">
-              <Link href="/register" className={`inline-flex items-center gap-2 bg-gradient-to-r ${colorClass} text-black font-bold px-10 py-5 text-lg rounded-full shadow-2xl shadow-yellow-400/30 hover:scale-105 transition-all duration-300 hover:shadow-yellow-400/50`}>
-                <Icons.GraduationCap className="h-6 w-6" />
-                {t.ctaBtn}
-              </Link>
-              <Link href="#contact" className="inline-flex items-center gap-2 px-8 py-5 text-lg rounded-full border-2 border-white/20 bg-white/5 backdrop-blur hover:bg-white/10 hover:border-yellow-400/50 transition-all duration-300">
-                <Icons.MessageSquare className="h-5 w-5" />
-                {t.ctaContact}
-              </Link>
-            </div>
-          </motion.div>
-        </div>
-      </section>
-
-      {/* ===== التذييل ===== */}
-      <footer className={`${theme === 'dark' ? 'bg-[#080b16]' : 'bg-[#e8ecf4]'} border-t border-white/5 py-12 px-4`}>
-        <div className="container mx-auto max-w-7xl">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-            <div className="col-span-1 md:col-span-2">
-              <div className="flex items-center gap-3 mb-4">
-                <div className={`h-10 w-10 rounded-full bg-gradient-to-br ${colorClass} flex items-center justify-center text-black font-extrabold text-lg shadow-lg shadow-yellow-400/20`}>
-                  {language === 'ar' ? 'م' : 'M'}
-                </div>
-                <h3 className="text-xl font-extrabold bg-gradient-to-r from-yellow-300 to-yellow-500 bg-clip-text text-transparent">
-                  {t.brand}
-                </h3>
-              </div>
-              <p className={`${theme === 'dark' ? 'text-gray-500' : 'text-gray-600'} text-sm max-w-sm leading-relaxed`}>
-                {t.footerAbout}
-              </p>
-              <div className="flex gap-4 mt-6">
-                {['Facebook', 'YouTube', 'Instagram', 'WhatsApp'].map((social) => (
-                  <a key={social} href="#" className={`h-10 w-10 rounded-full ${theme === 'dark' ? 'bg-white/5 border-white/10' : 'bg-gray-200 border-gray-300'} border flex items-center justify-center ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'} hover:text-yellow-400 hover:border-yellow-400/50 transition-all duration-300 hover:bg-white/10`}>
-                    <span className="sr-only">{social}</span>
-                    <div className="h-5 w-5 bg-current opacity-60" />
-                  </a>
-                ))}
-              </div>
-            </div>
-            <div>
-              <h4 className={`font-bold mb-4 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{t.footerQuickLinks}</h4>
-              <ul className="space-y-2 text-sm text-gray-500">
-                <li><Link href="#courses" className="hover:text-yellow-400 transition-colors">{t.navCourses}</Link></li>
-                <li><Link href="#features" className="hover:text-yellow-400 transition-colors">{t.navFeatures}</Link></li>
-                <li><Link href="#testimonials" className="hover:text-yellow-400 transition-colors">{t.navTestimonials}</Link></li>
-                <li><Link href="#contact" className="hover:text-yellow-400 transition-colors">{t.navContact}</Link></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className={`font-bold mb-4 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{t.footerSupport}</h4>
-              <ul className="space-y-2 text-sm text-gray-500">
-                <li><Link href="#" className="hover:text-yellow-400 transition-colors">{t.footerAboutUs}</Link></li>
-                <li><Link href="#" className="hover:text-yellow-400 transition-colors">{t.footerTerms}</Link></li>
-                <li><Link href="#" className="hover:text-yellow-400 transition-colors">{t.footerPrivacy}</Link></li>
-                <li><Link href="#" className="hover:text-yellow-400 transition-colors">{t.footerFAQ}</Link></li>
-              </ul>
-            </div>
-          </div>
-          <div className={`border-t ${theme === 'dark' ? 'border-white/5' : 'border-gray-300'} mt-8 pt-8 text-center ${theme === 'dark' ? 'text-gray-600' : 'text-gray-500'} text-sm`}>
-            &copy; 2026 {t.brand} - {t.footerRights}
-          </div>
-        </div>
-      </footer>
-
-      {/* ===== CSS مخصص ===== */}
       <style jsx>{`
         @keyframes gradient {
           0% { background-position: 0% 50%; }
@@ -823,11 +1237,33 @@ export default function Home() {
           animation: gradient 8s ease infinite;
           background-size: 200% 200%;
         }
+        .line-clamp-1 {
+          display: -webkit-box;
+          -webkit-line-clamp: 1;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+        }
         .line-clamp-2 {
           display: -webkit-box;
           -webkit-line-clamp: 2;
           -webkit-box-orient: vertical;
           overflow: hidden;
+        }
+        .font-arabic {
+          font-family: 'Scheherazade New', 'Amiri', serif;
+        }
+        .perspective-1000 {
+          perspective: 1000px;
+        }
+        .tracking-wider {
+          letter-spacing: 0.05em;
+        }
+        .tracking-widest {
+          letter-spacing: 0.1em;
+        }
+        .antialiased {
+          -webkit-font-smoothing: antialiased;
+          -moz-osx-font-smoothing: grayscale;
         }
       `}</style>
     </div>
