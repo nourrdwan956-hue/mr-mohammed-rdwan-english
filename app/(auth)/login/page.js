@@ -83,7 +83,7 @@ function LoginContent() {
       if (data?.user) {
         const role = data.user.user_metadata?.role || 'student';
         const redirectPath = role === 'teacher' ? '/dashboard/teacher' : '/dashboard/student';
-        window.location.href = redirectPath;
+        router.push(redirectPath);
       } else {
         setError('❌ حدث خطأ غير متوقع. حاول مرة أخرى.');
         setLoading(false);
