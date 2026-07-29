@@ -6,6 +6,7 @@
 // ✅ مؤشر الصوت يتغير لونه تدريجياً (أحمر ← أصفر ← أخضر)
 // ✅ مؤشر التقدم يتغير لونه تدريجياً حسب الثلث (أحمر ← أصفر ← أخضر)
 // ✅ زر التشغيل المركزي يعمل كـ toggle دائماً
+// ✅ إضافة التحكم في الترجمة (Captions) مع حالة ودالة وزر مخصص
 // ================================================================
 
 'use client';
@@ -314,6 +315,8 @@ export default function WatchPage() {
   const [bufferProgress, setBufferProgress] = useState(0);
   const [loop, setLoop] = useState(false);
   const [focusMode, setFocusMode] = useState(false);
+  // ✅ إضافة حالة الترجمة (معطلة افتراضياً)
+  const [captionsEnabled, setCaptionsEnabled] = useState(false);
 
   // ---- المراجع ----
   const containerRef = useRef(null);
@@ -478,7 +481,7 @@ export default function WatchPage() {
             playsinline: 1,
             autoplay: 0,
             mute: 0,
-            cc_load_policy: 0,
+            cc_load_policy: 0, // ✅ لا نحمل الترجمة تلقائياً (التحكم اليدوي)
             autohide: 1,
             listType: 'playlist',
             origin: window.location.origin,
@@ -735,6 +738,37 @@ export default function WatchPage() {
     });
   }, []);
 
+  // ✅ دالة التحكم في الترجمة (إظهار/إخفاء)
+  const toggleCaptions = useCallback(() => {
+    if (!playerRef.current || !playerReady) return;
+    try {
+      const player = playerRef.current;
+      if (captionsEnabled) {
+        // إخفاء الترجمة: تعيين كود لغة فارغ
+        player.setOption('captions', 'track', { languageCode: '' });
+        setCaptionsEnabled(false);
+        toast.success(language === 'ar' ? 'تم إخفاء الترجمة' : 'Captions hidden');
+      } else {
+        // إظهار الترجمة: نحمل وحدة الترجمة ثم نفعل المسار الافتراضي
+        player.loadModule('captions');
+        // تأخير بسيط لضمان تحميل الوحدة ثم تعيين المسار (فارغ = افتراضي)
+        setTimeout(() => {
+          try {
+            player.setOption('captions', 'track', {}); // تفعيل المسار الافتراضي
+            setCaptionsEnabled(true);
+            toast.success(language === 'ar' ? 'تم إظهار الترجمة' : 'Captions shown');
+          } catch (innerErr) {
+            console.error('Failed to show captions:', innerErr);
+            toast.error(language === 'ar' ? 'تعذر إظهار الترجمة' : 'Could not show captions');
+          }
+        }, 300);
+      }
+    } catch (e) {
+      toast.error(language === 'ar' ? 'فشل التحكم بالترجمة' : 'Failed to toggle captions');
+      console.error('Captions toggle error:', e);
+    }
+  }, [playerReady, captionsEnabled, language]);
+
   // ================================================================
   // 12. تأثير إخفاء الأزرار تلقائياً (مع تحسينات)
   // ================================================================
@@ -836,12 +870,13 @@ export default function WatchPage() {
         case 'f': case 'F': toggleFullscreen(); break;
         case 'l': case 'L': toggleLoop(); break;
         case 'z': case 'Z': toggleFocusMode(); break;
+        case 'c': case 'C': toggleCaptions(); break; // ✅ إضافة اختصار C للترجمة
         default: break;
       }
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, [playerReady, togglePlay, skipForward, skipBackward, toggleMute, toggleFullscreen, toggleLoop, toggleFocusMode, isYoutubeOnly]);
+  }, [playerReady, togglePlay, skipForward, skipBackward, toggleMute, toggleFullscreen, toggleLoop, toggleFocusMode, toggleCaptions, isYoutubeOnly]);
 
   // ================================================================
   // 15. عرض الصفحة
@@ -1132,6 +1167,15 @@ export default function WatchPage() {
                           }}
                         />
 
+                        {/* ✅ زر التحكم في الترجمة (CC) */}
+                        <button
+                          onClick={toggleCaptions}
+                          className={`p-1.5 rounded-full hover:bg-white/10 transition-colors ${captionsEnabled ? 'text-yellow-400' : ''}`}
+                          title={captionsEnabled ? (language === 'ar' ? 'إخفاء الترجمة' : 'Hide Captions') : (language === 'ar' ? 'إظهار الترجمة' : 'Show Captions')}
+                        >
+                          <Icons.ClosedCaptioning className="h-5 w-5" />
+                        </button>
+
                         <div className="relative">
                           <button onClick={() => { setShowSpeedMenu(!showSpeedMenu); setShowQualityMenu(false); }} className="px-2 py-1 rounded-lg hover:bg-white/10 transition-colors text-xs font-bold">
                             {playbackRate}x
@@ -1227,6 +1271,7 @@ export default function WatchPage() {
                 <p className="text-[10px] text-gray-400 leading-relaxed">
                   يمكنك التحكم بالفيديو باستخدام الأزرار أو اختصارات لوحة المفاتيح.
                   <span className="block text-yellow-400/60 mt-1">⏱ اضغط على التايمر لتغيير العرض (متبقي / نسبة / مشاهدة)</span>
+                  <span className="block text-yellow-400/60 mt-0.5">🔤 اضغط C لإظهار/إخفاء الترجمة</span>
                 </p>
               </div>
             </div>
