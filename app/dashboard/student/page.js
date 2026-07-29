@@ -7,7 +7,7 @@ import { useTheme } from '@/lib/hooks/useTheme';
 import { supabase } from '@/lib/supabaseClient';
 import { toast } from 'react-hot-toast';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import NotificationDrawer from '@/app/dashboard/student/components/NotificationDrawer';
 
 // ================================================================
@@ -689,6 +689,7 @@ const LanguageTipCarousel = ({ language, styles }) => {
 export default function StudentDashboard() {
   const { theme, styles, language } = useTheme();
   const router = useRouter();
+  const pathname = usePathname();
   const [user, setUser] = useState(null);
   const [enrollments, setEnrollments] = useState([]);
   const [courses, setCourses] = useState([]);
@@ -965,6 +966,39 @@ export default function StudentDashboard() {
     setMessages(prev => [newMsg, ...prev]);
   }, []);
 
+  // دالة تسجيل الخروج
+  const handleLogout = useCallback(async () => {
+    await supabase.auth.signOut();
+    router.push('/login');
+  }, [router]);
+
+  // تعريف عناصر القائمة
+  const NAV_ITEMS = [
+    { id: 'dashboard', path: '/dashboard/student', icon: Icons.Home, label: { ar: 'الرئيسية', en: 'Dashboard' }, color: 'blue' },
+    { id: 'courses', path: '/dashboard/student/courses', icon: Icons.BookOpen, label: { ar: 'كورساتي', en: 'My Courses' }, color: 'green' },
+    { id: 'progress', path: '/dashboard/student/progress', icon: Icons.TrendingUp, label: { ar: 'تقدّم', en: 'Progress' }, color: 'orange' },
+    { id: 'schedule', path: '/dashboard/student/study-schedule', icon: Icons.Calendar, label: { ar: 'جدول الدراسة', en: 'Study Schedule' }, color: 'purple' },
+    { id: 'notes', path: '/dashboard/student/notes', icon: Icons.StickyNote, label: { ar: 'ملاحظاتي', en: 'My Notes' }, color: 'teal' },
+    { id: 'support', path: '/dashboard/student/support', icon: Icons.HelpCircle, label: { ar: 'الدعم', en: 'Support' }, color: 'red' },
+  ];
+
+  // دالة الحصول على ألوان القائمة حسب الحالة
+  const getIconColor = (colorName, active) => {
+    const color = CARD_COLORS.find(c => c.name === colorName) || CARD_COLORS[0];
+    if (active) {
+      return {
+        text: color.text,
+        bg: color.bg,
+        border: color.border,
+      };
+    }
+    return {
+      text: 'text-gray-400 dark:text-gray-500',
+      bg: 'bg-white/5 dark:bg-white/5',
+      border: 'border-transparent',
+    };
+  };
+
   if (loading) return (
     <div className={`h-full w-full flex items-center justify-center ${styles.bg}`}>
       <div className="relative">
@@ -983,8 +1017,8 @@ export default function StudentDashboard() {
   const isRTL = language === 'ar';
 
   return (
-    <div className={`w-full min-h-screen ${styles.bg} transition-colors duration-300 relative overflow-hidden`}>
-      {/* خلفية متحركة شفافة */}
+    <div className="w-full min-h-screen bg-[var(--bg-primary)] transition-colors duration-300 relative overflow-hidden">
+      {/* خلفية متحركة */}
       <motion.div
         animate={{ x: ['-5%', '5%', '-5%'], y: ['-5%', '5%', '-5%'] }}
         transition={{ duration: 30, repeat: Infinity, ease: 'linear' }}
@@ -996,13 +1030,13 @@ export default function StudentDashboard() {
         className="fixed -bottom-60 -left-60 w-[900px] h-[900px] bg-green-500/5 dark:bg-green-400/5 rounded-full blur-3xl pointer-events-none"
       />
 
-      {/* ✅ زر التحكم في الشريط الجانبي (يظهر دائمًا) */}
+      {/* ✅ زر التحكم في الشريط الجانبي – يظهر دائمًا */}
       <button
         onClick={toggleSidebar}
         className={`fixed z-50 p-3 rounded-xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-2xl hover:bg-white/20 transition-all duration-300 ${
           isMobile || isTablet ? 'bottom-24 left-4' : 'top-6 left-6'
         }`}
-        title={sidebarOpen ? (language === 'ar' ? 'إخفاء الشريط الجانبي' : 'Hide Sidebar') : (language === 'ar' ? 'إظهار الشريط الجانبي' : 'Show Sidebar')}
+        title={sidebarOpen ? (language === 'ar' ? 'إخفاء القائمة' : 'Hide Sidebar') : (language === 'ar' ? 'إظهار القائمة' : 'Show Sidebar')}
       >
         {sidebarOpen ? (
           <Icons.PanelLeftClose className="h-6 w-6 text-white" />
@@ -1011,11 +1045,11 @@ export default function StudentDashboard() {
         )}
       </button>
 
-      {/* ✅ الشريط الجانبي مع أنيميشن */}
+      {/* ✅ الشريط الجانبي */}
       <AnimatePresence>
         {sidebarOpen && (
           <>
-            {/* طبقة خلفية للإغلاق (على الأجهزة الصغيرة فقط) */}
+            {/* طبقة خلفية للإغلاق على الأجهزة الصغيرة */}
             {(isMobile || isTablet) && (
               <motion.div
                 initial={{ opacity: 0 }}
@@ -1035,7 +1069,7 @@ export default function StudentDashboard() {
               style={{ backgroundColor: 'rgba(var(--bg-primary-rgb), 0.95)' }}
             >
               <div className="p-6">
-                {/* زر الإغلاق (للأجهزة الصغيرة) */}
+                {/* زر الإغلاق للأجهزة الصغيرة */}
                 {(isMobile || isTablet) && (
                   <button
                     onClick={toggleSidebar}
@@ -1045,69 +1079,65 @@ export default function StudentDashboard() {
                   </button>
                 )}
 
-                {/* محتوى الشريط الجانبي */}
-                <div className="space-y-8">
-                  {/* صورة المستخدم واسمه */}
-                  <div className="flex items-center gap-4">
-                    <div className="h-16 w-16 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-extrabold text-2xl shadow-xl ring-2 ring-blue-500/30">
-                      {user?.avatar_url ? (
-                        <img src={user.avatar_url} alt="Avatar" className="w-full h-full object-cover rounded-xl" />
-                      ) : (
-                        <span>{(user?.full_name?.[0] || (language === 'ar' ? 'ط' : 'S')).toUpperCase()}</span>
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className={`text-lg font-bold ${styles.text} truncate`}>
-                        {user?.full_name || (language === 'ar' ? 'طالب' : 'Student')}
-                      </p>
-                      <p className={`text-sm ${styles.subtext} truncate`}>
-                        {user?.email || ''}
-                      </p>
-                      <p className={`text-xs ${styles.subtext} opacity-70 mt-0.5`}>
-                        {language === 'ar' ? `عضو منذ ${daysSinceJoin} يوم` : `Member for ${daysSinceJoin} days`}
-                      </p>
-                    </div>
+                {/* صورة المستخدم واسمه */}
+                <div className="flex items-center gap-4 mb-8 border-b border-[var(--border-color)] pb-6">
+                  <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white text-2xl font-bold">
+                    {user?.avatar_url ? (
+                      <img src={user.avatar_url} alt="Avatar" className="w-full h-full object-cover rounded-2xl" />
+                    ) : (
+                      user?.full_name?.charAt(0) || (language === 'ar' ? 'ط' : 'S')
+                    )}
                   </div>
+                  <div className="flex-1 min-w-0">
+                    <h2 className="text-xl font-bold truncate">{user?.full_name || (language === 'ar' ? 'طالب' : 'Student')}</h2>
+                    <p className="text-xs text-gray-400 truncate">{user?.email}</p>
+                    <p className={`text-xs ${styles.subtext} opacity-70 mt-0.5`}>
+                      {language === 'ar' ? `عضو منذ ${daysSinceJoin} يوم` : `Member for ${daysSinceJoin} days`}
+                    </p>
+                  </div>
+                </div>
 
-                  {/* قائمة الروابط */}
-                  <nav className="space-y-2">
-                    {[
-                      { href: '/dashboard/student/courses', icon: Icons.BookOpen, label: { ar: 'كورساتي', en: 'My Courses' } },
-                      { href: '/dashboard/student/progress', icon: Icons.TrendingUp, label: { ar: 'تقدّم', en: 'Progress' } },
-                      { href: '/dashboard/student/study-schedule', icon: Icons.Calendar, label: { ar: 'جدول الدراسة', en: 'Study Schedule' } },
-                      { href: '/dashboard/student/notes', icon: Icons.StickyNote, label: { ar: 'ملاحظاتي', en: 'My Notes' } },
-                      { href: '/dashboard/student/support', icon: Icons.HelpCircle, label: { ar: 'الدعم', en: 'Support' } },
-                      { href: '/dashboard/student/profile', icon: Icons.User, label: { ar: 'حسابي', en: 'Profile' } },
-                    ].map((item) => (
+                {/* روابط القائمة */}
+                <nav className="space-y-2">
+                  {NAV_ITEMS.map((item) => {
+                    const active = pathname === item.path;
+                    const colors = getIconColor(item.color, active);
+                    return (
                       <Link
-                        key={item.href}
-                        href={item.href}
-                        className={`flex items-center gap-4 p-3 rounded-xl transition-all duration-200 hover:bg-white/10 dark:hover:bg-white/5 group ${styles.card}`}
-                        onClick={() => {
-                          if (isMobile || isTablet) toggleSidebar();
-                        }}
+                        key={item.id}
+                        href={item.path}
+                        onClick={() => (isMobile || isTablet) && setSidebarOpen(false)}
                       >
-                        <item.icon className={`h-6 w-6 text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform`} />
-                        <span className={`text-base font-medium ${styles.text}`}>
-                          {item.label[language]}
-                        </span>
-                        <Icons.ArrowRight className={`h-4 w-4 ${styles.subtext} ml-auto group-hover:translate-x-2 transition-transform ${isRTL ? 'rotate-180' : ''}`} />
+                        <motion.div
+                          whileHover={{ scale: 1.02, x: isRTL ? -4 : 4 }}
+                          className={`flex items-center gap-4 px-4 py-3 rounded-xl transition-all ${
+                            active ? `font-bold ${colors.bg} ${colors.border} border` : 'hover:bg-white/5'
+                          }`}
+                        >
+                          <div className={`p-2 rounded-lg ${active ? colors.bg : 'bg-white/5'}`}>
+                            <item.icon className={`h-5 w-5 ${active ? colors.text : 'text-gray-400'}`} />
+                          </div>
+                          <span className="text-sm font-medium">{item.label[language] || item.label.ar}</span>
+                        </motion.div>
                       </Link>
-                    ))}
-                  </nav>
+                    );
+                  })}
+                </nav>
 
-                  {/* زر تسجيل الخروج */}
+                {/* تذييل */}
+                <div className="mt-8 pt-6 border-t border-[var(--border-color)] space-y-2">
+                  <Link href="/dashboard/student/profile" onClick={() => (isMobile || isTablet) && setSidebarOpen(false)}>
+                    <div className="flex items-center gap-3 px-4 py-2.5 rounded-xl hover:bg-white/5 transition-colors">
+                      <Icons.User className="h-5 w-5" />
+                      <span className="text-sm">{language === 'ar' ? 'الملف الشخصي' : 'Profile'}</span>
+                    </div>
+                  </Link>
                   <button
-                    onClick={async () => {
-                      await supabase.auth.signOut();
-                      router.push('/login');
-                    }}
-                    className={`w-full flex items-center gap-4 p-3 rounded-xl transition-all duration-200 hover:bg-red-500/10 dark:hover:bg-red-400/10 group ${styles.card}`}
+                    onClick={handleLogout}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors"
                   >
-                    <Icons.LogOut className="h-6 w-6 text-red-500 group-hover:scale-110 transition-transform" />
-                    <span className="text-base font-medium text-red-500 dark:text-red-400">
-                      {language === 'ar' ? 'تسجيل الخروج' : 'Logout'}
-                    </span>
+                    <Icons.LogOut className="h-5 w-5" />
+                    <span className="text-sm">{language === 'ar' ? 'تسجيل الخروج' : 'Logout'}</span>
                   </button>
                 </div>
               </div>
@@ -1117,16 +1147,18 @@ export default function StudentDashboard() {
       </AnimatePresence>
 
       {/* ✅ المحتوى الرئيسي مع هامش ديناميكي */}
-      <div className={`relative z-10 transition-all duration-300 ${
-        sidebarOpen && !isMobile && !isTablet ? (isRTL ? 'mr-96' : 'ml-96') : ''
-      }`}>
+      <div
+        className={`relative z-10 transition-all duration-300 ${
+          sidebarOpen && !isMobile && !isTablet ? (isRTL ? 'mr-96' : 'ml-96') : ''
+        }`}
+      >
         <div className="px-4 sm:px-6 lg:px-8 py-8 space-y-8 max-w-7xl mx-auto">
-          {/* ===== رأس الصفحة المعدل ===== */}
+          {/* ===== رأس الصفحة ===== */}
           <motion.div
             initial={{ opacity: 0, y: -30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, type: 'spring', stiffness: 200 }}
-            className={`flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 p-8 rounded-3xl border ${styles.border} backdrop-blur-sm shadow-xl ${styles.card}`}
+            className={`flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 p-6 lg:p-8 rounded-3xl border ${styles.border} backdrop-blur-sm shadow-xl ${styles.card}`}
           >
             <div className="flex items-center gap-5">
               <motion.div
@@ -1193,7 +1225,7 @@ export default function StudentDashboard() {
           <LanguageTipCarousel language={language} styles={styles} />
 
           {/* ===== الشبكة الرئيسية ===== */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
             <div className="lg:col-span-2 space-y-8">
               {/* بطاقات الإحصائيات */}
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-5">
@@ -1293,7 +1325,7 @@ export default function StudentDashboard() {
           </div>
 
           {/* روابط سريعة */}
-          <div className="grid grid-cols-3 sm:grid-cols-6 gap-4">
+          <div className="grid grid-cols-3 sm:grid-cols-6 gap-3 sm:gap-4">
             {[
               { href: '/dashboard/student/courses', icon: Icons.Search, label: { ar: 'كورسات', en: 'Courses' } },
               { href: '/dashboard/student/support', icon: Icons.HelpCircle, label: { ar: 'دعم', en: 'Support' } },
