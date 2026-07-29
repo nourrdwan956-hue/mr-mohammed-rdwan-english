@@ -1,6 +1,7 @@
 // app/layout.js
 import './globals.css';
 import { ThemeProvider } from '@/lib/hooks/useTheme';
+import { DeviceProvider } from '@/app/context/DeviceContext';
 import { Toaster } from 'react-hot-toast';
 
 export const metadata = {
@@ -33,41 +34,43 @@ export default function RootLayout({ children }) {
       </head>
       <body className="font-cairo antialiased min-h-screen bg-[#0b0e1a] text-white overflow-x-hidden" suppressHydrationWarning>
         <ThemeProvider>
-          {/* ✅ حاوية رئيسية بمرونة كاملة مع حواف داخلية متجاوبة */}
-          <div className="min-h-screen w-full max-w-full overflow-x-hidden">
-            {children}
-          </div>
-          <Toaster
-            position="top-center"
-            toastOptions={{
-              duration: 4000,
-              style: {
-                background: '#1a1f2e',
-                color: '#fff',
-                border: '1px solid rgba(255,255,255,0.1)',
-                borderRadius: '12px',
-                padding: '16px 20px',
-                fontSize: '14px',
-                maxWidth: '90vw',
-              },
-              success: {
-                icon: '✅',
+          <DeviceProvider>
+            {/* ✅ حاوية رئيسية بمرونة كاملة مع حواف داخلية متجاوبة */}
+            <div className="min-h-screen w-full max-w-full overflow-x-hidden">
+              {children}
+            </div>
+            <Toaster
+              position="top-center"
+              toastOptions={{
+                duration: 4000,
                 style: {
                   background: '#1a1f2e',
-                  color: '#4ade80',
-                  border: '1px solid rgba(74, 222, 128, 0.2)',
+                  color: '#fff',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  borderRadius: '12px',
+                  padding: '16px 20px',
+                  fontSize: '14px',
+                  maxWidth: '90vw',
                 },
-              },
-              error: {
-                icon: '❌',
-                style: {
-                  background: '#1a1f2e',
-                  color: '#f87171',
-                  border: '1px solid rgba(248, 113, 113, 0.2)',
+                success: {
+                  icon: '✅',
+                  style: {
+                    background: '#1a1f2e',
+                    color: '#4ade80',
+                    border: '1px solid rgba(74, 222, 128, 0.2)',
+                  },
                 },
-              },
-            }}
-          />
+                error: {
+                  icon: '❌',
+                  style: {
+                    background: '#1a1f2e',
+                    color: '#f87171',
+                    border: '1px solid rgba(248, 113, 113, 0.2)',
+                  },
+                },
+              }}
+            />
+          </DeviceProvider>
         </ThemeProvider>
       </body>
     </html>

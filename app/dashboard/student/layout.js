@@ -1,4 +1,4 @@
-// app/dashboard/student/layout.js (أو الملف المسمى StudentLayout)
+// app/dashboard/student/layout.js
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
@@ -9,6 +9,7 @@ import * as Icons from 'lucide-react';
 import { useTheme } from '@/lib/hooks/useTheme';
 import { supabase } from '@/lib/supabaseClient';
 import { toast } from 'react-hot-toast';
+import { useDeviceMode } from '@/app/context/DeviceContext';
 
 // ================================================================
 // عناصر القائمة الجانبية مع ألوان محددة لكل أيقونة
@@ -40,9 +41,43 @@ const getIconColor = (color, active) => {
 };
 
 // ================================================================
+// مكون اختيار نوع الجهاز
+// ================================================================
+const DeviceModeSelector = ({ currentMode, onChange, language }) => {
+  const modes = [
+    { value: 'desktop', icon: Icons.Monitor, label: language === 'ar' ? 'كمبيوتر' : 'Desktop' },
+    { value: 'tablet', icon: Icons.Tablet, label: language === 'ar' ? 'تابلت' : 'Tablet' },
+    { value: 'mobile', icon: Icons.Smartphone, label: language === 'ar' ? 'هاتف' : 'Mobile' },
+  ];
+
+  return (
+    <div className="mt-4 pt-4 border-t border-[var(--border-color)]">
+      <p className="text-xs text-gray-400 mb-2">{language === 'ar' ? 'عرض مناسب لـ' : 'View as'}</p>
+      <div className="flex gap-1">
+        {modes.map((m) => (
+          <button
+            key={m.value}
+            onClick={() => onChange(m.value)}
+            className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium transition ${
+              currentMode === m.value
+                ? 'bg-blue-500/20 text-blue-500'
+                : 'hover:bg-white/5 text-gray-400'
+            }`}
+          >
+            <m.icon className="h-4 w-4" />
+            <span>{m.label}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// ================================================================
 // الشريط الجانبي – متجاوب مع الأجهزة المختلفة
 // ================================================================
 const Sidebar = ({ user, language, toggleLanguage, theme, toggleTheme, styles, pathname, onLogout, isOpen, onToggle, isMobile, isTablet }) => {
+  const { deviceMode, changeDeviceMode } = useDeviceMode();
   const isActive = (path) => pathname === path;
   const isRTL = language === 'ar';
   const sidebarPosition = isRTL ? 'right-0' : 'left-0';
@@ -162,7 +197,7 @@ const Sidebar = ({ user, language, toggleLanguage, theme, toggleTheme, styles, p
               })}
             </nav>
 
-            {/* الأسفل – أزرار التحكم والملف الشخصي */}
+            {/* الأسفل – أزرار التحكم والملف الشخصي واختيار الجهاز */}
             <div className="relative z-10 p-5 border-t border-[var(--border-color)] space-y-2.5">
               <Link href="/dashboard/student/profile" onClick={() => (isMobile || isTablet) && onToggle()}>
                 <motion.div
@@ -201,6 +236,13 @@ const Sidebar = ({ user, language, toggleLanguage, theme, toggleTheme, styles, p
                   }
                 </motion.button>
               </div>
+
+              {/* ✅ مكون اختيار نوع الجهاز */}
+              <DeviceModeSelector 
+                currentMode={deviceMode} 
+                onChange={changeDeviceMode} 
+                language={language} 
+              />
               
               <motion.button
                 whileHover={{ scale: 1.02 }}
