@@ -23,12 +23,20 @@ export default function RootLayout({ children }) {
         {/* ✅ Cloudinary Upload Widget */}
         <script src="https://upload-widget.cloudinary.com/global/all.js" async></script>
         <link rel="icon" href="/favicon.ico" sizes="any" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+        {/* ✅ تحسين viewport ليكون متجاوباً مع السماح بالتكبير على الأجهزة الصغيرة */}
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
         <meta name="theme-color" content="#0b0e1a" />
+        {/* ✅ إعدادات إضافية للأجهزة المحمولة */}
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="format-detection" content="telephone=no" />
       </head>
-      <body className="font-cairo antialiased min-h-screen bg-[#0b0e1a] text-white" suppressHydrationWarning>
+      <body className="font-cairo antialiased min-h-screen bg-[#0b0e1a] text-white overflow-x-hidden" suppressHydrationWarning>
         <ThemeProvider>
-          {children}
+          {/* ✅ حاوية رئيسية بمرونة كاملة مع حواف داخلية متجاوبة */}
+          <div className="min-h-screen w-full max-w-full overflow-x-hidden">
+            {children}
+          </div>
           <Toaster
             position="top-center"
             toastOptions={{
@@ -39,6 +47,8 @@ export default function RootLayout({ children }) {
                 border: '1px solid rgba(255,255,255,0.1)',
                 borderRadius: '12px',
                 padding: '16px 20px',
+                fontSize: '14px',
+                maxWidth: '90vw',
               },
               success: {
                 icon: '✅',
