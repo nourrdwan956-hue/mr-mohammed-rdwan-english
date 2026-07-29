@@ -18,36 +18,55 @@ export default function UpdatePasswordPage() {
   const [sessionReady, setSessionReady] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
 
-  // ===== انتظار استعادة الجلسة من الرابط =====
+  // ===== استخراج التوكين من الرابط وتثبيت الجلسة =====
   useEffect(() => {
-    const checkSession = async () => {
+    const handleHash = async () => {
       try {
-        // قد يكون الرابط يحتوي على access_token في الـ hash
-        // نقوم بمحاولة استرداد الجلسة الحالية
-        const { data, error } = await supabase.auth.getSession();
-        
-        if (error || !data?.session) {
-          // ربما لم يتم استلام الجلسة بعد، ننتظر قليلاً ثم نعيد المحاولة
-          setTimeout(async () => {
-            const { data: retryData } = await supabase.auth.getSession();
-            if (retryData?.session) {
-              setSessionReady(true);
-            } else {
-              setError('انتهت صلاحية الرابط أو الجلسة. يرجى طلب رابط جديد.');
+        // 1. استخراج التوكين من الـ hash
+        const hash = window.location.hash;
+        if (hash) {
+          const params = new URLSearchParams(hash.substring(1));
+          const accessToken = params.get('access_token');
+          const refreshToken = params.get('refresh_token');
+
+          if (accessToken) {
+            // 2. تثبيت الجلسة يدوياً
+            const { error } = await supabase.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken || '',
+            });
+
+            if (error) {
+              console.error('Error setting session:', error);
+              setError('انتهت صلاحية الرابط. يرجى طلب رابط جديد.');
+              setCheckingSession(false);
+              return;
             }
+
+            // 3. نجاح تثبيت الجلسة
+            setSessionReady(true);
             setCheckingSession(false);
-          }, 2000);
+            return;
+          }
+        }
+
+        // 4. لو مفيش توكين في الرابط، نحاول نستعيد الجلسة الحالية
+        const { data, error } = await supabase.auth.getSession();
+        if (error || !data?.session) {
+          setError('لا توجد جلسة صالحة. يرجى طلب رابط جديد لإعادة تعيين كلمة المرور.');
+          setCheckingSession(false);
         } else {
           setSessionReady(true);
           setCheckingSession(false);
         }
       } catch (err) {
+        console.error('Session error:', err);
         setError('حدث خطأ أثناء التحقق من الجلسة.');
         setCheckingSession(false);
       }
     };
 
-    checkSession();
+    handleHash();
   }, []);
 
   const handleSubmit = async (e) => {
@@ -67,7 +86,7 @@ export default function UpdatePasswordPage() {
     try {
       const { error: updateError } = await supabase.auth.updateUser({ password });
       if (updateError) throw updateError;
-      toast.success('تم تغيير كلمة المرور بنجاح');
+      toast.success('✅ تم تغيير كلمة المرور بنجاح');
       router.push('/login');
     } catch (err) {
       setError(err.message || 'فشل تحديث كلمة المرور');

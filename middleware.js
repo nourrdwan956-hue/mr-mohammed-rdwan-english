@@ -1,32 +1,31 @@
 // middleware.js
 import { NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
 
 export async function middleware(request) {
   const path = request.nextUrl.pathname;
 
   // ✅ استثناء مسارات الـ API والمساعدين والصفحات العامة
+  const publicPaths = ['/', '/login', '/register', '/reset-password', '/update-password'];
   if (path.startsWith('/api/') || 
       path === '/assistant-login' || 
       path.startsWith('/dashboard/assistant') ||
-      ['/', '/login', '/register', '/reset-password'].some(p => path === p)) {
+      publicPaths.some(p => path === p)) {
     return NextResponse.next();
   }
 
-  // ✅ إنشاء عميل Supabase للخادم (عشان نتحقق من الجلسة)
+  // ✅ التحقق من الجلسة باستخدام Supabase
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     {
       cookies: {
         getAll: () => request.cookies.getAll(),
-        setAll: () => {}, // مش محتاجين نعدل الكوكيز هنا
+        setAll: () => {},
       },
     }
   );
 
-  // ✅ التحقق من وجود جلسة نشطة
   const { data: { session } } = await supabase.auth.getSession();
 
   // لو مش مسجل دخول ويحاول يدخل على صفحة محمية
@@ -47,5 +46,5 @@ export async function middleware(request) {
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/login', '/register', '/reset-password', '/assistant-login'],
+  matcher: ['/dashboard/:path*', '/login', '/register', '/reset-password', '/update-password', '/assistant-login'],
 };
