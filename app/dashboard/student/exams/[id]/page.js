@@ -11,6 +11,13 @@
 // ================================================================
 // 🎯 التعديلات المطلوبة للتوافق مع نظام الكورسات المدفوعة (الاشتراك + الأجهزة)
 // ================================================================
+// ✅ تعديل fetchExamData – إزالة استئناف الجلسات القديمة وإنهائها بصمت
+// ✅ تعديل startExam – ضمان بداية جديدة 100% مع تايمر كامل وإعادة ضبط الحالة
+// ✅ تعديل حساب المحاولات المتبقية – الاعتماد على قاعدة البيانات فقط
+// ✅ تعديل forceCloseExam – تحديث المحاولات المتبقية بناءً على عدد المحاولات المنتهية في القاعدة
+// ✅ تحسين checkIfPassed – منع الدخول لأي ناجح مع إضافة شرط مبكر في fetchExamData
+// ✅ إضافة زر الوضع الفاتح/الداكن بدون تسجيل غش
+// ✅ إزالة كود خصم المحاولات عند إعادة التحميل (reload logic) بالكامل
 
 'use client';
 
@@ -2463,14 +2470,30 @@ export default function StudentExamPage() {
           .eq('id', attemptId);
       }
 
-      const currentAttemptsLeft = attemptsLeft;
-      const remaining = Math.max(0, currentAttemptsLeft - 1);
-      sessionStorage.setItem(`exam_${examId}_attempts_left`, remaining.toString());
-      setAttemptsLeft(remaining);
+      // ✅ جلب عدد المحاولات المنتهية من القاعدة لتحديث العدد بدقة
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        const { data: allAttempts } = await supabase
+          .from('exam_attempts')
+          .select('id')
+          .eq('exam_id', examId)
+          .eq('student_id', user.id)
+          .in('status', ['completed', 'terminated']);
+        
+        const completedCount = allAttempts?.length || 0;
+        const remaining = Math.max(0, (exam?.attempts_allowed || 1) - completedCount);
+        sessionStorage.setItem(`exam_${examId}_attempts_left`, remaining.toString());
+        setAttemptsLeft(remaining);
+      } catch (e) {
+        // لو فشل الجلب، نخصم 1 كإجراء احتياطي
+        const remaining = Math.max(0, attemptsLeft - 1);
+        sessionStorage.setItem(`exam_${examId}_attempts_left`, remaining.toString());
+        setAttemptsLeft(remaining);
+      }
 
       toast.error(language === 'ar'
-        ? `❌ تم إغلاق الامتحان بسبب خروقات أمنية متكررة. المحاولات المتبقية: ${remaining}`
-        : `❌ Exam closed due to repeated security violations. Attempts left: ${remaining}`
+        ? `❌ تم إغلاق الامتحان بسبب خروقات أمنية متكررة. المحاولات المتبقية: ${attemptsLeft}`
+        : `❌ Exam closed due to repeated security violations. Attempts left: ${attemptsLeft}`
       );
 
       router.push(`/dashboard/student/exams/${examId}/result?score=0&total=${exam?.total_marks || 0}`);
@@ -2870,6 +2893,12 @@ export default function StudentExamPage() {
       const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single();
       setStudent(profile);
 
+      // ✅ التحقق المبكر: إذا كان الطالب ناجحاً سابقاً، لا نكمل تحميل البيانات
+      if (passedAttempt || showPassedScreen) {
+        setLoading(false);
+        return;
+      }
+
       const { data: examData, error: examError } = await supabase
         .from('exams')
         .select('*')
@@ -2914,10 +2943,15 @@ export default function StudentExamPage() {
         .eq('exam_id', examId)
         .eq('student_id', user.id);
       
-      const completed = attempts?.filter(a => a.status === 'completed' || a.status === 'terminated') || [];
+      // ✅ حساب المحاولات المتبقية من قاعدة البيانات (المصدر الوحيد)
       const attemptsAllowed = examData.attempts_allowed || 1;
-      let attemptsLeftVal = Math.max(0, attemptsAllowed - completed.length);
-      const attemptsUsed = attemptsAllowed - attemptsLeftVal;
+      const completedCount = attempts?.filter(
+        a => a.status === 'completed' || a.status === 'terminated'
+      ).length || 0;
+      const attemptsLeftVal = Math.max(0, attemptsAllowed - completedCount);
+      setAttemptsLeft(attemptsLeftVal);
+      // نخزنه في sessionStorage كمرجع سريع
+      sessionStorage.setItem(`exam_${examId}_attempts_left`, attemptsLeftVal.toString());
 
       // ===== التحقق من وجود محاولة ناجحة =====
       const hasPassed = attempts?.some(a => a.passed === true);
@@ -2934,6 +2968,8 @@ export default function StudentExamPage() {
         if (passedData) {
           setPassedAttempt(passedData);
           setShowPassedScreen(true);
+          setLoading(false);
+          return;
         }
       }
 
@@ -2942,10 +2978,10 @@ export default function StudentExamPage() {
       if (storedAttempts !== null) {
         const savedAttempts = parseInt(storedAttempts, 10);
         if (!isNaN(savedAttempts) && savedAttempts < attemptsLeftVal) {
-          attemptsLeftVal = savedAttempts;
+          // نستخدم القيمة الأقل (الأكثر أماناً)
+          setAttemptsLeft(savedAttempts);
         }
       }
-      setAttemptsLeft(attemptsLeftVal);
 
       if (attemptsLeftVal <= 0 && !hasPassed) {
         setError(language === 'ar' ? 'لقد استنفدت الحد الأقصى من المحاولات' : 'You have exhausted all attempts');
@@ -3001,7 +3037,7 @@ export default function StudentExamPage() {
         ...examData, 
         questionCount: realQuestionsCount, 
         attemptsLeft: attemptsLeftVal,
-        attemptsUsed: attemptsUsed,
+        attemptsUsed: attemptsAllowed - attemptsLeftVal,
         teacher_name: teacherName,
         course_name: courseName || '',
         maxViolations: examData.max_violations || 5,
@@ -3028,109 +3064,47 @@ export default function StudentExamPage() {
       const duration = (examData.duration_minutes || 60) * 60;
       setTimeRemaining(duration);
 
+      // ===== معالجة المحاولات المفتوحة (in_progress) =====
+      // ✅ التعديل الجديد: إنهاء أي محاولة مفتوحة بصمت وبدء محاولة جديدة
       const inProgress = attempts?.find(a => a.status === 'in_progress');
       if (inProgress) {
-        const { data: saved } = await supabase
-          .from('exam_attempts')
-          .select('answers, started_at')
-          .eq('id', inProgress.id)
-          .single();
-        if (saved) {
-          let parsedAnswers = saved.answers || {};
-          if (questionsData && questionsData.length) {
-            Object.keys(parsedAnswers).forEach(key => {
-              const q = questionsData.find(q => q.id === key);
-              if (!q) return;
-              
-              const type = q.type || '';
-              const arrayTypes = ['fill_from_words', 'sentence_reorder', 'ordering', 'matching'];
-              if (arrayTypes.includes(type) && typeof parsedAnswers[key] === 'string') {
-                try {
-                  const parsed = JSON.parse(parsedAnswers[key]);
-                  parsedAnswers[key] = Array.isArray(parsed) ? parsed : [];
-                } catch {
-                  parsedAnswers[key] = [];
-                }
-              }
-              if (type === 'multiple_choice') {
-                if (typeof parsedAnswers[key] === 'string') {
-                  const num = parseInt(parsedAnswers[key], 10);
-                  if (!isNaN(num) && num >= 1 && num <= 26) {
-                    parsedAnswers[key] = String.fromCharCode(64 + num).toLowerCase();
-                  } else {
-                    parsedAnswers[key] = parsedAnswers[key].toLowerCase().trim();
-                  }
-                }
-              }
-            });
-          }
-          setAnswers(parsedAnswers);
-          setExamStartedAt(saved.started_at);
-          setAttemptId(inProgress.id);
-          const elapsed = (new Date() - new Date(saved.started_at)) / 1000;
-          const remaining = Math.max(0, duration - elapsed);
-          setTimeRemaining(remaining);
+        // إنهاء الجلسة القديمة بصمت (تحويلها إلى terminated)
+        // لضمان عدم وجود أي جلسة مفتوحة تؤثر على المحاولة الجديدة
+        try {
+          await supabase
+            .from('exam_attempts')
+            .update({
+              status: 'terminated',
+              proctoring_log: { 
+                violations: 0, 
+                reason: 'session_expired_or_replaced',
+                terminated_at: new Date().toISOString()
+              },
+              submitted_at: new Date().toISOString(),
+            })
+            .eq('id', inProgress.id);
+          console.log('✅ تم إغلاق محاولة قديمة مفتوحة:', inProgress.id);
+        } catch (e) {
+          console.warn('⚠️ فشل إغلاق المحاولة القديمة:', e);
         }
 
-        const reloadKey = `exam_${examId}_load_count`;
-        const reloadCount = parseInt(sessionStorage.getItem(reloadKey) || '0', 10);
-        sessionStorage.setItem(reloadKey, (reloadCount + 1).toString());
-
-        // ✅ تحسين منطق خصم المحاولات: التحقق من النجاح قبل الخصم
-        if (reloadCount > 0 && inProgress) {
-          // التحقق من أن المستخدم لم ينجح بالفعل
-          const hasPassed = attempts?.some(a => a.passed === true);
-          if (!hasPassed) {
-            // فقط إذا لم يكن ناجحاً، نخصم محاولة
-            const newAttemptsLeft = Math.max(0, attemptsLeftVal - 1);
-            sessionStorage.setItem(`exam_${examId}_attempts_left`, newAttemptsLeft.toString());
-            setAttemptsLeft(newAttemptsLeft);
-            setExam(prev => prev ? { ...prev, attemptsLeft: newAttemptsLeft } : prev);
-
-            sessionStorage.removeItem(`exam_${examId}_answers`);
-            sessionStorage.removeItem(`exam_${examId}_highlights`);
-            setAnswers({});
-            setCurrentIndex(0);
-
-            await supabase
-              .from('exam_attempts')
-              .update({
-                answers: {},
-                proctoring_log: { reloaded: true, reload_count: reloadCount },
-              })
-              .eq('id', inProgress.id);
-
-            toast.error(language === 'ar'
-              ? `⚠️ إعادة تحميل الصفحة مخالفة! تم خصم محاولة. المتبقي: ${newAttemptsLeft}`
-              : `⚠️ Page reload violation! One attempt deducted. Remaining: ${newAttemptsLeft}`
-            );
-
-            if (newAttemptsLeft <= 0) {
-              setTimeout(() => submitExam(true), 0);
-            }
-          } else {
-            // إذا كان ناجحاً، لا نخصم محاولة، فقط نعرض رسالة
-            toast(language === 'ar' ? '✅ لقد نجحت بالفعل في هذا الامتحان' : '✅ You already passed this exam');
-            setShowPassedScreen(true);
-            // جلب تفاصيل المحاولة الناجحة
-            const { data: passedData } = await supabase
-              .from('exam_attempts')
-              .select('*')
-              .eq('exam_id', examId)
-              .eq('student_id', user.id)
-              .eq('passed', true)
-              .order('submitted_at', { ascending: false })
-              .limit(1)
-              .single();
-            if (passedData) {
-              setPassedAttempt(passedData);
-            }
-          }
-        }
-      } else {
-        sessionStorage.setItem(`exam_${examId}_load_count`, '1');
-        setExamStartedAt(new Date().toISOString());
+        // لا نستأنف أي شيء، سنبدأ محاولة جديدة
+        // نمسح أي آثار للجلسة القديمة من sessionStorage
+        sessionStorage.removeItem(`exam_${examId}_answers`);
+        sessionStorage.removeItem(`exam_${examId}_highlights`);
+        setAnswers({});          // إجابات فاضية
+        setCurrentIndex(0);       // نبدأ من السؤال الأول
       }
+
+      // ✅ بعد معالجة المحاولات المفتوحة، نضبط التايمر على المدة الكاملة
+      setTimeRemaining(duration);
+
+      // ✅ إزالة كود reload logic بالكامل (الذي كان يخصم محاولات عند إعادة التحميل)
+      // تم حذف الجزء التالي:
+      // const reloadKey = `exam_${examId}_load_count`;
+      // const reloadCount = parseInt(sessionStorage.getItem(reloadKey) || '0', 10);
+      // sessionStorage.setItem(reloadKey, (reloadCount + 1).toString());
+      // if (reloadCount > 0 && inProgress) { ... }
 
       setLoading(false);
     } catch (err) {
@@ -3138,7 +3112,7 @@ export default function StudentExamPage() {
       setError(language === 'ar' ? 'حدث خطأ أثناء تحميل الامتحان' : 'Error loading exam');
       setLoading(false);
     }
-  }, [examId, router, language, verifyExamAccess]);
+  }, [examId, router, language, verifyExamAccess, passedAttempt, showPassedScreen]);
 
   useEffect(() => {
     fetchExamData();
@@ -3147,6 +3121,26 @@ export default function StudentExamPage() {
   // ===== بدء الامتحان مع تفعيل الأمان الشامل =====
   const startExam = useCallback(async () => {
     if (examStatus === 'started') return;
+
+    // ✅ ضمان بيئة نضيفة: مسح جميع الإجابات والحالات القديمة
+    setAnswers({});
+    setMarkedQuestions([]);
+    setHighlightedQuestions([]);
+    setReviewMarkedQuestions([]);
+    setCurrentIndex(0);
+    setViolations(0);
+    setFullscreenExitCount(0);
+    fullscreenExitAttemptsRef.current = 0;
+
+    // ✅ ضبط التايمر على المدة الكاملة من الامتحان
+    const fullDurationSeconds = (exam?.duration_minutes || 60) * 60;
+    setTimeRemaining(fullDurationSeconds);
+
+    // ✅ إلغاء أي مؤقت قديم شغال
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
 
     // ✅ التحقق من صلاحية الوصول قبل بدء الامتحان (مرة أخرى للتأكيد)
     if (exam?.course_id) {
@@ -3197,7 +3191,7 @@ export default function StudentExamPage() {
         return prev - 1;
       });
     }, 1000);
-  }, [examStatus, examId, exam, examStartedAt, language, requestFullscreen, enableSecurityLockdown, verifyExamAccess]);
+  }, [examStatus, examId, exam, examStartedAt, language, requestFullscreen, enableSecurityLockdown, verifyExamAccess, submitExam]);
 
   // ===== useEffect لتفعيل مراقبة الأمان =====
   useEffect(() => {
@@ -3364,10 +3358,25 @@ export default function StudentExamPage() {
         }
       }
 
-      // تحديث المحاولات المتبقية
-      const newAttemptsLeft = Math.max(0, attemptsLeft - (isAuto ? 0 : 1));
-      sessionStorage.setItem(`exam_${examId}_attempts_left`, newAttemptsLeft.toString());
-      setAttemptsLeft(newAttemptsLeft);
+      // ✅ تحديث المحاولات المتبقية من قاعدة البيانات بعد التسليم
+      try {
+        const { data: allAttempts } = await supabase
+          .from('exam_attempts')
+          .select('id')
+          .eq('exam_id', examId)
+          .eq('student_id', user.id)
+          .in('status', ['completed', 'terminated']);
+        
+        const completedCount = allAttempts?.length || 0;
+        const newAttemptsLeft = Math.max(0, (exam?.attempts_allowed || 1) - completedCount);
+        sessionStorage.setItem(`exam_${examId}_attempts_left`, newAttemptsLeft.toString());
+        setAttemptsLeft(newAttemptsLeft);
+      } catch (e) {
+        // احتياطي: خصم 1
+        const newAttemptsLeft = Math.max(0, attemptsLeft - 1);
+        sessionStorage.setItem(`exam_${examId}_attempts_left`, newAttemptsLeft.toString());
+        setAttemptsLeft(newAttemptsLeft);
+      }
 
       sessionStorage.removeItem(`exam_${examId}_answers`);
       sessionStorage.removeItem(`exam_${examId}_highlights`);
@@ -4118,6 +4127,40 @@ export default function StudentExamPage() {
                 </button>
               </div>
               <div className="flex gap-1 items-center">
+                {/* ✅ زر تبديل الوضع الفاتح/الداكن */}
+                <button
+                  onClick={() => {
+                    // محاولة استخدام toggleTheme من useTheme إن وجدت
+                    try {
+                      // @ts-ignore - قد لا تكون toggleTheme موجودة في useTheme في بعض الإصدارات
+                      const { toggleTheme } = useTheme();
+                      if (toggleTheme) {
+                        toggleTheme();
+                      } else {
+                        // fallback: تبديل الكلاس يدوياً
+                        document.documentElement.classList.toggle('dark');
+                      }
+                    } catch {
+                      // fallback: تبديل الكلاس يدوياً
+                      document.documentElement.classList.toggle('dark');
+                    }
+                    toast.success(
+                      isDark 
+                        ? (language === 'ar' ? '☀️ تم التبديل إلى الوضع الفاتح' : '☀️ Switched to Light Mode')
+                        : (language === 'ar' ? '🌙 تم التبديل إلى الوضع الداكن' : '🌙 Switched to Dark Mode'),
+                      { duration: 1500 }
+                    );
+                  }}
+                  style={{ touchAction: 'manipulation' }}
+                  className={`p-2 rounded-lg transition ${
+                    isDark
+                      ? 'bg-yellow-400/20 text-yellow-400 hover:bg-yellow-400/30'
+                      : 'bg-gray-700/10 text-gray-700 hover:bg-gray-700/20 dark:text-white'
+                  }`}
+                  title={language === 'ar' ? 'تغيير الوضع' : 'Toggle Theme'}
+                >
+                  {isDark ? <Icons.Sun className="h-5 w-5" /> : <Icons.Moon className="h-5 w-5" />}
+                </button>
                 <FontControls
                   fontSize={fontSize}
                   setFontSize={setFontSize}
