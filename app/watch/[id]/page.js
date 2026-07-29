@@ -10,8 +10,8 @@
 // ✅ نظام التتبع الذكي للمشاهدة (Smart Watch Tracking)
 //    - تتبع الفترات الفعلية للمشاهدة ودمجها
 //    - حساب الوقت الفريد المشاهد
-//    - حفظ دوري كل 30 ثانية
-//    - حفظ عند الخروج باستخدام sendBeacon
+//    - حفظ دوري كل 30 ثانية مع إرسال التوكن
+//    - حفظ عند الخروج باستخدام fetch مع keepalive وإرسال التوكن
 //    - استئناف الفترات المحفوظة مسبقاً
 // ================================================================
 
@@ -955,7 +955,7 @@ export default function WatchPage() {
     return () => clearInterval(interval);
   }, [isPlaying, playerReady]);
 
-  // 15.2 الحفظ الدوري الصامت (كل 30 ثانية)
+  // 15.2 الحفظ الدوري الصامت (كل 30 ثانية) مع إرسال التوكن
   useEffect(() => {
     if (!video?.id || !playerReady) return;
 
@@ -966,20 +966,27 @@ export default function WatchPage() {
         const duration = playerRef.current?.getDuration() || 0;
         const progress = duration > 0 ? (watchedSeconds / duration) * 100 : 0;
 
-        // إرسال إلى API route بصمت
-        await fetch('/api/watch-progress', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            videoId: video.id,
-            courseId: video.course_id || null,
-            intervals: watchIntervals,
-            watchedSeconds,
-            progress: Math.min(progress, 100),
-          }),
-          keepalive: true,
-        }).catch(() => {}); // تجاهل أي فشل
+        // جلب التوكن من Supabase
+        const { data: { session } } = await supabase.auth.getSession();
+        const accessToken = session?.access_token;
 
+        if (accessToken) {
+          await fetch('/api/watch-progress', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${accessToken}`
+            },
+            body: JSON.stringify({
+              videoId: video.id,
+              courseId: video.course_id || null,
+              intervals: watchIntervals,
+              watchedSeconds,
+              progress: Math.min(progress, 100),
+            }),
+            keepalive: true,
+          }).catch(() => {});
+        }
         lastSaveTimeRef.current = Date.now();
       } catch (e) {}
     };
@@ -994,7 +1001,7 @@ export default function WatchPage() {
     };
   }, [video?.id, playerReady, watchIntervals, totalWatchedUnique]);
 
-  // 15.3 الحفظ عند الخروج (قبل إغلاق الصفحة أو مغادرة التبويب)
+  // 15.3 الحفظ عند الخروج (قبل إغلاق الصفحة أو مغادرة التبويب) باستخدام fetch مع keepalive
   useEffect(() => {
     const handleExit = () => {
       if (!video?.id || watchIntervals.length === 0) return;
@@ -1009,9 +1016,22 @@ export default function WatchPage() {
         progress: Math.min(progress, 100),
       };
 
-      // استخدام sendBeacon مع Blob لضمان الإرسال
-      const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
-      navigator.sendBeacon('/api/watch-progress', blob);
+      // الحصول على التوكن وإرسال الطلب
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        const accessToken = session?.access_token;
+        const headers = {
+          'Content-Type': 'application/json',
+        };
+        if (accessToken) {
+          headers['Authorization'] = `Bearer ${accessToken}`;
+        }
+        fetch('/api/watch-progress', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(payload),
+          keepalive: true,
+        }).catch(() => {});
+      });
     };
 
     window.addEventListener('beforeunload', handleExit);
