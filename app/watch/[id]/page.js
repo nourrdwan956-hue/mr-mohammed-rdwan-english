@@ -7,6 +7,12 @@
 // ✅ مؤشر التقدم يتغير لونه تدريجياً حسب الثلث (أحمر ← أصفر ← أخضر)
 // ✅ زر التشغيل المركزي يعمل كـ toggle دائماً
 // ✅ إضافة التحكم في الترجمة (Captions) مع حالة ودالة وزر مخصص
+// ✅ نظام التتبع الذكي للمشاهدة (Smart Watch Tracking)
+//    - تتبع الفترات الفعلية للمشاهدة ودمجها
+//    - حساب الوقت الفريد المشاهد
+//    - حفظ دوري كل 30 ثانية
+//    - حفظ عند الخروج باستخدام sendBeacon
+//    - استئناف الفترات المحفوظة مسبقاً
 // ================================================================
 
 'use client';
@@ -20,6 +26,25 @@ import { toast } from 'react-hot-toast';
 import * as Icons from 'lucide-react';
 import { checkCourseAccess } from '@/lib/course-access';
 import { useTheme } from '@/lib/hooks/useTheme';
+
+// ================================================================
+// 0. دالة دمج الفترات الزمنية (Utility)
+// ================================================================
+function mergeIntervals(intervals) {
+  if (!intervals.length) return [];
+  const sorted = [...intervals].sort((a, b) => a[0] - b[0]);
+  const merged = [sorted[0]];
+  for (let i = 1; i < sorted.length; i++) {
+    const prev = merged[merged.length - 1];
+    const curr = sorted[i];
+    if (curr[0] <= prev[1]) {
+      prev[1] = Math.max(prev[1], curr[1]);
+    } else {
+      merged.push(curr);
+    }
+  }
+  return merged;
+}
 
 // ================================================================
 // 1. دوال مساعدة
@@ -315,8 +340,14 @@ export default function WatchPage() {
   const [bufferProgress, setBufferProgress] = useState(0);
   const [loop, setLoop] = useState(false);
   const [focusMode, setFocusMode] = useState(false);
-  // ✅ إضافة حالة الترجمة (معطلة افتراضياً)
   const [captionsEnabled, setCaptionsEnabled] = useState(false);
+
+  // ===== نظام التتبع الذكي =====
+  const [watchIntervals, setWatchIntervals] = useState([]); // فترات المشاهدة [[start, end], ...]
+  const [totalWatchedUnique, setTotalWatchedUnique] = useState(0); // إجمالي الوقت الفعلي الجديد
+  const lastSaveTimeRef = useRef(Date.now());
+  const saveIntervalRef = useRef(null);
+  const watchSessionRef = useRef({ startTime: null, lastTick: null }); // لتتبع الجلسة
 
   // ---- المراجع ----
   const containerRef = useRef(null);
@@ -342,7 +373,7 @@ export default function WatchPage() {
   }, [video, isValidYoutube, isYoutubeOnly, youtubeId]);
 
   // ================================================================
-  // 8. جلب البيانات الأساسية
+  // 8. جلب البيانات الأساسية + تاريخ المشاهدة
   // ================================================================
   useEffect(() => {
     if (!id) return;
@@ -404,6 +435,29 @@ export default function WatchPage() {
         if (data.duration) {
           const parsed = parseDurationToSeconds(data.duration);
           if (parsed > 0) setDuration(parsed);
+        }
+
+        // ===== جلب تاريخ المشاهدة المحفوظ =====
+        if (data?.id && user?.id) {
+          const { data: history, error: historyError } = await supabase
+            .from('watch_history')
+            .select('intervals, watched_seconds')
+            .eq('video_id', data.id)
+            .eq('student_id', user.id)
+            .maybeSingle();
+
+          if (!historyError && history?.intervals && Array.isArray(history.intervals)) {
+            // نتحقق من صحة الفترات (تأكد من أنها مصفوفة من أزواج)
+            const validIntervals = history.intervals.filter(
+              (interval) => Array.isArray(interval) && interval.length === 2 && typeof interval[0] === 'number' && typeof interval[1] === 'number'
+            );
+            if (validIntervals.length > 0) {
+              const merged = mergeIntervals(validIntervals);
+              setWatchIntervals(merged);
+              const total = merged.reduce((sum, [s, e]) => sum + (e - s), 0);
+              setTotalWatchedUnique(total);
+            }
+          }
         }
 
         const started = sessionStorage.getItem(`watch_started_${id}`) === 'true';
@@ -481,7 +535,7 @@ export default function WatchPage() {
             playsinline: 1,
             autoplay: 0,
             mute: 0,
-            cc_load_policy: 0, // ✅ لا نحمل الترجمة تلقائياً (التحكم اليدوي)
+            cc_load_policy: 0,
             autohide: 1,
             listType: 'playlist',
             origin: window.location.origin,
@@ -613,7 +667,6 @@ export default function WatchPage() {
         playerRef.current.playVideo();
       }
       setControlsVisible(true);
-      // إعادة ضبط المؤقت لإخفاء الأزرار بعد 2.5 ثانية
       clearTimeout(controlsTimerRef.current);
       controlsTimerRef.current = setTimeout(() => {
         if (isPlaying) setControlsVisible(false);
@@ -738,23 +791,19 @@ export default function WatchPage() {
     });
   }, []);
 
-  // ✅ دالة التحكم في الترجمة (إظهار/إخفاء)
   const toggleCaptions = useCallback(() => {
     if (!playerRef.current || !playerReady) return;
     try {
       const player = playerRef.current;
       if (captionsEnabled) {
-        // إخفاء الترجمة: تعيين كود لغة فارغ
         player.setOption('captions', 'track', { languageCode: '' });
         setCaptionsEnabled(false);
         toast.success(language === 'ar' ? 'تم إخفاء الترجمة' : 'Captions hidden');
       } else {
-        // إظهار الترجمة: نحمل وحدة الترجمة ثم نفعل المسار الافتراضي
         player.loadModule('captions');
-        // تأخير بسيط لضمان تحميل الوحدة ثم تعيين المسار (فارغ = افتراضي)
         setTimeout(() => {
           try {
-            player.setOption('captions', 'track', {}); // تفعيل المسار الافتراضي
+            player.setOption('captions', 'track', {});
             setCaptionsEnabled(true);
             toast.success(language === 'ar' ? 'تم إظهار الترجمة' : 'Captions shown');
           } catch (innerErr) {
@@ -774,7 +823,6 @@ export default function WatchPage() {
   // ================================================================
   useEffect(() => {
     if (isYoutubeOnly) return;
-    // إظهار الأزرار عند تشغيل الفيديو، وإخفائها بعد 2.5 ثانية من التوقف عن الحركة
     const handleMouseMove = () => {
       setControlsVisible(true);
       clearTimeout(controlsTimerRef.current);
@@ -786,7 +834,6 @@ export default function WatchPage() {
     };
 
     const handleMouseLeave = () => {
-      // إذا كان الفيديو يعمل، نخفي الأزرار فوراً عند مغادرة الماوس الحاوية
       if (isPlaying) {
         setControlsVisible(false);
         clearTimeout(controlsTimerRef.current);
@@ -799,7 +846,6 @@ export default function WatchPage() {
       container.addEventListener('mouseleave', handleMouseLeave);
     }
 
-    // تنظيف
     return () => {
       if (container) {
         container.removeEventListener('mousemove', handleMouseMove);
@@ -870,7 +916,7 @@ export default function WatchPage() {
         case 'f': case 'F': toggleFullscreen(); break;
         case 'l': case 'L': toggleLoop(); break;
         case 'z': case 'Z': toggleFocusMode(); break;
-        case 'c': case 'C': toggleCaptions(); break; // ✅ إضافة اختصار C للترجمة
+        case 'c': case 'C': toggleCaptions(); break;
         default: break;
       }
     };
@@ -879,7 +925,105 @@ export default function WatchPage() {
   }, [playerReady, togglePlay, skipForward, skipBackward, toggleMute, toggleFullscreen, toggleLoop, toggleFocusMode, toggleCaptions, isYoutubeOnly]);
 
   // ================================================================
-  // 15. عرض الصفحة
+  // 15. نظام التتبع الذكي للمشاهدة
+  // ================================================================
+
+  // 15.1 تتبع التقدم الحقيقي (تحديث الفترات)
+  useEffect(() => {
+    if (!playerReady || !isPlaying || !playerRef.current) return;
+
+    let lastTime = playerRef.current.getCurrentTime();
+    const interval = setInterval(() => {
+      try {
+        const now = playerRef.current.getCurrentTime();
+        const delta = now - lastTime;
+        // تجاهل إذا كان التغير أكبر من 2 ثانية (تخطي يدوي أو تحميل)
+        if (delta > 0 && delta <= 2.0) {
+          setWatchIntervals(prev => {
+            const newInterval = [lastTime, now];
+            const merged = mergeIntervals([...prev, newInterval]);
+            // تحديث الوقت الفريد
+            const unique = merged.reduce((sum, [s, e]) => sum + (e - s), 0);
+            setTotalWatchedUnique(unique);
+            return merged;
+          });
+        }
+        lastTime = now;
+      } catch (e) {}
+    }, 1000); // تحديث كل ثانية لتقليل الحمل
+
+    return () => clearInterval(interval);
+  }, [isPlaying, playerReady]);
+
+  // 15.2 الحفظ الدوري الصامت (كل 30 ثانية)
+  useEffect(() => {
+    if (!video?.id || !playerReady) return;
+
+    const saveProgress = async () => {
+      if (watchIntervals.length === 0) return;
+      try {
+        const watchedSeconds = totalWatchedUnique;
+        const duration = playerRef.current?.getDuration() || 0;
+        const progress = duration > 0 ? (watchedSeconds / duration) * 100 : 0;
+
+        // إرسال إلى API route بصمت
+        await fetch('/api/watch-progress', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            videoId: video.id,
+            courseId: video.course_id || null,
+            intervals: watchIntervals,
+            watchedSeconds,
+            progress: Math.min(progress, 100),
+          }),
+          keepalive: true,
+        }).catch(() => {}); // تجاهل أي فشل
+
+        lastSaveTimeRef.current = Date.now();
+      } catch (e) {}
+    };
+
+    // التشغيل الأول بعد 5 ثوان
+    const initialTimeout = setTimeout(saveProgress, 5000);
+    saveIntervalRef.current = setInterval(saveProgress, 30000);
+
+    return () => {
+      clearTimeout(initialTimeout);
+      clearInterval(saveIntervalRef.current);
+    };
+  }, [video?.id, playerReady, watchIntervals, totalWatchedUnique]);
+
+  // 15.3 الحفظ عند الخروج (قبل إغلاق الصفحة أو مغادرة التبويب)
+  useEffect(() => {
+    const handleExit = () => {
+      if (!video?.id || watchIntervals.length === 0) return;
+      const watchedSeconds = totalWatchedUnique;
+      const duration = playerRef.current?.getDuration() || 0;
+      const progress = duration > 0 ? (watchedSeconds / duration) * 100 : 0;
+      const payload = {
+        videoId: video.id,
+        courseId: video.course_id || null,
+        intervals: watchIntervals,
+        watchedSeconds,
+        progress: Math.min(progress, 100),
+      };
+
+      // استخدام sendBeacon مع Blob لضمان الإرسال
+      const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+      navigator.sendBeacon('/api/watch-progress', blob);
+    };
+
+    window.addEventListener('beforeunload', handleExit);
+    window.addEventListener('pagehide', handleExit);
+    return () => {
+      window.removeEventListener('beforeunload', handleExit);
+      window.removeEventListener('pagehide', handleExit);
+    };
+  }, [video?.id, watchIntervals, totalWatchedUnique]);
+
+  // ================================================================
+  // 16. عرض الصفحة
   // ================================================================
 
   if (isYoutubeOnly) {
@@ -990,7 +1134,7 @@ export default function WatchPage() {
   const thumbnailUrl = youtubeId ? `https://img.youtube.com/vi/${youtubeId}/maxresdefault.jpg` : null;
 
   // ================================================================
-  // 16. التصميم النهائي مع إخفاء زر التشغيل المركزي مع عناصر التحكم
+  // 17. التصميم النهائي مع إخفاء زر التشغيل المركزي مع عناصر التحكم
   // ================================================================
   return (
     <div className={`min-h-screen text-white transition-all duration-500 relative ${focusMode ? 'fixed inset-0 z-50 p-0 flex items-center justify-center bg-black' : ''}`}>
@@ -1167,7 +1311,7 @@ export default function WatchPage() {
                           }}
                         />
 
-                        {/* ✅ زر التحكم في الترجمة (CC) */}
+                        {/* زر التحكم في الترجمة (CC) */}
                         <button
                           onClick={toggleCaptions}
                           className={`p-1.5 rounded-full hover:bg-white/10 transition-colors ${captionsEnabled ? 'text-yellow-400' : ''}`}
