@@ -1173,7 +1173,7 @@ export default function WatchPage() {
                           className={`p-1.5 rounded-full hover:bg-white/10 transition-colors ${captionsEnabled ? 'text-yellow-400' : ''}`}
                           title={captionsEnabled ? (language === 'ar' ? 'إخفاء الترجمة' : 'Hide Captions') : (language === 'ar' ? 'إظهار الترجمة' : 'Show Captions')}
                         >
-                          <Icons.ClosedCaptioning className="h-5 w-5" />
+                          <Icons.ClosedCaption className="h-5 w-5" />
                         </button>
 
                         <div className="relative">
