@@ -1,15 +1,21 @@
 // app/api/send-otp/route.js
 import { NextResponse } from 'next/server';
-import { Resend } from 'resend';
 
-// ================================================================
-// إعداد Resend
-// ================================================================
-const resend = new Resend(process.env.RESEND_API_KEY);
+// دالة مساعدة لإنشاء Resend عند الحاجة (Lazy initialization)
+let resendInstance = null;
+function getResendClient() {
+  if (!resendInstance) {
+    // استيراد ديناميكي لتفادي أخطاء البناء
+    const { Resend } = require('resend');
+    const apiKey = process.env.RESEND_API_KEY;
+    if (!apiKey) {
+      throw new Error('RESEND_API_KEY غير مضبوط في متغيرات البيئة');
+    }
+    resendInstance = new Resend(apiKey);
+  }
+  return resendInstance;
+}
 
-// ================================================================
-// دالة الإرسال (الآن عبر Resend – سريعة ولا تسبب تأخير)
-// ================================================================
 export async function POST(request) {
   try {
     const { email, otp, studentName, phone, parentPhone, school, grade, governorate } = await request.json();
@@ -48,9 +54,11 @@ export async function POST(request) {
 </html>
     `;
 
-    // إرسال البريد باستخدام Resend (سريع وموثوق)
+    // إنشاء عميل Resend عند الطلب (لأول مرة فقط)
+    const resend = getResendClient();
+
     const { data, error } = await resend.emails.send({
-      from: 'منصة محمد رضوان <onboarding@resend.dev>', // يمكنك تغييره إلى نطاقك لاحقاً
+      from: 'منصة محمد رضوان <onboarding@resend.dev>',
       to: email,
       subject: 'رمز تأكيد التسجيل – منصة محمد رضوان',
       html: htmlContent,
