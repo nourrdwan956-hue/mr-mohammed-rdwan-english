@@ -18,6 +18,8 @@
 // ✅ تحسين checkIfPassed – منع الدخول لأي ناجح مع إضافة شرط مبكر في fetchExamData
 // ✅ إضافة زر الوضع الفاتح/الداكن بدون تسجيل غش
 // ✅ إزالة كود خصم المحاولات عند إعادة التحميل (reload logic) بالكامل
+// ✅ إعادة ترتيب الدوال (submitExam قبل startExam) لتجنب خطأ التهيئة
+// ✅ إصلاح زر تبديل الوضع الفاتح/الداكن ليعمل يدوياً دون استدعاء useTheme داخل callback
 
 'use client';
 
@@ -3118,105 +3120,9 @@ export default function StudentExamPage() {
     fetchExamData();
   }, [fetchExamData]);
 
-  // ===== بدء الامتحان مع تفعيل الأمان الشامل =====
-  const startExam = useCallback(async () => {
-    if (examStatus === 'started') return;
-
-    // ✅ ضمان بيئة نضيفة: مسح جميع الإجابات والحالات القديمة
-    setAnswers({});
-    setMarkedQuestions([]);
-    setHighlightedQuestions([]);
-    setReviewMarkedQuestions([]);
-    setCurrentIndex(0);
-    setViolations(0);
-    setFullscreenExitCount(0);
-    fullscreenExitAttemptsRef.current = 0;
-
-    // ✅ ضبط التايمر على المدة الكاملة من الامتحان
-    const fullDurationSeconds = (exam?.duration_minutes || 60) * 60;
-    setTimeRemaining(fullDurationSeconds);
-
-    // ✅ إلغاء أي مؤقت قديم شغال
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-
-    // ✅ التحقق من صلاحية الوصول قبل بدء الامتحان (مرة أخرى للتأكيد)
-    if (exam?.course_id) {
-      const hasAccess = await verifyExamAccess(exam.course_id);
-      if (!hasAccess) {
-        toast.error(language === 'ar' ? 'لا يمكنك بدء الامتحان، يرجى التحقق من اشتراكك' : 'Cannot start exam, please check your subscription');
-        return;
-      }
-    }
-
-    setExamStatus('started');
-
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data, error } = await supabase
-        .from('exam_attempts')
-        .insert({
-          exam_id: examId,
-          student_id: user.id,
-          answers: {},
-          status: 'in_progress',
-          started_at: examStartedAt || new Date().toISOString(),
-          total_marks: exam?.total_marks || 0,
-        })
-        .select()
-        .single();
-      if (error) throw error;
-      setAttemptId(data.id);
-    } catch (err) {
-      toast.error(language === 'ar' ? 'فشل بدء الامتحان' : 'Failed to start exam');
-    }
-
-    // تفعيل ملء الشاشة الإجباري
-    requestFullscreen();
-
-    // ✅ تفعيل قفل الأمان الشامل
-    enableSecurityLockdown();
-
-    if (timerRef.current) clearInterval(timerRef.current);
-    timerRef.current = setInterval(() => {
-      setTimeRemaining(prev => {
-        if (prev <= 1) {
-          clearInterval(timerRef.current);
-          submitExam(true);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-  }, [examStatus, examId, exam, examStartedAt, language, requestFullscreen, enableSecurityLockdown, verifyExamAccess, submitExam]);
-
-  // ===== useEffect لتفعيل مراقبة الأمان =====
-  useEffect(() => {
-    if (examStatus !== 'started') return;
-
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
-    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
-    document.addEventListener('mozfullscreenchange', handleFullscreenChange);
-    document.addEventListener('MSFullscreenChange', handleFullscreenChange);
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    // تفعيل قفل الأمان (يتم استدعاؤه مرة أخرى للتأكيد)
-    const cleanupSecurity = enableSecurityLockdown();
-
-    return () => {
-      document.removeEventListener('fullscreenchange', handleFullscreenChange);
-      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
-      document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
-      document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      if (cleanupSecurity) cleanupSecurity();
-    };
-  }, [examStatus, handleFullscreenChange, handleVisibilityChange, enableSecurityLockdown]);
-
-  // ===== تقديم الامتحان باستخدام gradeExam =====
+  // ================================================================
+  // ✅ تقديم الامتحان باستخدام gradeExam (تم نقله قبل startExam)
+  // ================================================================
   const submitExam = useCallback(async (isAuto = false) => {
     if (examStatus === 'submitted') return;
     setExamStatus('submitted');
@@ -3393,6 +3299,106 @@ export default function StudentExamPage() {
       setIsSubmitting(false);
     }
   }, [examStatus, questions, attemptId, examId, router, language, attemptsLeft, exam]);
+
+  // ================================================================
+  // ✅ بدء الامتحان مع تفعيل الأمان الشامل (بعد submitExam)
+  // ================================================================
+  const startExam = useCallback(async () => {
+    if (examStatus === 'started') return;
+
+    // ✅ ضمان بيئة نضيفة: مسح جميع الإجابات والحالات القديمة
+    setAnswers({});
+    setMarkedQuestions([]);
+    setHighlightedQuestions([]);
+    setReviewMarkedQuestions([]);
+    setCurrentIndex(0);
+    setViolations(0);
+    setFullscreenExitCount(0);
+    fullscreenExitAttemptsRef.current = 0;
+
+    // ✅ ضبط التايمر على المدة الكاملة من الامتحان
+    const fullDurationSeconds = (exam?.duration_minutes || 60) * 60;
+    setTimeRemaining(fullDurationSeconds);
+
+    // ✅ إلغاء أي مؤقت قديم شغال
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+
+    // ✅ التحقق من صلاحية الوصول قبل بدء الامتحان (مرة أخرى للتأكيد)
+    if (exam?.course_id) {
+      const hasAccess = await verifyExamAccess(exam.course_id);
+      if (!hasAccess) {
+        toast.error(language === 'ar' ? 'لا يمكنك بدء الامتحان، يرجى التحقق من اشتراكك' : 'Cannot start exam, please check your subscription');
+        return;
+      }
+    }
+
+    setExamStatus('started');
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data, error } = await supabase
+        .from('exam_attempts')
+        .insert({
+          exam_id: examId,
+          student_id: user.id,
+          answers: {},
+          status: 'in_progress',
+          started_at: examStartedAt || new Date().toISOString(),
+          total_marks: exam?.total_marks || 0,
+        })
+        .select()
+        .single();
+      if (error) throw error;
+      setAttemptId(data.id);
+    } catch (err) {
+      toast.error(language === 'ar' ? 'فشل بدء الامتحان' : 'Failed to start exam');
+    }
+
+    // تفعيل ملء الشاشة الإجباري
+    requestFullscreen();
+
+    // ✅ تفعيل قفل الأمان الشامل
+    enableSecurityLockdown();
+
+    if (timerRef.current) clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => {
+      setTimeRemaining(prev => {
+        if (prev <= 1) {
+          clearInterval(timerRef.current);
+          submitExam(true);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  }, [examStatus, examId, exam, examStartedAt, language, requestFullscreen, enableSecurityLockdown, verifyExamAccess, submitExam]);
+
+  // ===== useEffect لتفعيل مراقبة الأمان =====
+  useEffect(() => {
+    if (examStatus !== 'started') return;
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+    document.addEventListener('MSFullscreenChange', handleFullscreenChange);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // تفعيل قفل الأمان (يتم استدعاؤه مرة أخرى للتأكيد)
+    const cleanupSecurity = enableSecurityLockdown();
+
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if (cleanupSecurity) cleanupSecurity();
+    };
+  }, [examStatus, handleFullscreenChange, handleVisibilityChange, enableSecurityLockdown]);
 
   // ===== دالة فتح نافذة تأكيد التسليم =====
   const openSubmitModal = useCallback(() => {
@@ -4127,25 +4133,14 @@ export default function StudentExamPage() {
                 </button>
               </div>
               <div className="flex gap-1 items-center">
-                {/* ✅ زر تبديل الوضع الفاتح/الداكن */}
+                {/* ✅ زر تبديل الوضع الفاتح/الداكن – تم إصلاحه ليعمل يدوياً */}
                 <button
                   onClick={() => {
-                    // محاولة استخدام toggleTheme من useTheme إن وجدت
-                    try {
-                      // @ts-ignore - قد لا تكون toggleTheme موجودة في useTheme في بعض الإصدارات
-                      const { toggleTheme } = useTheme();
-                      if (toggleTheme) {
-                        toggleTheme();
-                      } else {
-                        // fallback: تبديل الكلاس يدوياً
-                        document.documentElement.classList.toggle('dark');
-                      }
-                    } catch {
-                      // fallback: تبديل الكلاس يدوياً
-                      document.documentElement.classList.toggle('dark');
-                    }
+                    // تبديل كلاس dark يدوياً على الـ html element
+                    document.documentElement.classList.toggle('dark');
+                    const willBeDark = !document.documentElement.classList.contains('dark');
                     toast.success(
-                      isDark 
+                      willBeDark 
                         ? (language === 'ar' ? '☀️ تم التبديل إلى الوضع الفاتح' : '☀️ Switched to Light Mode')
                         : (language === 'ar' ? '🌙 تم التبديل إلى الوضع الداكن' : '🌙 Switched to Dark Mode'),
                       { duration: 1500 }
