@@ -52,7 +52,7 @@ const DeviceModeSelector = ({ currentMode, onChange, language }) => {
 
   return (
     <div className="mt-4 pt-4 border-t border-[var(--border-color)]">
-      <p className="text-xs text-gray-400 mb-2">{language === 'ar' ? 'عرض مناسب لـ' : 'View as'}</p>
+      <p className="text-xs text-gray-400 mb-2">{language === 'ar' ? 'وضع العرض' : 'View Mode'}</p>
       <div className="flex gap-1">
         {modes.map((m) => (
           <button
@@ -74,7 +74,7 @@ const DeviceModeSelector = ({ currentMode, onChange, language }) => {
 };
 
 // ================================================================
-// الشريط الجانبي – متجاوب مع الأجهزة المختلفة
+// الشريط الجانبي الموحد (متجاوب بالكامل)
 // ================================================================
 const Sidebar = ({ user, language, toggleLanguage, theme, toggleTheme, styles, pathname, onLogout, isOpen, onToggle, isMobile, isTablet }) => {
   const { deviceMode, changeDeviceMode } = useDeviceMode();
@@ -82,15 +82,12 @@ const Sidebar = ({ user, language, toggleLanguage, theme, toggleTheme, styles, p
   const isRTL = language === 'ar';
   const sidebarPosition = isRTL ? 'right-0' : 'left-0';
   const borderSide = isRTL ? 'border-l' : 'border-r';
-  
-  // تحديد عرض الشريط حسب الجهاز
   const sidebarWidth = isMobile ? 'w-80' : isTablet ? 'w-72' : 'w-96';
 
   return (
     <AnimatePresence>
       {isOpen && (
         <>
-          {/* طبقة خلفية شفافة لإغلاق الشريط على الأجهزة الصغيرة */}
           {(isMobile || isTablet) && (
             <motion.div
               initial={{ opacity: 0 }}
@@ -100,31 +97,16 @@ const Sidebar = ({ user, language, toggleLanguage, theme, toggleTheme, styles, p
               className="fixed inset-0 bg-black/50 backdrop-blur-sm z-20 lg:hidden"
             />
           )}
-
           <motion.aside
-            initial={{ 
-              x: isMobile || isTablet ? (isRTL ? 80 : -80) : 0, 
-              opacity: isMobile || isTablet ? 0 : 1 
-            }}
+            initial={{ x: isMobile || isTablet ? (isRTL ? 80 : -80) : 0, opacity: isMobile || isTablet ? 0 : 1 }}
             animate={{ x: 0, opacity: 1 }}
-            exit={{ 
-              x: isMobile || isTablet ? (isRTL ? 80 : -80) : 0, 
-              opacity: isMobile || isTablet ? 0 : 1 
-            }}
-            transition={{ 
-              type: 'spring', 
-              stiffness: 300, 
-              damping: 30 
-            }}
-            className={`fixed ${sidebarPosition} top-0 h-full ${sidebarWidth} z-30 ${borderSide} border-[var(--border-color)] backdrop-blur-2xl shadow-2xl ${
-              isMobile || isTablet ? 'shadow-2xl' : ''
-            }`}
+            exit={{ x: isMobile || isTablet ? (isRTL ? 80 : -80) : 0, opacity: isMobile || isTablet ? 0 : 1 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+            className={`fixed ${sidebarPosition} top-0 h-full ${sidebarWidth} z-30 ${borderSide} border-[var(--border-color)] backdrop-blur-2xl shadow-2xl`}
             style={{ backgroundColor: 'rgba(var(--bg-primary-rgb), 0.92)' }}
           >
-            {/* خلفية موحدة */}
             <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent pointer-events-none" />
 
-            {/* زر الإغلاق للأجهزة الصغيرة والمتوسطة */}
             {(isMobile || isTablet) && (
               <button
                 onClick={onToggle}
@@ -134,7 +116,7 @@ const Sidebar = ({ user, language, toggleLanguage, theme, toggleTheme, styles, p
               </button>
             )}
 
-            {/* رأس الشريط – يحتوي على صورة المستخدم واسمه */}
+            {/* رأس الشريط */}
             <div className="relative z-10 p-6 flex items-center gap-4 border-b border-[var(--border-color)]">
               <motion.div
                 whileHover={{ scale: 1.05 }}
@@ -197,14 +179,14 @@ const Sidebar = ({ user, language, toggleLanguage, theme, toggleTheme, styles, p
               })}
             </nav>
 
-            {/* الأسفل – أزرار التحكم والملف الشخصي واختيار الجهاز */}
+            {/* الأسفل */}
             <div className="relative z-10 p-5 border-t border-[var(--border-color)] space-y-2.5">
               <Link href="/dashboard/student/profile" onClick={() => (isMobile || isTablet) && onToggle()}>
                 <motion.div
                   whileHover={{ scale: 1.02 }}
                   className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
-                    pathname === '/dashboard/student/profile' 
-                      ? 'bg-blue-500/10 text-blue-500 border border-blue-500/20' 
+                    pathname === '/dashboard/student/profile'
+                      ? 'bg-blue-500/10 text-blue-500 border border-blue-500/20'
                       : `${styles.subtext} hover:bg-white/5`
                   }`}
                 >
@@ -212,7 +194,7 @@ const Sidebar = ({ user, language, toggleLanguage, theme, toggleTheme, styles, p
                   <span className="text-sm font-medium">{language === 'ar' ? 'الملف الشخصي' : 'Profile'}</span>
                 </motion.div>
               </Link>
-              
+
               <div className="flex items-center gap-2">
                 <motion.button
                   whileHover={{ scale: 1.05 }}
@@ -223,27 +205,27 @@ const Sidebar = ({ user, language, toggleLanguage, theme, toggleTheme, styles, p
                   <Icons.Globe className="h-4 w-4 text-blue-500" />
                   <span>{language === 'ar' ? 'EN' : 'AR'}</span>
                 </motion.button>
-                
+
                 <motion.button
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={toggleTheme}
                   className="flex-1 flex items-center justify-center px-3 py-2.5 rounded-xl bg-white/5 hover:bg-blue-500/10 border border-white/10 transition-all"
                 >
-                  {theme === 'dark' 
-                    ? <Icons.Sun className="h-4 w-4 text-yellow-400" /> 
+                  {theme === 'dark'
+                    ? <Icons.Sun className="h-4 w-4 text-yellow-400" />
                     : <Icons.Moon className="h-4 w-4 text-blue-500" />
                   }
                 </motion.button>
               </div>
 
-              {/* ✅ مكون اختيار نوع الجهاز */}
-              <DeviceModeSelector 
-                currentMode={deviceMode} 
-                onChange={changeDeviceMode} 
-                language={language} 
+              {/* ✅ اختيار نوع الجهاز (يظهر دائمًا) */}
+              <DeviceModeSelector
+                currentMode={deviceMode}
+                onChange={changeDeviceMode}
+                language={language}
               />
-              
+
               <motion.button
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.95 }}
@@ -262,7 +244,7 @@ const Sidebar = ({ user, language, toggleLanguage, theme, toggleTheme, styles, p
 };
 
 // ================================================================
-// شريط التنقل السفلي للجوال – بألوان محددة
+// شريط التنقل السفلي للجوال
 // ================================================================
 const MobileBottomNav = ({ language, pathname, styles }) => {
   const isActive = (path) => pathname === path;
@@ -308,7 +290,7 @@ const MobileBottomNav = ({ language, pathname, styles }) => {
 };
 
 // ================================================================
-// مكون التخطيط الرئيسي – مع استجابة تلقائية للجهاز
+// مكون التخطيط الرئيسي
 // ================================================================
 export default function StudentLayout({ children }) {
   const router = useRouter();
@@ -318,49 +300,32 @@ export default function StudentLayout({ children }) {
   const [loading, setLoading] = useState(true);
   const fetchedRef = useRef(false);
 
-  // ✅ حالات الجهاز والشريط الجانبي
   const [isMobile, setIsMobile] = useState(false);
   const [isTablet, setIsTablet] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  
+
   const isExamPage = pathname?.startsWith('/dashboard/student/exams/') && !pathname?.endsWith('/result');
 
-  // ✅ كشف تلقائي لنوع الجهاز وتحديث حالة الشريط
+  // كشف تلقائي لنوع الجهاز
   useEffect(() => {
     const detectDevice = () => {
       const width = window.innerWidth;
       const mobile = width < 640;
       const tablet = width >= 640 && width < 1024;
-      
       setIsMobile(mobile);
       setIsTablet(tablet);
-      
-      // تحديد حالة الشريط تلقائيًا
-      const savedPreference = localStorage.getItem('sidebarOpen');
-      
+      const saved = localStorage.getItem('sidebarOpen');
       if (mobile || tablet) {
-        // على الأجهزة الصغيرة: ابدأ مغلقًا ما لم يفتحه المستخدم مسبقًا
-        if (savedPreference === 'true') {
-          setSidebarOpen(true);
-        } else {
-          setSidebarOpen(false);
-        }
+        setSidebarOpen(saved === 'true');
       } else {
-        // على أجهزة سطح المكتب: ابدأ مفتوحًا افتراضيًا
-        if (savedPreference === 'false') {
-          setSidebarOpen(false);
-        } else {
-          setSidebarOpen(true);
-        }
+        setSidebarOpen(saved !== 'false');
       }
     };
-
     detectDevice();
     window.addEventListener('resize', detectDevice);
     return () => window.removeEventListener('resize', detectDevice);
   }, []);
 
-  // ✅ دالة التبديل مع حفظ التفضيل
   const toggleSidebar = useCallback(() => {
     setSidebarOpen(prev => {
       const newState = !prev;
@@ -386,11 +351,11 @@ export default function StudentLayout({ children }) {
           school: profile?.school || '',
           avatar_url: profile?.avatar_url || '',
         });
-      } catch (err) { 
-        console.error(err); 
-        toast.error(language === 'ar' ? 'فشل تحميل البيانات' : 'Failed to load data'); 
-      } finally { 
-        setLoading(false); 
+      } catch (err) {
+        console.error(err);
+        toast.error(language === 'ar' ? 'فشل تحميل البيانات' : 'Failed to load data');
+      } finally {
+        setLoading(false);
       }
     };
     getUser();
@@ -425,8 +390,7 @@ export default function StudentLayout({ children }) {
   );
 
   const isRTL = language === 'ar';
-  
-  // تحديد الهامش حسب حالة الشريط الجانبي ونوع الجهاز
+
   const getMainMargin = () => {
     if (isExamPage) return '';
     if (isMobile || isTablet) return '';
@@ -436,7 +400,6 @@ export default function StudentLayout({ children }) {
 
   return (
     <div dir={isRTL ? 'rtl' : 'ltr'} className="h-dvh w-full flex flex-col overflow-hidden">
-      {/* خلفية رئيسية */}
       <div className="fixed inset-0 -z-10 bg-[var(--bg-primary)]">
         <motion.div
           animate={{ x: ['-5%', '5%', '-5%'], y: ['-5%', '5%', '-5%'] }}
@@ -450,7 +413,7 @@ export default function StudentLayout({ children }) {
         />
       </div>
 
-      {/* ✅ زر التحكم في الشريط الجانبي (يظهر على الأجهزة الصغيرة والمتوسطة دائمًا، وعلى الكبيرة عند إخفاء الشريط) */}
+      {/* زر الهامبرغر (ظاهر دائمًا) */}
       {!isExamPage && (
         <button
           onClick={toggleSidebar}
@@ -467,7 +430,7 @@ export default function StudentLayout({ children }) {
         </button>
       )}
 
-      {/* ✅ الشريط الجانبي الموحد */}
+      {/* الشريط الجانبي */}
       {!isExamPage && (
         <Sidebar
           user={user}
@@ -504,7 +467,7 @@ export default function StudentLayout({ children }) {
         </AnimatePresence>
       </main>
 
-      {/* شريط التنقل السفلي للجوال (يظهر فقط على الأجهزة الصغيرة) */}
+      {/* شريط التنقل السفلي (للموبايل والتابلت فقط) */}
       {!isExamPage && (isMobile || isTablet) && (
         <MobileBottomNav language={language} pathname={pathname} styles={styles} />
       )}
