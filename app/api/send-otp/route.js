@@ -2,31 +2,32 @@
 import { NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
 
-// دالة إرسال البريد في الخلفية (لا تمنع الاستجابة)
-async function sendEmailInBackground({ email, otp, studentName, phone, parentPhone, school, grade, governorate }) {
+export async function POST(request) {
   try {
+    const { email, otp, studentName, phone, parentPhone, school, grade, governorate } = await request.json();
+
+    if (!email || !otp) {
+      return NextResponse.json({ error: 'يرجى إدخال البريد الإلكتروني ورمز التحقق' }, { status: 400 });
+    }
+
+    // إنشاء ناقل SMTP
     const transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST || 'smtp.gmail.com',
       port: parseInt(process.env.SMTP_PORT || '587'),
       secure: false,
       auth: {
         user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
+        pass: (process.env.SMTP_PASS || '').replace(/\s/g, ''), // إزالة أي مسافات
       },
       tls: {
-        rejectUnauthorized: false
-      }
+        rejectUnauthorized: false,
+      },
     });
 
-    // نص عادي (مهم لتحسين السمعة)
-    const plainText = `
-مرحباً ${studentName || 'الطالب'}،
-رمز تأكيد التسجيل في منصة محمد رضوان هو: ${otp}
-الرمز صالح لمدة 5 دقائق.
-بياناتك: الاسم: ${studentName || 'غير مضاف'} | الهاتف: ${phone || 'غير مضاف'} | ولي الأمر: ${parentPhone || 'غير مضاف'} | المدرسة: ${school || 'غير مضاف'} | الصف: ${grade || 'غير مضاف'} | المحافظة: ${governorate || 'غير مضاف'}
-    `.trim();
+    // محتوى نصي عادي (هام لتجنب السبام)
+    const plainText = `مرحباً ${studentName || 'الطالب'}،\nرمز تأكيد التسجيل في منصة محمد رضوان هو: ${otp}\nالرمز صالح لمدة 5 دقائق.\nمع تحيات فريق الدعم.`;
 
-    // قالب HTML مبسط وسريع
+    // محتوى HTML أنيق
     const htmlContent = `
 <!DOCTYPE html>
 <html dir="rtl" lang="ar">
@@ -56,7 +57,8 @@ async function sendEmailInBackground({ email, otp, studentName, phone, parentPho
 </html>
     `;
 
-    await transporter.sendMail({
+    // إرسال البريد (انتظار النتيجة)
+    const info = await transporter.sendMail({
       from: `"منصة محمد رضوان" <${process.env.SMTP_USER}>`,
       to: email,
       subject: 'رمز تأكيد التسجيل – منصة محمد رضوان',
@@ -70,27 +72,14 @@ async function sendEmailInBackground({ email, otp, studentName, phone, parentPho
       },
     });
 
-    console.log('✅ OTP sent successfully to', email);
+    console.log('✅ OTP sent:', info.messageId);
+    return NextResponse.json({ success: true, message: 'تم إرسال رمز التحقق بنجاح' });
   } catch (error) {
-    console.error('❌ Background email error:', error);
-  }
-}
-
-export async function POST(request) {
-  try {
-    const { email, otp, studentName, phone, parentPhone, school, grade, governorate } = await request.json();
-
-    if (!email || !otp) {
-      return NextResponse.json({ error: 'يرجى إدخال البريد الإلكتروني ورمز التحقق' }, { status: 400 });
-    }
-
-    // ✅ نعيد الاستجابة فوراً، ثم نرسل البريد في الخلفية
-    sendEmailInBackground({ email, otp, studentName, phone, parentPhone, school, grade, governorate })
-      .catch(err => console.error('Background email error:', err));
-
-    return NextResponse.json({ success: true, message: 'تم قبول الطلب وسيتم إرسال البريد قريباً' });
-  } catch (error) {
-    console.error('OTP route error:', error);
-    return NextResponse.json({ error: 'حدث خطأ داخلي' }, { status: 500 });
+    console.error('❌ OTP send error:', error);
+    // إرجاع رسالة خطأ واضحة للطالب
+    return NextResponse.json(
+      { error: 'فشل إرسال رمز التحقق. تأكد من اتصالك بالإنترنت أو حاول لاحقاً.' },
+      { status: 500 }
+    );
   }
 }
