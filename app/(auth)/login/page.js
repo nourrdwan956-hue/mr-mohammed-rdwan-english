@@ -50,6 +50,9 @@ function LoginContent() {
     }
   }, [redirectedFrom]);
 
+  // ============================================================
+  // ✅ دالة handleSubmit المحدَّثة
+  // ============================================================
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -81,9 +84,14 @@ function LoginContent() {
       }
 
       if (data?.user) {
+        // ✅ استخدم replace بدلاً من push عشان من رجعش للخلف
         const role = data.user.user_metadata?.role || 'student';
         const redirectPath = role === 'teacher' ? '/dashboard/teacher' : '/dashboard/student';
-        router.push(redirectPath);
+        
+        // ✅ تأخير بسيط عشان الجلسة تثبت
+        setTimeout(() => {
+          window.location.href = redirectPath;
+        }, 500);
       } else {
         setError('❌ حدث خطأ غير متوقع. حاول مرة أخرى.');
         setLoading(false);

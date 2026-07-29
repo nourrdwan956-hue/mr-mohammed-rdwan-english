@@ -1,52 +1,51 @@
 // middleware.js
 import { NextResponse } from 'next/server';
+import { createServerClient } from '@supabase/ssr';
+import { cookies } from 'next/headers';
 
-export function middleware(request) {
+export async function middleware(request) {
   const path = request.nextUrl.pathname;
 
-  // ✅ استثناء مسارات الـ API
-  if (path.startsWith('/api/')) {
+  // ✅ استثناء مسارات الـ API والمساعدين والصفحات العامة
+  if (path.startsWith('/api/') || 
+      path === '/assistant-login' || 
+      path.startsWith('/dashboard/assistant') ||
+      ['/', '/login', '/register', '/reset-password'].some(p => path === p)) {
     return NextResponse.next();
   }
 
-  // ✅ استثناء المساعدين
-  if (path === '/assistant-login' || path.startsWith('/dashboard/assistant')) {
-    return NextResponse.next();
-  }
+  // ✅ إنشاء عميل Supabase للخادم (عشان نتحقق من الجلسة)
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    {
+      cookies: {
+        getAll: () => request.cookies.getAll(),
+        setAll: () => {}, // مش محتاجين نعدل الكوكيز هنا
+      },
+    }
+  );
 
-  // ✅ الصفحات العامة (متاحة للجميع)
-  const publicPaths = ['/', '/login', '/register', '/reset-password'];
-  if (publicPaths.some(p => path === p)) {
-    return NextResponse.next();
-  }
+  // ✅ التحقق من وجود جلسة نشطة
+  const { data: { session } } = await supabase.auth.getSession();
 
-  // ===== التحقق من المصادقة =====
-  // هنا يمكنك إضافة منطق التحقق من الجلسة
-  // مثال: التحقق من وجود token في الـ cookies
-  const token = request.cookies.get('sb-access-token')?.value || 
-                request.cookies.get('supabase-auth-token')?.value;
-
-  // لو مش مسجل دخول ويحاول يدخل على صفحة محمية، نوجهه لتسجيل الدخول
-  if (!token && path.startsWith('/dashboard/')) {
+  // لو مش مسجل دخول ويحاول يدخل على صفحة محمية
+  if (!session && path.startsWith('/dashboard/')) {
     const loginUrl = new URL('/login', request.url);
-    loginUrl.searchParams.set('redirect', path);
+    loginUrl.searchParams.set('redirectedFrom', path);
     return NextResponse.redirect(loginUrl);
   }
 
-  // لو مسجل دخول ويحاول يدخل على صفحة تسجيل الدخول، نوجهه للـ dashboard
-  if (token && (path === '/login' || path === '/register')) {
-    return NextResponse.redirect(new URL('/dashboard/student', request.url));
+  // لو مسجل دخول ويحاول يدخل على صفحة تسجيل الدخول
+  if (session && (path === '/login' || path === '/register')) {
+    const role = session.user.user_metadata?.role || 'student';
+    const redirectPath = role === 'teacher' ? '/dashboard/teacher' : '/dashboard/student';
+    return NextResponse.redirect(new URL(redirectPath, request.url));
   }
 
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: [
-    '/dashboard/:path*',
-    '/login',
-    '/register',
-    '/reset-password',
-    '/assistant-login',
-  ],
+  matcher: ['/dashboard/:path*', '/login', '/register', '/reset-password', '/assistant-login'],
 };
