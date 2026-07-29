@@ -710,6 +710,47 @@ export default function StudentDashboard() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [teacherId, setTeacherId] = useState(null);
 
+  // ===== حالات الشريط الجانبي =====
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [isTablet, setIsTablet] = useState(false);
+
+  // ===== كشف حجم الشاشة وتحميل تفضيل المستخدم =====
+  useEffect(() => {
+    const detectDevice = () => {
+      const width = window.innerWidth;
+      const mobile = width < 640;
+      const tablet = width >= 640 && width < 1024;
+      
+      setIsMobile(mobile);
+      setIsTablet(tablet);
+      
+      // تحميل تفضيل المستخدم من localStorage
+      const savedPreference = localStorage.getItem('studentDashboardSidebar');
+      
+      if (mobile || tablet) {
+        // على الأجهزة الصغيرة: ابدأ مغلقًا ما لم يفتحه المستخدم مسبقًا
+        setSidebarOpen(savedPreference === 'true');
+      } else {
+        // على أجهزة سطح المكتب: ابدأ مفتوحًا افتراضيًا ما لم يغلقه المستخدم
+        setSidebarOpen(savedPreference !== 'false');
+      }
+    };
+
+    detectDevice();
+    window.addEventListener('resize', detectDevice);
+    return () => window.removeEventListener('resize', detectDevice);
+  }, []);
+
+  // ===== دالة تبديل الشريط الجانبي مع حفظ التفضيل =====
+  const toggleSidebar = useCallback(() => {
+    setSidebarOpen(prev => {
+      const newState = !prev;
+      localStorage.setItem('studentDashboardSidebar', newState.toString());
+      return newState;
+    });
+  }, []);
+
   // دوال جلب البيانات
   const looksLikeEmailOrUsername = (text) => {
     if (!text) return true;
@@ -939,6 +980,8 @@ export default function StudentDashboard() {
     </div>
   );
 
+  const isRTL = language === 'ar';
+
   return (
     <div className={`w-full min-h-screen ${styles.bg} transition-colors duration-300 relative overflow-hidden`}>
       {/* خلفية متحركة شفافة */}
@@ -953,194 +996,319 @@ export default function StudentDashboard() {
         className="fixed -bottom-60 -left-60 w-[900px] h-[900px] bg-green-500/5 dark:bg-green-400/5 rounded-full blur-3xl pointer-events-none"
       />
 
-      <div className="relative z-10 px-6 sm:px-8 py-8 space-y-8 max-w-7xl mx-auto">
-        {/* ===== رأس الصفحة المعدل ===== */}
-        <motion.div
-          initial={{ opacity: 0, y: -30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, type: 'spring', stiffness: 200 }}
-          className={`flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 p-8 rounded-3xl border ${styles.border} backdrop-blur-sm shadow-xl ${styles.card}`}
-        >
-          <div className="flex items-center gap-5">
-            <motion.div
-              whileHover={{ scale: 1.1, rotate: 6 }}
-              className="relative h-24 w-24 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-extrabold text-4xl shadow-2xl shadow-blue-500/40 dark:shadow-blue-400/20 overflow-hidden ring-4 ring-blue-500/20 dark:ring-blue-400/10"
-            >
-              {user?.avatar_url ? (
-                <img src={user.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
-              ) : (
-                <span>{(user?.full_name?.[0] || (language === 'ar' ? 'ط' : 'S')).toUpperCase()}</span>
-              )}
-              <span className="absolute -bottom-1 -right-1 h-6 w-6 rounded-full bg-emerald-500 border-2 border-white dark:border-gray-800" />
-            </motion.div>
-            <div>
-              <h1 className={`text-4xl md:text-5xl font-black ${styles.text}`}>
-                {language === 'ar' ? 'مرحباً' : 'Welcome'}{', '}
-                <motion.span
-                  animate={{ backgroundPosition: ['0% 50%', '100% 50%', '0% 50%'] }}
-                  transition={{ duration: 6, repeat: Infinity, ease: 'linear' }}
-                  className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-blue-500 to-blue-400 dark:from-blue-300 dark:via-blue-400 dark:to-blue-300 bg-[length:300%_auto]"
-                >
-                  {user?.full_name || (language === 'ar' ? 'طالب' : 'Student')}
-                </motion.span>
-              </h1>
-              <p className={`text-lg ${styles.subtext} opacity-80 mt-1`}>
-                {language === 'ar' ? 'كل يوم فرصة جديدة للتعلم!' : 'Every day is a new chance to learn!'}
-              </p>
-            </div>
-          </div>
+      {/* ✅ زر التحكم في الشريط الجانبي (يظهر دائمًا) */}
+      <button
+        onClick={toggleSidebar}
+        className={`fixed z-50 p-3 rounded-xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-2xl hover:bg-white/20 transition-all duration-300 ${
+          isMobile || isTablet ? 'bottom-24 left-4' : 'top-6 left-6'
+        }`}
+        title={sidebarOpen ? (language === 'ar' ? 'إخفاء الشريط الجانبي' : 'Hide Sidebar') : (language === 'ar' ? 'إظهار الشريط الجانبي' : 'Show Sidebar')}
+      >
+        {sidebarOpen ? (
+          <Icons.PanelLeftClose className="h-6 w-6 text-white" />
+        ) : (
+          <Icons.PanelLeftOpen className="h-6 w-6 text-white" />
+        )}
+      </button>
 
-          <div className="flex items-center gap-4">
-            <MembershipCounter days={daysSinceJoin} styles={styles} language={language} />
+      {/* ✅ الشريط الجانبي مع أنيميشن */}
+      <AnimatePresence>
+        {sidebarOpen && (
+          <>
+            {/* طبقة خلفية للإغلاق (على الأجهزة الصغيرة فقط) */}
+            {(isMobile || isTablet) && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={toggleSidebar}
+                className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
+              />
+            )}
 
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => {
-                if (!notificationsEnabled) {
-                  toast.error('الإشعارات معطلة. قم بتفعيلها أولاً.');
-                  return;
-                }
-                setIsDrawerOpen(true);
-              }}
-              className={`relative p-3 rounded-2xl border ${styles.border} ${styles.card} hover:border-yellow-500/50 transition-all duration-300`}
+            <motion.aside
+              initial={{ x: isRTL ? 320 : -320, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: isRTL ? 320 : -320, opacity: 0 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+              className={`fixed top-0 ${isRTL ? 'right-0' : 'left-0'} h-full w-80 lg:w-96 z-40 backdrop-blur-2xl shadow-2xl border-${isRTL ? 'l' : 'r'} border-[var(--border-color)] overflow-y-auto`}
+              style={{ backgroundColor: 'rgba(var(--bg-primary-rgb), 0.95)' }}
             >
-              <Icons.Bell className={`h-6 w-6 ${notificationsEnabled ? 'text-yellow-500' : 'text-gray-500'}`} />
-              {notificationsEnabled && (() => {
-                const unreadMessages = messages.filter(m => m.sender_id === teacherId && !m.is_read).length;
-                const totalUnread = unreadMessages + announcements.filter(a => a.is_published).length;
-                if (totalUnread > 0) {
-                  return (
-                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full h-5 w-5 flex items-center justify-center shadow-lg animate-pulse">
-                      {totalUnread > 9 ? '9+' : totalUnread}
+              <div className="p-6">
+                {/* زر الإغلاق (للأجهزة الصغيرة) */}
+                {(isMobile || isTablet) && (
+                  <button
+                    onClick={toggleSidebar}
+                    className="absolute top-4 right-4 p-2 rounded-xl bg-white/10 hover:bg-white/20 transition-colors"
+                  >
+                    <Icons.X className="h-5 w-5" />
+                  </button>
+                )}
+
+                {/* محتوى الشريط الجانبي */}
+                <div className="space-y-8">
+                  {/* صورة المستخدم واسمه */}
+                  <div className="flex items-center gap-4">
+                    <div className="h-16 w-16 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-extrabold text-2xl shadow-xl ring-2 ring-blue-500/30">
+                      {user?.avatar_url ? (
+                        <img src={user.avatar_url} alt="Avatar" className="w-full h-full object-cover rounded-xl" />
+                      ) : (
+                        <span>{(user?.full_name?.[0] || (language === 'ar' ? 'ط' : 'S')).toUpperCase()}</span>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-lg font-bold ${styles.text} truncate`}>
+                        {user?.full_name || (language === 'ar' ? 'طالب' : 'Student')}
+                      </p>
+                      <p className={`text-sm ${styles.subtext} truncate`}>
+                        {user?.email || ''}
+                      </p>
+                      <p className={`text-xs ${styles.subtext} opacity-70 mt-0.5`}>
+                        {language === 'ar' ? `عضو منذ ${daysSinceJoin} يوم` : `Member for ${daysSinceJoin} days`}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* قائمة الروابط */}
+                  <nav className="space-y-2">
+                    {[
+                      { href: '/dashboard/student/courses', icon: Icons.BookOpen, label: { ar: 'كورساتي', en: 'My Courses' } },
+                      { href: '/dashboard/student/progress', icon: Icons.TrendingUp, label: { ar: 'تقدّم', en: 'Progress' } },
+                      { href: '/dashboard/student/study-schedule', icon: Icons.Calendar, label: { ar: 'جدول الدراسة', en: 'Study Schedule' } },
+                      { href: '/dashboard/student/notes', icon: Icons.StickyNote, label: { ar: 'ملاحظاتي', en: 'My Notes' } },
+                      { href: '/dashboard/student/support', icon: Icons.HelpCircle, label: { ar: 'الدعم', en: 'Support' } },
+                      { href: '/dashboard/student/profile', icon: Icons.User, label: { ar: 'حسابي', en: 'Profile' } },
+                    ].map((item) => (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        className={`flex items-center gap-4 p-3 rounded-xl transition-all duration-200 hover:bg-white/10 dark:hover:bg-white/5 group ${styles.card}`}
+                        onClick={() => {
+                          if (isMobile || isTablet) toggleSidebar();
+                        }}
+                      >
+                        <item.icon className={`h-6 w-6 text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform`} />
+                        <span className={`text-base font-medium ${styles.text}`}>
+                          {item.label[language]}
+                        </span>
+                        <Icons.ArrowRight className={`h-4 w-4 ${styles.subtext} ml-auto group-hover:translate-x-2 transition-transform ${isRTL ? 'rotate-180' : ''}`} />
+                      </Link>
+                    ))}
+                  </nav>
+
+                  {/* زر تسجيل الخروج */}
+                  <button
+                    onClick={async () => {
+                      await supabase.auth.signOut();
+                      router.push('/login');
+                    }}
+                    className={`w-full flex items-center gap-4 p-3 rounded-xl transition-all duration-200 hover:bg-red-500/10 dark:hover:bg-red-400/10 group ${styles.card}`}
+                  >
+                    <Icons.LogOut className="h-6 w-6 text-red-500 group-hover:scale-110 transition-transform" />
+                    <span className="text-base font-medium text-red-500 dark:text-red-400">
+                      {language === 'ar' ? 'تسجيل الخروج' : 'Logout'}
                     </span>
-                  );
-                }
-                return null;
-              })()}
-            </motion.button>
-          </div>
-        </motion.div>
-
-        {/* ===== شريط المعلومات اليومية ===== */}
-        <LanguageTipCarousel language={language} styles={styles} />
-
-        {/* ===== الشبكة الرئيسية ===== */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2 space-y-8">
-            {/* بطاقات الإحصائيات */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-5">
-              <LargeStatCard icon={Icons.BookOpen} label={language === 'ar' ? 'كورسات' : 'Courses'} value={stats.coursesEnrolled} styles={styles} delay={0} />
-              <LargeStatCard icon={Icons.Video} label={language === 'ar' ? 'فيديوهات' : 'Videos'} value={stats.completedVideos} styles={styles} delay={0.1} />
-              <LargeStatCard icon={Icons.FileQuestion} label={language === 'ar' ? 'امتحانات' : 'Exams'} value={stats.totalExamsTaken} styles={styles} delay={0.2} />
-            </div>
-
-            {/* كورساتي النشطة */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-            >
-              <div className="flex justify-between items-center mb-5">
-                <h2 className={`text-2xl font-black ${styles.text} flex items-center gap-3`}>
-                  <Icons.BookOpen className="h-8 w-8 text-green-600 dark:text-green-400" />
-                  {language === 'ar' ? 'كورساتي النشطة' : 'Active Courses'}
-                </h2>
-                <Link href="/dashboard/student/courses" className={`text-base font-bold ${styles.subtext} hover:text-green-600 dark:hover:text-green-400 transition`}>
-                  {language === 'ar' ? 'عرض الكل' : 'View all'}
-                </Link>
-              </div>
-              {courses.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                  {courses.slice(0, 4).map(course => {
-                    const progress = enrollments.find(e => e.course_id === course.id)?.progress || 0;
-                    return <LargeCourseCard key={course.id} course={course} progress={progress} styles={styles} theme={theme} language={language} />;
-                  })}
+                  </button>
                 </div>
-              ) : (
-                <p className={`text-lg ${styles.subtext} text-center py-10`}>
-                  {language === 'ar' ? 'لا توجد كورسات مسجلة' : 'No courses enrolled yet'}
+              </div>
+            </motion.aside>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* ✅ المحتوى الرئيسي مع هامش ديناميكي */}
+      <div className={`relative z-10 transition-all duration-300 ${
+        sidebarOpen && !isMobile && !isTablet ? (isRTL ? 'mr-96' : 'ml-96') : ''
+      }`}>
+        <div className="px-4 sm:px-6 lg:px-8 py-8 space-y-8 max-w-7xl mx-auto">
+          {/* ===== رأس الصفحة المعدل ===== */}
+          <motion.div
+            initial={{ opacity: 0, y: -30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, type: 'spring', stiffness: 200 }}
+            className={`flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 p-8 rounded-3xl border ${styles.border} backdrop-blur-sm shadow-xl ${styles.card}`}
+          >
+            <div className="flex items-center gap-5">
+              <motion.div
+                whileHover={{ scale: 1.1, rotate: 6 }}
+                className="relative h-24 w-24 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-extrabold text-4xl shadow-2xl shadow-blue-500/40 dark:shadow-blue-400/20 overflow-hidden ring-4 ring-blue-500/20 dark:ring-blue-400/10"
+              >
+                {user?.avatar_url ? (
+                  <img src={user.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
+                ) : (
+                  <span>{(user?.full_name?.[0] || (language === 'ar' ? 'ط' : 'S')).toUpperCase()}</span>
+                )}
+                <span className="absolute -bottom-1 -right-1 h-6 w-6 rounded-full bg-emerald-500 border-2 border-white dark:border-gray-800" />
+              </motion.div>
+              <div>
+                <h1 className={`text-4xl md:text-5xl font-black ${styles.text}`}>
+                  {language === 'ar' ? 'مرحباً' : 'Welcome'}{', '}
+                  <motion.span
+                    animate={{ backgroundPosition: ['0% 50%', '100% 50%', '0% 50%'] }}
+                    transition={{ duration: 6, repeat: Infinity, ease: 'linear' }}
+                    className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-blue-500 to-blue-400 dark:from-blue-300 dark:via-blue-400 dark:to-blue-300 bg-[length:300%_auto]"
+                  >
+                    {user?.full_name || (language === 'ar' ? 'طالب' : 'Student')}
+                  </motion.span>
+                </h1>
+                <p className={`text-lg ${styles.subtext} opacity-80 mt-1`}>
+                  {language === 'ar' ? 'كل يوم فرصة جديدة للتعلم!' : 'Every day is a new chance to learn!'}
                 </p>
-              )}
-            </motion.div>
+              </div>
+            </div>
 
-            {/* امتحانات قادمة + نشاط حديث */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="flex items-center gap-4">
+              <MembershipCounter days={daysSinceJoin} styles={styles} language={language} />
+
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => {
+                  if (!notificationsEnabled) {
+                    toast.error('الإشعارات معطلة. قم بتفعيلها أولاً.');
+                    return;
+                  }
+                  setIsDrawerOpen(true);
+                }}
+                className={`relative p-3 rounded-2xl border ${styles.border} ${styles.card} hover:border-yellow-500/50 transition-all duration-300`}
+              >
+                <Icons.Bell className={`h-6 w-6 ${notificationsEnabled ? 'text-yellow-500' : 'text-gray-500'}`} />
+                {notificationsEnabled && (() => {
+                  const unreadMessages = messages.filter(m => m.sender_id === teacherId && !m.is_read).length;
+                  const totalUnread = unreadMessages + announcements.filter(a => a.is_published).length;
+                  if (totalUnread > 0) {
+                    return (
+                      <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full h-5 w-5 flex items-center justify-center shadow-lg animate-pulse">
+                        {totalUnread > 9 ? '9+' : totalUnread}
+                      </span>
+                    );
+                  }
+                  return null;
+                })()}
+              </motion.button>
+            </div>
+          </motion.div>
+
+          {/* ===== شريط المعلومات اليومية ===== */}
+          <LanguageTipCarousel language={language} styles={styles} />
+
+          {/* ===== الشبكة الرئيسية ===== */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-2 space-y-8">
+              {/* بطاقات الإحصائيات */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-5">
+                <LargeStatCard icon={Icons.BookOpen} label={language === 'ar' ? 'كورسات' : 'Courses'} value={stats.coursesEnrolled} styles={styles} delay={0} />
+                <LargeStatCard icon={Icons.Video} label={language === 'ar' ? 'فيديوهات' : 'Videos'} value={stats.completedVideos} styles={styles} delay={0.1} />
+                <LargeStatCard icon={Icons.FileQuestion} label={language === 'ar' ? 'امتحانات' : 'Exams'} value={stats.totalExamsTaken} styles={styles} delay={0.2} />
+              </div>
+
+              {/* كورساتي النشطة */}
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
               >
-                <WaveBorderCard initialColor="blue">
-                  <div className="p-6">
-                    <h2 className={`text-2xl font-black ${styles.text} flex items-center gap-3`}>
-                      <Icons.AlarmClock className="h-8 w-8 text-blue-600 dark:text-blue-400" />
-                      {language === 'ar' ? 'الامتحانات القادمة' : 'Upcoming Exams'}
-                    </h2>
-                    <div className="space-y-3">
-                      {upcomingExams.length > 0 ? upcomingExams.map(exam => (
-                        <div key={exam.id} className={`flex items-center justify-between p-4 rounded-2xl ${styles.card} border ${styles.border} backdrop-blur-sm`}>
-                          <span className={`text-base font-medium ${styles.text}`}>{exam.title}</span>
-                          <Link href={`/dashboard/student/exams/${exam.id}`} className="text-blue-600 dark:text-blue-400 px-5 py-2 bg-blue-500/10 dark:bg-blue-400/10 rounded-xl text-sm font-bold hover:bg-blue-500/20 dark:hover:bg-blue-400/20 transition">
-                            {language === 'ar' ? 'دخول' : 'Enter'}
-                          </Link>
-                        </div>
-                      )) : <p className={`text-base ${styles.subtext}`}>{language === 'ar' ? 'لا توجد امتحانات قادمة' : 'No upcoming exams'}</p>}
-                    </div>
+                <div className="flex justify-between items-center mb-5">
+                  <h2 className={`text-2xl font-black ${styles.text} flex items-center gap-3`}>
+                    <Icons.BookOpen className="h-8 w-8 text-green-600 dark:text-green-400" />
+                    {language === 'ar' ? 'كورساتي النشطة' : 'Active Courses'}
+                  </h2>
+                  <Link href="/dashboard/student/courses" className={`text-base font-bold ${styles.subtext} hover:text-green-600 dark:hover:text-green-400 transition`}>
+                    {language === 'ar' ? 'عرض الكل' : 'View all'}
+                  </Link>
+                </div>
+                {courses.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                    {courses.slice(0, 4).map(course => {
+                      const progress = enrollments.find(e => e.course_id === course.id)?.progress || 0;
+                      return <LargeCourseCard key={course.id} course={course} progress={progress} styles={styles} theme={theme} language={language} />;
+                    })}
                   </div>
-                </WaveBorderCard>
+                ) : (
+                  <p className={`text-lg ${styles.subtext} text-center py-10`}>
+                    {language === 'ar' ? 'لا توجد كورسات مسجلة' : 'No courses enrolled yet'}
+                  </p>
+                )}
               </motion.div>
 
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-              >
-                <WaveBorderCard initialColor="orange">
-                  <div className="p-6">
-                    <h3 className={`text-2xl font-black ${styles.text} flex items-center gap-3`}>
-                      <Icons.Activity className="h-8 w-8 text-orange-600 dark:text-orange-400" />
-                      {language === 'ar' ? 'نشاط حديث' : 'Recent Activity'}
-                    </h3>
-                    <div className="space-y-3">
-                      {recentActivity.map((act, i) => (
-                        <div key={i} className={`flex items-center gap-3 text-base ${styles.subtext}`}>
-                          {act.type === 'video' ? <Icons.Video className="h-6 w-6 text-blue-500 dark:text-blue-400" /> : <Icons.FileText className="h-6 w-6 text-emerald-500 dark:text-emerald-400" />}
-                          <span className="flex-1 truncate font-medium">{act.title}</span>
-                          <span className="text-sm whitespace-nowrap opacity-70">{timeAgo(act.date, language)}</span>
-                        </div>
-                      ))}
-                      {recentActivity.length === 0 && <p className={`text-base ${styles.subtext}`}>{language === 'ar' ? 'لا يوجد نشاط' : 'No activity'}</p>}
+              {/* امتحانات قادمة + نشاط حديث */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                >
+                  <WaveBorderCard initialColor="blue">
+                    <div className="p-6">
+                      <h2 className={`text-2xl font-black ${styles.text} flex items-center gap-3`}>
+                        <Icons.AlarmClock className="h-8 w-8 text-blue-600 dark:text-blue-400" />
+                        {language === 'ar' ? 'الامتحانات القادمة' : 'Upcoming Exams'}
+                      </h2>
+                      <div className="space-y-3">
+                        {upcomingExams.length > 0 ? upcomingExams.map(exam => (
+                          <div key={exam.id} className={`flex items-center justify-between p-4 rounded-2xl ${styles.card} border ${styles.border} backdrop-blur-sm`}>
+                            <span className={`text-base font-medium ${styles.text}`}>{exam.title}</span>
+                            <Link href={`/dashboard/student/exams/${exam.id}`} className="text-blue-600 dark:text-blue-400 px-5 py-2 bg-blue-500/10 dark:bg-blue-400/10 rounded-xl text-sm font-bold hover:bg-blue-500/20 dark:hover:bg-blue-400/20 transition">
+                              {language === 'ar' ? 'دخول' : 'Enter'}
+                            </Link>
+                          </div>
+                        )) : <p className={`text-base ${styles.subtext}`}>{language === 'ar' ? 'لا توجد امتحانات قادمة' : 'No upcoming exams'}</p>}
+                      </div>
                     </div>
-                  </div>
-                </WaveBorderCard>
-              </motion.div>
+                  </WaveBorderCard>
+                </motion.div>
+
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                >
+                  <WaveBorderCard initialColor="orange">
+                    <div className="p-6">
+                      <h3 className={`text-2xl font-black ${styles.text} flex items-center gap-3`}>
+                        <Icons.Activity className="h-8 w-8 text-orange-600 dark:text-orange-400" />
+                        {language === 'ar' ? 'نشاط حديث' : 'Recent Activity'}
+                      </h3>
+                      <div className="space-y-3">
+                        {recentActivity.map((act, i) => (
+                          <div key={i} className={`flex items-center gap-3 text-base ${styles.subtext}`}>
+                            {act.type === 'video' ? <Icons.Video className="h-6 w-6 text-blue-500 dark:text-blue-400" /> : <Icons.FileText className="h-6 w-6 text-emerald-500 dark:text-emerald-400" />}
+                            <span className="flex-1 truncate font-medium">{act.title}</span>
+                            <span className="text-sm whitespace-nowrap opacity-70">{timeAgo(act.date, language)}</span>
+                          </div>
+                        ))}
+                        {recentActivity.length === 0 && <p className={`text-base ${styles.subtext}`}>{language === 'ar' ? 'لا يوجد نشاط' : 'No activity'}</p>}
+                      </div>
+                    </div>
+                  </WaveBorderCard>
+                </motion.div>
+              </div>
+            </div>
+
+            {/* العمود الأيمن */}
+            <div className="space-y-8">
+              <LargeNoteCard latestNote={latestNote} language={language} styles={styles} theme={theme} />
+              <SuperAnnouncements announcements={announcements} styles={styles} language={language} />
             </div>
           </div>
 
-          {/* العمود الأيمن */}
-          <div className="space-y-8">
-            <LargeNoteCard latestNote={latestNote} language={language} styles={styles} theme={theme} />
-            <SuperAnnouncements announcements={announcements} styles={styles} language={language} />
+          {/* روابط سريعة */}
+          <div className="grid grid-cols-3 sm:grid-cols-6 gap-4">
+            {[
+              { href: '/dashboard/student/courses', icon: Icons.Search, label: { ar: 'كورسات', en: 'Courses' } },
+              { href: '/dashboard/student/support', icon: Icons.HelpCircle, label: { ar: 'دعم', en: 'Support' } },
+              { href: '/dashboard/student/progress', icon: Icons.TrendingUp, label: { ar: 'تقدّم', en: 'Progress' } },
+              { href: '/dashboard/student/profile', icon: Icons.User, label: { ar: 'حسابي', en: 'Profile' } },
+              { href: '/dashboard/student/study-schedule', icon: Icons.Calendar, label: { ar: 'جدول', en: 'Schedule' } },
+              { href: '/dashboard/student/notes', icon: Icons.StickyNote, label: { ar: 'ملاحظات', en: 'Notes' } },
+            ].map((item) => (
+              <Link key={item.href} href={item.href}
+                className={`flex flex-col items-center gap-3 p-6 rounded-2xl border ${styles.border} ${styles.card} hover:border-blue-500/50 dark:hover:border-blue-400/50 transition-all duration-300 group hover:-translate-y-2 hover:shadow-2xl`}>
+                <item.icon className={`h-10 w-10 text-blue-600 dark:text-blue-400 group-hover:scale-110 group-hover:rotate-6 transition-transform`} />
+                <span className={`text-base font-bold ${styles.text}`}>{item.label[language]}</span>
+              </Link>
+            ))}
           </div>
-        </div>
-
-        {/* روابط سريعة */}
-        <div className="grid grid-cols-3 sm:grid-cols-6 gap-4">
-          {[
-            { href: '/dashboard/student/courses', icon: Icons.Search, label: { ar: 'كورسات', en: 'Courses' } },
-            { href: '/dashboard/student/support', icon: Icons.HelpCircle, label: { ar: 'دعم', en: 'Support' } },
-            { href: '/dashboard/student/progress', icon: Icons.TrendingUp, label: { ar: 'تقدّم', en: 'Progress' } },
-            { href: '/dashboard/student/profile', icon: Icons.User, label: { ar: 'حسابي', en: 'Profile' } },
-            { href: '/dashboard/student/study-schedule', icon: Icons.Calendar, label: { ar: 'جدول', en: 'Schedule' } },
-            { href: '/dashboard/student/notes', icon: Icons.StickyNote, label: { ar: 'ملاحظات', en: 'Notes' } },
-          ].map((item) => (
-            <Link key={item.href} href={item.href}
-              className={`flex flex-col items-center gap-3 p-6 rounded-2xl border ${styles.border} ${styles.card} hover:border-blue-500/50 dark:hover:border-blue-400/50 transition-all duration-300 group hover:-translate-y-2 hover:shadow-2xl`}>
-              <item.icon className={`h-10 w-10 text-blue-600 dark:text-blue-400 group-hover:scale-110 group-hover:rotate-6 transition-transform`} />
-              <span className={`text-base font-bold ${styles.text}`}>{item.label[language]}</span>
-            </Link>
-          ))}
         </div>
       </div>
 
