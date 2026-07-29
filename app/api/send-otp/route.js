@@ -1,19 +1,14 @@
 // app/api/send-otp/route.js
 import { NextResponse } from 'next/server';
 
-// دالة مساعدة لإنشاء Resend عند الحاجة (Lazy initialization)
-let resendInstance = null;
-function getResendClient() {
-  if (!resendInstance) {
-    // استيراد ديناميكي لتفادي أخطاء البناء
-    const { Resend } = require('resend');
-    const apiKey = process.env.RESEND_API_KEY;
-    if (!apiKey) {
-      throw new Error('RESEND_API_KEY غير مضبوط في متغيرات البيئة');
-    }
-    resendInstance = new Resend(apiKey);
+// دالة مساعدة لتحميل Resend عند الحاجة
+async function getResendClient() {
+  const { default: Resend } = await import('resend');
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    throw new Error('RESEND_API_KEY غير موجود في متغيرات البيئة');
   }
-  return resendInstance;
+  return new Resend(apiKey);
 }
 
 export async function POST(request) {
@@ -24,7 +19,7 @@ export async function POST(request) {
       return NextResponse.json({ error: 'البريد الإلكتروني أو الرمز مفقود' }, { status: 400 });
     }
 
-    // محتوى البريد (HTML خفيف وسريع التحميل)
+    // محتوى البريد (HTML خفيف)
     const htmlContent = `
 <!DOCTYPE html>
 <html dir="rtl" lang="ar">
@@ -36,17 +31,12 @@ export async function POST(request) {
       <p style="color: #d1d5db; margin: 5px 0 0;">تأكيد التسجيل</p>
     </div>
     <div style="padding: 20px;">
-      <p style="font-size: 16px;">مرحباً <strong>${studentName || 'الطالب'}</strong>،</p>
+      <p>مرحباً <strong>${studentName || 'الطالب'}</strong>،</p>
       <p>رمز التحقق الخاص بك هو:</p>
       <div style="text-align: center; margin: 20px 0;">
         <span style="font-size: 32px; letter-spacing: 6px; font-weight: bold; color: #1a1a1a; background: #fef3c7; padding: 10px 20px; border-radius: 8px; border: 1px dashed #fbbf24;">${otp}</span>
       </div>
       <p style="color: #555;">الرمز صالح لمدة <strong>5 دقائق</strong>.</p>
-      <div style="background: #f0fdf4; padding: 12px; border-radius: 8px; margin: 16px 0; border-right: 4px solid #22c55e;">
-        <p style="margin: 0; color: #166534;"><strong>بياناتك:</strong></p>
-        <p style="margin: 4px 0; font-size: 14px;">الهاتف: ${phone || 'غير مضاف'} | ولي الأمر: ${parentPhone || 'غير مضاف'}</p>
-        <p style="margin: 4px 0; font-size: 14px;">المدرسة: ${school || 'غير مضاف'} | الصف: ${grade || 'غير مضاف'} | المحافظة: ${governorate || 'غير مضاف'}</p>
-      </div>
       <p style="color: #888; font-size: 12px;">هذه رسالة آلية، يرجى عدم الرد.</p>
     </div>
   </div>
@@ -54,8 +44,8 @@ export async function POST(request) {
 </html>
     `;
 
-    // إنشاء عميل Resend عند الطلب (لأول مرة فقط)
-    const resend = getResendClient();
+    // تحميل Resend وإرسال البريد
+    const resend = await getResendClient();
 
     const { data, error } = await resend.emails.send({
       from: 'منصة محمد رضوان <onboarding@resend.dev>',
