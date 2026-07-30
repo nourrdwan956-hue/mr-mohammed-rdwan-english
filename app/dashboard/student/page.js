@@ -7,9 +7,8 @@ import { useTheme } from '@/lib/hooks/useTheme';
 import { supabase } from '@/lib/supabaseClient';
 import { toast } from 'react-hot-toast';
 import Link from 'next/link';
-import { useRouter, usePathname } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import NotificationDrawer from '@/app/dashboard/student/components/NotificationDrawer';
-import { useDeviceMode } from '@/app/context/DeviceContext';
 
 // ================================================================
 // دوال IndexedDB للملاحظات
@@ -174,9 +173,9 @@ const getRandomColor = (exclude = []) => {
 };
 
 // ================================================================
-// 4. مكون الحدود الموجية (يدعم التجاوب)
+// 4. مكون الحدود الموجية
 // ================================================================
-const WaveBorderCard = ({ children, className = '', initialColor = 'blue', onColorChange, responsive }) => {
+const WaveBorderCard = ({ children, className = '', initialColor = 'blue', onColorChange }) => {
   const [color, setColor] = useState(CARD_COLORS.find(c => c.name === initialColor) || CARD_COLORS[0]);
   const [rotation, setRotation] = useState(0);
   const colorRef = useRef(color);
@@ -227,16 +226,13 @@ const WaveBorderCard = ({ children, className = '', initialColor = 'blue', onCol
     maskComposite: 'exclude',
   };
 
-  // استخدام responsive.padding إذا وُجد
-  const paddingClass = responsive?.padding || '';
-
   return (
     <div className={`relative rounded-3xl overflow-hidden group ${className}`}>
       <div
         className="absolute inset-0 rounded-3xl"
         style={gradientStyle}
       />
-      <div className={`relative z-10 h-full w-full rounded-3xl backdrop-blur-sm bg-[var(--bg-card)] border border-[var(--border-color)] ${paddingClass}`}>
+      <div className="relative z-10 h-full w-full rounded-3xl backdrop-blur-sm bg-[var(--bg-card)] border border-[var(--border-color)]">
         {children}
       </div>
     </div>
@@ -244,20 +240,13 @@ const WaveBorderCard = ({ children, className = '', initialColor = 'blue', onCol
 };
 
 // ================================================================
-// 5. بطاقة إحصائية (معدلة لدعم التجاوب)
+// 5. بطاقة إحصائية
 // ================================================================
-const LargeStatCard = ({ icon: Icon, label, value, styles, delay = 0, responsive }) => {
+const LargeStatCard = ({ icon: Icon, label, value, styles, delay = 0 }) => {
   const [color, setColor] = useState(CARD_COLORS[0]);
   const [isHovered, setIsHovered] = useState(false);
 
   const handleColorChange = (newColor) => setColor(newColor);
-
-  const { cardPadding, iconSize, statSize, labelSize } = responsive || {
-    cardPadding: 'p-7',
-    iconSize: 'h-12 w-12',
-    statSize: 'text-4xl',
-    labelSize: 'text-base',
-  };
 
   return (
     <motion.div
@@ -268,20 +257,20 @@ const LargeStatCard = ({ icon: Icon, label, value, styles, delay = 0, responsive
       onMouseLeave={() => setIsHovered(false)}
       whileHover={{ scale: 1.04 }}
     >
-      <WaveBorderCard initialColor={color.name} onColorChange={handleColorChange} responsive={{ padding: cardPadding }}>
-        <div className={`flex items-center justify-between gap-5 ${cardPadding}`}>
+      <WaveBorderCard initialColor={color.name} onColorChange={handleColorChange}>
+        <div className="p-7 flex items-center justify-between gap-5">
           <div>
-            <p className={`font-medium ${styles.subtext} mb-1 ${labelSize}`}>{label}</p>
-            <p className={`font-black ${styles.text} ${statSize}`}>
+            <p className={`text-base font-medium ${styles.subtext} mb-1`}>{label}</p>
+            <p className={`text-4xl font-black ${styles.text}`}>
               <AnimatedCounter value={value} />
             </p>
           </div>
           <motion.div
             animate={isHovered ? { scale: 1.3, rotate: 12 } : { scale: 1 }}
             transition={{ type: 'spring', stiffness: 300 }}
-            className={`p-3 rounded-2xl ${color.bg} shadow-xl`}
+            className={`p-4 rounded-2xl ${color.bg} shadow-xl`}
           >
-            <Icon className={`${iconSize} ${color.text}`} />
+            <Icon className={`h-12 w-12 ${color.text}`} />
           </motion.div>
         </div>
       </WaveBorderCard>
@@ -290,22 +279,14 @@ const LargeStatCard = ({ icon: Icon, label, value, styles, delay = 0, responsive
 };
 
 // ================================================================
-// 6. بطاقة كورس (معدلة لدعم التجاوب)
+// 6. بطاقة كورس
 // ================================================================
-const LargeCourseCard = ({ course, progress, styles, theme, language, responsive }) => {
+const LargeCourseCard = ({ course, progress, styles, theme, language }) => {
   const router = useRouter();
   const [color, setColor] = useState(CARD_COLORS[1]);
   const [isHovered, setIsHovered] = useState(false);
 
   const handleColorChange = (newColor) => setColor(newColor);
-
-  const { cardPadding, titleSize, textSize, iconSize, gap } = responsive || {
-    cardPadding: 'p-6',
-    titleSize: 'text-xl',
-    textSize: 'text-sm',
-    iconSize: 'h-8 w-8',
-    gap: 'gap-4',
-  };
 
   return (
     <motion.div
@@ -315,20 +296,20 @@ const LargeCourseCard = ({ course, progress, styles, theme, language, responsive
       className="relative cursor-pointer"
       onClick={() => router.push(`/dashboard/student/courses/${course.id}`)}
     >
-      <WaveBorderCard initialColor={color.name} onColorChange={handleColorChange} responsive={{ padding: cardPadding }}>
-        <div className={cardPadding}>
+      <WaveBorderCard initialColor={color.name} onColorChange={handleColorChange}>
+        <div className="p-6">
           <div className="flex items-start justify-between mb-4">
-            <div className={`flex items-center ${gap}`}>
+            <div className="flex items-center gap-4">
               <motion.div
                 animate={isHovered ? { scale: 1.25, rotate: [0, -8, 8, -8, 0] } : { scale: 1 }}
                 transition={{ duration: 0.5 }}
-                className={`rounded-2xl ${color.bg} flex items-center justify-center shadow-lg p-3`}
+                className={`h-16 w-16 rounded-2xl ${color.bg} flex items-center justify-center shadow-lg`}
               >
-                <Icons.BookOpen className={`${iconSize} ${color.text}`} />
+                <Icons.BookOpen className={`h-8 w-8 ${color.text}`} />
               </motion.div>
               <div className="flex-1 min-w-0">
-                <h4 className={`font-bold truncate ${styles.text} ${titleSize}`}>{course.title}</h4>
-                <p className={`${styles.subtext} ${textSize}`}>{course.category || (language === 'ar' ? 'كورس' : 'Course')}</p>
+                <h4 className={`text-xl font-bold truncate ${styles.text}`}>{course.title}</h4>
+                <p className={`text-sm ${styles.subtext}`}>{course.category || (language === 'ar' ? 'كورس' : 'Course')}</p>
               </div>
             </div>
             <motion.div
@@ -373,9 +354,9 @@ const LargeCourseCard = ({ course, progress, styles, theme, language, responsive
 };
 
 // ================================================================
-// 7. بطاقة الإعلانات (معدلة لدعم التجاوب)
+// 7. بطاقة الإعلانات
 // ================================================================
-const SuperAnnouncements = ({ announcements, styles, language, responsive }) => {
+const SuperAnnouncements = ({ announcements, styles, language }) => {
   const [expanded, setExpanded] = useState(false);
   const [currentPage, setCurrentPage] = useState(0);
   const totalPages = announcements.length;
@@ -384,29 +365,22 @@ const SuperAnnouncements = ({ announcements, styles, language, responsive }) => 
 
   const handleColorChange = (newColor) => setColor(newColor);
 
-  const { cardPadding, titleSize, textSize, gap } = responsive || {
-    cardPadding: 'p-4',
-    titleSize: 'text-lg',
-    textSize: 'text-sm',
-    gap: 'gap-2',
-  };
-
   if (totalPages === 0) {
     return (
       <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
-        <WaveBorderCard initialColor={color.name} onColorChange={handleColorChange} responsive={{ padding: cardPadding }}>
-          <div className={`space-y-3 ${cardPadding}`}>
-            <div className={`flex items-center ${gap}`}>
+        <WaveBorderCard initialColor={color.name} onColorChange={handleColorChange}>
+          <div className="p-5 space-y-3">
+            <div className="flex items-center gap-2">
               <Icons.Megaphone className={`h-5 w-5 ${color.text}`} />
-              <h3 className={`font-bold ${styles.text} ${titleSize}`}>{language === 'ar' ? 'الإعلانات' : 'Announcements'}</h3>
+              <h3 className={`text-lg font-bold ${styles.text}`}>{language === 'ar' ? 'الإعلانات' : 'Announcements'}</h3>
             </div>
             <div className="text-center py-6">
               <Icons.Megaphone className={`h-16 w-16 ${styles.subtext} mx-auto mb-3`} />
-              <p className={`${styles.subtext} ${textSize}`}>{language === 'ar' ? 'لا توجد إعلانات حالياً' : 'No announcements yet'}</p>
+              <p className={`text-sm ${styles.subtext}`}>{language === 'ar' ? 'لا توجد إعلانات حالياً' : 'No announcements yet'}</p>
             </div>
             <div className={`flex items-start gap-2 p-3 rounded-xl ${color.bg} border ${color.border}`}>
               <Icons.Lightbulb className={`h-5 w-5 ${color.text} mt-0.5 flex-shrink-0`} />
-              <p className={`${styles.subtext} text-xs`}>
+              <p className={`text-xs ${styles.subtext}`}>
                 {language === 'ar'
                   ? 'خصص 30 دقيقة يومياً للمراجعة، وستلاحظ الفرق بعد شهر!'
                   : 'Dedicate 30 min daily to revision and see the difference!'}
@@ -447,8 +421,8 @@ const SuperAnnouncements = ({ announcements, styles, language, responsive }) => 
           <Icons.Megaphone className="h-5 w-5" />
         </div>
         <div className="flex-1 min-w-0">
-          <h4 className={`font-bold ${styles.text} ${titleSize} mb-1`}>{announcement.title}</h4>
-          <p className={`${styles.subtext} ${textSize} leading-relaxed`}>
+          <h4 className={`text-base font-bold ${styles.text} mb-1`}>{announcement.title}</h4>
+          <p className={`text-sm ${styles.subtext} leading-relaxed`}>
             {truncateText(announcement.body, 100)}
             {announcement.body.length > 100 && (
               <span className={`${color.text} font-medium mr-1`}>
@@ -475,8 +449,8 @@ const SuperAnnouncements = ({ announcements, styles, language, responsive }) => 
           <Icons.Megaphone className="h-10 w-10" />
         </div>
         <div className="flex-1 min-w-0">
-          <h4 className={`font-bold ${styles.text} text-2xl mb-3`}>{announcement.title}</h4>
-          <p className={`${styles.subtext} text-lg leading-relaxed whitespace-pre-wrap`}>{announcement.body}</p>
+          <h4 className={`text-2xl font-bold ${styles.text} mb-3`}>{announcement.title}</h4>
+          <p className={`text-lg ${styles.subtext} leading-relaxed whitespace-pre-wrap`}>{announcement.body}</p>
           <p className={`text-sm ${styles.subtext} mt-4`}>
             {new Date(announcement.created_at).toLocaleDateString(
               language === 'ar' ? 'ar-EG' : 'en-US',
@@ -498,16 +472,16 @@ const SuperAnnouncements = ({ announcements, styles, language, responsive }) => 
         onMouseLeave={() => setIsHovered(false)}
         className="relative"
       >
-        <WaveBorderCard initialColor={color.name} onColorChange={handleColorChange} responsive={{ padding: cardPadding }}>
+        <WaveBorderCard initialColor={color.name} onColorChange={handleColorChange}>
           <motion.div
             animate={isHovered ? { scale: 1.02 } : { scale: 1 }}
             transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-            className={cardPadding}
+            className="p-4"
           >
-            <div className={`flex items-center justify-between mb-3`}>
-              <div className={`flex items-center ${gap}`}>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
                 <Icons.Megaphone className={`h-5 w-5 ${color.text}`} />
-                <h3 className={`font-bold ${styles.text} ${titleSize}`}>{language === 'ar' ? 'الإعلانات' : 'Announcements'}</h3>
+                <h3 className={`text-lg font-bold ${styles.text}`}>{language === 'ar' ? 'الإعلانات' : 'Announcements'}</h3>
                 <span className={`text-xs px-2 py-0.5 rounded-full ${color.bg} ${color.text}`}>
                   {currentPage + 1} / {totalPages}
                 </span>
@@ -599,18 +573,12 @@ const SuperAnnouncements = ({ announcements, styles, language, responsive }) => 
 };
 
 // ================================================================
-// 8. بطاقة الملاحظة (معدلة لدعم التجاوب)
+// 8. بطاقة الملاحظة
 // ================================================================
-const LargeNoteCard = ({ latestNote, language, styles, theme, responsive }) => {
+const LargeNoteCard = ({ latestNote, language, styles, theme }) => {
   const router = useRouter();
   const [color, setColor] = useState(CARD_COLORS[4]);
   const handleColorChange = (newColor) => setColor(newColor);
-
-  const { cardPadding, titleSize, textSize } = responsive || {
-    cardPadding: 'p-6',
-    titleSize: 'text-xl',
-    textSize: 'text-base',
-  };
 
   return (
     <motion.div
@@ -618,19 +586,19 @@ const LargeNoteCard = ({ latestNote, language, styles, theme, responsive }) => {
       onClick={() => router.push('/dashboard/student/notes')}
       className="relative cursor-pointer"
     >
-      <WaveBorderCard initialColor={color.name} onColorChange={handleColorChange} responsive={{ padding: cardPadding }}>
-        <div className={cardPadding}>
+      <WaveBorderCard initialColor={color.name} onColorChange={handleColorChange}>
+        <div className="p-6">
           <div className="flex items-center gap-3 mb-3">
             <div className={`p-2.5 rounded-xl ${color.bg}`}>
               <Icons.StickyNote className={`h-6 w-6 ${color.text}`} />
             </div>
-            <h3 className={`font-bold ${styles.text} ${titleSize}`}>{language === 'ar' ? 'آخر ملاحظة' : 'Recent Note'}</h3>
+            <h3 className={`text-xl font-bold ${styles.text}`}>{language === 'ar' ? 'آخر ملاحظة' : 'Recent Note'}</h3>
           </div>
           {latestNote ? (
             <div className="space-y-2">
               <div className="flex items-start gap-3">
                 <span className="text-3xl">{latestNote.emoji || '📝'}</span>
-                <p className={`${styles.text} ${textSize} line-clamp-3 leading-relaxed`}>{latestNote.note}</p>
+                <p className={`text-base ${styles.text} line-clamp-3 leading-relaxed`}>{latestNote.note}</p>
               </div>
               <p className={`text-sm ${styles.subtext}`}>
                 {new Date(latestNote.created_at).toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
@@ -638,7 +606,7 @@ const LargeNoteCard = ({ latestNote, language, styles, theme, responsive }) => {
               </p>
             </div>
           ) : (
-            <p className={`${styles.subtext} ${textSize}`}>{language === 'ar' ? 'لا توجد ملاحظات. اضف واحدة!' : 'No notes yet. Add one!'}</p>
+            <p className={`text-base ${styles.subtext}`}>{language === 'ar' ? 'لا توجد ملاحظات. اضف واحدة!' : 'No notes yet. Add one!'}</p>
           )}
         </div>
       </WaveBorderCard>
@@ -647,9 +615,9 @@ const LargeNoteCard = ({ latestNote, language, styles, theme, responsive }) => {
 };
 
 // ================================================================
-// 9. شريط المعلومات اليومية (معدل لدعم التجاوب)
+// 9. شريط المعلومات اليومية
 // ================================================================
-const LanguageTipCarousel = ({ language, styles, responsive }) => {
+const LanguageTipCarousel = ({ language, styles }) => {
   const tips = [
     { ar: 'اللغة الإنجليزية هي اللغة الرسمية في 67 دولة حول العالم.', en: 'English is the official language in 67 countries worldwide.' },
     { ar: 'أكثر الكلمات استخداماً في الإنجليزية هي "the" – تظهر في كل جملة تقريباً!', en: 'The most common word in English is "the" – it appears in almost every sentence!' },
@@ -679,11 +647,6 @@ const LanguageTipCarousel = ({ language, styles, responsive }) => {
 
   const handleColorChange = (newColor) => setColor(newColor);
 
-  const { cardPadding, textSize } = responsive || {
-    cardPadding: 'p-5',
-    textSize: 'text-lg',
-  };
-
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -691,8 +654,8 @@ const LanguageTipCarousel = ({ language, styles, responsive }) => {
       exit={{ opacity: 0, y: -10 }}
       key={currentIndex}
     >
-      <WaveBorderCard initialColor={color.name} onColorChange={handleColorChange} responsive={{ padding: cardPadding }}>
-        <div className={cardPadding}>
+      <WaveBorderCard initialColor={color.name} onColorChange={handleColorChange}>
+        <div className="p-5">
           <div className="flex items-start gap-4">
             <div className={`p-3 rounded-xl ${color.bg} flex-shrink-0`}>
               <Icons.Lightbulb className={`h-7 w-7 ${color.text}`} />
@@ -701,7 +664,7 @@ const LanguageTipCarousel = ({ language, styles, responsive }) => {
               <p className={`text-sm font-bold ${styles.subtext} uppercase tracking-wider mb-1`}>
                 💡 {language === 'ar' ? 'معلومة إنجليزية اليوم' : 'English Fact of the Day'}
               </p>
-              <p className={`${styles.text} ${textSize} leading-relaxed`}>{tipText}</p>
+              <p className={`text-lg ${styles.text} leading-relaxed`}>{tipText}</p>
               <div className="flex gap-1.5 mt-3">
                 {Array.from({ length: totalTips }).map((_, idx) => (
                   <span
@@ -721,14 +684,11 @@ const LanguageTipCarousel = ({ language, styles, responsive }) => {
 };
 
 // ================================================================
-// الصفحة الرئيسية (مع استخدام deviceMode)
+// الصفحة الرئيسية
 // ================================================================
 export default function StudentDashboard() {
   const { theme, styles, language } = useTheme();
   const router = useRouter();
-  const pathname = usePathname();
-  const { deviceMode } = useDeviceMode(); // ✅ استخدام deviceMode
-
   const [user, setUser] = useState(null);
   const [enrollments, setEnrollments] = useState([]);
   const [courses, setCourses] = useState([]);
@@ -750,93 +710,7 @@ export default function StudentDashboard() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [teacherId, setTeacherId] = useState(null);
 
-  // ===== حالات الشريط الجانبي =====
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
-  const [isTablet, setIsTablet] = useState(false);
-
-  // ===== تعريف الأنماط المتجاوبة حسب deviceMode =====
-  const responsive = useMemo(() => {
-    switch (deviceMode) {
-      case 'mobile':
-        return {
-          grid: 'grid-cols-1',
-          cardPadding: 'p-4',
-          titleSize: 'text-base',
-          statSize: 'text-2xl',
-          iconSize: 'h-8 w-8',
-          labelSize: 'text-sm',
-          gap: 'gap-3',
-          textSize: 'text-sm',
-          containerPadding: 'px-3 py-6',
-          statCardPadding: 'p-5',
-          courseCardPadding: 'p-4',
-        };
-      case 'tablet':
-        return {
-          grid: 'grid-cols-1 sm:grid-cols-2',
-          cardPadding: 'p-5',
-          titleSize: 'text-lg',
-          statSize: 'text-3xl',
-          iconSize: 'h-10 w-10',
-          labelSize: 'text-sm',
-          gap: 'gap-4',
-          textSize: 'text-base',
-          containerPadding: 'px-4 py-8',
-          statCardPadding: 'p-6',
-          courseCardPadding: 'p-5',
-        };
-      default: // desktop
-        return {
-          grid: 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4',
-          cardPadding: 'p-6',
-          titleSize: 'text-xl',
-          statSize: 'text-4xl',
-          iconSize: 'h-12 w-12',
-          labelSize: 'text-base',
-          gap: 'gap-6',
-          textSize: 'text-base',
-          containerPadding: 'px-6 py-8',
-          statCardPadding: 'p-7',
-          courseCardPadding: 'p-6',
-        };
-    }
-  }, [deviceMode]);
-
-  // ===== كشف حجم الشاشة وتحميل تفضيل المستخدم =====
-  useEffect(() => {
-    const detectDevice = () => {
-      const width = window.innerWidth;
-      const mobile = width < 640;
-      const tablet = width >= 640 && width < 1024;
-      
-      setIsMobile(mobile);
-      setIsTablet(tablet);
-      
-      const savedPreference = localStorage.getItem('studentDashboardSidebar');
-      
-      if (mobile || tablet) {
-        setSidebarOpen(savedPreference === 'true');
-      } else {
-        setSidebarOpen(savedPreference !== 'false');
-      }
-    };
-
-    detectDevice();
-    window.addEventListener('resize', detectDevice);
-    return () => window.removeEventListener('resize', detectDevice);
-  }, []);
-
-  // ===== دالة تبديل الشريط الجانبي =====
-  const toggleSidebar = useCallback(() => {
-    setSidebarOpen(prev => {
-      const newState = !prev;
-      localStorage.setItem('studentDashboardSidebar', newState.toString());
-      return newState;
-    });
-  }, []);
-
-  // دوال جلب البيانات (لم تتغير)
+  // دوال جلب البيانات
   const looksLikeEmailOrUsername = (text) => {
     if (!text) return true;
     if (text.includes('@')) return true;
@@ -891,6 +765,7 @@ export default function StudentDashboard() {
       profile = await ensureValidFullName(userId, profile, authMetadata);
       setUser(profile);
 
+      // جلب حالة الإشعارات من قاعدة البيانات
       setNotificationsEnabled(profile?.notifications_enabled ?? true);
 
       const joinDays = getDaysSinceJoin(profile?.created_at || profile?.updated_at || new Date().toISOString());
@@ -905,6 +780,7 @@ export default function StudentDashboard() {
       setEnrollments(validEnrolls);
       setCourses(validEnrolls.map(e => e.courses));
 
+      // تحديد معرف المعلم من أول كورس
       if (validEnrolls.length > 0 && validEnrolls[0].courses?.teacher_id) {
         setTeacherId(validEnrolls[0].courses.teacher_id);
       }
@@ -945,6 +821,7 @@ export default function StudentDashboard() {
       const allActivity = [...videoActivity, ...examActivity].filter(item => item.date).sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 5);
       setRecentActivity(allActivity);
 
+      // جلب الإعلانات مع الإعجابات
       const { data: anns, error: annError } = await supabase
         .from('announcements')
         .select(`
@@ -973,6 +850,7 @@ export default function StudentDashboard() {
       });
       setAnnouncements(processedAnns);
 
+      // جلب الرسائل من المعلم
       if (teacherId) {
         const { data: msgs, error: msgError } = await supabase
           .from('messages')
@@ -1046,37 +924,6 @@ export default function StudentDashboard() {
     setMessages(prev => [newMsg, ...prev]);
   }, []);
 
-  const handleLogout = useCallback(async () => {
-    await supabase.auth.signOut();
-    router.push('/login');
-  }, [router]);
-
-  // تعريف عناصر القائمة (للشريط الجانبي)
-  const NAV_ITEMS = [
-    { id: 'dashboard', path: '/dashboard/student', icon: Icons.Home, label: { ar: 'الرئيسية', en: 'Dashboard' }, color: 'blue' },
-    { id: 'courses', path: '/dashboard/student/courses', icon: Icons.BookOpen, label: { ar: 'كورساتي', en: 'My Courses' }, color: 'green' },
-    { id: 'progress', path: '/dashboard/student/progress', icon: Icons.TrendingUp, label: { ar: 'تقدّم', en: 'Progress' }, color: 'orange' },
-    { id: 'schedule', path: '/dashboard/student/study-schedule', icon: Icons.Calendar, label: { ar: 'جدول الدراسة', en: 'Study Schedule' }, color: 'purple' },
-    { id: 'notes', path: '/dashboard/student/notes', icon: Icons.StickyNote, label: { ar: 'ملاحظاتي', en: 'My Notes' }, color: 'teal' },
-    { id: 'support', path: '/dashboard/student/support', icon: Icons.HelpCircle, label: { ar: 'الدعم', en: 'Support' }, color: 'red' },
-  ];
-
-  const getIconColor = (colorName, active) => {
-    const color = CARD_COLORS.find(c => c.name === colorName) || CARD_COLORS[0];
-    if (active) {
-      return {
-        text: color.text,
-        bg: color.bg,
-        border: color.border,
-      };
-    }
-    return {
-      text: 'text-gray-400 dark:text-gray-500',
-      bg: 'bg-white/5 dark:bg-white/5',
-      border: 'border-transparent',
-    };
-  };
-
   if (loading) return (
     <div className={`h-full w-full flex items-center justify-center ${styles.bg}`}>
       <div className="relative">
@@ -1092,11 +939,9 @@ export default function StudentDashboard() {
     </div>
   );
 
-  const isRTL = language === 'ar';
-
   return (
-    <div className="w-full min-h-screen bg-[var(--bg-primary)] transition-colors duration-300 relative overflow-hidden">
-      {/* خلفية متحركة */}
+    <div className={`w-full min-h-screen ${styles.bg} transition-colors duration-300 relative overflow-hidden`}>
+      {/* خلفية متحركة شفافة */}
       <motion.div
         animate={{ x: ['-5%', '5%', '-5%'], y: ['-5%', '5%', '-5%'] }}
         transition={{ duration: 30, repeat: Infinity, ease: 'linear' }}
@@ -1108,387 +953,194 @@ export default function StudentDashboard() {
         className="fixed -bottom-60 -left-60 w-[900px] h-[900px] bg-green-500/5 dark:bg-green-400/5 rounded-full blur-3xl pointer-events-none"
       />
 
-      {/* زر التحكم في الشريط الجانبي */}
-      <button
-        onClick={toggleSidebar}
-        className={`fixed z-50 p-3 rounded-xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-2xl hover:bg-white/20 transition-all duration-300 ${
-          isMobile || isTablet ? 'bottom-24 left-4' : 'top-6 left-6'
-        }`}
-        title={sidebarOpen ? (language === 'ar' ? 'إخفاء القائمة' : 'Hide Sidebar') : (language === 'ar' ? 'إظهار القائمة' : 'Show Sidebar')}
-      >
-        {sidebarOpen ? (
-          <Icons.PanelLeftClose className="h-6 w-6 text-white" />
-        ) : (
-          <Icons.PanelLeftOpen className="h-6 w-6 text-white" />
-        )}
-      </button>
-
-      {/* الشريط الجانبي */}
-      <AnimatePresence>
-        {sidebarOpen && (
-          <>
-            {(isMobile || isTablet) && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                onClick={toggleSidebar}
-                className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
-              />
-            )}
-
-            <motion.aside
-              initial={{ x: isRTL ? 320 : -320, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              exit={{ x: isRTL ? 320 : -320, opacity: 0 }}
-              transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-              className={`fixed top-0 ${isRTL ? 'right-0' : 'left-0'} h-full w-80 lg:w-96 z-40 backdrop-blur-2xl shadow-2xl border-${isRTL ? 'l' : 'r'} border-[var(--border-color)] overflow-y-auto`}
-              style={{ backgroundColor: 'rgba(var(--bg-primary-rgb), 0.95)' }}
+      <div className="relative z-10 px-6 sm:px-8 py-8 space-y-8 max-w-7xl mx-auto">
+        {/* ===== رأس الصفحة المعدل ===== */}
+        <motion.div
+          initial={{ opacity: 0, y: -30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, type: 'spring', stiffness: 200 }}
+          className={`flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 p-8 rounded-3xl border ${styles.border} backdrop-blur-sm shadow-xl ${styles.card}`}
+        >
+          <div className="flex items-center gap-5">
+            <motion.div
+              whileHover={{ scale: 1.1, rotate: 6 }}
+              className="relative h-24 w-24 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-extrabold text-4xl shadow-2xl shadow-blue-500/40 dark:shadow-blue-400/20 overflow-hidden ring-4 ring-blue-500/20 dark:ring-blue-400/10"
             >
-              <div className="p-6">
-                {(isMobile || isTablet) && (
-                  <button
-                    onClick={toggleSidebar}
-                    className="absolute top-4 right-4 p-2 rounded-xl bg-white/10 hover:bg-white/20 transition-colors"
-                  >
-                    <Icons.X className="h-5 w-5" />
-                  </button>
-                )}
+              {user?.avatar_url ? (
+                <img src={user.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
+              ) : (
+                <span>{(user?.full_name?.[0] || (language === 'ar' ? 'ط' : 'S')).toUpperCase()}</span>
+              )}
+              <span className="absolute -bottom-1 -right-1 h-6 w-6 rounded-full bg-emerald-500 border-2 border-white dark:border-gray-800" />
+            </motion.div>
+            <div>
+              <h1 className={`text-4xl md:text-5xl font-black ${styles.text}`}>
+                {language === 'ar' ? 'مرحباً' : 'Welcome'}{', '}
+                <motion.span
+                  animate={{ backgroundPosition: ['0% 50%', '100% 50%', '0% 50%'] }}
+                  transition={{ duration: 6, repeat: Infinity, ease: 'linear' }}
+                  className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-blue-500 to-blue-400 dark:from-blue-300 dark:via-blue-400 dark:to-blue-300 bg-[length:300%_auto]"
+                >
+                  {user?.full_name || (language === 'ar' ? 'طالب' : 'Student')}
+                </motion.span>
+              </h1>
+              <p className={`text-lg ${styles.subtext} opacity-80 mt-1`}>
+                {language === 'ar' ? 'كل يوم فرصة جديدة للتعلم!' : 'Every day is a new chance to learn!'}
+              </p>
+            </div>
+          </div>
 
-                <div className="flex items-center gap-4 mb-8 border-b border-[var(--border-color)] pb-6">
-                  <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white text-2xl font-bold">
-                    {user?.avatar_url ? (
-                      <img src={user.avatar_url} alt="Avatar" className="w-full h-full object-cover rounded-2xl" />
-                    ) : (
-                      user?.full_name?.charAt(0) || (language === 'ar' ? 'ط' : 'S')
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h2 className="text-xl font-bold truncate">{user?.full_name || (language === 'ar' ? 'طالب' : 'Student')}</h2>
-                    <p className="text-xs text-gray-400 truncate">{user?.email}</p>
-                    <p className={`text-xs ${styles.subtext} opacity-70 mt-0.5`}>
-                      {language === 'ar' ? `عضو منذ ${daysSinceJoin} يوم` : `Member for ${daysSinceJoin} days`}
-                    </p>
-                  </div>
-                </div>
+          <div className="flex items-center gap-4">
+            <MembershipCounter days={daysSinceJoin} styles={styles} language={language} />
 
-                <nav className="space-y-2">
-                  {NAV_ITEMS.map((item) => {
-                    const active = pathname === item.path;
-                    const colors = getIconColor(item.color, active);
-                    return (
-                      <Link
-                        key={item.id}
-                        href={item.path}
-                        onClick={() => (isMobile || isTablet) && setSidebarOpen(false)}
-                      >
-                        <motion.div
-                          whileHover={{ scale: 1.02, x: isRTL ? -4 : 4 }}
-                          className={`flex items-center gap-4 px-4 py-3 rounded-xl transition-all ${
-                            active ? `font-bold ${colors.bg} ${colors.border} border` : 'hover:bg-white/5'
-                          }`}
-                        >
-                          <div className={`p-2 rounded-lg ${active ? colors.bg : 'bg-white/5'}`}>
-                            <item.icon className={`h-5 w-5 ${active ? colors.text : 'text-gray-400'}`} />
-                          </div>
-                          <span className="text-sm font-medium">{item.label[language] || item.label.ar}</span>
-                        </motion.div>
-                      </Link>
-                    );
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => {
+                if (!notificationsEnabled) {
+                  toast.error('الإشعارات معطلة. قم بتفعيلها أولاً.');
+                  return;
+                }
+                setIsDrawerOpen(true);
+              }}
+              className={`relative p-3 rounded-2xl border ${styles.border} ${styles.card} hover:border-yellow-500/50 transition-all duration-300`}
+            >
+              <Icons.Bell className={`h-6 w-6 ${notificationsEnabled ? 'text-yellow-500' : 'text-gray-500'}`} />
+              {notificationsEnabled && (() => {
+                const unreadMessages = messages.filter(m => m.sender_id === teacherId && !m.is_read).length;
+                const totalUnread = unreadMessages + announcements.filter(a => a.is_published).length;
+                if (totalUnread > 0) {
+                  return (
+                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full h-5 w-5 flex items-center justify-center shadow-lg animate-pulse">
+                      {totalUnread > 9 ? '9+' : totalUnread}
+                    </span>
+                  );
+                }
+                return null;
+              })()}
+            </motion.button>
+          </div>
+        </motion.div>
+
+        {/* ===== شريط المعلومات اليومية ===== */}
+        <LanguageTipCarousel language={language} styles={styles} />
+
+        {/* ===== الشبكة الرئيسية ===== */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="lg:col-span-2 space-y-8">
+            {/* بطاقات الإحصائيات */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-5">
+              <LargeStatCard icon={Icons.BookOpen} label={language === 'ar' ? 'كورسات' : 'Courses'} value={stats.coursesEnrolled} styles={styles} delay={0} />
+              <LargeStatCard icon={Icons.Video} label={language === 'ar' ? 'فيديوهات' : 'Videos'} value={stats.completedVideos} styles={styles} delay={0.1} />
+              <LargeStatCard icon={Icons.FileQuestion} label={language === 'ar' ? 'امتحانات' : 'Exams'} value={stats.totalExamsTaken} styles={styles} delay={0.2} />
+            </div>
+
+            {/* كورساتي النشطة */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+            >
+              <div className="flex justify-between items-center mb-5">
+                <h2 className={`text-2xl font-black ${styles.text} flex items-center gap-3`}>
+                  <Icons.BookOpen className="h-8 w-8 text-green-600 dark:text-green-400" />
+                  {language === 'ar' ? 'كورساتي النشطة' : 'Active Courses'}
+                </h2>
+                <Link href="/dashboard/student/courses" className={`text-base font-bold ${styles.subtext} hover:text-green-600 dark:hover:text-green-400 transition`}>
+                  {language === 'ar' ? 'عرض الكل' : 'View all'}
+                </Link>
+              </div>
+              {courses.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                  {courses.slice(0, 4).map(course => {
+                    const progress = enrollments.find(e => e.course_id === course.id)?.progress || 0;
+                    return <LargeCourseCard key={course.id} course={course} progress={progress} styles={styles} theme={theme} language={language} />;
                   })}
-                </nav>
-
-                <div className="mt-8 pt-6 border-t border-[var(--border-color)] space-y-2">
-                  <Link href="/dashboard/student/profile" onClick={() => (isMobile || isTablet) && setSidebarOpen(false)}>
-                    <div className="flex items-center gap-3 px-4 py-2.5 rounded-xl hover:bg-white/5 transition-colors">
-                      <Icons.User className="h-5 w-5" />
-                      <span className="text-sm">{language === 'ar' ? 'الملف الشخصي' : 'Profile'}</span>
-                    </div>
-                  </Link>
-                  <button
-                    onClick={handleLogout}
-                    className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors"
-                  >
-                    <Icons.LogOut className="h-5 w-5" />
-                    <span className="text-sm">{language === 'ar' ? 'تسجيل الخروج' : 'Logout'}</span>
-                  </button>
                 </div>
-              </div>
-            </motion.aside>
-          </>
-        )}
-      </AnimatePresence>
-
-      {/* المحتوى الرئيسي مع هامش ديناميكي */}
-      <div
-        className={`relative z-10 transition-all duration-300 ${
-          sidebarOpen && !isMobile && !isTablet ? (isRTL ? 'mr-96' : 'ml-96') : ''
-        }`}
-      >
-        <div className={`px-4 sm:px-6 lg:px-8 ${responsive.containerPadding} space-y-8 max-w-7xl mx-auto`}>
-          {/* ===== رأس الصفحة ===== */}
-          <motion.div
-            initial={{ opacity: 0, y: -30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, type: 'spring', stiffness: 200 }}
-            className={`flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 p-6 lg:p-8 rounded-3xl border ${styles.border} backdrop-blur-sm shadow-xl ${styles.card}`}
-          >
-            <div className="flex items-center gap-5">
-              <motion.div
-                whileHover={{ scale: 1.1, rotate: 6 }}
-                className="relative h-24 w-24 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-extrabold text-4xl shadow-2xl shadow-blue-500/40 dark:shadow-blue-400/20 overflow-hidden ring-4 ring-blue-500/20 dark:ring-blue-400/10"
-              >
-                {user?.avatar_url ? (
-                  <img src={user.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
-                ) : (
-                  <span>{(user?.full_name?.[0] || (language === 'ar' ? 'ط' : 'S')).toUpperCase()}</span>
-                )}
-                <span className="absolute -bottom-1 -right-1 h-6 w-6 rounded-full bg-emerald-500 border-2 border-white dark:border-gray-800" />
-              </motion.div>
-              <div>
-                <h1 className={`text-4xl md:text-5xl font-black ${styles.text}`}>
-                  {language === 'ar' ? 'مرحباً' : 'Welcome'}{', '}
-                  <motion.span
-                    animate={{ backgroundPosition: ['0% 50%', '100% 50%', '0% 50%'] }}
-                    transition={{ duration: 6, repeat: Infinity, ease: 'linear' }}
-                    className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-blue-500 to-blue-400 dark:from-blue-300 dark:via-blue-400 dark:to-blue-300 bg-[length:300%_auto]"
-                  >
-                    {user?.full_name || (language === 'ar' ? 'طالب' : 'Student')}
-                  </motion.span>
-                </h1>
-                <p className={`text-lg ${styles.subtext} opacity-80 mt-1`}>
-                  {language === 'ar' ? 'كل يوم فرصة جديدة للتعلم!' : 'Every day is a new chance to learn!'}
+              ) : (
+                <p className={`text-lg ${styles.subtext} text-center py-10`}>
+                  {language === 'ar' ? 'لا توجد كورسات مسجلة' : 'No courses enrolled yet'}
                 </p>
-              </div>
-            </div>
+              )}
+            </motion.div>
 
-            <div className="flex items-center gap-4">
-              <MembershipCounter days={daysSinceJoin} styles={styles} language={language} />
-
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => {
-                  if (!notificationsEnabled) {
-                    toast.error('الإشعارات معطلة. قم بتفعيلها أولاً.');
-                    return;
-                  }
-                  setIsDrawerOpen(true);
-                }}
-                className={`relative p-3 rounded-2xl border ${styles.border} ${styles.card} hover:border-yellow-500/50 transition-all duration-300`}
-              >
-                <Icons.Bell className={`h-6 w-6 ${notificationsEnabled ? 'text-yellow-500' : 'text-gray-500'}`} />
-                {notificationsEnabled && (() => {
-                  const unreadMessages = messages.filter(m => m.sender_id === teacherId && !m.is_read).length;
-                  const totalUnread = unreadMessages + announcements.filter(a => a.is_published).length;
-                  if (totalUnread > 0) {
-                    return (
-                      <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full h-5 w-5 flex items-center justify-center shadow-lg animate-pulse">
-                        {totalUnread > 9 ? '9+' : totalUnread}
-                      </span>
-                    );
-                  }
-                  return null;
-                })()}
-              </motion.button>
-            </div>
-          </motion.div>
-
-          {/* ===== شريط المعلومات اليومية ===== */}
-          <LanguageTipCarousel language={language} styles={styles} responsive={{
-            cardPadding: responsive.cardPadding,
-            textSize: responsive.textSize,
-          }} />
-
-          {/* ===== الشبكة الرئيسية ===== */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
-            <div className="lg:col-span-2 space-y-8">
-              {/* بطاقات الإحصائيات */}
-              <div className={`grid ${deviceMode === 'desktop' ? 'grid-cols-3' : 'grid-cols-2'} gap-5`}>
-                <LargeStatCard 
-                  icon={Icons.BookOpen} 
-                  label={language === 'ar' ? 'كورسات' : 'Courses'} 
-                  value={stats.coursesEnrolled} 
-                  styles={styles} 
-                  delay={0} 
-                  responsive={{
-                    cardPadding: responsive.statCardPadding,
-                    iconSize: responsive.iconSize,
-                    statSize: responsive.statSize,
-                    labelSize: responsive.labelSize,
-                  }}
-                />
-                <LargeStatCard 
-                  icon={Icons.Video} 
-                  label={language === 'ar' ? 'فيديوهات' : 'Videos'} 
-                  value={stats.completedVideos} 
-                  styles={styles} 
-                  delay={0.1} 
-                  responsive={{
-                    cardPadding: responsive.statCardPadding,
-                    iconSize: responsive.iconSize,
-                    statSize: responsive.statSize,
-                    labelSize: responsive.labelSize,
-                  }}
-                />
-                <LargeStatCard 
-                  icon={Icons.FileQuestion} 
-                  label={language === 'ar' ? 'امتحانات' : 'Exams'} 
-                  value={stats.totalExamsTaken} 
-                  styles={styles} 
-                  delay={0.2} 
-                  responsive={{
-                    cardPadding: responsive.statCardPadding,
-                    iconSize: responsive.iconSize,
-                    statSize: responsive.statSize,
-                    labelSize: responsive.labelSize,
-                  }}
-                />
-              </div>
-
-              {/* كورساتي النشطة */}
+            {/* امتحانات قادمة + نشاط حديث */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
               >
-                <div className="flex justify-between items-center mb-5">
-                  <h2 className={`text-2xl font-black ${styles.text} flex items-center gap-3`}>
-                    <Icons.BookOpen className="h-8 w-8 text-green-600 dark:text-green-400" />
-                    {language === 'ar' ? 'كورساتي النشطة' : 'Active Courses'}
-                  </h2>
-                  <Link href="/dashboard/student/courses" className={`text-base font-bold ${styles.subtext} hover:text-green-600 dark:hover:text-green-400 transition`}>
-                    {language === 'ar' ? 'عرض الكل' : 'View all'}
-                  </Link>
-                </div>
-                {courses.length > 0 ? (
-                  <div className={`grid ${deviceMode === 'mobile' ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2'} gap-5`}>
-                    {courses.slice(0, 4).map(course => {
-                      const progress = enrollments.find(e => e.course_id === course.id)?.progress || 0;
-                      return (
-                        <LargeCourseCard
-                          key={course.id}
-                          course={course}
-                          progress={progress}
-                          styles={styles}
-                          theme={theme}
-                          language={language}
-                          responsive={{
-                            cardPadding: responsive.courseCardPadding,
-                            titleSize: responsive.titleSize,
-                            textSize: responsive.textSize,
-                            iconSize: responsive.iconSize,
-                            gap: responsive.gap,
-                          }}
-                        />
-                      );
-                    })}
+                <WaveBorderCard initialColor="blue">
+                  <div className="p-6">
+                    <h2 className={`text-2xl font-black ${styles.text} flex items-center gap-3`}>
+                      <Icons.AlarmClock className="h-8 w-8 text-blue-600 dark:text-blue-400" />
+                      {language === 'ar' ? 'الامتحانات القادمة' : 'Upcoming Exams'}
+                    </h2>
+                    <div className="space-y-3">
+                      {upcomingExams.length > 0 ? upcomingExams.map(exam => (
+                        <div key={exam.id} className={`flex items-center justify-between p-4 rounded-2xl ${styles.card} border ${styles.border} backdrop-blur-sm`}>
+                          <span className={`text-base font-medium ${styles.text}`}>{exam.title}</span>
+                          <Link href={`/dashboard/student/exams/${exam.id}`} className="text-blue-600 dark:text-blue-400 px-5 py-2 bg-blue-500/10 dark:bg-blue-400/10 rounded-xl text-sm font-bold hover:bg-blue-500/20 dark:hover:bg-blue-400/20 transition">
+                            {language === 'ar' ? 'دخول' : 'Enter'}
+                          </Link>
+                        </div>
+                      )) : <p className={`text-base ${styles.subtext}`}>{language === 'ar' ? 'لا توجد امتحانات قادمة' : 'No upcoming exams'}</p>}
+                    </div>
                   </div>
-                ) : (
-                  <p className={`text-lg ${styles.subtext} text-center py-10`}>
-                    {language === 'ar' ? 'لا توجد كورسات مسجلة' : 'No courses enrolled yet'}
-                  </p>
-                )}
+                </WaveBorderCard>
               </motion.div>
 
-              {/* امتحانات قادمة + نشاط حديث */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                >
-                  <WaveBorderCard initialColor="blue" responsive={{ padding: responsive.cardPadding }}>
-                    <div className={responsive.cardPadding}>
-                      <h2 className={`text-2xl font-black ${styles.text} flex items-center gap-3`}>
-                        <Icons.AlarmClock className="h-8 w-8 text-blue-600 dark:text-blue-400" />
-                        {language === 'ar' ? 'الامتحانات القادمة' : 'Upcoming Exams'}
-                      </h2>
-                      <div className="space-y-3">
-                        {upcomingExams.length > 0 ? upcomingExams.map(exam => (
-                          <div key={exam.id} className={`flex items-center justify-between p-4 rounded-2xl ${styles.card} border ${styles.border} backdrop-blur-sm`}>
-                            <span className={`text-base font-medium ${styles.text}`}>{exam.title}</span>
-                            <Link href={`/dashboard/student/exams/${exam.id}`} className="text-blue-600 dark:text-blue-400 px-5 py-2 bg-blue-500/10 dark:bg-blue-400/10 rounded-xl text-sm font-bold hover:bg-blue-500/20 dark:hover:bg-blue-400/20 transition">
-                              {language === 'ar' ? 'دخول' : 'Enter'}
-                            </Link>
-                          </div>
-                        )) : <p className={`text-base ${styles.subtext}`}>{language === 'ar' ? 'لا توجد امتحانات قادمة' : 'No upcoming exams'}</p>}
-                      </div>
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+              >
+                <WaveBorderCard initialColor="orange">
+                  <div className="p-6">
+                    <h3 className={`text-2xl font-black ${styles.text} flex items-center gap-3`}>
+                      <Icons.Activity className="h-8 w-8 text-orange-600 dark:text-orange-400" />
+                      {language === 'ar' ? 'نشاط حديث' : 'Recent Activity'}
+                    </h3>
+                    <div className="space-y-3">
+                      {recentActivity.map((act, i) => (
+                        <div key={i} className={`flex items-center gap-3 text-base ${styles.subtext}`}>
+                          {act.type === 'video' ? <Icons.Video className="h-6 w-6 text-blue-500 dark:text-blue-400" /> : <Icons.FileText className="h-6 w-6 text-emerald-500 dark:text-emerald-400" />}
+                          <span className="flex-1 truncate font-medium">{act.title}</span>
+                          <span className="text-sm whitespace-nowrap opacity-70">{timeAgo(act.date, language)}</span>
+                        </div>
+                      ))}
+                      {recentActivity.length === 0 && <p className={`text-base ${styles.subtext}`}>{language === 'ar' ? 'لا يوجد نشاط' : 'No activity'}</p>}
                     </div>
-                  </WaveBorderCard>
-                </motion.div>
-
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                >
-                  <WaveBorderCard initialColor="orange" responsive={{ padding: responsive.cardPadding }}>
-                    <div className={responsive.cardPadding}>
-                      <h3 className={`text-2xl font-black ${styles.text} flex items-center gap-3`}>
-                        <Icons.Activity className="h-8 w-8 text-orange-600 dark:text-orange-400" />
-                        {language === 'ar' ? 'نشاط حديث' : 'Recent Activity'}
-                      </h3>
-                      <div className="space-y-3">
-                        {recentActivity.map((act, i) => (
-                          <div key={i} className={`flex items-center gap-3 text-base ${styles.subtext}`}>
-                            {act.type === 'video' ? <Icons.Video className="h-6 w-6 text-blue-500 dark:text-blue-400" /> : <Icons.FileText className="h-6 w-6 text-emerald-500 dark:text-emerald-400" />}
-                            <span className="flex-1 truncate font-medium">{act.title}</span>
-                            <span className="text-sm whitespace-nowrap opacity-70">{timeAgo(act.date, language)}</span>
-                          </div>
-                        ))}
-                        {recentActivity.length === 0 && <p className={`text-base ${styles.subtext}`}>{language === 'ar' ? 'لا يوجد نشاط' : 'No activity'}</p>}
-                      </div>
-                    </div>
-                  </WaveBorderCard>
-                </motion.div>
-              </div>
-            </div>
-
-            {/* العمود الأيمن */}
-            <div className="space-y-8">
-              <LargeNoteCard
-                latestNote={latestNote}
-                language={language}
-                styles={styles}
-                theme={theme}
-                responsive={{
-                  cardPadding: responsive.cardPadding,
-                  titleSize: responsive.titleSize,
-                  textSize: responsive.textSize,
-                }}
-              />
-              <SuperAnnouncements
-                announcements={announcements}
-                styles={styles}
-                language={language}
-                responsive={{
-                  cardPadding: responsive.cardPadding,
-                  titleSize: responsive.titleSize,
-                  textSize: responsive.textSize,
-                  gap: responsive.gap,
-                }}
-              />
+                  </div>
+                </WaveBorderCard>
+              </motion.div>
             </div>
           </div>
 
-          {/* روابط سريعة */}
-          <div className={`grid grid-cols-3 sm:grid-cols-6 gap-3 sm:gap-4`}>
-            {[
-              { href: '/dashboard/student/courses', icon: Icons.Search, label: { ar: 'كورسات', en: 'Courses' } },
-              { href: '/dashboard/student/support', icon: Icons.HelpCircle, label: { ar: 'دعم', en: 'Support' } },
-              { href: '/dashboard/student/progress', icon: Icons.TrendingUp, label: { ar: 'تقدّم', en: 'Progress' } },
-              { href: '/dashboard/student/profile', icon: Icons.User, label: { ar: 'حسابي', en: 'Profile' } },
-              { href: '/dashboard/student/study-schedule', icon: Icons.Calendar, label: { ar: 'جدول', en: 'Schedule' } },
-              { href: '/dashboard/student/notes', icon: Icons.StickyNote, label: { ar: 'ملاحظات', en: 'Notes' } },
-            ].map((item) => (
-              <Link key={item.href} href={item.href}
-                className={`flex flex-col items-center gap-3 p-6 rounded-2xl border ${styles.border} ${styles.card} hover:border-blue-500/50 dark:hover:border-blue-400/50 transition-all duration-300 group hover:-translate-y-2 hover:shadow-2xl`}>
-                <item.icon className={`h-10 w-10 text-blue-600 dark:text-blue-400 group-hover:scale-110 group-hover:rotate-6 transition-transform`} />
-                <span className={`text-base font-bold ${styles.text}`}>{item.label[language]}</span>
-              </Link>
-            ))}
+          {/* العمود الأيمن */}
+          <div className="space-y-8">
+            <LargeNoteCard latestNote={latestNote} language={language} styles={styles} theme={theme} />
+            <SuperAnnouncements announcements={announcements} styles={styles} language={language} />
           </div>
+        </div>
+
+        {/* روابط سريعة */}
+        <div className="grid grid-cols-3 sm:grid-cols-6 gap-4">
+          {[
+            { href: '/dashboard/student/courses', icon: Icons.Search, label: { ar: 'كورسات', en: 'Courses' } },
+            { href: '/dashboard/student/support', icon: Icons.HelpCircle, label: { ar: 'دعم', en: 'Support' } },
+            { href: '/dashboard/student/progress', icon: Icons.TrendingUp, label: { ar: 'تقدّم', en: 'Progress' } },
+            { href: '/dashboard/student/profile', icon: Icons.User, label: { ar: 'حسابي', en: 'Profile' } },
+            { href: '/dashboard/student/study-schedule', icon: Icons.Calendar, label: { ar: 'جدول', en: 'Schedule' } },
+            { href: '/dashboard/student/notes', icon: Icons.StickyNote, label: { ar: 'ملاحظات', en: 'Notes' } },
+          ].map((item) => (
+            <Link key={item.href} href={item.href}
+              className={`flex flex-col items-center gap-3 p-6 rounded-2xl border ${styles.border} ${styles.card} hover:border-blue-500/50 dark:hover:border-blue-400/50 transition-all duration-300 group hover:-translate-y-2 hover:shadow-2xl`}>
+              <item.icon className={`h-10 w-10 text-blue-600 dark:text-blue-400 group-hover:scale-110 group-hover:rotate-6 transition-transform`} />
+              <span className={`text-base font-bold ${styles.text}`}>{item.label[language]}</span>
+            </Link>
+          ))}
         </div>
       </div>
 

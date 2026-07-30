@@ -737,7 +737,7 @@ export default function NewAssistantPage() {
                     </div>
                     <p className={`text-xs ${styles.subtext} mt-2`}>
                       <Icons.Info className="h-3 w-3 inline ml-1" />
-                      سيتم استخدام هذه البيانات لتسجيل دخول المساعد. تأكد من حفظها بشكل آمن.
+                      سيتم استخدام هذه البيانات لتسجيل Teacher Assistant. تأكد من حفظها بشكل آمن.
                     </p>
                   </div>
 

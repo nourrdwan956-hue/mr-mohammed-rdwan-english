@@ -342,7 +342,7 @@ export default function AssistantLoginPage() {
             <Icons.Users className="h-10 w-10 text-purple-500 dark:text-purple-400" />
           </motion.div>
           <h1 className="text-3xl font-extrabold bg-gradient-to-r from-purple-400 to-purple-600 dark:from-purple-300 dark:to-purple-500 bg-clip-text text-transparent">
-            دخول المساعد
+           Teacher Assistant
           </h1>
           <p className={`text-sm ${styles.subtext} mt-1`}>
             أدخل كلمة المرور ورمز الأمان الخاصين بك

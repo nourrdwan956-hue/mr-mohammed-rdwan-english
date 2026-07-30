@@ -1204,7 +1204,7 @@ export default function Home() {
               }`}
             >
               <Icons.UserCog className="h-3.5 w-3.5 inline ml-1" />
-              دخول المساعد
+             Teacher Assistant
             </Link>
 
             <Link
