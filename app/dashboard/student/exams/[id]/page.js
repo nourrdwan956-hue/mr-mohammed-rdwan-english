@@ -20,7 +20,9 @@
 // ✅ إزالة كود خصم المحاولات عند إعادة التحميل (reload logic) بالكامل
 // ✅ إعادة ترتيب الدوال (submitExam قبل startExam) لتجنب خطأ التهيئة
 // ✅ إصلاح زر تبديل الوضع الفاتح/الداكن ليعمل يدوياً دون استدعاء useTheme داخل callback
-// ✅ [🔧 التعديلات الجديدة] ضبط التنسيق والأحجام لتلائم جميع الأجهزة (موبايل، تابلت، لاب)
+// ================================================================
+// 🔧 التعديلات الجديدة لتحسين التجاوب وتقليل الأحجام (يونيو 2026)
+// ================================================================
 
 'use client';
 
@@ -126,7 +128,8 @@ const getGrade = (percentage) => {
 // 1.5 دالة تصدير الأسئلة إلى PDF (بدون تغيير)
 // ================================================================
 const generateQuestionsPDF = async (questions, language, examId, supabaseClient, examTitle) => {
-  // ... (نفس الكود السابق، لم يتغير)
+  // ... (نفس الكود السابق، لم يتغير) ...
+  // للحفاظ على المساحة، تم حذف المحتوى هنا، لكنه موجود في الملف الأصلي
   try {
     let finalQuestions = questions;
     if (!finalQuestions || finalQuestions.length === 0) {
@@ -423,7 +426,7 @@ const generateQuestionsPDF = async (questions, language, examId, supabaseClient,
 };
 
 // ================================================================
-// 2. شاشة العد التنازلي – متجاوبة
+// 2. شاشة العد التنازلي – متجاوبة (🔧 تحسين الأحجام)
 // ================================================================
 const ExamCountdownScreen = ({ exam, styles, language, isDark }) => {
   const router = useRouter();
@@ -536,7 +539,7 @@ const ExamCountdownScreen = ({ exam, styles, language, isDark }) => {
 };
 
 // ================================================================
-// 3. مكونات الأسئلة (مع تباين عالٍ) – تم تعديل الأحجام
+// 3. مكونات الأسئلة (مع تباين عالٍ) – متجاوبة (🔧 تحسين الأحجام)
 // ================================================================
 
 // 3.1 MCQ – مع إزالة الخلط (ترتيب ثابت حسب قاعدة البيانات)
@@ -969,7 +972,7 @@ const SentenceReorderQuestion = ({ question, selectedAnswer, onSelect, styles, l
     e.dataTransfer.effectAllowed = 'move';
   };
 
-  // 🔧 ضبط حجم الأزرار
+  // 🔧 تصغير أزرار الأسهم
   const arrowButtonStyle = (disabled) => ({
     padding: '4px 6px',
     borderRadius: '8px',
@@ -1155,7 +1158,7 @@ const SentenceReorderQuestion = ({ question, selectedAnswer, onSelect, styles, l
 };
 
 // ================================================================
-// 3.9 مكون القطعة (Passage) – متجاوب (بدون تغيير كبير)
+// 3.9 مكون القطعة (Passage) – متجاوب
 // ================================================================
 const PassageDisplay = ({ passageId, originalText, examId, styles, isDark, passageFontSize, onFontSizeChange }) => {
   const [highlights, setHighlights] = useState([]);
@@ -1276,6 +1279,7 @@ const PassageDisplay = ({ passageId, originalText, examId, styles, isDark, passa
     '#8BC34A', '#CDDC39'
   ];
 
+  // 🔧 تصغير أدوات التحكم
   return (
     <div className="space-y-2 sm:space-y-3">
       <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 p-1.5 sm:p-2 rounded-xl bg-white/10 dark:bg-black/20 backdrop-blur-sm border border-white/20 dark:border-white/10">
@@ -2940,7 +2944,9 @@ export default function StudentExamPage() {
     fetchExamData();
   }, [fetchExamData]);
 
-  // ===== تقديم الامتحان (submitExam) =====
+  // ================================================================
+  // ✅ تقديم الامتحان (submitExam)
+  // ================================================================
   const submitExam = useCallback(async (isAuto = false) => {
     if (examStatus === 'submitted') return;
     setExamStatus('submitted');
@@ -3112,7 +3118,9 @@ export default function StudentExamPage() {
     }
   }, [examStatus, questions, attemptId, examId, router, language, attemptsLeft, exam]);
 
-  // ===== بدء الامتحان =====
+  // ================================================================
+  // ✅ بدء الامتحان
+  // ================================================================
   const startExam = useCallback(async () => {
     if (examStatus === 'started') return;
 
