@@ -935,7 +935,7 @@ const ContactSection = ({ isDark }) => {
 };
 
 // ================================================================
-// 📌 FooterSection – مع زر Teacher Assistant واسم مبرمج واضح
+// 📌 FooterSection – مع زر Teacher Assistant واسم مبرمج باللون الأحمر
 // ================================================================
 
 const FooterSection = ({ isDark }) => {
@@ -988,7 +988,7 @@ const FooterSection = ({ isDark }) => {
           </Link>
         </div>
 
-        {/* ===== خط فاصل فوق اسم المبرمج ===== */}
+        {/* ===== خط فاصل فوق اسم المبرمج باللون الأحمر ===== */}
         <div className={`border-t ${isDark ? 'border-white/5' : 'border-gray-200/50'} mt-4 sm:mt-5 pt-4 sm:pt-5`}>
           <motion.div
             initial={{ opacity: 0.6 }}
@@ -998,7 +998,7 @@ const FooterSection = ({ isDark }) => {
           >
             <p className="text-[10px] sm:text-xs md:text-sm text-blue-400/50 font-mono tracking-widest">
               ⚡ Built with ❤️ by{' '}
-              <span className="text-blue-400/80 font-extrabold hover:text-blue-400 transition-colors duration-300 text-xs sm:text-sm md:text-base">
+              <span className="text-red-500 font-extrabold hover:text-red-400 transition-colors duration-300 text-xs sm:text-sm md:text-base">
                 Nour El-Saeed
               </span>
               {' '}
