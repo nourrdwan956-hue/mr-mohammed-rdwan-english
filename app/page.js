@@ -1123,7 +1123,9 @@ export default function Home() {
             ))}
           </div>
 
+          {/* ===== الأزرار المعدلة ===== */}
           <div className="flex items-center gap-1.5 sm:gap-2">
+            {/* زر تبديل الثيم */}
             <button
               onClick={toggleTheme}
               className="relative w-10 h-5 sm:w-11 sm:h-5.5 md:w-12 md:h-6 rounded-full bg-gradient-to-r from-blue-400 to-cyan-400 shadow-inner shadow-black/10 transition-all duration-500 hover:scale-105"
@@ -1137,6 +1139,7 @@ export default function Home() {
               </span>
             </button>
 
+            {/* الزر الأول: تسجيل الدخول */}
             <Link
               href="/login"
               className={`px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full text-[9px] sm:text-xs font-bold border-2 transition-all duration-300 hover:scale-105 ${
@@ -1149,6 +1152,16 @@ export default function Home() {
               تسجيل الدخول
             </Link>
 
+            {/* الزر الثاني: انشاء حساب جديد */}
+            <Link
+              href="/register"
+              className="px-3 py-1 sm:px-3.5 sm:py-1.5 md:px-4 md:py-1.5 bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-bold rounded-full text-[9px] sm:text-xs shadow-xl shadow-blue-500/30 hover:scale-105 transition-all duration-300 flex items-center gap-0.5 sm:gap-1"
+            >
+              <Icons.UserPlus className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+              انشاء حساب جديد
+            </Link>
+
+            {/* الزر الثالث: Teacher Assistant (بالإنجليزية) */}
             <Link
               href="/assistant-login"
               className={`hidden sm:inline-flex px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full text-[9px] sm:text-xs font-bold border-2 transition-all duration-300 hover:scale-105 ${
@@ -1158,15 +1171,7 @@ export default function Home() {
               }`}
             >
               <Icons.UserCog className="h-3 w-3 sm:h-3.5 sm:w-3.5 inline ml-1" />
-              مساعد
-            </Link>
-
-            <Link
-              href="/register"
-              className="px-3 py-1 sm:px-3.5 sm:py-1.5 md:px-4 md:py-1.5 bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-bold rounded-full text-[9px] sm:text-xs shadow-xl shadow-blue-500/30 hover:scale-105 transition-all duration-300 flex items-center gap-0.5 sm:gap-1"
-            >
-              <Icons.UserPlus className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-              اشترك دلوقتي
+              Teacher Assistant
             </Link>
           </div>
         </div>
