@@ -935,7 +935,7 @@ const ContactSection = ({ isDark }) => {
 };
 
 // ================================================================
-// 📌 FooterSection – مع زر Teacher Assistant في الأسفل
+// 📌 FooterSection – مع زر Teacher Assistant واسم مبرمج واضح
 // ================================================================
 
 const FooterSection = ({ isDark }) => {
@@ -973,7 +973,7 @@ const FooterSection = ({ isDark }) => {
           </div>
         </div>
 
-        {/* ===== إضافة زر Teacher Assistant في الفوتر (تحت الروابط) ===== */}
+        {/* ===== زر Teacher Assistant في الفوتر ===== */}
         <div className={`flex justify-center mt-6 sm:mt-8 pt-4 sm:pt-5 border-t ${isDark ? 'border-white/5' : 'border-gray-200/50'}`}>
           <Link
             href="/assistant-login"
@@ -988,24 +988,23 @@ const FooterSection = ({ isDark }) => {
           </Link>
         </div>
 
-        {/* حقوق النشر */}
-        <div className={`border-t ${isDark ? 'border-white/5' : 'border-gray-300/50'} mt-4 sm:mt-5 pt-4 sm:pt-5 text-center ${isDark ? 'text-gray-500' : 'text-gray-400'} text-[9px] sm:text-xs`}>
-          <p>&copy; 2026 مستر محمد رضوان – كل الحقوق محفوظة.</p>
+        {/* ===== خط فاصل فوق اسم المبرمج ===== */}
+        <div className={`border-t ${isDark ? 'border-white/5' : 'border-gray-200/50'} mt-4 sm:mt-5 pt-4 sm:pt-5`}>
           <motion.div
             initial={{ opacity: 0.6 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 2, repeat: Infinity, repeatType: 'reverse' }}
-            className="mt-1.5 sm:mt-2"
+            className="text-center"
           >
-            <p className="text-[7px] sm:text-[8px] md:text-[9px] text-blue-400/40 font-mono tracking-widest">
+            <p className="text-[10px] sm:text-xs md:text-sm text-blue-400/50 font-mono tracking-widest">
               ⚡ Built with ❤️ by{' '}
-              <span className="text-blue-400/60 font-bold hover:text-blue-400 transition">
+              <span className="text-blue-400/80 font-extrabold hover:text-blue-400 transition-colors duration-300 text-xs sm:text-sm md:text-base">
                 Nour El-Saeed
               </span>
               {' '}
-              <span className="text-blue-400/20">•</span>
+              <span className="text-blue-400/30">•</span>
               {' '}
-              <span className="text-blue-400/30 text-[6px] sm:text-[7px] md:text-[8px]">
+              <span className="text-blue-400/40 text-[8px] sm:text-[9px] md:text-[10px]">
                 Developer &amp; Designer
               </span>
             </p>
@@ -1144,9 +1143,8 @@ export default function Home() {
             ))}
           </div>
 
-          {/* ===== الأزرار في الهيدر (من غير Teacher Assistant) ===== */}
+          {/* ===== الأزرار في الهيدر ===== */}
           <div className="flex items-center gap-1.5 sm:gap-2">
-            {/* زر تبديل الثيم */}
             <button
               onClick={toggleTheme}
               className="relative w-10 h-5 sm:w-11 sm:h-5.5 md:w-12 md:h-6 rounded-full bg-gradient-to-r from-blue-400 to-cyan-400 shadow-inner shadow-black/10 transition-all duration-500 hover:scale-105"
@@ -1160,7 +1158,6 @@ export default function Home() {
               </span>
             </button>
 
-            {/* الزر الأول: تسجيل الدخول */}
             <Link
               href="/login"
               className={`px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full text-[9px] sm:text-xs font-bold border-2 transition-all duration-300 hover:scale-105 ${
@@ -1173,7 +1170,6 @@ export default function Home() {
               تسجيل الدخول
             </Link>
 
-            {/* الزر الثاني: انشاء حساب جديد */}
             <Link
               href="/register"
               className="px-3 py-1 sm:px-3.5 sm:py-1.5 md:px-4 md:py-1.5 bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-bold rounded-full text-[9px] sm:text-xs shadow-xl shadow-blue-500/30 hover:scale-105 transition-all duration-300 flex items-center gap-0.5 sm:gap-1"
