@@ -13,6 +13,7 @@
 //    - حفظ دوري كل 30 ثانية مع إرسال التوكن
 //    - حفظ عند الخروج باستخدام fetch مع keepalive وإرسال التوكن
 //    - استئناف الفترات المحفوظة مسبقاً
+// ✅ تعديل التحقق من الوصول: جلب max_devices من الكورس وعرض رسائل محددة
 // ================================================================
 
 'use client';
@@ -391,9 +392,10 @@ export default function WatchPage() {
         if (!data) throw new Error('الفيديو غير موجود');
 
         if (user && data.course_id) {
+          // جلب معلومات الكورس مع max_devices
           const { data: course, error: courseError } = await supabase
             .from('courses')
-            .select('is_free, price')
+            .select('is_free, price, max_devices')
             .eq('id', data.course_id)
             .single();
 
@@ -403,10 +405,13 @@ export default function WatchPage() {
               setAccessDenied(true);
               setAccessReason(accessResult.reason);
               setLoading(false);
+              
+              // رسائل مخصصة حسب السبب
               if (accessResult.reason === 'no_subscription') {
                 toast.error('هذا الكورس مدفوع، يرجى الاشتراك أولاً');
               } else if (accessResult.reason === 'max_devices') {
-                toast.error(`تم تجاوز الحد الأقصى للأجهزة (${accessResult.maxDevices})`);
+                const maxDev = accessResult.maxDevices || 2;
+                toast.error(`تم تجاوز الحد الأقصى للأجهزة (${maxDev})، يرجى حذف جهاز آخر`);
               } else if (accessResult.reason === 'expired') {
                 toast.error('انتهت صلاحية اشتراكك في هذا الكورس');
               } else {
@@ -1116,6 +1121,9 @@ export default function WatchPage() {
     </div>
   );
 
+  // ================================================================
+  // 16.1 عرض رسالة منع الوصول (تم تعديلها لعرض معلومات maxDevices)
+  // ================================================================
   if (accessDenied) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#0b0e1a] text-white p-6">
@@ -1126,7 +1134,17 @@ export default function WatchPage() {
           <h2 className="text-2xl font-bold text-red-400 mb-3">🚫 وصول ممنوع</h2>
           <p className="text-gray-400 mb-6">
             {accessReason === 'no_subscription' && 'هذا الكورس مدفوع. يرجى الاشتراك أولاً للوصول إلى المحتوى.'}
-            {accessReason === 'max_devices' && 'لقد تجاوزت الحد الأقصى للأجهزة المسموح بها.'}
+            {accessReason === 'max_devices' && (
+              <>
+                <span>لقد تجاوزت الحد الأقصى للأجهزة المسموح بها.</span>
+                <span className="block mt-2 text-yellow-400 text-sm">
+                  👈 الكود يسمح بجهاز واحد، والدفع يسمح بجهازين.
+                </span>
+                <span className="block mt-1 text-gray-500 text-xs">
+                  يمكنك حذف جهاز قديم من صفحة إدارة الأجهزة.
+                </span>
+              </>
+            )}
             {accessReason === 'expired' && 'انتهت صلاحية اشتراكك في هذا الكورس.'}
             {!['no_subscription', 'max_devices', 'expired'].includes(accessReason) && 'لا يمكنك الوصول إلى هذا المحتوى.'}
           </p>
@@ -1137,6 +1155,11 @@ export default function WatchPage() {
             {accessReason === 'no_subscription' && video?.course_id && (
               <Link href={`/dashboard/student/courses/${video.course_id}/payment`} className="px-6 py-2.5 bg-gradient-to-r from-yellow-400 to-yellow-600 text-black font-bold rounded-xl hover:scale-105 transition shadow-lg shadow-yellow-400/30">
                 الاشتراك الآن
+              </Link>
+            )}
+            {accessReason === 'max_devices' && video?.course_id && (
+              <Link href={`/dashboard/student/courses/${video.course_id}/devices`} className="px-6 py-2.5 bg-gradient-to-r from-blue-400 to-blue-600 text-white font-bold rounded-xl hover:scale-105 transition shadow-lg shadow-blue-400/30">
+                إدارة الأجهزة
               </Link>
             )}
           </div>

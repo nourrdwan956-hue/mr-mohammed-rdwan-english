@@ -1,20 +1,17 @@
-
-
 // app/api/courses/[id]/access/route.js
+// ============================================================
 // API للتحقق من صلاحية وصول الطالب إلى كورس معين
 // يدعم: الاشتراكات المدفوعة، أكواد الشحن، المجانية، والأجهزة
+// ============================================================
 
 import { createClient } from '@/lib/supabase/server';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
+import { checkCourseAccess } from '@/lib/course-access';
 
 /**
  * GET /api/courses/[id]/access
  * التحقق من صلاحية وصول الطالب إلى كورس معين
- * 
- * @param {Request} request - كائن الطلب
- * @param {Object} params - معاملات الرابط
- * @returns {NextResponse} - نتيجة التحقق مع معلومات الوصول
  */
 export async function GET(request, { params }) {
   try {
@@ -26,7 +23,6 @@ export async function GET(request, { params }) {
       );
     }
 
-    // جلب المستخدم الحالي من التوكن
     const supabase = createClient(cookies());
     const { data: { user }, error: authError } = await supabase.auth.getUser();
 
@@ -63,132 +59,46 @@ export async function GET(request, { params }) {
       });
     }
 
-    // 2. التحقق من الاشتراك النشط
-    const { data: subscription, error: subError } = await supabase
-      .from('course_subscriptions')
-      .select('id, access_type, max_devices, activated_at, expires_at, is_active')
-      .eq('student_id', user.id)
-      .eq('course_id', courseId)
-      .eq('is_active', true)
-      .single();
+    // 2. استخدام دالة checkCourseAccess الجديدة (التي تتحقق من max_devices)
+    const accessResult = await checkCourseAccess(courseId, user.id);
 
-    // إذا كان هناك اشتراك نشط
-    if (subscription && !subError) {
-      // التحقق من انتهاء الصلاحية (إذا كان هناك تاريخ انتهاء)
-      if (subscription.expires_at && new Date(subscription.expires_at) < new Date()) {
-        // الاشتراك منتهي الصلاحية - نقوم بتحديث حالته
-        await supabase
-          .from('course_subscriptions')
-          .update({ is_active: false })
-          .eq('id', subscription.id);
+    if (accessResult.allowed) {
+      // جلب الاشتراك لتضمينه في الرد
+      const { data: subscription } = await supabase
+        .from('course_subscriptions')
+        .select('*')
+        .eq('student_id', user.id)
+        .eq('course_id', courseId)
+        .eq('is_active', true)
+        .single();
 
-        return NextResponse.json({
-          success: false,
-          hasAccess: false,
-          error: 'انتهت صلاحية اشتراكك في هذا الكورس',
-          course,
-          subscription: { ...subscription, is_active: false },
-        });
-      }
-
-      // الاشتراك صالح - التحقق من الأجهزة
-      const deviceCheck = await checkDeviceAccess(supabase, user.id, courseId, request);
-
-      if (!deviceCheck.success) {
-        return NextResponse.json({
-          success: false,
-          hasAccess: false,
-          error: deviceCheck.error,
-          course,
-          subscription,
-          deviceInfo: deviceCheck,
-        });
-      }
-
-      // كل شيء على ما يرام
       return NextResponse.json({
         success: true,
         hasAccess: true,
         course,
         subscription,
-        accessType: subscription.access_type,
-        maxDevices: subscription.max_devices || course.max_devices || 2,
-        deviceInfo: deviceCheck,
-        message: `لديك صلاحية الوصول عبر ${subscription.access_type === 'paid' ? 'الدفع' : subscription.access_type === 'code' ? 'كود الشحن' : 'مجاني'}`,
+        accessType: subscription?.access_type || 'unknown',
+        maxDevices: accessResult.maxDevices || subscription?.max_devices || course.max_devices || 2,
+        currentDevices: accessResult.currentDevices || 0,
+        deviceInfo: accessResult.device ? {
+          id: accessResult.device.id,
+          isPrimary: accessResult.device.is_primary,
+          deviceName: accessResult.device.device_name,
+        } : null,
+        message: 'لديك صلاحية الوصول',
       });
     }
 
-    // 3. إذا كان الكورس مجانياً ولا يوجد اشتراك، يتم إنشاء اشتراك مجاني تلقائياً
-    if (course.is_free) {
-      // إنشاء اشتراك مجاني
-      const { data: newSubscription, error: createError } = await supabase
-        .from('course_subscriptions')
-        .insert({
-          student_id: user.id,
-          course_id: courseId,
-          access_type: 'free',
-          max_devices: course.max_devices || 2,
-          is_active: true,
-          activated_at: new Date().toISOString(),
-        })
-        .select()
-        .single();
-
-      if (createError) {
-        console.error('Error creating free subscription:', createError);
-        return NextResponse.json(
-          { success: false, error: 'حدث خطأ أثناء إنشاء الاشتراك المجاني' },
-          { status: 500 }
-        );
-      }
-
-      // تسجيل الجهاز
-      const deviceCheck = await registerDevice(supabase, user.id, courseId, request);
-
-      return NextResponse.json({
-        success: true,
-        hasAccess: true,
-        course,
-        subscription: newSubscription,
-        accessType: 'free',
-        maxDevices: course.max_devices || 2,
-        deviceInfo: deviceCheck,
-        message: 'تم إنشاء اشتراك مجاني تلقائياً',
-      });
-    }
-
-    // 4. الكورس مدفوع ولا يوجد اشتراك نشط
-    // التحقق من وجود اشتراك منتهي الصلاحية
-    const { data: expiredSub, error: expiredError } = await supabase
-      .from('course_subscriptions')
-      .select('id, access_type, expires_at')
-      .eq('student_id', user.id)
-      .eq('course_id', courseId)
-      .eq('is_active', false)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single();
-
-    if (expiredSub && !expiredError && expiredSub.expires_at) {
-      const expiredDate = new Date(expiredSub.expires_at);
-      if (expiredDate < new Date()) {
-        return NextResponse.json({
-          success: false,
-          hasAccess: false,
-          error: 'انتهت صلاحية اشتراكك السابق، يرجى تجديد الاشتراك',
-          course,
-          subscription: expiredSub,
-          expiredDate: expiredDate.toISOString(),
-        });
-      }
-    }
-
-    // 5. لا يوجد اشتراك على الإطلاق
+    // 3. حالة الرفض
+    const errorMessage = getErrorMessage(accessResult.reason);
     return NextResponse.json({
       success: false,
       hasAccess: false,
-      error: 'لا تملك صلاحية الوصول إلى هذا الكورس. يرجى الدفع أو تفعيل كود الشحن',
+      error: errorMessage,
+      reason: accessResult.reason,
       course,
+      maxDevices: accessResult.maxDevices || null,
+      currentDevices: accessResult.currentDevices || null,
       requiresPayment: course.enable_payment !== false,
       requiresCode: course.access_code_enabled !== false,
       isFree: course.is_free || false,
@@ -204,233 +114,9 @@ export async function GET(request, { params }) {
   }
 }
 
-// ============================================================
-// دوال مساعدة للتحقق من الأجهزة وتسجيلها
-// ============================================================
-
 /**
- * التحقق من صلاحية الجهاز الحالي
+ * POST - تفعيل كود الشحن (اختياري)
  */
-async function checkDeviceAccess(supabase, userId, courseId, request) {
-  try {
-    // جلب بصمة الجهاز من الطلب
-    const fingerprint = await getDeviceFingerprint(request);
-
-    if (!fingerprint) {
-      return {
-        success: false,
-        error: 'تعذر التعرف على الجهاز، يرجى المحاولة مرة أخرى',
-        deviceRegistered: false,
-      };
-    }
-
-    // البحث عن الجهاز المسجل
-    const { data: device, error: deviceError } = await supabase
-      .from('course_devices')
-      .select('id, is_active, is_primary, device_name, first_used_at, last_used_at')
-      .eq('student_id', userId)
-      .eq('course_id', courseId)
-      .eq('device_fingerprint', fingerprint)
-      .single();
-
-    if (device && !deviceError) {
-      // الجهاز موجود
-      if (!device.is_active) {
-        return {
-          success: false,
-          error: 'تم حظر هذا الجهاز من قبل المعلم',
-          deviceRegistered: true,
-          device,
-        };
-      }
-
-      // تحديث آخر استخدام
-      await supabase
-        .from('course_devices')
-        .update({ last_used_at: new Date().toISOString() })
-        .eq('id', device.id);
-
-      return {
-        success: true,
-        deviceRegistered: true,
-        device,
-        isPrimary: device.is_primary || false,
-      };
-    }
-
-    // الجهاز غير مسجل - محاولة تسجيله
-    return await registerDevice(supabase, userId, courseId, request);
-
-  } catch (error) {
-    console.error('Error checking device:', error);
-    return {
-      success: false,
-      error: 'حدث خطأ أثناء التحقق من الجهاز',
-      deviceRegistered: false,
-    };
-  }
-}
-
-/**
- * تسجيل جهاز جديد
- */
-async function registerDevice(supabase, userId, courseId, request) {
-  try {
-    const fingerprint = await getDeviceFingerprint(request);
-
-    if (!fingerprint) {
-      return {
-        success: false,
-        error: 'تعذر التعرف على الجهاز، يرجى المحاولة مرة أخرى',
-        deviceRegistered: false,
-      };
-    }
-
-    // جلب الاشتراك الحالي للحصول على max_devices
-    const { data: subscription } = await supabase
-      .from('course_subscriptions')
-      .select('id, max_devices')
-      .eq('student_id', userId)
-      .eq('course_id', courseId)
-      .eq('is_active', true)
-      .single();
-
-    const maxDevices = subscription?.max_devices || 2;
-
-    // حساب عدد الأجهزة المسجلة حالياً
-    const { count, error: countError } = await supabase
-      .from('course_devices')
-      .select('id', { count: 'exact', head: true })
-      .eq('student_id', userId)
-      .eq('course_id', courseId)
-      .eq('is_active', true);
-
-    if (countError) throw countError;
-
-    if (count >= maxDevices) {
-      return {
-        success: false,
-        error: `لقد تجاوزت الحد الأقصى للأجهزة المسموح بها (${maxDevices})، يرجى حذف جهاز آخر أولاً`,
-        deviceRegistered: false,
-        maxDevices,
-        currentDevices: count,
-      };
-    }
-
-    // تسجيل الجهاز الجديد
-    const deviceName = getDeviceName(request);
-    const deviceInfo = {
-      userAgent: request.headers.get('user-agent') || '',
-      platform: request.headers.get('sec-ch-ua-platform') || '',
-      deviceType: request.headers.get('sec-ch-ua-mobile') ? 'mobile' : 'desktop',
-    };
-
-    const { data: newDevice, error: insertError } = await supabase
-      .from('course_devices')
-      .insert({
-        student_id: userId,
-        course_id: courseId,
-        device_fingerprint: fingerprint,
-        device_name: deviceName,
-        device_info: deviceInfo,
-        is_active: true,
-        is_primary: count === 0, // أول جهاز يكون أساسياً
-        first_used_at: new Date().toISOString(),
-        last_used_at: new Date().toISOString(),
-      })
-      .select()
-      .single();
-
-    if (insertError) throw insertError;
-
-    // تسجيل محاولة الوصول في السجل
-    await supabase
-      .from('course_access_logs')
-      .insert({
-        student_id: userId,
-        course_id: courseId,
-        device_fingerprint: fingerprint,
-        access_status: 'granted',
-        ip_address: getClientIp(request),
-        user_agent: request.headers.get('user-agent') || '',
-        created_at: new Date().toISOString(),
-      });
-
-    return {
-      success: true,
-      deviceRegistered: true,
-      device: newDevice,
-      isPrimary: newDevice.is_primary || false,
-      maxDevices,
-      currentDevices: count + 1,
-    };
-
-  } catch (error) {
-    console.error('Error registering device:', error);
-    return {
-      success: false,
-      error: 'حدث خطأ أثناء تسجيل الجهاز',
-      deviceRegistered: false,
-    };
-  }
-}
-
-/**
- * توليد بصمة الجهاز من الطلب
- */
-async function getDeviceFingerprint(request) {
-  try {
-    const userAgent = request.headers.get('user-agent') || '';
-    const ip = getClientIp(request) || '';
-    const acceptLanguage = request.headers.get('accept-language') || '';
-    const platform = request.headers.get('sec-ch-ua-platform') || '';
-
-    // دمج المعلومات لتوليد بصمة فريدة
-    const raw = `${userAgent}|${ip}|${acceptLanguage}|${platform}`;
-
-    // استخدام Web Crypto API لتوليد SHA-256
-    const encoder = new TextEncoder();
-    const data = encoder.encode(raw);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-
-    return hashHex;
-  } catch (error) {
-    console.error('Error generating fingerprint:', error);
-    return null;
-  }
-}
-
-/**
- * الحصول على اسم الجهاز من الطلب
- */
-function getDeviceName(request) {
-  const userAgent = request.headers.get('user-agent') || '';
-  if (userAgent.includes('Windows')) return 'Windows PC';
-  if (userAgent.includes('Macintosh')) return 'Mac';
-  if (userAgent.includes('Linux')) return 'Linux PC';
-  if (userAgent.includes('Android')) return 'Android Device';
-  if (userAgent.includes('iPhone')) return 'iPhone';
-  if (userAgent.includes('iPad')) return 'iPad';
-  return 'جهاز غير معروف';
-}
-
-/**
- * الحصول على IP العميل
- */
-function getClientIp(request) {
-  const forwarded = request.headers.get('x-forwarded-for');
-  if (forwarded) {
-    return forwarded.split(',')[0].trim();
-  }
-  return request.headers.get('x-real-ip') || request.headers.get('cf-connecting-ip') || 'unknown';
-}
-
-// ============================================================
-// POST - تفعيل كود الشحن (اختياري)
-// ============================================================
-
 export async function POST(request, { params }) {
   try {
     const courseId = params.id;
@@ -470,7 +156,6 @@ export async function POST(request, { params }) {
       );
     }
 
-    // التحقق من صلاحية الكود
     if (codeData.is_used) {
       return NextResponse.json(
         { success: false, error: 'هذا الكود مستخدم بالفعل' },
@@ -497,14 +182,14 @@ export async function POST(request, { params }) {
 
     if (updateError) throw updateError;
 
-    // إنشاء اشتراك جديد
+    // إنشاء اشتراك جديد مع max_devices = 1 للكود
     const { data: subscription, error: subError } = await supabase
       .from('course_subscriptions')
       .insert({
         student_id: user.id,
         course_id: courseId,
         access_type: 'code',
-        max_devices: codeData.max_devices || 1,
+        max_devices: codeData.max_devices || 1, // الكود يسمح بجهاز واحد
         is_active: true,
         activated_at: new Date().toISOString(),
         expires_at: codeData.expires_at || null,
@@ -532,6 +217,7 @@ export async function POST(request, { params }) {
       message: 'تم تفعيل الكود بنجاح',
       subscription,
       code: codeData,
+      maxDevices: codeData.max_devices || 1,
     });
 
   } catch (error) {
@@ -541,4 +227,48 @@ export async function POST(request, { params }) {
       { status: 500 }
     );
   }
+}
+
+// ============================================================
+// دوال مساعدة
+// ============================================================
+
+function getErrorMessage(reason) {
+  const messages = {
+    no_subscription: 'لا يوجد اشتراك نشط لهذا الكورس',
+    expired: 'انتهت صلاحية الاشتراك',
+    max_devices: 'تم تجاوز الحد الأقصى للأجهزة المسموح بها (جهاز واحد للكود، جهازان للدفع)',
+    device_register_failed: 'فشل تسجيل الجهاز، يرجى المحاولة مرة أخرى',
+    fingerprint_failed: 'تعذر الحصول على بصمة الجهاز',
+    db_error: 'حدث خطأ في قاعدة البيانات',
+    system_error: 'حدث خطأ في النظام',
+  };
+  return messages[reason] || 'لا يمكن الوصول إلى هذا المحتوى';
+}
+
+async function getDeviceFingerprint(request) {
+  try {
+    const userAgent = request.headers.get('user-agent') || '';
+    const ip = getClientIp(request) || '';
+    const acceptLanguage = request.headers.get('accept-language') || '';
+    const platform = request.headers.get('sec-ch-ua-platform') || '';
+    const raw = `${userAgent}|${ip}|${acceptLanguage}|${platform}`;
+    const encoder = new TextEncoder();
+    const data = encoder.encode(raw);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    return hashHex;
+  } catch (error) {
+    console.error('Error generating fingerprint:', error);
+    return null;
+  }
+}
+
+function getClientIp(request) {
+  const forwarded = request.headers.get('x-forwarded-for');
+  if (forwarded) {
+    return forwarded.split(',')[0].trim();
+  }
+  return request.headers.get('x-real-ip') || request.headers.get('cf-connecting-ip') || 'unknown';
 }
