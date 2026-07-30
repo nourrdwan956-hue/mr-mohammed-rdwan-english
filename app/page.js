@@ -2,6 +2,7 @@
 // ================================================================
 // 🏛️ الصفحة الرئيسية – منصة مستر محمد رضوان
 // نسخة متجاوبة بالكامل – مع تحجيم مثالي لجميع الأجهزة
+// Teacher Assistant موجود في الفوتر فقط
 // ================================================================
 
 'use client';
@@ -933,6 +934,10 @@ const ContactSection = ({ isDark }) => {
   );
 };
 
+// ================================================================
+// 📌 FooterSection – مع زر Teacher Assistant في الأسفل
+// ================================================================
+
 const FooterSection = ({ isDark }) => {
   return (
     <footer className={`${isDark ? 'bg-[#030812]/90 border-white/5' : 'bg-white/90 border-gray-200/50'} border-t py-8 sm:py-12 px-3 sm:px-4 backdrop-blur-xl`}>
@@ -968,7 +973,23 @@ const FooterSection = ({ isDark }) => {
           </div>
         </div>
 
-        <div className={`border-t ${isDark ? 'border-white/5' : 'border-gray-300/50'} mt-6 sm:mt-8 pt-5 sm:pt-6 text-center ${isDark ? 'text-gray-500' : 'text-gray-400'} text-[9px] sm:text-xs`}>
+        {/* ===== إضافة زر Teacher Assistant في الفوتر (تحت الروابط) ===== */}
+        <div className={`flex justify-center mt-6 sm:mt-8 pt-4 sm:pt-5 border-t ${isDark ? 'border-white/5' : 'border-gray-200/50'}`}>
+          <Link
+            href="/assistant-login"
+            className={`inline-flex items-center gap-2 px-4 py-2 sm:px-5 sm:py-2.5 rounded-full border-2 transition-all duration-300 hover:scale-105 text-[10px] sm:text-xs font-bold ${
+              isDark
+                ? 'border-green-400/30 text-green-300 hover:bg-green-400/10 hover:border-green-400/60'
+                : 'border-green-400/30 text-green-700 hover:bg-green-400/10 hover:border-green-400/60'
+            }`}
+          >
+            <Icons.UserCog className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+            Teacher Assistant
+          </Link>
+        </div>
+
+        {/* حقوق النشر */}
+        <div className={`border-t ${isDark ? 'border-white/5' : 'border-gray-300/50'} mt-4 sm:mt-5 pt-4 sm:pt-5 text-center ${isDark ? 'text-gray-500' : 'text-gray-400'} text-[9px] sm:text-xs`}>
           <p>&copy; 2026 مستر محمد رضوان – كل الحقوق محفوظة.</p>
           <motion.div
             initial={{ opacity: 0.6 }}
@@ -1123,7 +1144,7 @@ export default function Home() {
             ))}
           </div>
 
-          {/* ===== الأزرار المعدلة ===== */}
+          {/* ===== الأزرار في الهيدر (من غير Teacher Assistant) ===== */}
           <div className="flex items-center gap-1.5 sm:gap-2">
             {/* زر تبديل الثيم */}
             <button
@@ -1159,19 +1180,6 @@ export default function Home() {
             >
               <Icons.UserPlus className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
               انشاء حساب جديد
-            </Link>
-
-            {/* الزر الثالث: Teacher Assistant (بالإنجليزية) */}
-            <Link
-              href="/assistant-login"
-              className={`hidden sm:inline-flex px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full text-[9px] sm:text-xs font-bold border-2 transition-all duration-300 hover:scale-105 ${
-                isDark
-                  ? 'border-green-400/40 text-green-300 hover:bg-green-400/10'
-                  : 'border-green-400/40 text-green-700 hover:bg-green-400/10'
-              }`}
-            >
-              <Icons.UserCog className="h-3 w-3 sm:h-3.5 sm:w-3.5 inline ml-1" />
-              Teacher Assistant
             </Link>
           </div>
         </div>
