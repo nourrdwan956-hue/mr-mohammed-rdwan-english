@@ -108,6 +108,43 @@ export async function POST(request) {
       );
     }
 
+    // ================================================================
+    // ✅ تسجيل الدفعة في سجل المدفوعات
+    // ================================================================
+    try {
+      // جلب سعر الكورس
+      const { data: courseData } = await supabase
+        .from('courses')
+        .select('price')
+        .eq('id', codeData.course_id)
+        .single();
+
+      const price = courseData?.price || 0;
+      const amountInCents = Math.round(price * 100); // تخزين بالأقرش
+
+      // إدراج سجل دفع جديد
+      const { error: paymentError } = await supabase
+        .from('course_payments')
+        .insert({
+          student_id: studentId,
+          course_id: codeData.course_id,
+          amount: amountInCents,
+          payment_status: 'paid',
+          payment_method: 'code',
+          transaction_id: codeData.code, // الكود نفسه كمرجع
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        });
+
+      if (paymentError) {
+        console.error('❌ Failed to record payment for code activation:', paymentError);
+      } else {
+        console.log('✅ Payment recorded for code activation:', codeData.code);
+      }
+    } catch (paymentErr) {
+      console.error('❌ Error recording payment:', paymentErr);
+    }
+
     // 8. تحديث حالة الكود إلى مستخدم
     const { error: updateError } = await supabase
       .from('course_access_codes')
