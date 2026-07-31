@@ -1,10 +1,11 @@
 // app/api/codes/activate/route.js
 // ================================================================
-// 🎫 API تفعيل كود الشحن – باستخدام upsert للاشتراكات
+// 🎫 API تفعيل كود الشحن – مع جلسة الطالب الكاملة
 // ================================================================
 
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabaseClient';
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
 import { getDeviceFingerprint } from '@/lib/device-fingerprint';
 
 export async function POST(request) {
@@ -16,6 +17,18 @@ export async function POST(request) {
       return NextResponse.json(
         { success: false, message: 'الكود ومعرف الطالب مطلوبان' },
         { status: 400 }
+      );
+    }
+
+    // ✅ إنشاء عميل Supabase مربوط بجلسة الطالب
+    const supabase = createRouteHandlerClient({ cookies });
+
+    // التحقق من أن الطالب الحقيقي هو صاحب الجلسة
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user || user.id !== studentId) {
+      return NextResponse.json(
+        { success: false, message: 'غير مصرح لك بهذا الإجراء' },
+        { status: 401 }
       );
     }
 
@@ -52,7 +65,7 @@ export async function POST(request) {
       );
     }
 
-    // ========== ✅ استخدام upsert بدلاً من insert/update ==========
+    // ✅ upsert مع جلسة صحيحة
     const expiresAt = codeData.expires_at || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
     const { data: subscription, error: subError } = await supabase
@@ -81,9 +94,8 @@ export async function POST(request) {
         { status: 500 }
       );
     }
-    // ========== نهاية التعديل ==========
 
-    // تسجيل الدفعة
+    // تسجيل الدفعة (باستخدام جلسة الطالب)
     try {
       const { data: courseData } = await supabase
         .from('courses')
@@ -93,22 +105,16 @@ export async function POST(request) {
       const price = courseData?.price || 0;
       const amountInCents = Math.round(price * 100);
 
-      const { error: paymentError } = await supabase
-        .from('course_payments')
-        .insert({
-          student_id: studentId,
-          course_id: codeData.course_id,
-          amount: amountInCents,
-          payment_status: 'paid',
-          payment_method: 'code',
-          transaction_id: codeData.code,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        });
-
-      if (paymentError) {
-        console.error('❌ Failed to record payment:', paymentError);
-      }
+      await supabase.from('course_payments').insert({
+        student_id: studentId,
+        course_id: codeData.course_id,
+        amount: amountInCents,
+        payment_status: 'paid',
+        payment_method: 'code',
+        transaction_id: codeData.code,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      });
     } catch (paymentErr) {
       console.error('❌ Error recording payment:', paymentErr);
     }
@@ -127,14 +133,12 @@ export async function POST(request) {
     // سجل الاستخدام
     try {
       const fingerprint = await getDeviceFingerprint();
-      await supabase
-        .from('code_usage_logs')
-        .insert({
-          code_id: codeData.id,
-          student_id: studentId,
-          device_fingerprint: fingerprint || 'unknown',
-          used_at: new Date().toISOString(),
-        });
+      await supabase.from('code_usage_logs').insert({
+        code_id: codeData.id,
+        student_id: studentId,
+        device_fingerprint: fingerprint || 'unknown',
+        used_at: new Date().toISOString(),
+      });
     } catch (logError) {
       console.warn('⚠️ Failed to log code usage:', logError);
     }
@@ -153,14 +157,12 @@ export async function POST(request) {
         .update({ progress: 0, updated_at: new Date().toISOString() })
         .eq('id', existingEnroll.id);
     } else {
-      await supabase
-        .from('enrollments')
-        .insert({
-          student_id: studentId,
-          course_id: codeData.course_id,
-          progress: 0,
-          enrolled_at: new Date().toISOString(),
-        });
+      await supabase.from('enrollments').insert({
+        student_id: studentId,
+        course_id: codeData.course_id,
+        progress: 0,
+        enrolled_at: new Date().toISOString(),
+      });
     }
 
     // تسجيل الجهاز
@@ -175,19 +177,17 @@ export async function POST(request) {
           .eq('is_active', true);
 
         if ((count || 0) < (codeData.max_devices || 2)) {
-          await supabase
-            .from('course_devices')
-            .insert({
-              student_id: studentId,
-              course_id: codeData.course_id,
-              device_fingerprint: deviceFingerprint,
-              device_name: 'جهاز أساسي',
-              device_info: {},
-              is_active: true,
-              is_primary: true,
-              first_used_at: new Date().toISOString(),
-              last_used_at: new Date().toISOString(),
-            });
+          await supabase.from('course_devices').insert({
+            student_id: studentId,
+            course_id: codeData.course_id,
+            device_fingerprint: deviceFingerprint,
+            device_name: 'جهاز أساسي',
+            device_info: {},
+            is_active: true,
+            is_primary: true,
+            first_used_at: new Date().toISOString(),
+            last_used_at: new Date().toISOString(),
+          });
         }
       }
     } catch (deviceErr) {
@@ -211,8 +211,10 @@ export async function POST(request) {
   }
 }
 
+// GET تبقى كما هي
 export async function GET(request) {
   try {
+    const supabase = createRouteHandlerClient({ cookies });
     const { searchParams } = new URL(request.url);
     const code = searchParams.get('code');
     const courseId = searchParams.get('courseId');
@@ -222,16 +224,13 @@ export async function GET(request) {
     }
 
     const cleanCode = code.trim().toUpperCase();
-
     const query = supabase
       .from('course_access_codes')
       .select('code, is_used, is_active, expires_at, course_id')
       .eq('code', cleanCode)
       .eq('is_active', true);
 
-    if (courseId) {
-      query.eq('course_id', courseId);
-    }
+    if (courseId) query.eq('course_id', courseId);
 
     const { data, error } = await query.maybeSingle();
 
