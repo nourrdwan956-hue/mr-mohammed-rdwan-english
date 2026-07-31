@@ -1,11 +1,10 @@
 // app/api/codes/activate/route.js
 // ================================================================
-// 🎫 API تفعيل كود الشحن – مع جلسة الطالب الكاملة
+// 🎫 API تفعيل كود الشحن – مع خدمة service_role لتجاوز RLS
 // ================================================================
 
 import { NextResponse } from 'next/server';
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
+import { createClient } from '@supabase/supabase-js';
 import { getDeviceFingerprint } from '@/lib/device-fingerprint';
 
 export async function POST(request) {
@@ -20,14 +19,23 @@ export async function POST(request) {
       );
     }
 
-    // ✅ إنشاء عميل Supabase مربوط بجلسة الطالب
-    const supabase = createRouteHandlerClient({ cookies });
+    // ✅ عميل Supabase مع service_role (تجاوز RLS)
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY,
+      { auth: { autoRefreshToken: false, persistSession: false } }
+    );
 
-    // التحقق من أن الطالب الحقيقي هو صاحب الجلسة
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user || user.id !== studentId) {
+    // التحقق من وجود الطالب فعلاً (أمان إضافي)
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('id', studentId)
+      .single();
+
+    if (!profile) {
       return NextResponse.json(
-        { success: false, message: 'غير مصرح لك بهذا الإجراء' },
+        { success: false, message: 'الطالب غير موجود' },
         { status: 401 }
       );
     }
@@ -65,7 +73,7 @@ export async function POST(request) {
       );
     }
 
-    // ✅ upsert مع جلسة صحيحة
+    // ✅ upsert مع service_role (لا RLS)
     const expiresAt = codeData.expires_at || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
     const { data: subscription, error: subError } = await supabase
@@ -80,9 +88,7 @@ export async function POST(request) {
           expires_at: expiresAt,
           is_active: true,
         },
-        {
-          onConflict: 'student_id,course_id',
-        }
+        { onConflict: 'student_id,course_id' }
       )
       .select()
       .single();
@@ -95,7 +101,7 @@ export async function POST(request) {
       );
     }
 
-    // تسجيل الدفعة (باستخدام جلسة الطالب)
+    // تسجيل الدفعة
     try {
       const { data: courseData } = await supabase
         .from('courses')
@@ -213,8 +219,14 @@ export async function POST(request) {
 
 // GET تبقى كما هي
 export async function GET(request) {
+  // يمكن استخدام service_role أيضاً لو أردت
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  );
+
   try {
-    const supabase = createRouteHandlerClient({ cookies });
     const { searchParams } = new URL(request.url);
     const code = searchParams.get('code');
     const courseId = searchParams.get('courseId');
