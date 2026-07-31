@@ -2,6 +2,7 @@
 // ================================================================
 // 💳 صفحة الدفع للطالب – نسخة فاخرة مع Wave Border
 // 🔧 ملاحظة: Paymob غير مفعّل حالياً – النظام الحالي هو شراء كود الشحن من المستر
+// 🔑 الكود يسمح بجهازين (تم التعديل)
 // ================================================================
 
 'use client';
@@ -185,7 +186,7 @@ export default function CoursePaymentPage() {
     fetchData();
   }, [courseId, router, language]);
 
-  // ===== تفعيل كود الشحن (باستخدام RPC) =====
+  // ===== تفعيل كود الشحن (باستخدام API) =====
   const handleCodeActivation = async () => {
     if (processing || isFree || !accessCode.trim() || !course) return;
     setProcessing(true);
@@ -197,16 +198,21 @@ export default function CoursePaymentPage() {
         return;
       }
 
-      const { data, error } = await supabase.rpc('activate_access_code', {
-        p_code: accessCode.trim().toUpperCase(),
-        p_course_id: courseId,
-        p_student_id: user.id
+      // ✅ استخدام API بدلاً من RPC
+      const response = await fetch('/api/codes/activate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code: accessCode.trim().toUpperCase(),
+          courseId: courseId,
+          studentId: user.id
+        })
       });
 
-      if (error) {
-        console.error('RPC Error:', error);
-        toast.error(error.message || (language === 'ar' ? 'فشل تفعيل الكود' : 'Code activation failed'));
-        return;
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || (language === 'ar' ? 'فشل تفعيل الكود' : 'Code activation failed'));
       }
 
       if (data.success) {
@@ -219,7 +225,7 @@ export default function CoursePaymentPage() {
       }
     } catch (err) {
       console.error(err);
-      toast.error(language === 'ar' ? 'حدث خطأ أثناء تفعيل الكود' : 'Error activating code');
+      toast.error(err.message || (language === 'ar' ? 'حدث خطأ أثناء تفعيل الكود' : 'Error activating code'));
     } finally {
       setProcessing(false);
     }
@@ -506,10 +512,11 @@ export default function CoursePaymentPage() {
                           )}
                         </button>
                       </div>
+                      {/* ✅ النص المعدل: الكود يسمح بجهازين */}
                       <p className={`text-[10px] sm:text-xs ${styles.subtext} mt-1.5 sm:mt-2`}>
                         {language === 'ar'
-                          ? '⚠️ الكود صالح لجهاز واحد فقط ولمدة 30 يوماً'
-                          : '⚠️ Code is valid for one device only and expires after 30 days'}
+                          ? '⚠️ الكود صالح لجهازين فقط ولمدة 30 يوماً'
+                          : '⚠️ Code is valid for two devices only and expires after 30 days'}
                       </p>
                     </div>
                   )}

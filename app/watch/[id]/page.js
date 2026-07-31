@@ -1,3 +1,4 @@
+// app/watch/[id]/page.js
 // ================================================================
 // 📁 المسار: app/watch/[id]/page.js
 // ✅ إصلاح: إخفاء زر التشغيل المركزي مع باقي عناصر التحكم
@@ -14,9 +15,15 @@
 //    - حفظ عند الخروج باستخدام fetch مع keepalive وإرسال التوكن
 //    - استئناف الفترات المحفوظة مسبقاً
 // ✅ تعديل التحقق من الوصول: جلب max_devices من الكورس وعرض رسائل محددة
+// ✅ إضافة force-dynamic و revalidate = 0 لمنع التخزين المؤقت
+// ✅ إعادة حساب بصمة الجهاز في كل زيارة
 // ================================================================
 
 'use client';
+
+// ====== ✅ إضافة لمنع التخزين المؤقت ======
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
@@ -27,6 +34,7 @@ import { toast } from 'react-hot-toast';
 import * as Icons from 'lucide-react';
 import { checkCourseAccess } from '@/lib/course-access';
 import { useTheme } from '@/lib/hooks/useTheme';
+import { getDeviceFingerprint } from '@/lib/device-fingerprint'; // ✅ استيراد دالة البصمة
 
 // ================================================================
 // 0. دالة دمج الفترات الزمنية (Utility)
@@ -374,13 +382,17 @@ export default function WatchPage() {
   }, [video, isValidYoutube, isYoutubeOnly, youtubeId]);
 
   // ================================================================
-  // 8. جلب البيانات الأساسية + تاريخ المشاهدة
+  // 8. جلب البيانات الأساسية + تاريخ المشاهدة (مع إعادة حساب البصمة)
   // ================================================================
   useEffect(() => {
     if (!id) return;
 
     const fetchData = async () => {
       try {
+        // ✅ إعادة حساب البصمة في كل مرة
+        const fingerprint = await getDeviceFingerprint();
+        console.log('🖥️ Device fingerprint:', fingerprint);
+
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
           const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
@@ -391,8 +403,8 @@ export default function WatchPage() {
         if (error) throw error;
         if (!data) throw new Error('الفيديو غير موجود');
 
+        // ✅ التحقق من صلاحية الوصول (حتى لو كان الكورس مدفوعاً)
         if (user && data.course_id) {
-          // جلب معلومات الكورس مع max_devices
           const { data: course, error: courseError } = await supabase
             .from('courses')
             .select('is_free, price, max_devices')
@@ -400,18 +412,20 @@ export default function WatchPage() {
             .single();
 
           if (!courseError && course && !course.is_free && course.price > 0) {
+            // ✅ استدعاء التحقق مع تمرير البصمة المحسوبة (اختياري)
             const accessResult = await checkCourseAccess(data.course_id, user.id);
+            console.log('🔍 Access check result:', accessResult);
+
             if (!accessResult.allowed) {
               setAccessDenied(true);
               setAccessReason(accessResult.reason);
               setLoading(false);
               
-              // رسائل مخصصة حسب السبب
               if (accessResult.reason === 'no_subscription') {
                 toast.error('هذا الكورس مدفوع، يرجى الاشتراك أولاً');
               } else if (accessResult.reason === 'max_devices') {
                 const maxDev = accessResult.maxDevices || 2;
-                toast.error(`تم تجاوز الحد الأقصى للأجهزة (${maxDev})، يرجى حذف جهاز آخر`);
+                toast.error(`تم تجاوز الحد الأقصى للأجهزة (${maxDev})، هذا الجهاز غير مسموح. يرجى حذف جهاز آخر من صفحة إدارة الأجهزة.`);
               } else if (accessResult.reason === 'expired') {
                 toast.error('انتهت صلاحية اشتراكك في هذا الكورس');
               } else {

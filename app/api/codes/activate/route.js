@@ -1,5 +1,3 @@
-
-
 // app/api/codes/activate/route.js
 // ================================================================
 // 🎫 API تفعيل كود الشحن – للطلاب الذين لديهم أكواد من المعلمين
@@ -94,7 +92,7 @@ export async function POST(request) {
         student_id: studentId,
         course_id: codeData.course_id,
         access_type: 'code',
-        max_devices: codeData.max_devices || 1,
+        max_devices: codeData.max_devices || 2, // ← التغيير هنا (كان 1)
         activated_at: new Date().toISOString(),
         expires_at: expiresAt,
         is_active: true,
