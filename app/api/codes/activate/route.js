@@ -205,6 +205,40 @@ export async function POST(request) {
         });
     }
 
+    // ================================================================
+    // ✅ تسجيل الجهاز الحالي تلقائياً
+    // ================================================================
+    try {
+      const deviceFingerprint = await getDeviceFingerprint();
+      if (deviceFingerprint) {
+        const { count } = await supabase
+          .from('course_devices')
+          .select('id', { count: 'exact', head: true })
+          .eq('student_id', studentId)
+          .eq('course_id', codeData.course_id)
+          .eq('is_active', true);
+
+        if ((count || 0) < (codeData.max_devices || 2)) {
+          await supabase
+            .from('course_devices')
+            .insert({
+              student_id: studentId,
+              course_id: codeData.course_id,
+              device_fingerprint: deviceFingerprint,
+              device_name: 'جهاز أساسي',
+              device_info: {},
+              is_active: true,
+              is_primary: true,
+              first_used_at: new Date().toISOString(),
+              last_used_at: new Date().toISOString(),
+            });
+          console.log('✅ Device registered during code activation');
+        }
+      }
+    } catch (deviceErr) {
+      console.warn('⚠️ Could not register device:', deviceErr);
+    }
+
     // 11. إرجاع الرد الناجح
     return NextResponse.json({
       success: true,
