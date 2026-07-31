@@ -164,7 +164,7 @@ const SubscriptionCard = ({ subscription, onManageDevices, styles, language, isD
             </div>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-sm">
             <div className={`p-2 rounded-xl ${styles.card} border ${styles.border} text-center`}>
               <p className={`text-xs ${styles.subtext}`}>{language === 'ar' ? 'الأجهزة' : 'Devices'}</p>
               <p className={`font-bold ${styles.text}`}>{subscription.max_devices || 2}</p>
@@ -173,11 +173,17 @@ const SubscriptionCard = ({ subscription, onManageDevices, styles, language, isD
               <p className={`text-xs ${styles.subtext}`}>{language === 'ar' ? 'النوع' : 'Type'}</p>
               <p className={`font-bold ${styles.text}`}>{subscription.access_type === 'paid' ? '💳' : subscription.access_type === 'code' ? '🎫' : '🎁'}</p>
             </div>
-            <div className={`p-2 rounded-xl ${styles.card} border ${styles.border} text-center col-span-2 sm:col-span-1`}>
+            <div className={`p-2 rounded-xl ${styles.card} border ${styles.border} text-center`}>
+              <p className={`text-xs ${styles.subtext}`}>{language === 'ar' ? 'السعر' : 'Price'}</p>
+              <p className={`font-bold ${styles.text}`}>
+                {subscription.courses?.price ? `${subscription.courses.price} ج.م` : '—'}
+              </p>
+            </div>
+            <div className={`p-2 rounded-xl ${styles.card} border ${styles.border} text-center sm:col-span-1`}>
               <p className={`text-xs ${styles.subtext}`}>{language === 'ar' ? 'ينتهي' : 'Expires'}</p>
               <p className={`font-bold ${isExpired ? 'text-red-400' : styles.text}`}>{expiresAt}</p>
             </div>
-            <div className={`p-2 rounded-xl ${styles.card} border ${styles.border} text-center col-span-2 sm:col-span-1`}>
+            <div className={`p-2 rounded-xl ${styles.card} border ${styles.border} text-center sm:col-span-1`}>
               <p className={`text-xs ${styles.subtext}`}>{language === 'ar' ? 'التفعيل' : 'Activated'}</p>
               <p className={`font-bold ${styles.text}`}>
                 {new Date(subscription.activated_at).toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US', {
@@ -235,6 +241,7 @@ export default function StudentSubscriptionsPage() {
         return;
       }
 
+      // ✅ إضافة price إلى الاستعلام
       const { data, error } = await supabase
         .from('course_subscriptions')
         .select(`
@@ -243,6 +250,7 @@ export default function StudentSubscriptionsPage() {
             id,
             title,
             cover_image,
+            price,
             teacher:teacher_id (full_name)
           )
         `)

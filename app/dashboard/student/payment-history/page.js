@@ -140,8 +140,19 @@ const PaymentRow = ({ payment, index, styles, language, isDark }) => {
           <span className={`text-lg font-bold ${styles.text}`}>
             {payment.amount / 100} ج.م
           </span>
+          {/* ====== ✅ عرض طريقة الدفع مع أيقونة مناسبة ====== */}
           <span className={`text-xs ${styles.subtext}`}>
-            {payment.payment_method || 'Paymob'}
+            {payment.payment_method === 'code' ? (
+              <span className="flex items-center gap-1 text-purple-400">
+                <Icons.Key className="h-3 w-3" /> كود شحن
+              </span>
+            ) : payment.payment_method === 'paymob' ? (
+              <span className="flex items-center gap-1 text-blue-400">
+                <Icons.CreditCard className="h-3 w-3" /> Paymob
+              </span>
+            ) : (
+              payment.payment_method || (language === 'ar' ? 'غير محدد' : 'Unknown')
+            )}
           </span>
         </div>
       </div>
@@ -173,7 +184,7 @@ export default function StudentPaymentHistoryPage() {
   // ألوان متغيرة للرأس
   const [headerColor, setHeaderColor] = useState(CARD_COLORS[0]);
 
-  // ===== جلب البيانات =====
+  // ===== جلب البيانات (جميع المدفوعات بما فيها code) =====
   const fetchPayments = useCallback(async () => {
     setLoading(true);
     try {
@@ -183,6 +194,7 @@ export default function StudentPaymentHistoryPage() {
         return;
       }
 
+      // ✅ جلب جميع المدفوعات (بما فيها payment_method = 'code')
       const { data, error } = await supabase
         .from('course_payments')
         .select(`
