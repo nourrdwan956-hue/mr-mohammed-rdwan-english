@@ -1,6 +1,6 @@
 // app/api/codes/activate/route.js
 // ================================================================
-// 🎫 API تفعيل كود الشحن – معالجة الاشتراكات القديمة
+// 🎫 API تفعيل كود الشحن – باستخدام upsert للاشتراكات
 // ================================================================
 
 import { NextResponse } from 'next/server';
@@ -52,53 +52,13 @@ export async function POST(request) {
       );
     }
 
-    // ==================== ✅ التعديل هنا ====================
-    // 6. التحقق من وجود أي اشتراك (نشط أو غير نشط) وتحديثه
-    const { data: existingSub } = await supabase
-      .from('course_subscriptions')
-      .select('id, is_active')
-      .eq('student_id', studentId)
-      .eq('course_id', codeData.course_id)
-      .maybeSingle();
-
-    if (existingSub && existingSub.is_active) {
-      return NextResponse.json(
-        { success: false, message: 'أنت مشترك بالفعل في هذا الكورس' },
-        { status: 400 }
-      );
-    }
-
-    let subscription;
+    // ========== ✅ استخدام upsert بدلاً من insert/update ==========
     const expiresAt = codeData.expires_at || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
-    if (existingSub && !existingSub.is_active) {
-      // تحديث الاشتراك غير النشط
-      const { data: updated, error: updateError } = await supabase
-        .from('course_subscriptions')
-        .update({
-          access_type: 'code',
-          max_devices: codeData.max_devices || 2,
-          activated_at: new Date().toISOString(),
-          expires_at: expiresAt,
-          is_active: true,
-        })
-        .eq('id', existingSub.id)
-        .select()
-        .single();
-
-      if (updateError) {
-        console.error('❌ Error updating subscription:', updateError);
-        return NextResponse.json(
-          { success: false, message: 'فشل تحديث الاشتراك' },
-          { status: 500 }
-        );
-      }
-      subscription = updated;
-    } else {
-      // إنشاء اشتراك جديد
-      const { data: newSub, error: subError } = await supabase
-        .from('course_subscriptions')
-        .insert({
+    const { data: subscription, error: subError } = await supabase
+      .from('course_subscriptions')
+      .upsert(
+        {
           student_id: studentId,
           course_id: codeData.course_id,
           access_type: 'code',
@@ -106,20 +66,22 @@ export async function POST(request) {
           activated_at: new Date().toISOString(),
           expires_at: expiresAt,
           is_active: true,
-        })
-        .select()
-        .single();
+        },
+        {
+          onConflict: 'student_id,course_id',
+        }
+      )
+      .select()
+      .single();
 
-      if (subError) {
-        console.error('❌ Error creating subscription:', subError);
-        return NextResponse.json(
-          { success: false, message: 'فشل إنشاء الاشتراك' },
-          { status: 500 }
-        );
-      }
-      subscription = newSub;
+    if (subError) {
+      console.error('❌ Error upserting subscription:', subError);
+      return NextResponse.json(
+        { success: false, message: 'فشل إنشاء الاشتراك' },
+        { status: 500 }
+      );
     }
-    // ==================== نهاية التعديل ====================
+    // ========== نهاية التعديل ==========
 
     // تسجيل الدفعة
     try {
@@ -146,8 +108,6 @@ export async function POST(request) {
 
       if (paymentError) {
         console.error('❌ Failed to record payment:', paymentError);
-      } else {
-        console.log('✅ Payment recorded:', codeData.code);
       }
     } catch (paymentErr) {
       console.error('❌ Error recording payment:', paymentErr);
@@ -164,7 +124,7 @@ export async function POST(request) {
       })
       .eq('id', codeData.id);
 
-    // تسجيل استخدام الكود
+    // سجل الاستخدام
     try {
       const fingerprint = await getDeviceFingerprint();
       await supabase
@@ -228,7 +188,6 @@ export async function POST(request) {
               first_used_at: new Date().toISOString(),
               last_used_at: new Date().toISOString(),
             });
-          console.log('✅ Device registered during code activation');
         }
       }
     } catch (deviceErr) {
@@ -252,7 +211,6 @@ export async function POST(request) {
   }
 }
 
-// GET للتحقق من الكود (نفس السابق بدون تغيير)
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -264,6 +222,7 @@ export async function GET(request) {
     }
 
     const cleanCode = code.trim().toUpperCase();
+
     const query = supabase
       .from('course_access_codes')
       .select('code, is_used, is_active, expires_at, course_id')
