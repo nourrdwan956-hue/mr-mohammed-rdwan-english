@@ -53,6 +53,7 @@ export async function POST(request) {
     }
 
     // ==================== ✅ التعديل هنا ====================
+    // 6. التحقق من وجود أي اشتراك (نشط أو غير نشط) وتحديثه
     const { data: existingSub } = await supabase
       .from('course_subscriptions')
       .select('id, is_active')
@@ -71,7 +72,7 @@ export async function POST(request) {
     const expiresAt = codeData.expires_at || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
     if (existingSub && !existingSub.is_active) {
-      // تحديث الاشتراك القديم
+      // تحديث الاشتراك غير النشط
       const { data: updated, error: updateError } = await supabase
         .from('course_subscriptions')
         .update({
