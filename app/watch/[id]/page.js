@@ -15,15 +15,10 @@
 //    - حفظ عند الخروج باستخدام fetch مع keepalive وإرسال التوكن
 //    - استئناف الفترات المحفوظة مسبقاً
 // ✅ تعديل التحقق من الوصول: جلب max_devices من الكورس وعرض رسائل محددة
-// ✅ إضافة force-dynamic و revalidate = 0 لمنع التخزين المؤقت
-// ✅ إعادة حساب بصمة الجهاز في كل زيارة
+// ✅ إزالة export const dynamic و export const revalidate (لا تستخدم في Client Components)
 // ================================================================
 
 'use client';
-
-// ====== ✅ إضافة لمنع التخزين المؤقت ======
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
 
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
@@ -34,7 +29,7 @@ import { toast } from 'react-hot-toast';
 import * as Icons from 'lucide-react';
 import { checkCourseAccess } from '@/lib/course-access';
 import { useTheme } from '@/lib/hooks/useTheme';
-import { getDeviceFingerprint } from '@/lib/device-fingerprint'; // ✅ استيراد دالة البصمة
+import { getDeviceFingerprint } from '@/lib/device-fingerprint';
 
 // ================================================================
 // 0. دالة دمج الفترات الزمنية (Utility)
@@ -87,7 +82,7 @@ const getYoutubeId = (url) => {
     const match = url.match(pattern);
     if (match) return match[1];
   }
-  if (url.length === 11 && /^[a-zA-Z0-9_-]+$/.test(url)) return url;
+  if (url.length === 11 && /^[a-zA-Z0-9_-]+$/.test(url)) return url[1];
   return null;
 };
 
@@ -352,11 +347,11 @@ export default function WatchPage() {
   const [captionsEnabled, setCaptionsEnabled] = useState(false);
 
   // ===== نظام التتبع الذكي =====
-  const [watchIntervals, setWatchIntervals] = useState([]); // فترات المشاهدة [[start, end], ...]
-  const [totalWatchedUnique, setTotalWatchedUnique] = useState(0); // إجمالي الوقت الفعلي الجديد
+  const [watchIntervals, setWatchIntervals] = useState([]);
+  const [totalWatchedUnique, setTotalWatchedUnique] = useState(0);
   const lastSaveTimeRef = useRef(Date.now());
   const saveIntervalRef = useRef(null);
-  const watchSessionRef = useRef({ startTime: null, lastTick: null }); // لتتبع الجلسة
+  const watchSessionRef = useRef({ startTime: null, lastTick: null });
 
   // ---- المراجع ----
   const containerRef = useRef(null);
@@ -382,14 +377,13 @@ export default function WatchPage() {
   }, [video, isValidYoutube, isYoutubeOnly, youtubeId]);
 
   // ================================================================
-  // 8. جلب البيانات الأساسية + تاريخ المشاهدة (مع إعادة حساب البصمة)
+  // 8. جلب البيانات الأساسية + تاريخ المشاهدة
   // ================================================================
   useEffect(() => {
     if (!id) return;
 
     const fetchData = async () => {
       try {
-        // ✅ إعادة حساب البصمة في كل مرة
         const fingerprint = await getDeviceFingerprint();
         console.log('🖥️ Device fingerprint:', fingerprint);
 
@@ -403,7 +397,6 @@ export default function WatchPage() {
         if (error) throw error;
         if (!data) throw new Error('الفيديو غير موجود');
 
-        // ✅ التحقق من صلاحية الوصول (حتى لو كان الكورس مدفوعاً)
         if (user && data.course_id) {
           const { data: course, error: courseError } = await supabase
             .from('courses')
@@ -412,7 +405,6 @@ export default function WatchPage() {
             .single();
 
           if (!courseError && course && !course.is_free && course.price > 0) {
-            // ✅ استدعاء التحقق مع تمرير البصمة المحسوبة (اختياري)
             const accessResult = await checkCourseAccess(data.course_id, user.id);
             console.log('🔍 Access check result:', accessResult);
 
@@ -456,7 +448,6 @@ export default function WatchPage() {
           if (parsed > 0) setDuration(parsed);
         }
 
-        // ===== جلب تاريخ المشاهدة المحفوظ =====
         if (data?.id && user?.id) {
           const { data: history, error: historyError } = await supabase
             .from('watch_history')
@@ -466,7 +457,6 @@ export default function WatchPage() {
             .maybeSingle();
 
           if (!historyError && history?.intervals && Array.isArray(history.intervals)) {
-            // نتحقق من صحة الفترات (تأكد من أنها مصفوفة من أزواج)
             const validIntervals = history.intervals.filter(
               (interval) => Array.isArray(interval) && interval.length === 2 && typeof interval[0] === 'number' && typeof interval[1] === 'number'
             );
@@ -495,7 +485,7 @@ export default function WatchPage() {
   }, [id]);
 
   // ================================================================
-  // 9. دالة بدء المشاهدة (ريفرش واحد فقط)
+  // 9. دالة بدء المشاهدة
   // ================================================================
   const handleStartWatching = () => {
     sessionStorage.setItem(`watch_started_${id}`, 'true');
@@ -503,7 +493,7 @@ export default function WatchPage() {
   };
 
   // ================================================================
-  // 10. إنشاء مشغل YouTube – مع تحديث مباشر للمؤقت (كل 200ms)
+  // 10. إنشاء مشغل YouTube
   // ================================================================
   useEffect(() => {
     if (isYoutubeOnly || !isValidYoutube || !video) return;
@@ -838,7 +828,7 @@ export default function WatchPage() {
   }, [playerReady, captionsEnabled, language]);
 
   // ================================================================
-  // 12. تأثير إخفاء الأزرار تلقائياً (مع تحسينات)
+  // 12. تأثير إخفاء الأزرار تلقائياً
   // ================================================================
   useEffect(() => {
     if (isYoutubeOnly) return;
@@ -947,7 +937,7 @@ export default function WatchPage() {
   // 15. نظام التتبع الذكي للمشاهدة
   // ================================================================
 
-  // 15.1 تتبع التقدم الحقيقي (تحديث الفترات)
+  // 15.1 تتبع التقدم الحقيقي
   useEffect(() => {
     if (!playerReady || !isPlaying || !playerRef.current) return;
 
@@ -956,12 +946,10 @@ export default function WatchPage() {
       try {
         const now = playerRef.current.getCurrentTime();
         const delta = now - lastTime;
-        // تجاهل إذا كان التغير أكبر من 2 ثانية (تخطي يدوي أو تحميل)
         if (delta > 0 && delta <= 2.0) {
           setWatchIntervals(prev => {
             const newInterval = [lastTime, now];
             const merged = mergeIntervals([...prev, newInterval]);
-            // تحديث الوقت الفريد
             const unique = merged.reduce((sum, [s, e]) => sum + (e - s), 0);
             setTotalWatchedUnique(unique);
             return merged;
@@ -969,12 +957,12 @@ export default function WatchPage() {
         }
         lastTime = now;
       } catch (e) {}
-    }, 1000); // تحديث كل ثانية لتقليل الحمل
+    }, 1000);
 
     return () => clearInterval(interval);
   }, [isPlaying, playerReady]);
 
-  // 15.2 الحفظ الدوري الصامت (كل 30 ثانية) مع إرسال التوكن
+  // 15.2 الحفظ الدوري الصامت
   useEffect(() => {
     if (!video?.id || !playerReady) return;
 
@@ -985,7 +973,6 @@ export default function WatchPage() {
         const duration = playerRef.current?.getDuration() || 0;
         const progress = duration > 0 ? (watchedSeconds / duration) * 100 : 0;
 
-        // جلب التوكن من Supabase
         const { data: { session } } = await supabase.auth.getSession();
         const accessToken = session?.access_token;
 
@@ -1010,7 +997,6 @@ export default function WatchPage() {
       } catch (e) {}
     };
 
-    // التشغيل الأول بعد 5 ثوان
     const initialTimeout = setTimeout(saveProgress, 5000);
     saveIntervalRef.current = setInterval(saveProgress, 30000);
 
@@ -1020,7 +1006,7 @@ export default function WatchPage() {
     };
   }, [video?.id, playerReady, watchIntervals, totalWatchedUnique]);
 
-  // 15.3 الحفظ عند الخروج (قبل إغلاق الصفحة أو مغادرة التبويب) باستخدام fetch مع keepalive
+  // 15.3 الحفظ عند الخروج
   useEffect(() => {
     const handleExit = () => {
       if (!video?.id || watchIntervals.length === 0) return;
@@ -1035,7 +1021,6 @@ export default function WatchPage() {
         progress: Math.min(progress, 100),
       };
 
-      // الحصول على التوكن وإرسال الطلب
       supabase.auth.getSession().then(({ data: { session } }) => {
         const accessToken = session?.access_token;
         const headers = {
@@ -1136,7 +1121,7 @@ export default function WatchPage() {
   );
 
   // ================================================================
-  // 16.1 عرض رسالة منع الوصول (تم تعديلها لعرض معلومات maxDevices)
+  // 16.1 عرض رسالة منع الوصول
   // ================================================================
   if (accessDenied) {
     return (
@@ -1191,14 +1176,13 @@ export default function WatchPage() {
   const thumbnailUrl = youtubeId ? `https://img.youtube.com/vi/${youtubeId}/maxresdefault.jpg` : null;
 
   // ================================================================
-  // 17. التصميم النهائي مع إخفاء زر التشغيل المركزي مع عناصر التحكم
+  // 17. التصميم النهائي
   // ================================================================
   return (
     <div className={`min-h-screen text-white transition-all duration-500 relative ${focusMode ? 'fixed inset-0 z-50 p-0 flex items-center justify-center bg-black' : ''}`}>
       <AnimatedBackground />
 
       <div className={`relative z-10 max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-6 ${focusMode ? 'w-full h-full' : ''}`}>
-        {/* رأس الصفحة */}
         {!focusMode && (
           <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between p-4 bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl">
             <Link href={getBackLink()} className="text-gray-400 hover:text-yellow-400 transition flex items-center gap-2 group">
@@ -1222,7 +1206,6 @@ export default function WatchPage() {
           </motion.div>
         )}
 
-        {/* مشغل الفيديو مع Wave Border */}
         <div className={`${focusMode ? 'h-full w-full' : ''}`}>
           <WaveBorderCard initialColor="yellow" className={`${focusMode ? 'h-full w-full rounded-none' : 'aspect-video'} shadow-2xl shadow-yellow-400/10`}>
             <div
@@ -1248,7 +1231,6 @@ export default function WatchPage() {
                   }} />
                   <div className="absolute inset-0 z-10 pointer-events-none" />
 
-                  {/* شاشة التحميل */}
                   <AnimatePresence>
                     {playerLoading && !playerReady && !playerError && (
                       <motion.div initial={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 z-20 bg-black flex items-center justify-center">
@@ -1265,7 +1247,6 @@ export default function WatchPage() {
                     )}
                   </AnimatePresence>
 
-                  {/* ✅ زر التشغيل المركزي – يظهر فقط عند ظهور عناصر التحكم (controlsVisible) */}
                   {playerReady && controlsVisible && (
                     <div
                       className="absolute inset-0 z-30 flex items-center justify-center cursor-pointer"
@@ -1290,7 +1271,6 @@ export default function WatchPage() {
                     </div>
                   )}
 
-                  {/* أزرار التخطي الجانبية */}
                   <AnimatePresence>
                     {isPlaying && controlsVisible && playerReady && (
                       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 z-30 pointer-events-none">
@@ -1310,7 +1290,6 @@ export default function WatchPage() {
                     )}
                   </AnimatePresence>
 
-                  {/* شريط التحكم السفلي */}
                   {playerReady && (
                     <div
                       className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent p-4 flex flex-col gap-2 pointer-events-auto z-40 transition-opacity duration-300 ${controlsVisible ? 'opacity-100' : 'opacity-0'}`}
@@ -1319,7 +1298,6 @@ export default function WatchPage() {
                         clearTimeout(controlsTimerRef.current);
                       }}
                     >
-                      {/* شريط التقدم بألوان متدرجة */}
                       <div
                         ref={progressRef}
                         className="relative w-full h-2.5 bg-white/15 rounded-full cursor-pointer group/progress"
@@ -1341,7 +1319,6 @@ export default function WatchPage() {
                         </div>
                       </div>
 
-                      {/* أزرار التحكم */}
                       <div className="flex items-center gap-2 text-white flex-wrap">
                         <button onClick={togglePlay} className="p-1.5 rounded-full hover:bg-white/10 transition-colors">
                           {isPlaying ? <Icons.Pause className="h-6 w-6" /> : <Icons.Play className="h-6 w-6" />}
@@ -1350,7 +1327,6 @@ export default function WatchPage() {
                         <button onClick={skipForward} className="p-1.5 rounded-full hover:bg-white/10 transition-colors"><Icons.SkipForward className="h-5 w-5" /></button>
                         <span className="text-xs text-gray-300 font-mono min-w-[80px]">{formatTime(currentTime)} / {formatTime(duration)}</span>
 
-                        {/* مؤشر الصوت المتدرج (تم إصلاح تعارض الأنماط) */}
                         <button onClick={toggleMute} className="p-1.5 rounded-full hover:bg-white/10 transition-colors">
                           {muted ? <Icons.VolumeX className="h-5 w-5" /> : <Icons.Volume2 className="h-5 w-5" />}
                         </button>
@@ -1368,7 +1344,6 @@ export default function WatchPage() {
                           }}
                         />
 
-                        {/* زر التحكم في الترجمة (CC) */}
                         <button
                           onClick={toggleCaptions}
                           className={`p-1.5 rounded-full hover:bg-white/10 transition-colors ${captionsEnabled ? 'text-yellow-400' : ''}`}
@@ -1426,7 +1401,6 @@ export default function WatchPage() {
           </WaveBorderCard>
         </div>
 
-        {/* وصف الفيديو */}
         {!focusMode && (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="md:col-span-2 p-6 bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl shadow-xl">
