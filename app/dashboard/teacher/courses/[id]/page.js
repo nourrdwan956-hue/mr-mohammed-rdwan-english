@@ -6,6 +6,7 @@
 // ✅ إضافة useRef لتتبع التثبيت ومنع تحديث الحالة بعد فك التثبيت
 // ✅ إصلاح مشكلة عدم ظهور الفيديوهات (إضافة setVideos)
 // ✅ استبدال أيقونة Devices بـ Monitor
+// ✅ تعديل إحصائيات الدفع لتشمل مدفوعات الأكواد في totalRevenue
 // ============================================================
 
 'use client';
@@ -1373,38 +1374,37 @@ export default function TeacherCourseDetailPage() {
       setBanks(banksWithCount || []);
 
       // ================================================================
-      // ✅ 8. جلب إحصائيات الدفع والاشتراكات
+      // ✅ 8. جلب إحصائيات الدفع والاشتراكات (بعد التعديل)
       // ================================================================
       const { data: paymentsData } = await supabase
         .from('course_payments')
-        .select('*, profiles:student_id(full_name)')
-        .eq('course_id', courseId)
-        .order('created_at', { ascending: false });
+        .select('amount, payment_status, payment_method')
+        .eq('course_id', courseId);
 
       const { data: subscriptionsData } = await supabase
         .from('course_subscriptions')
-        .select('access_type, student_id')
+        .select('access_type')
         .eq('course_id', courseId)
         .eq('is_active', true);
 
       if (!isMounted.current) return;
 
-      // حساب الإيرادات
-      const paidPayments = paymentsData?.filter(p => p.payment_status === 'paid') || [];
-      const totalRevenue = paidPayments.reduce((sum, p) => sum + (p.amount / 100), 0);
+      // حساب الإيرادات (تشمل كل المدفوعات الناجحة، بما فيها code)
+      const totalRevenue = (paymentsData || [])
+        .filter(p => p.payment_status === 'paid')
+        .reduce((sum, p) => sum + (p.amount / 100), 0);
 
-      // حساب عدد الطلاب حسب نوع الاشتراك
-      const paidSubs = subscriptionsData?.filter(s => s.access_type === 'paid') || [];
-      const codeSubs = subscriptionsData?.filter(s => s.access_type === 'code') || [];
-      const freeSubs = subscriptionsData?.filter(s => s.access_type === 'free') || [];
+      const paidStudents = subscriptionsData?.filter(s => s.access_type === 'paid').length || 0;
+      const codeStudents = subscriptionsData?.filter(s => s.access_type === 'code').length || 0;
+      const freeStudents = subscriptionsData?.filter(s => s.access_type === 'free').length || 0;
 
       const pendingPayments = paymentsData?.filter(p => p.payment_status === 'pending') || [];
 
       setPaymentStats({
         totalRevenue,
-        paidStudents: paidSubs.length,
-        freeStudents: freeSubs.length,
-        codeStudents: codeSubs.length,
+        paidStudents,
+        freeStudents,
+        codeStudents,
         pendingPayments: pendingPayments.length,
         activeSubscriptions: subscriptionsData?.length || 0,
       });

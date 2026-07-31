@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import { useTheme } from '@/lib/hooks/useTheme';
 import { toast } from 'react-hot-toast';
+import { supabase } from '@/lib/supabaseClient'; // ✅ استيراد supabase
 import { 
   Monitor, 
   Smartphone, 
@@ -69,7 +70,6 @@ export default function CourseDevicesPage() {
   const params = useParams();
   const courseId = params.id;
   const { isDark } = useTheme();
-  const supabase = supabase;
   
   const [loading, setLoading] = useState(true);
   const [course, setCourse] = useState(null);
@@ -247,7 +247,7 @@ export default function CourseDevicesPage() {
           </h1>
           {course && (
             <p className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
-              {course.title} • الحد الأقصى للأجهزة: {course.max_devices || 2} جهاز لكل طالب
+              {course.title} • الحد الأقصى للأجهزة: {course.max_devices ?? 2} جهاز لكل طالب
             </p>
           )}
         </div>

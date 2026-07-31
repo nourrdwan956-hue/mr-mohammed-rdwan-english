@@ -176,6 +176,13 @@ const CodeRow = ({ code, index, onRevoke, onResend, styles, language, isDark }) 
               <Icons.Clock className="h-3.5 w-3.5 inline mr-1" />
               {language === 'ar' ? 'ينتهي:' : 'Expires:'} {expiresAt}
             </span>
+            {/* ====== ✅ عرض max_devices ====== */}
+            {code.max_devices && (
+              <span className={styles.subtext}>
+                <Icons.Monitor className="h-3.5 w-3.5 inline mr-1" />
+                {language === 'ar' ? 'الأجهزة:' : 'Devices:'} {code.max_devices}
+              </span>
+            )}
             {code.notes && (
               <span className={`text-xs ${styles.subtext} italic`}>
                 📝 {code.notes}
@@ -360,7 +367,7 @@ export default function TeacherManageCodesPage() {
       return;
     }
 
-    const headers = ['الكود', 'الحالة', 'المستخدم', 'البريد الإلكتروني', 'تاريخ الإنشاء', 'تاريخ الانتهاء', 'ملاحظات'];
+    const headers = ['الكود', 'الحالة', 'المستخدم', 'البريد الإلكتروني', 'تاريخ الإنشاء', 'تاريخ الانتهاء', 'ملاحظات', 'الأجهزة'];
     const rows = codes.map(c => [
       c.code,
       c.is_used ? 'مستخدم' : c.is_active ? 'غير مستخدم' : 'ملغي',
@@ -369,6 +376,7 @@ export default function TeacherManageCodesPage() {
       new Date(c.created_at).toLocaleDateString('ar-EG'),
       c.expires_at ? new Date(c.expires_at).toLocaleDateString('ar-EG') : 'غير محدد',
       c.notes || '',
+      c.max_devices || 2,
     ]);
 
     const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');

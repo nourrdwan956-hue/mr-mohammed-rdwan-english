@@ -131,8 +131,15 @@ const PaymentRow = ({ payment, index, styles, language, isDark }) => {
           <span className={`text-lg font-bold ${styles.text}`}>
             {payment.amount / 100} ج.م
           </span>
+          {/* ====== ✅ عرض payment_method مع أيقونة مناسبة ====== */}
           <span className={`text-xs ${styles.subtext}`}>
-            {payment.payment_method || 'Paymob'}
+            {payment.payment_method === 'code' ? (
+              <span className="flex items-center gap-1 text-purple-400">
+                <Icons.Key className="h-3 w-3" /> كود
+              </span>
+            ) : (
+              payment.payment_method || 'Paymob'
+            )}
           </span>
           {payment.transaction_id && (
             <span className={`text-xs ${styles.subtext} font-mono`}>

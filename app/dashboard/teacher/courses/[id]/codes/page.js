@@ -120,10 +120,11 @@ export default function GenerateCodesPage() {
       const expiresAt = new Date(now);
       expiresAt.setDate(expiresAt.getDate() + expiryDays);
 
+      // ========== التعديل: max_devices = 2 ==========
       const codesToInsert = rawCodes.map(code => ({
         course_id: courseId,
         code: code,
-        max_devices: 1,
+        max_devices: 2,          // ← كل كود صالح لجهازين
         generated_by: user.id,
         expires_at: expiresAt.toISOString(),
         notes: notes.trim() || null,
@@ -295,10 +296,11 @@ export default function GenerateCodesPage() {
                 className={`w-full p-3 ${styles.input} border rounded-xl focus:ring-2 focus:ring-yellow-400/50 outline-none transition`}
               />
             </div>
+            {/* ===== التعديل: النص التوضيحي ===== */}
             <div className={`mt-3 text-sm ${styles.subtext}`}>
               {isArabic 
-                ? `⚠️ كل كود صالح لـ جهاز واحد فقط لمدة ${expiryDays} يوم من تاريخ التفعيل` 
-                : `⚠️ Each code is valid for only 1 device and expires after ${expiryDays} days from activation`}
+                ? `⚠️ كل كود صالح لـ جهازين فقط لمدة ${expiryDays} يوم من تاريخ التفعيل` 
+                : `⚠️ Each code is valid for only 2 devices and expires after ${expiryDays} days`}
             </div>
           </div>
 
@@ -380,8 +382,8 @@ export default function GenerateCodesPage() {
             </h3>
             <ul className={`text-sm ${styles.subtext} space-y-1 list-disc pr-5`}>
               <li>{isArabic 
-                ? 'كل كود صالح لـ جهاز واحد فقط من أول مرة يتم تفعيله فيها.' 
-                : 'Each code is valid for one device only from the first activation.'}</li>
+                ? 'كل كود صالح لـ جهازين فقط من أول مرة يتم تفعيله فيها.' 
+                : 'Each code is valid for two devices only from the first activation.'}</li>
               <li>{isArabic 
                 ? 'صلاحية الكود تنتهي بعد المدة المحددة (افتراضياً 30 يوم) من تاريخ التوليد.' 
                 : 'Code expires after the specified period (default 30 days) from generation date.'}</li>

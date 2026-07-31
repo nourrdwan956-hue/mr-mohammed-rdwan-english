@@ -1,5 +1,3 @@
-
-
 // app/api/codes/route.js
 // API لإدارة أكواد الشحن (للمعلم فقط)
 // يدعم: توليد أكواد جديدة، جلب الأكواد، تحديث، حذف
@@ -178,7 +176,7 @@ export async function POST(request) {
     const {
       courseId,
       count = 1,
-      maxDevices = 1,
+      maxDevices = 2, // ← التغيير هنا (كان 1)
       expiresInDays = 30,
       notes = '',
       prefix = '',
