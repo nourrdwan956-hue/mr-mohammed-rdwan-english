@@ -3,7 +3,27 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import * as Icons from 'lucide-react';
+// ✅ استيراد فردي للأيقونات لتقليل حجم الباندل
+import {
+  BookOpen,
+  Video,
+  FileQuestion,
+  Bell,
+  AlarmClock,
+  Activity,
+  Megaphone,
+  Lightbulb,
+  StickyNote,
+  Search,
+  HelpCircle,
+  TrendingUp,
+  User,
+  Calendar,
+  ArrowRight,
+  X,
+  ChevronRight,
+  ChevronLeft,
+} from 'lucide-react';
 import { useTheme } from '@/lib/hooks/useTheme';
 import { supabase } from '@/lib/supabaseClient';
 import { toast } from 'react-hot-toast';
@@ -132,19 +152,19 @@ const MembershipCounter = ({ days, styles, language }) => {
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.5, type: 'spring', stiffness: 200 }}
-      className={`px-4 py-2.5 rounded-xl border ${styles.border} backdrop-blur-sm shadow-md text-center min-w-[100px] ${styles.card}`}
+      className={`px-3 xs:px-4 py-2 xs:py-2.5 rounded-xl border ${styles.border} backdrop-blur-sm shadow-md text-center min-w-[80px] xs:min-w-[100px] ${styles.card}`}
     >
       <motion.div
         animate={{ scale: [1, 1.05, 1] }}
         transition={{ duration: 2, repeat: Infinity }}
-        className="text-2xl sm:text-3xl font-black text-blue-600 dark:text-blue-400"
+        className="text-xl xs:text-2xl sm:text-3xl font-black text-blue-600 dark:text-blue-400"
       >
         {days}
       </motion.div>
-      <div className="text-[9px] sm:text-xs font-medium text-blue-600/80 dark:text-blue-400/80 mt-0.5">
+      <div className="text-[8px] xs:text-[9px] sm:text-xs font-medium text-blue-600/80 dark:text-blue-400/80 mt-0.5">
         {language === 'ar' ? 'يوم في المنصة' : 'Days on platform'}
       </div>
-      <div className={`text-[8px] sm:text-[10px] ${styles.subtext} mt-0.5`}>
+      <div className={`text-[7px] xs:text-[8px] sm:text-[10px] ${styles.subtext} mt-0.5`}>
         {language === 'ar' ? 'رحلة تعلم مستمرة 🚀' : 'Continuous learning journey 🚀'}
       </div>
     </motion.div>
@@ -170,7 +190,7 @@ const getRandomColor = (exclude = []) => {
 };
 
 // ================================================================
-// 4. مكون الحدود الموجية (بدون تغيير)
+// 4. مكون الحدود الموجية – تم تعديل الفاصل إلى 100ms
 // ================================================================
 const WaveBorderCard = ({ children, className = '', initialColor = 'blue', onColorChange }) => {
   const [color, setColor] = useState(CARD_COLORS.find(c => c.name === initialColor) || CARD_COLORS[0]);
@@ -197,7 +217,7 @@ const WaveBorderCard = ({ children, className = '', initialColor = 'blue', onCol
         }
         return newRot;
       });
-    }, 50);
+    }, 100); // ✅ تم التعديل من 50 إلى 100 لتقليل الحمل
     return () => {
       isMounted.current = false;
       clearInterval(interval);
@@ -235,7 +255,7 @@ const WaveBorderCard = ({ children, className = '', initialColor = 'blue', onCol
 };
 
 // ================================================================
-// 5. بطاقة إحصائية – مصغرة
+// 5. بطاقة إحصائية – مصغرة مع تحسينات الاستجابة
 // ================================================================
 const LargeStatCard = ({ icon: Icon, label, value, styles, delay = 0 }) => {
   const [color, setColor] = useState(CARD_COLORS[0]);
@@ -253,19 +273,19 @@ const LargeStatCard = ({ icon: Icon, label, value, styles, delay = 0 }) => {
       whileHover={{ scale: 1.03 }}
     >
       <WaveBorderCard initialColor={color.name} onColorChange={handleColorChange}>
-        <div className="p-4 sm:p-5 flex items-center justify-between gap-3">
+        <div className="p-3 xs:p-4 sm:p-5 flex items-center justify-between gap-2 xs:gap-3">
           <div>
-            <p className={`text-xs sm:text-sm font-medium ${styles.subtext} mb-0.5`}>{label}</p>
-            <p className={`text-2xl sm:text-3xl font-black ${styles.text}`}>
+            <p className={`text-[10px] xs:text-xs sm:text-sm font-medium ${styles.subtext} mb-0.5`}>{label}</p>
+            <p className={`text-xl xs:text-2xl sm:text-3xl font-black ${styles.text}`}>
               <AnimatedCounter value={value} />
             </p>
           </div>
           <motion.div
             animate={isHovered ? { scale: 1.2, rotate: 8 } : { scale: 1 }}
             transition={{ type: 'spring', stiffness: 300 }}
-            className={`p-2.5 rounded-xl ${color.bg} shadow-lg`}
+            className={`p-1.5 xs:p-2 sm:p-2.5 rounded-xl ${color.bg} shadow-lg`}
           >
-            <Icon className={`h-7 w-7 sm:h-8 sm:w-8 ${color.text}`} />
+            <Icon className={`h-5 w-5 xs:h-6 xs:w-6 sm:h-8 sm:w-8 ${color.text}`} />
           </motion.div>
         </div>
       </WaveBorderCard>
@@ -274,7 +294,7 @@ const LargeStatCard = ({ icon: Icon, label, value, styles, delay = 0 }) => {
 };
 
 // ================================================================
-// 6. بطاقة كورس – مصغرة
+// 6. بطاقة كورس – مصغرة مع تحسينات الاستجابة
 // ================================================================
 const LargeCourseCard = ({ course, progress, styles, theme, language }) => {
   const router = useRouter();
@@ -292,35 +312,35 @@ const LargeCourseCard = ({ course, progress, styles, theme, language }) => {
       onClick={() => router.push(`/dashboard/student/courses/${course.id}`)}
     >
       <WaveBorderCard initialColor={color.name} onColorChange={handleColorChange}>
-        <div className="p-4 sm:p-5">
-          <div className="flex items-start justify-between mb-3">
-            <div className="flex items-center gap-3">
+        <div className="p-3 xs:p-4 sm:p-5">
+          <div className="flex items-start justify-between mb-2 xs:mb-3">
+            <div className="flex items-center gap-2 xs:gap-3">
               <motion.div
                 animate={isHovered ? { scale: 1.15, rotate: [0, -6, 6, -6, 0] } : { scale: 1 }}
                 transition={{ duration: 0.4 }}
-                className={`h-12 w-12 sm:h-14 sm:w-14 rounded-xl ${color.bg} flex items-center justify-center shadow-md`}
+                className={`h-10 w-10 xs:h-12 xs:w-12 sm:h-14 sm:w-14 rounded-xl ${color.bg} flex items-center justify-center shadow-md`}
               >
-                <Icons.BookOpen className={`h-6 w-6 sm:h-7 sm:w-7 ${color.text}`} />
+                <BookOpen className={`h-5 w-5 xs:h-6 xs:w-6 sm:h-7 sm:w-7 ${color.text}`} />
               </motion.div>
               <div className="flex-1 min-w-0">
-                <h4 className={`text-sm sm:text-base font-bold truncate ${styles.text}`}>{course.title}</h4>
-                <p className={`text-xs ${styles.subtext}`}>{course.category || (language === 'ar' ? 'كورس' : 'Course')}</p>
+                <h4 className={`text-xs xs:text-sm sm:text-base font-bold truncate ${styles.text}`}>{course.title}</h4>
+                <p className={`text-[10px] xs:text-xs ${styles.subtext}`}>{course.category || (language === 'ar' ? 'كورس' : 'Course')}</p>
               </div>
             </div>
             <motion.div
               animate={isHovered ? { x: 10, opacity: 1 } : { x: 0, opacity: 0.6 }}
               className={`${color.text}`}
             >
-              <Icons.ArrowRight className="h-5 w-5" />
+              <ArrowRight className="h-4 w-4 xs:h-5 xs:w-5" />
             </motion.div>
           </div>
 
-          <div className="mt-3">
-            <div className="flex justify-between text-xs sm:text-sm mb-1.5">
+          <div className="mt-2 xs:mt-3">
+            <div className="flex justify-between text-[10px] xs:text-xs sm:text-sm mb-1.5">
               <span className={styles.subtext}>{language === 'ar' ? 'التقدم' : 'Progress'}</span>
               <span className={`${color.text} font-bold`}>{Math.round(progress)}%</span>
             </div>
-            <div className="w-full h-2 bg-gray-200 dark:bg-white/10 rounded-full overflow-hidden">
+            <div className="w-full h-1.5 xs:h-2 bg-gray-200 dark:bg-white/10 rounded-full overflow-hidden">
               <motion.div
                 initial={{ width: 0 }}
                 animate={{ width: `${progress}%` }}
@@ -337,7 +357,7 @@ const LargeCourseCard = ({ course, progress, styles, theme, language }) => {
               exit={{ opacity: 0, y: 8 }}
               className="absolute bottom-3 right-3 z-20"
             >
-              <span className={`px-3 py-1 rounded-full ${color.bg} ${color.text} text-[10px] sm:text-xs font-bold backdrop-blur-sm border ${color.border}`}>
+              <span className={`px-2 xs:px-3 py-0.5 xs:py-1 rounded-full ${color.bg} ${color.text} text-[8px] xs:text-[10px] sm:text-xs font-bold backdrop-blur-sm border ${color.border}`}>
                 {progress >= 100 ? '✅ مكتمل' : progress >= 50 ? '🚀 متقدم' : '📖 جديد'}
               </span>
             </motion.div>
@@ -349,7 +369,7 @@ const LargeCourseCard = ({ course, progress, styles, theme, language }) => {
 };
 
 // ================================================================
-// 7. بطاقة الإعلانات – مصغرة (بدون تغيير في المنطق، فقط تصغير الحجم)
+// 7. بطاقة الإعلانات – مصغرة مع تحسينات الاستجابة
 // ================================================================
 const SuperAnnouncements = ({ announcements, styles, language }) => {
   const [expanded, setExpanded] = useState(false);
@@ -364,18 +384,18 @@ const SuperAnnouncements = ({ announcements, styles, language }) => {
     return (
       <motion.div initial={{ opacity: 0, y: 15 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
         <WaveBorderCard initialColor={color.name} onColorChange={handleColorChange}>
-          <div className="p-4 space-y-2.5">
-            <div className="flex items-center gap-2">
-              <Icons.Megaphone className={`h-4 w-4 ${color.text}`} />
-              <h3 className={`text-base font-bold ${styles.text}`}>{language === 'ar' ? 'الإعلانات' : 'Announcements'}</h3>
+          <div className="p-3 xs:p-4 space-y-2.5">
+            <div className="flex items-center gap-1.5 xs:gap-2">
+              <Megaphone className={`h-3.5 w-3.5 xs:h-4 xs:w-4 ${color.text}`} />
+              <h3 className={`text-sm xs:text-base font-bold ${styles.text}`}>{language === 'ar' ? 'الإعلانات' : 'Announcements'}</h3>
             </div>
-            <div className="text-center py-4">
-              <Icons.Megaphone className={`h-12 w-12 ${styles.subtext} mx-auto mb-2`} />
-              <p className={`text-sm ${styles.subtext}`}>{language === 'ar' ? 'لا توجد إعلانات حالياً' : 'No announcements yet'}</p>
+            <div className="text-center py-3 xs:py-4">
+              <Megaphone className={`h-10 w-10 xs:h-12 xs:w-12 ${styles.subtext} mx-auto mb-2`} />
+              <p className={`text-xs xs:text-sm ${styles.subtext}`}>{language === 'ar' ? 'لا توجد إعلانات حالياً' : 'No announcements yet'}</p>
             </div>
-            <div className={`flex items-start gap-2 p-3 rounded-xl ${color.bg} border ${color.border}`}>
-              <Icons.Lightbulb className={`h-4 w-4 ${color.text} mt-0.5 flex-shrink-0`} />
-              <p className={`text-xs ${styles.subtext}`}>
+            <div className={`flex items-start gap-2 p-2.5 xs:p-3 rounded-xl ${color.bg} border ${color.border}`}>
+              <Lightbulb className={`h-3.5 w-3.5 xs:h-4 xs:w-4 ${color.text} mt-0.5 flex-shrink-0`} />
+              <p className={`text-[10px] xs:text-xs ${styles.subtext}`}>
                 {language === 'ar'
                   ? 'خصص 30 دقيقة يومياً للمراجعة، وستلاحظ الفرق بعد شهر!'
                   : 'Dedicate 30 min daily to revision and see the difference!'}
@@ -411,13 +431,13 @@ const SuperAnnouncements = ({ announcements, styles, language }) => {
   const renderAnnouncementPreview = () => {
     const announcement = announcements[currentPage];
     return (
-      <div className={`flex items-start gap-3 p-3 rounded-xl border ${styles.border} backdrop-blur-sm cursor-pointer transition ${styles.card} hover:bg-white/10 dark:hover:bg-white/5`}>
-        <div className={`rounded-lg ${color.bg} ${color.text} flex-shrink-0 p-2`}>
-          <Icons.Megaphone className="h-4 w-4" />
+      <div className={`flex items-start gap-2 xs:gap-3 p-2.5 xs:p-3 rounded-xl border ${styles.border} backdrop-blur-sm cursor-pointer transition ${styles.card} hover:bg-white/10 dark:hover:bg-white/5`}>
+        <div className={`rounded-lg ${color.bg} ${color.text} flex-shrink-0 p-1.5 xs:p-2`}>
+          <Megaphone className="h-3.5 w-3.5 xs:h-4 xs:w-4" />
         </div>
         <div className="flex-1 min-w-0">
-          <h4 className={`text-sm font-bold ${styles.text} mb-0.5`}>{announcement.title}</h4>
-          <p className={`text-xs ${styles.subtext} leading-relaxed`}>
+          <h4 className={`text-xs xs:text-sm font-bold ${styles.text} mb-0.5`}>{announcement.title}</h4>
+          <p className={`text-[10px] xs:text-xs ${styles.subtext} leading-relaxed`}>
             {truncateText(announcement.body, 80)}
             {announcement.body.length > 80 && (
               <span className={`${color.text} font-medium mr-1`}>
@@ -425,7 +445,7 @@ const SuperAnnouncements = ({ announcements, styles, language }) => {
               </span>
             )}
           </p>
-          <p className={`text-[10px] ${styles.subtext} mt-0.5`}>
+          <p className={`text-[8px] xs:text-[10px] ${styles.subtext} mt-0.5`}>
             {new Date(announcement.created_at).toLocaleDateString(
               language === 'ar' ? 'ar-EG' : 'en-US',
               { month: 'short', day: 'numeric' }
@@ -439,14 +459,14 @@ const SuperAnnouncements = ({ announcements, styles, language }) => {
   const renderAnnouncementFull = () => {
     const announcement = announcements[currentPage];
     return (
-      <div className={`flex items-start gap-4 p-5 rounded-xl border ${styles.border} backdrop-blur-sm ${styles.card}`}>
-        <div className={`rounded-xl ${color.bg} ${color.text} flex-shrink-0 p-3`}>
-          <Icons.Megaphone className="h-8 w-8" />
+      <div className={`flex items-start gap-3 xs:gap-4 p-4 xs:p-5 rounded-xl border ${styles.border} backdrop-blur-sm ${styles.card}`}>
+        <div className={`rounded-xl ${color.bg} ${color.text} flex-shrink-0 p-2 xs:p-3`}>
+          <Megaphone className="h-6 w-6 xs:h-8 xs:w-8" />
         </div>
         <div className="flex-1 min-w-0">
-          <h4 className={`text-xl font-bold ${styles.text} mb-2`}>{announcement.title}</h4>
-          <p className={`text-base ${styles.subtext} leading-relaxed whitespace-pre-wrap`}>{announcement.body}</p>
-          <p className={`text-xs ${styles.subtext} mt-3`}>
+          <h4 className={`text-lg xs:text-xl font-bold ${styles.text} mb-1.5 xs:mb-2`}>{announcement.title}</h4>
+          <p className={`text-sm xs:text-base ${styles.subtext} leading-relaxed whitespace-pre-wrap`}>{announcement.body}</p>
+          <p className={`text-[10px] xs:text-xs ${styles.subtext} mt-2 xs:mt-3`}>
             {new Date(announcement.created_at).toLocaleDateString(
               language === 'ar' ? 'ar-EG' : 'en-US',
               { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }
@@ -471,13 +491,13 @@ const SuperAnnouncements = ({ announcements, styles, language }) => {
           <motion.div
             animate={isHovered ? { scale: 1.02 } : { scale: 1 }}
             transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-            className="p-3 sm:p-4"
+            className="p-2 xs:p-3 sm:p-4"
           >
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-1.5">
-                <Icons.Megaphone className={`h-4 w-4 ${color.text}`} />
-                <h3 className={`text-sm sm:text-base font-bold ${styles.text}`}>{language === 'ar' ? 'الإعلانات' : 'Announcements'}</h3>
-                <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${color.bg} ${color.text}`}>
+            <div className="flex items-center justify-between mb-1.5 xs:mb-2">
+              <div className="flex items-center gap-1 xs:gap-1.5">
+                <Megaphone className={`h-3.5 w-3.5 xs:h-4 xs:w-4 ${color.text}`} />
+                <h3 className={`text-xs xs:text-sm sm:text-base font-bold ${styles.text}`}>{language === 'ar' ? 'الإعلانات' : 'Announcements'}</h3>
+                <span className={`text-[8px] xs:text-[9px] px-1.5 py-0.5 rounded-full ${color.bg} ${color.text}`}>
                   {currentPage + 1} / {totalPages}
                 </span>
               </div>
@@ -486,13 +506,13 @@ const SuperAnnouncements = ({ announcements, styles, language }) => {
                   onClick={(e) => { e.stopPropagation(); handlePrev(); }}
                   className={`p-1 rounded-lg hover:bg-white/10 dark:hover:bg-white/5 transition ${color.text}`}
                 >
-                  <Icons.ChevronRight className="h-3.5 w-3.5" />
+                  <ChevronRight className="h-3 w-3 xs:h-3.5 xs:w-3.5" />
                 </button>
                 <button
                   onClick={(e) => { e.stopPropagation(); handleNext(); }}
                   className={`p-1 rounded-lg hover:bg-white/10 dark:hover:bg-white/5 transition ${color.text}`}
                 >
-                  <Icons.ChevronLeft className="h-3.5 w-3.5" />
+                  <ChevronLeft className="h-3 w-3 xs:h-3.5 xs:w-3.5" />
                 </button>
               </div>
             </div>
@@ -507,7 +527,7 @@ const SuperAnnouncements = ({ announcements, styles, language }) => {
                   <button
                     key={idx}
                     onClick={(e) => { e.stopPropagation(); setDirection(idx > currentPage ? 1 : -1); setCurrentPage(idx); }}
-                    className={`h-1 rounded-full transition-all duration-300 ${idx === currentPage ? `w-4 ${color.bg}` : `w-1 ${styles.subtext}`}`}
+                    className={`h-1 rounded-full transition-all duration-300 ${idx === currentPage ? `w-3 xs:w-4 ${color.bg}` : `w-1 ${styles.subtext}`}`}
                   />
                 ))}
               </div>
@@ -529,32 +549,32 @@ const SuperAnnouncements = ({ announcements, styles, language }) => {
               initial={{ scale: 0.9, y: 20 }}
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.9, y: 20 }}
-              className={`relative w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-2xl border ${color.border} shadow-2xl p-5 ${styles.card}`}
+              className={`relative w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-2xl border ${color.border} shadow-2xl p-4 xs:p-5 ${styles.card}`}
               onClick={(e) => e.stopPropagation()}
             >
-              <button onClick={() => setExpanded(false)} className={`absolute top-3 right-3 p-1.5 rounded-full bg-white/10 dark:bg-white/5 hover:bg-white/20 dark:hover:bg-white/10 transition ${color.text}`}>
-                <Icons.X className="h-6 w-6" />
+              <button onClick={() => setExpanded(false)} className={`absolute top-2 xs:top-3 right-2 xs:right-3 p-1.5 rounded-full bg-white/10 dark:bg-white/5 hover:bg-white/20 dark:hover:bg-white/10 transition ${color.text}`}>
+                <X className="h-5 w-5 xs:h-6 xs:w-6" />
               </button>
-              <div className="space-y-5">
-                <div className="flex items-center gap-2">
-                  <Icons.Megaphone className={`h-6 w-6 ${color.text}`} />
-                  <h2 className={`text-2xl font-bold ${styles.text}`}>{language === 'ar' ? 'الإعلانات' : 'Announcements'}</h2>
-                  <span className={`text-xs px-2 py-0.5 rounded-full ${color.bg} ${color.text}`}>{currentPage + 1} / {totalPages}</span>
+              <div className="space-y-4 xs:space-y-5">
+                <div className="flex items-center gap-1.5 xs:gap-2">
+                  <Megaphone className={`h-5 w-5 xs:h-6 xs:w-6 ${color.text}`} />
+                  <h2 className={`text-xl xs:text-2xl font-bold ${styles.text}`}>{language === 'ar' ? 'الإعلانات' : 'Announcements'}</h2>
+                  <span className={`text-[10px] xs:text-xs px-2 py-0.5 rounded-full ${color.bg} ${color.text}`}>{currentPage + 1} / {totalPages}</span>
                 </div>
                 {renderAnnouncementFull()}
                 {totalPages > 1 && (
                   <div className="flex items-center justify-between gap-3">
                     <button onClick={handlePrev} className={`p-1.5 rounded-lg bg-white/5 dark:bg-white/5 hover:bg-white/10 dark:hover:bg-white/10 transition ${color.text}`}>
-                      <Icons.ChevronRight className="h-6 w-6" />
+                      <ChevronRight className="h-5 w-5 xs:h-6 xs:w-6" />
                     </button>
                     <div className="flex gap-1.5">
                       {Array.from({ length: totalPages }).map((_, idx) => (
                         <button key={idx} onClick={() => { setDirection(idx > currentPage ? 1 : -1); setCurrentPage(idx); }}
-                          className={`h-1.5 rounded-full transition-all ${idx === currentPage ? `w-6 ${color.bg}` : `w-1.5 ${styles.subtext}`}`} />
+                          className={`h-1.5 rounded-full transition-all ${idx === currentPage ? `w-4 xs:w-6 ${color.bg}` : `w-1.5 ${styles.subtext}`}`} />
                       ))}
                     </div>
                     <button onClick={handleNext} className={`p-1.5 rounded-lg bg-white/5 dark:bg-white/5 hover:bg-white/10 dark:hover:bg-white/10 transition ${color.text}`}>
-                      <Icons.ChevronLeft className="h-6 w-6" />
+                      <ChevronLeft className="h-5 w-5 xs:h-6 xs:w-6" />
                     </button>
                   </div>
                 )}
@@ -568,7 +588,7 @@ const SuperAnnouncements = ({ announcements, styles, language }) => {
 };
 
 // ================================================================
-// 8. بطاقة الملاحظة – مصغرة
+// 8. بطاقة الملاحظة – مصغرة مع تحسينات الاستجابة
 // ================================================================
 const LargeNoteCard = ({ latestNote, language, styles, theme }) => {
   const router = useRouter();
@@ -582,26 +602,26 @@ const LargeNoteCard = ({ latestNote, language, styles, theme }) => {
       className="relative cursor-pointer"
     >
       <WaveBorderCard initialColor={color.name} onColorChange={handleColorChange}>
-        <div className="p-4 sm:p-5">
-          <div className="flex items-center gap-2 mb-2">
-            <div className={`p-2 rounded-lg ${color.bg}`}>
-              <Icons.StickyNote className={`h-4 w-4 sm:h-5 sm:w-5 ${color.text}`} />
+        <div className="p-3 xs:p-4 sm:p-5">
+          <div className="flex items-center gap-1.5 xs:gap-2 mb-1.5 xs:mb-2">
+            <div className={`p-1.5 xs:p-2 rounded-lg ${color.bg}`}>
+              <StickyNote className={`h-3.5 w-3.5 xs:h-4 xs:w-4 sm:h-5 sm:w-5 ${color.text}`} />
             </div>
-            <h3 className={`text-base sm:text-lg font-bold ${styles.text}`}>{language === 'ar' ? 'آخر ملاحظة' : 'Recent Note'}</h3>
+            <h3 className={`text-sm xs:text-base sm:text-lg font-bold ${styles.text}`}>{language === 'ar' ? 'آخر ملاحظة' : 'Recent Note'}</h3>
           </div>
           {latestNote ? (
             <div className="space-y-1.5">
               <div className="flex items-start gap-2">
-                <span className="text-2xl">{latestNote.emoji || '📝'}</span>
-                <p className={`text-sm ${styles.text} line-clamp-3 leading-relaxed`}>{latestNote.note}</p>
+                <span className="text-xl xs:text-2xl">{latestNote.emoji || '📝'}</span>
+                <p className={`text-xs xs:text-sm ${styles.text} line-clamp-3 leading-relaxed`}>{latestNote.note}</p>
               </div>
-              <p className={`text-xs ${styles.subtext}`}>
+              <p className={`text-[10px] xs:text-xs ${styles.subtext}`}>
                 {new Date(latestNote.created_at).toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
                 {latestNote.pinned && ' 📌 مثبتة'}
               </p>
             </div>
           ) : (
-            <p className={`text-sm ${styles.subtext}`}>{language === 'ar' ? 'لا توجد ملاحظات. اضف واحدة!' : 'No notes yet. Add one!'}</p>
+            <p className={`text-xs xs:text-sm ${styles.subtext}`}>{language === 'ar' ? 'لا توجد ملاحظات. اضف واحدة!' : 'No notes yet. Add one!'}</p>
           )}
         </div>
       </WaveBorderCard>
@@ -610,7 +630,7 @@ const LargeNoteCard = ({ latestNote, language, styles, theme }) => {
 };
 
 // ================================================================
-// 9. شريط المعلومات اليومية – مصغر
+// 9. شريط المعلومات اليومية – مصغر مع تحسينات الاستجابة
 // ================================================================
 const LanguageTipCarousel = ({ language, styles }) => {
   const tips = [
@@ -650,22 +670,22 @@ const LanguageTipCarousel = ({ language, styles }) => {
       key={currentIndex}
     >
       <WaveBorderCard initialColor={color.name} onColorChange={handleColorChange}>
-        <div className="p-4 sm:p-5">
-          <div className="flex items-start gap-3">
-            <div className={`p-2 rounded-lg ${color.bg} flex-shrink-0`}>
-              <Icons.Lightbulb className={`h-5 w-5 sm:h-6 sm:w-6 ${color.text}`} />
+        <div className="p-3 xs:p-4 sm:p-5">
+          <div className="flex items-start gap-2 xs:gap-3">
+            <div className={`p-1.5 xs:p-2 rounded-lg ${color.bg} flex-shrink-0`}>
+              <Lightbulb className={`h-4 w-4 xs:h-5 xs:w-5 sm:h-6 sm:w-6 ${color.text}`} />
             </div>
             <div className="flex-1 min-w-0">
-              <p className={`text-[9px] sm:text-xs font-bold ${styles.subtext} uppercase tracking-wider mb-0.5`}>
+              <p className={`text-[8px] xs:text-[9px] sm:text-xs font-bold ${styles.subtext} uppercase tracking-wider mb-0.5`}>
                 💡 {language === 'ar' ? 'معلومة إنجليزية اليوم' : 'English Fact of the Day'}
               </p>
-              <p className={`text-sm sm:text-base ${styles.text} leading-relaxed`}>{tipText}</p>
+              <p className={`text-xs xs:text-sm sm:text-base ${styles.text} leading-relaxed`}>{tipText}</p>
               <div className="flex gap-1 mt-2">
                 {Array.from({ length: totalTips }).map((_, idx) => (
                   <span
                     key={idx}
                     className={`h-1.5 rounded-full transition-all duration-500 ${
-                      idx === currentIndex ? `w-4 sm:w-5 ${color.bg}` : `w-1.5 ${styles.subtext}`
+                      idx === currentIndex ? `w-3 xs:w-4 sm:w-5 ${color.bg}` : `w-1.5 ${styles.subtext}`
                     }`}
                   />
                 ))}
@@ -679,7 +699,7 @@ const LanguageTipCarousel = ({ language, styles }) => {
 };
 
 // ================================================================
-// الصفحة الرئيسية – مصغرة بالكامل
+// الصفحة الرئيسية – مصغرة بالكامل مع تحسينات الاستجابة
 // ================================================================
 export default function StudentDashboard() {
   const { theme, styles, language } = useTheme();
@@ -942,28 +962,28 @@ export default function StudentDashboard() {
         className="fixed -bottom-60 -left-60 w-[700px] h-[700px] bg-green-500/5 dark:bg-green-400/5 rounded-full blur-3xl pointer-events-none"
       />
 
-      <div className="relative z-10 px-4 sm:px-6 py-5 sm:py-6 space-y-5 sm:space-y-6 max-w-7xl mx-auto">
+      <div className="relative z-10 px-3 xs:px-4 sm:px-6 py-4 xs:py-5 sm:py-6 space-y-4 xs:space-y-5 sm:space-y-6 max-w-7xl mx-auto">
         {/* ===== رأس الصفحة المعدل ===== */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, type: 'spring', stiffness: 200 }}
-          className={`flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 p-5 sm:p-6 rounded-2xl border ${styles.border} backdrop-blur-sm shadow-md ${styles.card}`}
+          className={`flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 xs:gap-4 p-4 xs:p-5 sm:p-6 rounded-2xl border ${styles.border} backdrop-blur-sm shadow-md ${styles.card}`}
         >
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3 xs:gap-4">
             <motion.div
               whileHover={{ scale: 1.05, rotate: 4 }}
-              className="relative h-16 w-16 sm:h-20 sm:w-20 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-extrabold text-2xl sm:text-3xl shadow-xl shadow-blue-500/30 dark:shadow-blue-400/20 overflow-hidden ring-4 ring-blue-500/20 dark:ring-blue-400/10"
+              className="relative h-14 w-14 xs:h-16 xs:w-16 sm:h-20 sm:w-20 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-extrabold text-lg xs:text-2xl sm:text-3xl shadow-xl shadow-blue-500/30 dark:shadow-blue-400/20 overflow-hidden ring-4 ring-blue-500/20 dark:ring-blue-400/10"
             >
               {user?.avatar_url ? (
                 <img src={user.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
               ) : (
                 <span>{(user?.full_name?.[0] || (language === 'ar' ? 'ط' : 'S')).toUpperCase()}</span>
               )}
-              <span className="absolute -bottom-0.5 -right-0.5 h-5 w-5 rounded-full bg-emerald-500 border-2 border-white dark:border-gray-800" />
+              <span className="absolute -bottom-0.5 -right-0.5 h-4 w-4 xs:h-5 xs:w-5 rounded-full bg-emerald-500 border-2 border-white dark:border-gray-800" />
             </motion.div>
             <div>
-              <h1 className={`text-2xl sm:text-3xl md:text-4xl font-black ${styles.text}`}>
+              <h1 className={`text-lg xs:text-2xl sm:text-3xl md:text-4xl font-black ${styles.text}`}>
                 {language === 'ar' ? 'مرحباً' : 'Welcome'}{', '}
                 <motion.span
                   animate={{ backgroundPosition: ['0% 50%', '100% 50%', '0% 50%'] }}
@@ -973,13 +993,13 @@ export default function StudentDashboard() {
                   {user?.full_name || (language === 'ar' ? 'طالب' : 'Student')}
                 </motion.span>
               </h1>
-              <p className={`text-xs sm:text-sm ${styles.subtext} opacity-80 mt-0.5`}>
+              <p className={`text-[10px] xs:text-xs sm:text-sm ${styles.subtext} opacity-80 mt-0.5`}>
                 {language === 'ar' ? 'كل يوم فرصة جديدة للتعلم!' : 'Every day is a new chance to learn!'}
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 xs:gap-3">
             <MembershipCounter days={daysSinceJoin} styles={styles} language={language} />
 
             <motion.button
@@ -992,15 +1012,15 @@ export default function StudentDashboard() {
                 }
                 setIsDrawerOpen(true);
               }}
-              className={`relative p-2.5 rounded-xl border ${styles.border} ${styles.card} hover:border-yellow-500/50 transition-all duration-300`}
+              className={`relative p-2 xs:p-2.5 rounded-xl border ${styles.border} ${styles.card} hover:border-yellow-500/50 transition-all duration-300`}
             >
-              <Icons.Bell className={`h-5 w-5 ${notificationsEnabled ? 'text-yellow-500' : 'text-gray-500'}`} />
+              <Bell className={`h-4 w-4 xs:h-5 xs:w-5 ${notificationsEnabled ? 'text-yellow-500' : 'text-gray-500'}`} />
               {notificationsEnabled && (() => {
                 const unreadMessages = messages.filter(m => m.sender_id === teacherId && !m.is_read).length;
                 const totalUnread = unreadMessages + announcements.filter(a => a.is_published).length;
                 if (totalUnread > 0) {
                   return (
-                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[8px] font-bold rounded-full h-4 w-4 flex items-center justify-center shadow-lg animate-pulse">
+                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[8px] font-bold rounded-full h-3.5 w-3.5 xs:h-4 xs:w-4 flex items-center justify-center shadow-lg animate-pulse">
                       {totalUnread > 9 ? '9+' : totalUnread}
                     </span>
                   );
@@ -1015,13 +1035,13 @@ export default function StudentDashboard() {
         <LanguageTipCarousel language={language} styles={styles} />
 
         {/* ===== الشبكة الرئيسية ===== */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 sm:gap-6">
-          <div className="lg:col-span-2 space-y-5 sm:space-y-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 xs:gap-5 sm:gap-6">
+          <div className="lg:col-span-2 space-y-4 xs:space-y-5 sm:space-y-6">
             {/* بطاقات الإحصائيات */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
-              <LargeStatCard icon={Icons.BookOpen} label={language === 'ar' ? 'كورسات' : 'Courses'} value={stats.coursesEnrolled} styles={styles} delay={0} />
-              <LargeStatCard icon={Icons.Video} label={language === 'ar' ? 'فيديوهات' : 'Videos'} value={stats.completedVideos} styles={styles} delay={0.05} />
-              <LargeStatCard icon={Icons.FileQuestion} label={language === 'ar' ? 'امتحانات' : 'Exams'} value={stats.totalExamsTaken} styles={styles} delay={0.1} />
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 xs:gap-3 sm:gap-4">
+              <LargeStatCard icon={BookOpen} label={language === 'ar' ? 'كورسات' : 'Courses'} value={stats.coursesEnrolled} styles={styles} delay={0} />
+              <LargeStatCard icon={Video} label={language === 'ar' ? 'فيديوهات' : 'Videos'} value={stats.completedVideos} styles={styles} delay={0.05} />
+              <LargeStatCard icon={FileQuestion} label={language === 'ar' ? 'امتحانات' : 'Exams'} value={stats.totalExamsTaken} styles={styles} delay={0.1} />
             </div>
 
             {/* كورساتي النشطة */}
@@ -1030,51 +1050,51 @@ export default function StudentDashboard() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
             >
-              <div className="flex justify-between items-center mb-3 sm:mb-4">
-                <h2 className={`text-xl sm:text-2xl font-black ${styles.text} flex items-center gap-2`}>
-                  <Icons.BookOpen className="h-6 w-6 text-green-600 dark:text-green-400" />
+              <div className="flex justify-between items-center mb-2 xs:mb-3 sm:mb-4">
+                <h2 className={`text-base xs:text-xl sm:text-2xl font-black ${styles.text} flex items-center gap-1.5 xs:gap-2`}>
+                  <BookOpen className="h-5 w-5 xs:h-6 xs:w-6 text-green-600 dark:text-green-400" />
                   {language === 'ar' ? 'كورساتي النشطة' : 'Active Courses'}
                 </h2>
-                <Link href="/dashboard/student/courses" className={`text-sm font-bold ${styles.subtext} hover:text-green-600 dark:hover:text-green-400 transition`}>
+                <Link href="/dashboard/student/courses" className={`text-[10px] xs:text-sm font-bold ${styles.subtext} hover:text-green-600 dark:hover:text-green-400 transition`}>
                   {language === 'ar' ? 'عرض الكل' : 'View all'}
                 </Link>
               </div>
               {courses.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 xs:gap-4">
                   {courses.slice(0, 4).map(course => {
                     const progress = enrollments.find(e => e.course_id === course.id)?.progress || 0;
                     return <LargeCourseCard key={course.id} course={course} progress={progress} styles={styles} theme={theme} language={language} />;
                   })}
                 </div>
               ) : (
-                <p className={`text-base ${styles.subtext} text-center py-6`}>
+                <p className={`text-sm xs:text-base ${styles.subtext} text-center py-4 xs:py-6`}>
                   {language === 'ar' ? 'لا توجد كورسات مسجلة' : 'No courses enrolled yet'}
                 </p>
               )}
             </motion.div>
 
             {/* امتحانات قادمة + نشاط حديث */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 xs:gap-4 sm:gap-5">
               <motion.div
                 initial={{ opacity: 0, y: 15 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
               >
                 <WaveBorderCard initialColor="blue">
-                  <div className="p-4 sm:p-5">
-                    <h2 className={`text-lg sm:text-xl font-black ${styles.text} flex items-center gap-2`}>
-                      <Icons.AlarmClock className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                  <div className="p-3 xs:p-4 sm:p-5">
+                    <h2 className={`text-base xs:text-lg sm:text-xl font-black ${styles.text} flex items-center gap-1.5 xs:gap-2`}>
+                      <AlarmClock className="h-5 w-5 xs:h-6 xs:w-6 text-blue-600 dark:text-blue-400" />
                       {language === 'ar' ? 'الامتحانات القادمة' : 'Upcoming Exams'}
                     </h2>
-                    <div className="space-y-2.5 mt-2">
+                    <div className="space-y-2 xs:space-y-2.5 mt-2">
                       {upcomingExams.length > 0 ? upcomingExams.map(exam => (
-                        <div key={exam.id} className={`flex items-center justify-between p-3 rounded-xl ${styles.card} border ${styles.border} backdrop-blur-sm`}>
-                          <span className={`text-sm font-medium ${styles.text}`}>{exam.title}</span>
-                          <Link href={`/dashboard/student/exams/${exam.id}`} className="text-blue-600 dark:text-blue-400 px-3 py-1.5 bg-blue-500/10 dark:bg-blue-400/10 rounded-lg text-xs font-bold hover:bg-blue-500/20 dark:hover:bg-blue-400/20 transition">
+                        <div key={exam.id} className={`flex items-center justify-between p-2.5 xs:p-3 rounded-xl ${styles.card} border ${styles.border} backdrop-blur-sm`}>
+                          <span className={`text-xs xs:text-sm font-medium ${styles.text}`}>{exam.title}</span>
+                          <Link href={`/dashboard/student/exams/${exam.id}`} className="text-blue-600 dark:text-blue-400 px-2 xs:px-3 py-1 xs:py-1.5 bg-blue-500/10 dark:bg-blue-400/10 rounded-lg text-[10px] xs:text-xs font-bold hover:bg-blue-500/20 dark:hover:bg-blue-400/20 transition">
                             {language === 'ar' ? 'دخول' : 'Enter'}
                           </Link>
                         </div>
-                      )) : <p className={`text-sm ${styles.subtext}`}>{language === 'ar' ? 'لا توجد امتحانات قادمة' : 'No upcoming exams'}</p>}
+                      )) : <p className={`text-xs xs:text-sm ${styles.subtext}`}>{language === 'ar' ? 'لا توجد امتحانات قادمة' : 'No upcoming exams'}</p>}
                     </div>
                   </div>
                 </WaveBorderCard>
@@ -1086,20 +1106,20 @@ export default function StudentDashboard() {
                 viewport={{ once: true }}
               >
                 <WaveBorderCard initialColor="orange">
-                  <div className="p-4 sm:p-5">
-                    <h3 className={`text-lg sm:text-xl font-black ${styles.text} flex items-center gap-2`}>
-                      <Icons.Activity className="h-6 w-6 text-orange-600 dark:text-orange-400" />
+                  <div className="p-3 xs:p-4 sm:p-5">
+                    <h3 className={`text-base xs:text-lg sm:text-xl font-black ${styles.text} flex items-center gap-1.5 xs:gap-2`}>
+                      <Activity className="h-5 w-5 xs:h-6 xs:w-6 text-orange-600 dark:text-orange-400" />
                       {language === 'ar' ? 'نشاط حديث' : 'Recent Activity'}
                     </h3>
-                    <div className="space-y-2.5 mt-2">
+                    <div className="space-y-2 xs:space-y-2.5 mt-2">
                       {recentActivity.map((act, i) => (
-                        <div key={i} className={`flex items-center gap-3 text-sm ${styles.subtext}`}>
-                          {act.type === 'video' ? <Icons.Video className="h-5 w-5 text-blue-500 dark:text-blue-400" /> : <Icons.FileText className="h-5 w-5 text-emerald-500 dark:text-emerald-400" />}
+                        <div key={i} className={`flex items-center gap-2 xs:gap-3 text-xs xs:text-sm ${styles.subtext}`}>
+                          {act.type === 'video' ? <Video className="h-4 w-4 xs:h-5 xs:w-5 text-blue-500 dark:text-blue-400" /> : <FileQuestion className="h-4 w-4 xs:h-5 xs:w-5 text-emerald-500 dark:text-emerald-400" />}
                           <span className="flex-1 truncate font-medium">{act.title}</span>
-                          <span className="text-[10px] whitespace-nowrap opacity-70">{timeAgo(act.date, language)}</span>
+                          <span className="text-[9px] xs:text-[10px] whitespace-nowrap opacity-70">{timeAgo(act.date, language)}</span>
                         </div>
                       ))}
-                      {recentActivity.length === 0 && <p className={`text-sm ${styles.subtext}`}>{language === 'ar' ? 'لا يوجد نشاط' : 'No activity'}</p>}
+                      {recentActivity.length === 0 && <p className={`text-xs xs:text-sm ${styles.subtext}`}>{language === 'ar' ? 'لا يوجد نشاط' : 'No activity'}</p>}
                     </div>
                   </div>
                 </WaveBorderCard>
@@ -1108,26 +1128,27 @@ export default function StudentDashboard() {
           </div>
 
           {/* العمود الأيمن */}
-          <div className="space-y-5 sm:space-y-6">
+          <div className="space-y-4 xs:space-y-5 sm:space-y-6">
             <LargeNoteCard latestNote={latestNote} language={language} styles={styles} theme={theme} />
             <SuperAnnouncements announcements={announcements} styles={styles} language={language} />
           </div>
         </div>
 
         {/* روابط سريعة – مصغرة */}
-        <div className="grid grid-cols-3 sm:grid-cols-6 gap-3 sm:gap-4">
+        <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 xs:gap-3 sm:gap-4">
           {[
-            { href: '/dashboard/student/courses', icon: Icons.Search, label: { ar: 'كورسات', en: 'Courses' } },
-            { href: '/dashboard/student/support', icon: Icons.HelpCircle, label: { ar: 'دعم', en: 'Support' } },
-            { href: '/dashboard/student/progress', icon: Icons.TrendingUp, label: { ar: 'تقدّم', en: 'Progress' } },
-            { href: '/dashboard/student/profile', icon: Icons.User, label: { ar: 'حسابي', en: 'Profile' } },
-            { href: '/dashboard/student/study-schedule', icon: Icons.Calendar, label: { ar: 'جدول', en: 'Schedule' } },
-            { href: '/dashboard/student/notes', icon: Icons.StickyNote, label: { ar: 'ملاحظات', en: 'Notes' } },
+            { href: '/dashboard/student/courses', icon: Search, label: { ar: 'كورسات', en: 'Courses' } },
+            { href: '/dashboard/student/support', icon: HelpCircle, label: { ar: 'دعم', en: 'Support' } },
+            { href: '/dashboard/student/progress', icon: TrendingUp, label: { ar: 'تقدّم', en: 'Progress' } },
+            { href: '/dashboard/student/profile', icon: User, label: { ar: 'حسابي', en: 'Profile' } },
+            { href: '/dashboard/student/study-schedule', icon: Calendar, label: { ar: 'جدول', en: 'Schedule' } },
+            { href: '/dashboard/student/notes', icon: StickyNote, label: { ar: 'ملاحظات', en: 'Notes' } },
           ].map((item) => (
             <Link key={item.href} href={item.href}
-              className={`flex flex-col items-center gap-2 p-4 sm:p-5 rounded-xl border ${styles.border} ${styles.card} hover:border-blue-500/50 dark:hover:border-blue-400/50 transition-all duration-300 group hover:-translate-y-1 hover:shadow-lg`}>
-              <item.icon className={`h-7 w-7 sm:h-8 sm:w-8 text-blue-600 dark:text-blue-400 group-hover:scale-110 group-hover:rotate-6 transition-transform`} />
-              <span className={`text-xs sm:text-sm font-bold ${styles.text}`}>{item.label[language]}</span>
+              className={`flex flex-col items-center gap-1.5 xs:gap-2 p-3 xs:p-4 sm:p-5 rounded-xl border ${styles.border} ${styles.card} hover:border-blue-500/50 dark:hover:border-blue-400/50 transition-all duration-300 group hover:-translate-y-1 hover:shadow-lg`}
+            >
+              <item.icon className={`h-5 w-5 xs:h-6 xs:w-6 sm:h-7 sm:w-7 text-blue-600 dark:text-blue-400 group-hover:scale-110 group-hover:rotate-6 transition-transform`} />
+              <span className={`text-[10px] xs:text-xs sm:text-sm font-bold ${styles.text}`}>{item.label[language]}</span>
             </Link>
           ))}
         </div>
