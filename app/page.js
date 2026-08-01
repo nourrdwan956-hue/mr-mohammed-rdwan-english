@@ -157,7 +157,6 @@ const ElegantBackground = ({ isDark }) => {
   const scale = useTransform(scrollY, [0, 500], [1, 1.05]);
 
   useEffect(() => {
-    // تقليل عدد النقاط على الجوال
     const count = window.innerWidth < 640 ? 25 : 60;
     const generatedDots = Array.from({ length: count }, () => ({
       top: Math.random() * 100,
@@ -222,7 +221,7 @@ const ElegantBackground = ({ isDark }) => {
 };
 
 // ================================================================
-// 🧭 مؤشر التمرير
+// 🧭 مؤشر التمرير (ScrollIndicator) – بدون تغيير فعلي، حجمه مناسب
 // ================================================================
 
 const ScrollIndicator = ({ targetId }) => {
@@ -262,7 +261,7 @@ const ScrollIndicator = ({ targetId }) => {
 };
 
 // ================================================================
-// ⬆️ زر العودة للأعلى
+// ⬆️ زر العودة للأعلى – تم تصغيره قليلاً للجوال
 // ================================================================
 
 const ScrollToTopButton = ({ show, onClick }) => (
@@ -275,7 +274,7 @@ const ScrollToTopButton = ({ show, onClick }) => (
         whileHover={{ scale: 1.1 }}
         whileTap={{ scale: 0.9 }}
         onClick={onClick}
-        className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50 p-3 sm:p-4 rounded-full bg-gradient-to-r from-blue-500 to-green-500 text-white shadow-2xl shadow-blue-500/50 hover:shadow-blue-500/70 transition-all duration-300 group"
+        className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50 p-2.5 sm:p-3 rounded-full bg-gradient-to-r from-blue-500 to-green-500 text-white shadow-2xl shadow-blue-500/50 hover:shadow-blue-500/70 transition-all duration-300 group"
       >
         <Icons.ChevronUp className="h-4 w-4 sm:h-5 sm:w-5 group-hover:-translate-y-0.5 transition-transform" />
       </motion.button>
@@ -284,7 +283,7 @@ const ScrollToTopButton = ({ show, onClick }) => (
 );
 
 // ================================================================
-// 🃏 بطاقة الكورس – تصميم متطور مع تأثيرات 3D
+// 🃏 بطاقة الكورس – تعديلات طفيفة لتقليل الأيقونات والمسافات على xs
 // ================================================================
 
 const CourseCard = ({ course, teacher, index }) => {
@@ -322,7 +321,8 @@ const CourseCard = ({ course, teacher, index }) => {
       >
         <div className="absolute inset-0 bg-gradient-to-br from-blue-400/10 via-transparent to-green-400/10 opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
 
-        <div className="relative h-36 sm:h-44 md:h-48 overflow-hidden">
+        {/* ارتفاع الصورة أصغر على xs */}
+        <div className="relative h-28 xs:h-32 sm:h-44 md:h-48 overflow-hidden">
           {course?.cover_image ? (
             <motion.img
               src={course.cover_image}
@@ -333,14 +333,14 @@ const CourseCard = ({ course, teacher, index }) => {
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-400/20 to-green-400/20">
-              <Icons.BookOpen className="h-10 w-10 sm:h-14 sm:w-14 text-gray-500/30" />
+              <Icons.BookOpen className="h-8 w-8 xs:h-10 xs:w-10 sm:h-14 sm:w-14 text-gray-500/30" />
             </div>
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
 
           <div className="absolute top-2 right-2 flex flex-col gap-1">
             <motion.span
-              className={`text-[8px] sm:text-[9px] px-2 py-0.5 sm:px-3 sm:py-1 rounded-full font-bold backdrop-blur-xl border border-white/20 ${
+              className={`text-[7px] xs:text-[8px] sm:text-[9px] px-1.5 py-0.5 sm:px-3 sm:py-1 rounded-full font-bold backdrop-blur-xl border border-white/20 ${
                 course?.is_free
                   ? 'bg-green-500 text-white'
                   : 'bg-blue-500 text-white'
@@ -350,41 +350,42 @@ const CourseCard = ({ course, teacher, index }) => {
               {course?.is_free ? 'مجاني' : `${course?.price} ج.م`}
             </motion.span>
             {course?.is_published && (
-              <span className="text-[8px] sm:text-[9px] px-2 py-0.5 sm:px-3 sm:py-1 rounded-full bg-blue-400 text-white font-bold backdrop-blur-xl border border-white/20">
+              <span className="text-[7px] xs:text-[8px] sm:text-[9px] px-1.5 py-0.5 sm:px-3 sm:py-1 rounded-full bg-blue-400 text-white font-bold backdrop-blur-xl border border-white/20">
                 متاح
               </span>
             )}
           </div>
 
           <div className="absolute bottom-2 right-2 flex gap-1">
-            <span className="text-[6px] sm:text-[7px] px-1.5 py-0.5 rounded-full bg-black/70 backdrop-blur-sm text-white/90 border border-white/10">
+            <span className="text-[6px] xs:text-[7px] sm:text-[7px] px-1.5 py-0.5 rounded-full bg-black/70 backdrop-blur-sm text-white/90 border border-white/10">
               {course?.grade_stage === 'primary' ? 'ابتدائي' :
                course?.grade_stage === 'middle' ? 'إعدادي' :
                course?.grade_stage === 'secondary' ? 'ثانوي' : 'عام'}
             </span>
             {course?.grade_level && (
-              <span className="text-[6px] sm:text-[7px] px-1.5 py-0.5 rounded-full bg-black/70 backdrop-blur-sm text-white/90 border border-white/10">
+              <span className="text-[6px] xs:text-[7px] sm:text-[7px] px-1.5 py-0.5 rounded-full bg-black/70 backdrop-blur-sm text-white/90 border border-white/10">
                 صف {course.grade_level}
               </span>
             )}
           </div>
         </div>
 
-        <div className="p-3 sm:p-4">
-          <h3 className={`text-sm sm:text-base font-bold mb-0.5 line-clamp-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+        {/* محتوى البطاقة – نص أصغر قليلاً */}
+        <div className="p-2 xs:p-3 sm:p-4">
+          <h3 className={`text-xs xs:text-sm sm:text-base font-bold mb-0.5 line-clamp-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
             {course?.title || 'كورس'}
           </h3>
           {teacher && (
-            <p className={`text-[10px] sm:text-xs ${isDark ? 'text-gray-300' : 'text-gray-600'} flex items-center gap-1 mb-1.5`}>
+            <p className={`text-[9px] xs:text-[10px] sm:text-xs ${isDark ? 'text-gray-300' : 'text-gray-600'} flex items-center gap-1 mb-1.5`}>
               <Icons.User className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-blue-400" />
               {teacher.full_name}
             </p>
           )}
-          <p className={`text-xs sm:text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'} leading-relaxed line-clamp-2 mb-2`}>
+          <p className={`text-[10px] xs:text-xs sm:text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'} leading-relaxed line-clamp-2 mb-2`}>
             {course?.description || 'لا يوجد وصف'}
           </p>
           <div className="flex items-center justify-between pt-2 border-t border-white/10">
-            <div className="flex items-center gap-2 sm:gap-3 text-[9px] sm:text-[11px] text-gray-400">
+            <div className="flex items-center gap-2 sm:gap-3 text-[8px] xs:text-[9px] sm:text-[11px] text-gray-400">
               <span className="flex items-center gap-0.5 sm:gap-1">
                 <Icons.Clock className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
                 {course?.subscription_duration_days || 30} يوم
@@ -395,7 +396,7 @@ const CourseCard = ({ course, teacher, index }) => {
               </span>
             </div>
             <motion.span
-              className={`text-[10px] sm:text-xs font-bold ${isDark ? 'text-blue-400' : 'text-blue-600'} flex items-center gap-0.5`}
+              className={`text-[9px] xs:text-[10px] sm:text-xs font-bold ${isDark ? 'text-blue-400' : 'text-blue-600'} flex items-center gap-0.5`}
               whileHover={{ x: -4 }}
               transition={{ duration: 0.2 }}
             >
@@ -410,7 +411,7 @@ const CourseCard = ({ course, teacher, index }) => {
 };
 
 // ================================================================
-// 🃏 بطاقة المميزات – مع تأثيرات hover متقدمة
+// 🃏 بطاقة المميزات – تم تصغير الأيقونة والمسافة
 // ================================================================
 
 const FeatureCard = ({ feature, index }) => {
@@ -430,7 +431,7 @@ const FeatureCard = ({ feature, index }) => {
       onMouseLeave={() => setIsHovered(false)}
     >
       <div
-        className={`p-4 sm:p-5 rounded-xl border transition-all duration-400 ${
+        className={`p-3 xs:p-4 sm:p-5 rounded-xl border transition-all duration-400 ${
           isDark
             ? 'bg-white/10 border-white/15 hover:border-blue-400/50 hover:shadow-lg hover:shadow-blue-400/20'
             : 'bg-white/80 border-gray-200/50 hover:border-blue-400/60 hover:shadow-lg hover:shadow-blue-400/20'
@@ -443,22 +444,22 @@ const FeatureCard = ({ feature, index }) => {
           transition={{ duration: 0.5 }}
         />
 
-        <div className="flex items-start gap-3 relative z-10">
+        <div className="flex items-start gap-2 sm:gap-3 relative z-10">
           <motion.div
-            className={`flex-shrink-0 p-2.5 rounded-xl bg-gradient-to-br ${feature.gradient} bg-opacity-30`}
+            className={`flex-shrink-0 p-2 xs:p-2.5 rounded-xl bg-gradient-to-br ${feature.gradient} bg-opacity-30`}
             animate={{
               rotate: isHovered ? [0, 6, -6, 0] : 0,
               scale: isHovered ? 1.1 : 1,
             }}
             transition={{ duration: 0.4 }}
           >
-            <feature.icon className={`h-4 w-4 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} />
+            <feature.icon className={`h-3.5 w-3.5 xs:h-4 xs:w-4 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} />
           </motion.div>
           <div>
-            <h3 className={`text-sm sm:text-base font-bold mb-0.5 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+            <h3 className={`text-xs xs:text-sm sm:text-base font-bold mb-0.5 ${isDark ? 'text-white' : 'text-gray-900'}`}>
               {feature.title}
             </h3>
-            <p className={`text-xs sm:text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'} leading-relaxed`}>
+            <p className={`text-[10px] xs:text-xs sm:text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'} leading-relaxed`}>
               {feature.description}
             </p>
           </div>
@@ -469,7 +470,7 @@ const FeatureCard = ({ feature, index }) => {
 };
 
 // ================================================================
-// 🃏 بطاقة التواصل – مع دعم خانة الأرقام
+// 🃏 بطاقة التواصل – تصغير الأيقونات
 // ================================================================
 
 const SocialCard = ({ link, index }) => {
@@ -486,17 +487,17 @@ const SocialCard = ({ link, index }) => {
         transition={{ delay: index * 0.05, duration: 0.4 }}
         viewport={{ once: true }}
         whileHover={{ scale: 1.02, y: -3 }}
-        className={`flex items-center gap-3 p-3 sm:p-4 rounded-xl border transition-all duration-300 ${
+        className={`flex items-center gap-2 xs:gap-3 p-2 xs:p-3 sm:p-4 rounded-xl border transition-all duration-300 ${
           isDark
             ? 'bg-white/10 border-white/15 hover:border-blue-400/50 hover:bg-white/15'
             : 'bg-white/80 border-gray-200/50 hover:border-blue-400/60 hover:bg-white/90'
         } backdrop-blur-xl`}
       >
-        <div className={`p-2 rounded-xl ${link.color} bg-opacity-20 flex-shrink-0`}>
-          <link.icon className={`h-3.5 w-3.5 sm:h-4 sm:w-4 ${link.textColor}`} />
+        <div className={`p-1.5 xs:p-2 rounded-xl ${link.color} bg-opacity-20 flex-shrink-0`}>
+          <link.icon className={`h-3 w-3 xs:h-3.5 xs:w-3.5 sm:h-4 sm:w-4 ${link.textColor}`} />
         </div>
         <div className="flex-1 min-w-0">
-          <p className={`text-xs sm:text-sm font-bold ${isDark ? 'text-white' : 'text-gray-900'} whitespace-nowrap`}>
+          <p className={`text-[10px] xs:text-xs sm:text-sm font-bold ${isDark ? 'text-white' : 'text-gray-900'} whitespace-nowrap`}>
             {link.label}
           </p>
           <div className="flex flex-col gap-0.5 mt-0.5">
@@ -504,7 +505,7 @@ const SocialCard = ({ link, index }) => {
               <a
                 key={idx}
                 href={`tel:${phone}`}
-                className={`text-[10px] sm:text-xs ${isDark ? 'text-gray-400 hover:text-blue-400' : 'text-gray-500 hover:text-blue-600'} transition font-mono`}
+                className={`text-[8px] xs:text-[10px] sm:text-xs ${isDark ? 'text-gray-400 hover:text-blue-400' : 'text-gray-500 hover:text-blue-600'} transition font-mono`}
                 dir="ltr"
               >
                 {phone}
@@ -512,7 +513,7 @@ const SocialCard = ({ link, index }) => {
             ))}
           </div>
         </div>
-        <Icons.Phone className={`h-3 w-3 sm:h-3.5 sm:w-3.5 flex-shrink-0 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
+        <Icons.Phone className={`h-2.5 w-2.5 xs:h-3 xs:w-3 sm:h-3.5 sm:w-3.5 flex-shrink-0 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
       </motion.div>
     );
   }
@@ -527,7 +528,7 @@ const SocialCard = ({ link, index }) => {
       transition={{ delay: index * 0.05, duration: 0.4 }}
       viewport={{ once: true }}
       whileHover={{ scale: 1.02, y: -3 }}
-      className={`flex items-center gap-3 p-3 sm:p-4 rounded-xl border transition-all duration-300 ${
+      className={`flex items-center gap-2 xs:gap-3 p-2 xs:p-3 sm:p-4 rounded-xl border transition-all duration-300 ${
         isPrimary
           ? isDark
             ? 'bg-blue-400/20 border-blue-400/50 hover:border-blue-400/80 hover:bg-blue-400/30'
@@ -537,29 +538,29 @@ const SocialCard = ({ link, index }) => {
             : 'bg-white/80 border-gray-200/50 hover:border-blue-400/60 hover:bg-white/90'
       } backdrop-blur-xl`}
     >
-      <div className={`p-2 rounded-xl ${link.color} bg-opacity-20 flex-shrink-0`}>
-        <link.icon className={`h-3.5 w-3.5 sm:h-4 sm:w-4 ${link.textColor}`} />
+      <div className={`p-1.5 xs:p-2 rounded-xl ${link.color} bg-opacity-20 flex-shrink-0`}>
+        <link.icon className={`h-3 w-3 xs:h-3.5 xs:w-3.5 sm:h-4 sm:w-4 ${link.textColor}`} />
       </div>
       <div className="flex-1 min-w-0">
-        <p className={`text-xs sm:text-sm font-bold ${isDark ? 'text-white' : 'text-gray-900'} ${isPrimary ? 'text-blue-400' : ''} whitespace-nowrap`}>
+        <p className={`text-[10px] xs:text-xs sm:text-sm font-bold ${isDark ? 'text-white' : 'text-gray-900'} ${isPrimary ? 'text-blue-400' : ''} whitespace-nowrap`}>
           {link.label}
           {isPrimary && (
-            <span className="mr-1 text-[7px] sm:text-[8px] bg-blue-400/30 text-blue-400 px-1 py-0.5 rounded-full whitespace-nowrap">
+            <span className="mr-1 text-[6px] xs:text-[7px] sm:text-[8px] bg-blue-400/30 text-blue-400 px-1 py-0.5 rounded-full whitespace-nowrap">
               رئيسي
             </span>
           )}
         </p>
-        <p className={`text-[9px] sm:text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'} truncate`}>
+        <p className={`text-[7px] xs:text-[9px] sm:text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'} truncate`}>
           {link.url.replace(/^https?:\/\//, '').replace(/\/.*$/, '')}
         </p>
       </div>
-      <Icons.ExternalLink className={`h-3 w-3 sm:h-3.5 sm:w-3.5 flex-shrink-0 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
+      <Icons.ExternalLink className={`h-2.5 w-2.5 xs:h-3 xs:w-3 sm:h-3.5 sm:w-3.5 flex-shrink-0 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
     </motion.a>
   );
 };
 
 // ================================================================
-// 📐 أقسام الصفحة الرئيسية
+// 📐 أقسام الصفحة الرئيسية (بقيت المكونات لم تتغير كثيراً)
 // ================================================================
 
 const HeroSection = ({ isDark }) => {
@@ -645,7 +646,6 @@ const HeroSection = ({ isDark }) => {
             </motion.a>
           </motion.div>
 
-          {/* عرض ترويجي – PROMO_GENERAL */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -865,7 +865,7 @@ const PromoSection = ({ isDark }) => {
 };
 
 // ================================================================
-// 📞 قسم التواصل – مع خانة الأرقام الجديدة والحديث الشريف
+// 📞 قسم التواصل – تعديل الأيقونات
 // ================================================================
 
 const ContactSection = ({ isDark }) => {
@@ -935,7 +935,7 @@ const ContactSection = ({ isDark }) => {
 };
 
 // ================================================================
-// 📌 FooterSection – مع زر Teacher Assistant واسم مبرمج باللون الأحمر
+// 📌 FooterSection – زر Assistant تم تصغيره قليلاً
 // ================================================================
 
 const FooterSection = ({ isDark }) => {
@@ -973,22 +973,20 @@ const FooterSection = ({ isDark }) => {
           </div>
         </div>
 
-        {/* ===== زر Teacher Assistant في الفوتر ===== */}
         <div className={`flex justify-center mt-6 sm:mt-8 pt-4 sm:pt-5 border-t ${isDark ? 'border-white/5' : 'border-gray-200/50'}`}>
           <Link
             href="/assistant-login"
-            className={`inline-flex items-center gap-2 px-4 py-2 sm:px-5 sm:py-2.5 rounded-full border-2 transition-all duration-300 hover:scale-105 text-[10px] sm:text-xs font-bold ${
+            className={`inline-flex items-center gap-2 px-3 py-1.5 xs:px-4 xs:py-2 sm:px-5 sm:py-2.5 rounded-full border-2 transition-all duration-300 hover:scale-105 text-[9px] xs:text-[10px] sm:text-xs font-bold ${
               isDark
                 ? 'border-green-400/30 text-green-300 hover:bg-green-400/10 hover:border-green-400/60'
                 : 'border-green-400/30 text-green-700 hover:bg-green-400/10 hover:border-green-400/60'
             }`}
           >
-            <Icons.UserCog className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+            <Icons.UserCog className="h-3 w-3 xs:h-3.5 xs:w-3.5 sm:h-4 sm:w-4" />
             Teacher Assistant
           </Link>
         </div>
 
-        {/* ===== خط فاصل فوق اسم المبرمج باللون الأحمر ===== */}
         <div className={`border-t ${isDark ? 'border-white/5' : 'border-gray-200/50'} mt-4 sm:mt-5 pt-4 sm:pt-5`}>
           <motion.div
             initial={{ opacity: 0.6 }}
@@ -1143,7 +1141,6 @@ export default function Home() {
             ))}
           </div>
 
-          {/* ===== الأزرار في الهيدر ===== */}
           <div className="flex items-center gap-1.5 sm:gap-2">
             <button
               onClick={toggleTheme}
