@@ -1,6 +1,6 @@
 // app/api/codes/activate/route.js
 // ================================================================
-// 🎫 API تفعيل كود الشحن – مع خدمة service_role لتجاوز RLS
+// 🎫 API تفعيل كود الشحن – بدون تسجيل جهاز (يسجل عند أول دخول)
 // ================================================================
 
 import { NextResponse } from 'next/server';
@@ -136,7 +136,7 @@ export async function POST(request) {
       })
       .eq('id', codeData.id);
 
-    // سجل الاستخدام
+    // سجل الاستخدام (بدون جهاز، مجرد سجل)
     try {
       const fingerprint = await getDeviceFingerprint();
       await supabase.from('code_usage_logs').insert({
@@ -171,34 +171,11 @@ export async function POST(request) {
       });
     }
 
-    // تسجيل الجهاز
-    try {
-      const deviceFingerprint = await getDeviceFingerprint();
-      if (deviceFingerprint) {
-        const { count } = await supabase
-          .from('course_devices')
-          .select('id', { count: 'exact', head: true })
-          .eq('student_id', studentId)
-          .eq('course_id', codeData.course_id)
-          .eq('is_active', true);
-
-        if ((count || 0) < (codeData.max_devices || 2)) {
-          await supabase.from('course_devices').insert({
-            student_id: studentId,
-            course_id: codeData.course_id,
-            device_fingerprint: deviceFingerprint,
-            device_name: 'جهاز أساسي',
-            device_info: {},
-            is_active: true,
-            is_primary: true,
-            first_used_at: new Date().toISOString(),
-            last_used_at: new Date().toISOString(),
-          });
-        }
-      }
-    } catch (deviceErr) {
-      console.warn('⚠️ Could not register device:', deviceErr);
-    }
+    // ================================================================
+    // ❌ تم إزالة تسجيل الجهاز من هنا بالكامل
+    // سيتم تسجيل الجهاز تلقائياً عند أول دخول للكورس عبر checkCourseAccess
+    // مما يضمن تسجيل جهاز واحد فقط بمطابقة البصمة الحقيقية
+    // ================================================================
 
     return NextResponse.json({
       success: true,
@@ -219,7 +196,6 @@ export async function POST(request) {
 
 // GET تبقى كما هي
 export async function GET(request) {
-  // يمكن استخدام service_role أيضاً لو أردت
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
     process.env.SUPABASE_SERVICE_ROLE_KEY,
