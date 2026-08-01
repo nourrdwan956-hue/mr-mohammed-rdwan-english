@@ -14,6 +14,7 @@ import { motion, useScroll, useTransform, AnimatePresence } from 'framer-motion'
 import * as Icons from 'lucide-react';
 import { useTheme } from '@/lib/hooks/useTheme';
 import { supabase } from '@/lib/supabaseClient';
+import WaveBorderCard from '@/components/WaveBorderCard'; // ✅ المكون الموحد الجديد
 
 // ================================================================
 // 📌 البيانات الثابتة – مميزات المنصة
