@@ -1,10 +1,10 @@
 // app/dashboard/student/exams/[id]/page.js
 // ================================================================
-// 🏛️ صفحة الامتحان – النسخة النهائية مع التعديلات المطلوبة
-// ✅ إصلاح خصم المحاولات عند إعادة التحميل (مع منع الخصم المزدوج)
-// ✅ تقليص الهوامش والتباعد الداخلي مع الحفاظ على حجم النص
-// ✅ زر تبديل الثيم يعمل بشكل صحيح
-// ✅ الحفاظ على جميع ميزات الأمان والوظائف
+// 🏛️ الصفحة النهائية مع التعديلات المطلوبة
+// ✅ خصم محاولة عند الـ Reload (F5 / زر التحميل)
+// ✅ تطبيق الثيم الفاتح/الداكن بتباين عالٍ جداً
+// ✅ شريط تنقل سفلي متحرك سريع الاستجابة
+// ✅ تحسين الشريط العلوي للأداء
 // ================================================================
 
 'use client';
@@ -109,12 +109,13 @@ const getGrade = (percentage) => {
 };
 
 // ================================================================
-// 1.5 دالة تصدير الأسئلة إلى PDF
+// 1.5 دالة تصدير الأسئلة إلى PDF (نسخة محسّنة مع جلب الأسئلة تلقائياً وعلامة مائية ونموذج إجابة)
 // ================================================================
 const generateQuestionsPDF = async (questions, language, examId, supabaseClient, examTitle) => {
   try {
     let finalQuestions = questions;
 
+    // إذا كانت الأسئلة فارغة، نجلبها من قاعدة البيانات
     if (!finalQuestions || finalQuestions.length === 0) {
       if (!examId) {
         toast.error(language === 'ar' ? 'معرف الامتحان غير موجود' : 'Exam ID not found');
@@ -135,6 +136,7 @@ const generateQuestionsPDF = async (questions, language, examId, supabaseClient,
       finalQuestions = data;
     }
 
+    // جلب بيانات الطالب الحالية
     const { data: { user } } = await supabaseClient.auth.getUser();
     const { data: profile } = await supabaseClient
       .from('profiles')
@@ -151,6 +153,7 @@ const generateQuestionsPDF = async (questions, language, examId, supabaseClient,
 
     const watermarkText = `${studentName} | ${studentEmail} | ${studentPhone} | ${studentSchool} | ${studentGrade} | ${studentGovernorate} | ${examTitle || ''}`;
 
+    // إنشاء العنصر المؤقت
     const element = document.createElement('div');
     element.style.cssText = `
       padding: 30px 25px;
@@ -164,6 +167,7 @@ const generateQuestionsPDF = async (questions, language, examId, supabaseClient,
       margin: 0 auto;
     `;
 
+    // --- العلامة المائية (طبقة شفافة) ---
     const watermarkDiv = document.createElement('div');
     watermarkDiv.style.cssText = `
       position: absolute;
@@ -190,10 +194,12 @@ const generateQuestionsPDF = async (questions, language, examId, supabaseClient,
       letter-spacing: 1px;
       word-break: break-word;
     `;
+    // تكرار النص بشكل كافٍ لملء المساحة
     const watermarkTextRepeated = (watermarkText + ' ').repeat(30);
     watermarkDiv.textContent = watermarkTextRepeated;
     element.appendChild(watermarkDiv);
 
+    // --- المحتوى (فوق العلامة المائية) ---
     const content = document.createElement('div');
     content.style.cssText = `
       position: relative;
@@ -201,6 +207,7 @@ const generateQuestionsPDF = async (questions, language, examId, supabaseClient,
       background: transparent;
     `;
 
+    // عنوان الامتحان
     const title = document.createElement('h1');
     title.style.cssText = `
       text-align: center;
@@ -224,6 +231,7 @@ const generateQuestionsPDF = async (questions, language, examId, supabaseClient,
     subtitle.textContent = language === 'ar' ? 'أسئلة الامتحان' : 'Exam Questions';
     content.appendChild(subtitle);
 
+    // الأسئلة
     const questionsList = finalQuestions.filter(q => q.type !== 'passage');
     questionsList.forEach((q, idx) => {
       const block = document.createElement('div');
@@ -257,6 +265,7 @@ const generateQuestionsPDF = async (questions, language, examId, supabaseClient,
       textDiv.textContent = q.question_text;
       block.appendChild(textDiv);
 
+      // MCQ
       if (q.type === 'multiple_choice' && Array.isArray(q.options)) {
         const optionsDiv = document.createElement('div');
         optionsDiv.style.cssText = 'margin-right: 20px; font-size: 15px; color: #374151;';
@@ -270,6 +279,7 @@ const generateQuestionsPDF = async (questions, language, examId, supabaseClient,
         block.appendChild(optionsDiv);
       }
 
+      // Fill from words
       if (q.type === 'fill_from_words' && Array.isArray(q.options)) {
         const bankDiv = document.createElement('div');
         bankDiv.style.cssText = 'margin-top: 10px;';
@@ -289,6 +299,7 @@ const generateQuestionsPDF = async (questions, language, examId, supabaseClient,
         block.appendChild(bankDiv);
       }
 
+      // Sentence reorder
       if (q.type === 'sentence_reorder' && Array.isArray(q.options)) {
         const bankDiv = document.createElement('div');
         bankDiv.style.cssText = 'margin-top: 10px;';
@@ -308,6 +319,7 @@ const generateQuestionsPDF = async (questions, language, examId, supabaseClient,
         block.appendChild(bankDiv);
       }
 
+      // الدرجة
       const marksDiv = document.createElement('div');
       marksDiv.style.cssText = 'font-size:13px;color:#6b7280;margin-top:10px;';
       marksDiv.textContent = `${language === 'ar' ? 'الدرجة:' : 'Marks:'} ${q.marks}`;
@@ -316,6 +328,7 @@ const generateQuestionsPDF = async (questions, language, examId, supabaseClient,
       content.appendChild(block);
     });
 
+    // --- نموذج الإجابة (صفحة جديدة) ---
     const answerKeyTitle = document.createElement('h2');
     answerKeyTitle.style.cssText = `
       text-align: center;
@@ -353,6 +366,7 @@ const generateQuestionsPDF = async (questions, language, examId, supabaseClient,
       const answerDiv = document.createElement('div');
       answerDiv.style.cssText = 'font-size: 14px; color: #1f2937;';
 
+      // عرض الإجابة الصحيحة حسب النوع
       if (q.type === 'multiple_choice' && Array.isArray(q.options)) {
         const correctOpt = q.options.find(opt => opt.isCorrect === true);
         if (correctOpt) {
@@ -375,6 +389,7 @@ const generateQuestionsPDF = async (questions, language, examId, supabaseClient,
         answerDiv.innerHTML = `<span style="font-weight:600;">${language === 'ar' ? 'الإجابة الصحيحة:' : 'Correct answer:'}</span> ${correctAns}`;
       }
 
+      // إضافة الشرح إن وجد
       if (q.explanation) {
         const explDiv = document.createElement('div');
         explDiv.style.cssText = 'margin-top: 6px; font-size: 13px; color: #4b5563; background: #fef3c7; padding: 6px 10px; border-radius: 6px;';
@@ -386,6 +401,7 @@ const generateQuestionsPDF = async (questions, language, examId, supabaseClient,
       content.appendChild(block);
     });
 
+    // تذييل الصفحة
     const footer = document.createElement('div');
     footer.style.cssText = `
       text-align: center;
@@ -401,6 +417,7 @@ const generateQuestionsPDF = async (questions, language, examId, supabaseClient,
     element.appendChild(content);
     document.body.appendChild(element);
 
+    // استخدام html2canvas لالتقاط الصورة
     const canvas = await html2canvas(element, {
       scale: 2,
       useCORS: true,
@@ -413,12 +430,14 @@ const generateQuestionsPDF = async (questions, language, examId, supabaseClient,
 
     document.body.removeChild(element);
 
+    // إنشاء PDF
     const pdf = new jsPDF('p', 'mm', 'a4');
     const imgData = canvas.toDataURL('image/png');
     const imgProps = pdf.getImageProperties(imgData);
     const pdfWidth = pdf.internal.pageSize.getWidth();
     const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
 
+    // تقسيم إلى صفحات
     const pageHeight = pdf.internal.pageSize.getHeight();
     let heightLeft = pdfHeight;
     let position = 0;
@@ -461,7 +480,7 @@ const ExamCountdownScreen = ({ exam, styles, language, isDark }) => {
       setRemaining(prev => {
         if (prev <= 1000) {
           clearInterval(timer);
-          window.location.reload();
+          window.location.reload(); // بمجرد انتهاء العد التنازلي، إعادة تحميل الصفحة للدخول للامتحان
           return 0;
         }
         return prev - 1000;
@@ -476,16 +495,17 @@ const ExamCountdownScreen = ({ exam, styles, language, isDark }) => {
   const seconds = Math.floor((remaining % (1000 * 60)) / 1000);
 
   return (
-    <div className={`min-h-screen flex items-center justify-center p-3 ${styles.bg} relative overflow-hidden`}>
+    <div className={`min-h-screen flex items-center justify-center p-4 ${styles.bg} relative overflow-hidden`}>
+      {/* خلفية لامعة متحركة */}
       <div className="absolute inset-0 bg-gradient-to-br from-yellow-400/20 via-transparent to-cyan-400/20 animate-pulse" />
-      <div className="absolute top-1/4 left-1/4 w-72 h-72 bg-yellow-400/10 rounded-full blur-[80px] animate-pulse" />
-      <div className="absolute bottom-1/4 right-1/4 w-72 h-72 bg-blue-400/10 rounded-full blur-[80px] animate-pulse delay-1000" />
+      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-yellow-400/10 rounded-full blur-[100px] animate-pulse" />
+      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-400/10 rounded-full blur-[100px] animate-pulse delay-1000" />
       
       <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.5, type: 'spring' }}
-        className={`max-w-xl w-full p-5 md:p-7 rounded-3xl border backdrop-blur-2xl shadow-2xl relative z-10 ${
+        transition={{ duration: 0.6, type: 'spring' }}
+        className={`max-w-2xl w-full p-8 md:p-10 rounded-3xl border backdrop-blur-2xl shadow-2xl relative z-10 ${
           isDark
             ? 'bg-white/10 border-white/20 shadow-yellow-400/20'
             : 'bg-white/60 border-gray-300 shadow-yellow-400/30'
@@ -495,47 +515,48 @@ const ExamCountdownScreen = ({ exam, styles, language, isDark }) => {
           <motion.div
             animate={{ rotate: 360 }}
             transition={{ duration: 20, repeat: Infinity, ease: 'linear' }}
-            className="inline-flex p-3 rounded-full bg-yellow-400/20 border-2 border-yellow-400/30 mb-3"
+            className="inline-flex p-4 rounded-full bg-yellow-400/20 border-2 border-yellow-400/30 mb-6"
           >
-            <Icons.Clock className="h-12 w-12 text-yellow-400" />
+            <Icons.Clock className="h-16 w-16 text-yellow-400" />
           </motion.div>
           
-          <h1 className={`text-2xl md:text-3xl font-extrabold mb-1 ${styles.text}`}>
+          <h1 className={`text-3xl md:text-4xl font-extrabold mb-2 ${styles.text}`}>
             {language === 'ar' ? 'الامتحان لم يبدأ بعد' : 'Exam Not Started Yet'}
           </h1>
-          <p className={`text-base ${styles.subtext} mb-4`}>{exam?.title}</p>
+          <p className={`text-lg ${styles.subtext} mb-6`}>{exam?.title}</p>
           
-          <div className="flex items-center justify-center gap-3 md:gap-4 mb-5">
+          {/* المؤقت الرقمي الكبير */}
+          <div className="flex items-center justify-center gap-4 md:gap-6 mb-8">
             <div className="flex flex-col items-center">
-              <div className={`w-16 h-16 md:w-20 md:h-20 rounded-2xl ${styles.card} border ${styles.border} flex items-center justify-center backdrop-blur-md`}>
-                <span className="text-3xl md:text-4xl font-black text-yellow-400 tabular-nums">{String(days).padStart(2, '0')}</span>
+              <div className={`w-20 h-20 md:w-24 md:h-24 rounded-2xl ${styles.card} border ${styles.border} flex items-center justify-center backdrop-blur-md`}>
+                <span className="text-4xl md:text-5xl font-black text-yellow-400 tabular-nums">{String(days).padStart(2, '0')}</span>
               </div>
-              <span className={`text-[10px] mt-0.5 ${styles.subtext}`}>{language === 'ar' ? 'يوم' : 'Days'}</span>
+              <span className={`text-xs mt-1 ${styles.subtext}`}>{language === 'ar' ? 'يوم' : 'Days'}</span>
             </div>
-            <span className="text-2xl font-bold text-yellow-400">:</span>
+            <span className="text-3xl font-bold text-yellow-400">:</span>
             <div className="flex flex-col items-center">
-              <div className={`w-16 h-16 md:w-20 md:h-20 rounded-2xl ${styles.card} border ${styles.border} flex items-center justify-center backdrop-blur-md`}>
-                <span className="text-3xl md:text-4xl font-black text-yellow-400 tabular-nums">{String(hours).padStart(2, '0')}</span>
+              <div className={`w-20 h-20 md:w-24 md:h-24 rounded-2xl ${styles.card} border ${styles.border} flex items-center justify-center backdrop-blur-md`}>
+                <span className="text-4xl md:text-5xl font-black text-yellow-400 tabular-nums">{String(hours).padStart(2, '0')}</span>
               </div>
-              <span className={`text-[10px] mt-0.5 ${styles.subtext}`}>{language === 'ar' ? 'ساعة' : 'Hours'}</span>
+              <span className={`text-xs mt-1 ${styles.subtext}`}>{language === 'ar' ? 'ساعة' : 'Hours'}</span>
             </div>
-            <span className="text-2xl font-bold text-yellow-400">:</span>
+            <span className="text-3xl font-bold text-yellow-400">:</span>
             <div className="flex flex-col items-center">
-              <div className={`w-16 h-16 md:w-20 md:h-20 rounded-2xl ${styles.card} border ${styles.border} flex items-center justify-center backdrop-blur-md`}>
-                <span className="text-3xl md:text-4xl font-black text-yellow-400 tabular-nums">{String(minutes).padStart(2, '0')}</span>
+              <div className={`w-20 h-20 md:w-24 md:h-24 rounded-2xl ${styles.card} border ${styles.border} flex items-center justify-center backdrop-blur-md`}>
+                <span className="text-4xl md:text-5xl font-black text-yellow-400 tabular-nums">{String(minutes).padStart(2, '0')}</span>
               </div>
-              <span className={`text-[10px] mt-0.5 ${styles.subtext}`}>{language === 'ar' ? 'دقيقة' : 'Minutes'}</span>
+              <span className={`text-xs mt-1 ${styles.subtext}`}>{language === 'ar' ? 'دقيقة' : 'Minutes'}</span>
             </div>
-            <span className="text-2xl font-bold text-yellow-400">:</span>
+            <span className="text-3xl font-bold text-yellow-400">:</span>
             <div className="flex flex-col items-center">
-              <div className={`w-16 h-16 md:w-20 md:h-20 rounded-2xl ${styles.card} border ${styles.border} flex items-center justify-center backdrop-blur-md`}>
-                <span className="text-3xl md:text-4xl font-black text-yellow-400 tabular-nums">{String(seconds).padStart(2, '0')}</span>
+              <div className={`w-20 h-20 md:w-24 md:h-24 rounded-2xl ${styles.card} border ${styles.border} flex items-center justify-center backdrop-blur-md`}>
+                <span className="text-4xl md:text-5xl font-black text-yellow-400 tabular-nums">{String(seconds).padStart(2, '0')}</span>
               </div>
-              <span className={`text-[10px] mt-0.5 ${styles.subtext}`}>{language === 'ar' ? 'ثانية' : 'Seconds'}</span>
+              <span className={`text-xs mt-1 ${styles.subtext}`}>{language === 'ar' ? 'ثانية' : 'Seconds'}</span>
             </div>
           </div>
 
-          <p className={`text-xs sm:text-sm ${styles.subtext} mb-3`}>
+          <p className={`text-sm ${styles.subtext} mb-6`}>
             {language === 'ar'
               ? 'لم يبدأ الامتحان بعد. يمكنك العودة عند انتهاء المؤقت.'
               : 'The exam has not started yet. You can return when the countdown ends.'}
@@ -543,7 +564,7 @@ const ExamCountdownScreen = ({ exam, styles, language, isDark }) => {
 
           <button
             onClick={() => router.push('/dashboard/student/courses')}
-            className="px-5 py-2 bg-gradient-to-r from-yellow-400 to-yellow-600 text-black font-bold rounded-xl hover:scale-105 transition shadow-xl"
+            className="px-8 py-3 bg-gradient-to-r from-yellow-400 to-yellow-600 text-black font-bold rounded-xl hover:scale-105 transition shadow-xl"
           >
             {language === 'ar' ? 'العودة للكورسات' : 'Back to Courses'}
           </button>
@@ -554,14 +575,15 @@ const ExamCountdownScreen = ({ exam, styles, language, isDark }) => {
 };
 
 // ================================================================
-// 3. مكونات الأسئلة (مع تباين عالٍ) – تم تقليص الهوامش الداخلية فقط
+// 3. مكونات الأسئلة (مع تباين عالٍ)
 // ================================================================
 
-// 3.1 MCQ
+// 3.1 MCQ – مع إزالة الخلط (ترتيب ثابت حسب قاعدة البيانات)
 const MCQQuestion = ({ question, selectedAnswer, onSelect, styles, language, isDark }) => {
   const rawOptions = Array.isArray(question.options) ? question.options : [];
   const labels = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
 
+  // عرض الخيارات بالترتيب الأصلي دون خلط
   const options = rawOptions.map((opt, idx) => {
     if (typeof opt === 'object' && opt !== null) {
       return { text: opt.text || opt.label || JSON.stringify(opt), isCorrect: opt.isCorrect || false };
@@ -570,7 +592,7 @@ const MCQQuestion = ({ question, selectedAnswer, onSelect, styles, language, isD
   });
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2.5">
       {options.map((opt, idx) => {
         const label = labels[idx];
         const isSelected = selectedAnswer === label;
@@ -580,13 +602,13 @@ const MCQQuestion = ({ question, selectedAnswer, onSelect, styles, language, isD
             whileTap={{ scale: 0.98 }}
             onClick={() => onSelect(label)}
             style={{ touchAction: 'manipulation' }}
-            className={`w-full text-right p-3 rounded-xl border-4 border-solid transition-all duration-200 flex items-center gap-2.5 backdrop-blur-sm ${
+            className={`w-full text-right p-4 rounded-xl border-4 border-solid transition-all duration-200 flex items-center gap-3 backdrop-blur-sm ${
               isSelected
                 ? 'border-yellow-400 bg-yellow-400/20 shadow-lg shadow-yellow-400/30'
                 : `${isDark ? 'border-white/10 hover:border-yellow-400/40' : 'border-gray-600 hover:border-yellow-400/70'} ${styles.card} bg-opacity-50 hover:bg-white/20`
             }`}
           >
-            <span className={`flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center font-bold text-sm ${
+            <span className={`flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm ${
               isSelected ? 'bg-yellow-400 text-black' : `${styles.card} bg-opacity-30 ${styles.text}`
             }`}>
               {label}
@@ -600,7 +622,7 @@ const MCQQuestion = ({ question, selectedAnswer, onSelect, styles, language, isD
       {selectedAnswer && (
         <button
           onClick={() => onSelect(null)}
-          className="text-xs text-red-400 hover:text-red-300 transition mt-1 flex items-center gap-1"
+          className="text-xs text-red-400 hover:text-red-300 transition mt-2 flex items-center gap-1"
         >
           <Icons.X className="h-3 w-3" /> {language === 'ar' ? 'مسح' : 'Clear'}
         </button>
@@ -609,14 +631,14 @@ const MCQQuestion = ({ question, selectedAnswer, onSelect, styles, language, isD
   );
 };
 
-// 3.2 True/False
+// 3.2 صح/خطأ
 const TrueFalseQuestion = ({ selectedAnswer, onSelect, styles, language }) => {
   const options = [
     { value: 'true', label: language === 'ar' ? '✅ صحيح' : '✅ True', color: 'emerald' },
     { value: 'false', label: language === 'ar' ? '❌ خطأ' : '❌ False', color: 'rose' },
   ];
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
       {options.map((opt) => {
         const isSelected = selectedAnswer === opt.value;
         const colorClass = opt.color === 'emerald'
@@ -633,7 +655,7 @@ const TrueFalseQuestion = ({ selectedAnswer, onSelect, styles, language }) => {
             whileTap={{ scale: 0.95 }}
             onClick={() => onSelect(opt.value)}
             style={{ touchAction: 'manipulation' }}
-            className={`p-3.5 rounded-xl border-2 transition-all duration-200 font-bold text-base flex items-center justify-center gap-2 backdrop-blur-sm ${selectedClass}`}
+            className={`p-5 rounded-xl border-2 transition-all duration-200 font-bold text-base flex items-center justify-center gap-2 backdrop-blur-sm ${selectedClass}`}
           >
             <span className="text-lg">{opt.value === 'true' ? '✅' : '❌'}</span>
             <span>{opt.label}</span>
@@ -644,7 +666,7 @@ const TrueFalseQuestion = ({ selectedAnswer, onSelect, styles, language }) => {
   );
 };
 
-// 3.3 Matching
+// 3.3 توصيل (Matching)
 const MatchingQuestion = ({ question, selectedAnswer, onSelect, styles, language }) => {
   const pairs = Array.isArray(question.options) ? question.options : [];
   const [leftItems] = useState(() => pairs.map(p => p.left).sort(() => Math.random() - 0.5));
@@ -676,9 +698,9 @@ const MatchingQuestion = ({ question, selectedAnswer, onSelect, styles, language
   };
 
   return (
-    <div className="space-y-2.5">
-      <div className="grid grid-cols-2 gap-3 text-sm">
-        <div className="space-y-1.5">
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-4 text-sm">
+        <div className="space-y-2">
           <p className={`text-xs ${styles.subtext} font-semibold`}>{language === 'ar' ? 'العناصر' : 'Items'}</p>
           {leftItems.map((item, idx) => (
             <motion.div
@@ -686,7 +708,7 @@ const MatchingQuestion = ({ question, selectedAnswer, onSelect, styles, language
               whileTap={{ scale: 0.97 }}
               onClick={() => handleLeftClick(item)}
               style={{ touchAction: 'manipulation' }}
-              className={`p-2.5 rounded-xl border-2 cursor-pointer transition-all backdrop-blur-sm ${
+              className={`p-3 rounded-xl border-2 cursor-pointer transition-all backdrop-blur-sm ${
                 activeLeft === item
                   ? 'border-yellow-400 bg-yellow-400/20 ring-2 ring-yellow-400/30'
                   : selected[item]
@@ -699,7 +721,7 @@ const MatchingQuestion = ({ question, selectedAnswer, onSelect, styles, language
             </motion.div>
           ))}
         </div>
-        <div className="space-y-1.5">
+        <div className="space-y-2">
           <p className={`text-xs ${styles.subtext} font-semibold`}>{language === 'ar' ? 'المقابلات' : 'Matches'}</p>
           {rightItems.map((item, idx) => (
             <motion.div
@@ -707,7 +729,7 @@ const MatchingQuestion = ({ question, selectedAnswer, onSelect, styles, language
               whileTap={{ scale: 0.97 }}
               onClick={() => handleRightClick(item)}
               style={{ touchAction: 'manipulation' }}
-              className={`p-2.5 rounded-xl border-2 cursor-pointer transition-all backdrop-blur-sm ${
+              className={`p-3 rounded-xl border-2 cursor-pointer transition-all backdrop-blur-sm ${
                 Object.values(selected).includes(item)
                   ? 'border-emerald-400 bg-emerald-400/10'
                   : activeLeft
@@ -730,7 +752,7 @@ const MatchingQuestion = ({ question, selectedAnswer, onSelect, styles, language
   );
 };
 
-// 3.4 Ordering
+// 3.4 ترتيب (Ordering)
 const OrderingQuestion = ({ question, selectedAnswer, onSelect, styles, language }) => {
   const items = Array.isArray(question.options) ? question.options : [];
   const [ordered, setOrdered] = useState(selectedAnswer || [...items].sort(() => Math.random() - 0.5));
@@ -745,23 +767,23 @@ const OrderingQuestion = ({ question, selectedAnswer, onSelect, styles, language
   };
 
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-2">
       {ordered.map((item, idx) => (
-        <div key={idx} className={`flex items-center gap-2.5 p-2.5 rounded-xl border-2 ${styles.border} ${styles.card} bg-opacity-50 backdrop-blur-sm`}>
+        <div key={idx} className={`flex items-center gap-3 p-3 rounded-xl border-2 ${styles.border} ${styles.card} bg-opacity-50 backdrop-blur-sm`}>
           <div className="flex flex-col gap-0.5">
             <button
               onClick={() => moveItem(idx, -1)}
               disabled={idx === 0}
-              className="p-0.5 rounded bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-30 transition-all duration-200"
+              className="p-1 rounded bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-30 transition-all duration-200"
             >
-              <Icons.ChevronUp className="h-3.5 w-3.5" />
+              <Icons.ChevronUp className="h-4 w-4" />
             </button>
             <button
               onClick={() => moveItem(idx, 1)}
               disabled={idx === ordered.length - 1}
-              className="p-0.5 rounded bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-30 transition-all duration-200"
+              className="p-1 rounded bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-30 transition-all duration-200"
             >
-              <Icons.ChevronDown className="h-3.5 w-3.5" />
+              <Icons.ChevronDown className="h-4 w-4" />
             </button>
           </div>
           <span className={`flex-1 text-sm ${styles.text}`}>{idx + 1}. {item}</span>
@@ -771,18 +793,18 @@ const OrderingQuestion = ({ question, selectedAnswer, onSelect, styles, language
   );
 };
 
-// 3.5 Fill Blank
+// 3.5 ملء الفراغ (Fill Blank)
 const FillBlankQuestion = ({ question, selectedAnswer, onSelect, styles, language, isDark }) => {
   const answer = selectedAnswer || '';
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-2">
       <div className={`w-full rounded-xl border-4 ${answer ? 'border-yellow-400' : isDark ? 'border-white/50' : 'border-gray-600'} transition-all duration-300 focus-within:ring-4 focus-within:ring-yellow-400/60 focus-within:border-yellow-400 ${styles.card} bg-opacity-${isDark ? '80' : '100'} shadow-inner shadow-lg`}>
         <input
           type="text"
           value={answer}
           onChange={(e) => onSelect(e.target.value)}
           placeholder={language === 'ar' ? 'أدخل الإجابة...' : 'Enter answer...'}
-          className={`w-full p-2.5 bg-transparent ${styles.text} placeholder-${styles.subtext} text-sm focus:outline-none`}
+          className={`w-full p-4 bg-transparent ${styles.text} placeholder-${styles.subtext} text-sm focus:outline-none`}
           style={{ background: 'transparent' }}
         />
       </div>
@@ -795,7 +817,7 @@ const FillBlankQuestion = ({ question, selectedAnswer, onSelect, styles, languag
   );
 };
 
-// 3.6 Essay
+// 3.6 مقالي (Essay)
 const EssayQuestion = ({ question, selectedAnswer, onSelect, styles, language, isDark }) => {
   const answer = selectedAnswer || '';
   const wordLimit = question.word_limit || question.max_words || 0;
@@ -809,14 +831,14 @@ const EssayQuestion = ({ question, selectedAnswer, onSelect, styles, language, i
   };
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       <div className={`w-full rounded-xl border-4 ${answer ? 'border-yellow-400' : isDark ? 'border-white/50' : 'border-gray-600'} transition-all duration-300 focus-within:ring-4 focus-within:ring-yellow-400/60 focus-within:border-yellow-400 ${styles.card} bg-opacity-${isDark ? '80' : '100'} shadow-inner shadow-lg`}>
         <textarea
           value={answer}
           onChange={handleChange}
-          rows={6}
+          rows={8}
           placeholder={language === 'ar' ? 'اكتب إجابتك بالتفصيل هنا...' : 'Write your detailed answer here...'}
-          className={`w-full p-2.5 bg-transparent ${styles.text} placeholder-${styles.subtext} text-sm resize-y focus:outline-none`}
+          className={`w-full p-4 bg-transparent ${styles.text} placeholder-${styles.subtext} text-sm resize-y focus:outline-none`}
           style={{ background: 'transparent' }}
         />
       </div>
@@ -840,7 +862,9 @@ const EssayQuestion = ({ question, selectedAnswer, onSelect, styles, language, i
   );
 };
 
-// 3.7 Fill From Words
+// ================================================================
+// 3.7 إكمال من كلمات معطاة
+// ================================================================
 const FillFromWordsQuestion = ({ question, selectedAnswer, onSelect, styles, language, isDark }) => {
   const rawWords = Array.isArray(question.options) ? question.options : [];
   const wordBank = rawWords.map(w =>
@@ -876,12 +900,12 @@ const FillFromWordsQuestion = ({ question, selectedAnswer, onSelect, styles, lan
 
   if (segments.length === 0) {
     return (
-      <div className="space-y-3">
-        <div className={`p-3 rounded-xl ${styles.card} border ${styles.border} text-base leading-relaxed`}>
+      <div className="space-y-4">
+        <div className={`p-4 rounded-xl ${styles.card} border ${styles.border} text-base leading-relaxed`}>
           <span className={`text-base ${styles.text}`}>{text}</span>
         </div>
         <p className={`text-xs text-red-400`}>
-          ⚠️ {language === 'ar' ? 'لم يتم اكتشاف فراغات في النص.' : 'No blanks detected.'}
+          ⚠️ {language === 'ar' ? 'لم يتم اكتشاف فراغات في النص. قد يكون السؤال غير مكتمل.' : 'No blanks detected. Question may be incomplete.'}
         </p>
       </div>
     );
@@ -897,31 +921,31 @@ const FillFromWordsQuestion = ({ question, selectedAnswer, onSelect, styles, lan
 
   if (wordBank.length === 0) {
     return (
-      <div className="space-y-3">
-        <div className={`p-3 rounded-xl ${styles.card} border ${styles.border} text-base leading-relaxed`}>
+      <div className="space-y-4">
+        <div className={`p-4 rounded-xl ${styles.card} border ${styles.border} text-base leading-relaxed`}>
           <span className={`text-base ${styles.text}`}>{text}</span>
         </div>
         <p className={`text-xs text-red-400`}>
-          ⚠️ {language === 'ar' ? 'لا توجد كلمات في صندوق الكلمات' : 'No words in word bank'}
+          ⚠️ {language === 'ar' ? 'لا توجد كلمات في صندوق الكلمات لهذا السؤال' : 'No words in word bank'}
         </p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-1.5 p-2.5 rounded-xl bg-white/10 border border-white/10">
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-2 p-3 rounded-xl bg-white/10 border border-white/10">
         <span className={`text-xs font-semibold ${styles.subtext} ml-2`}>
           📚 {language === 'ar' ? 'صندوق الكلمات:' : 'Word Bank:'}
         </span>
         {wordBank.map((w, i) => (
-          <span key={i} className={`px-2.5 py-1 rounded-full text-sm border ${styles.border} ${styles.card} shadow-sm`}>
+          <span key={i} className={`px-3 py-1 rounded-full text-sm border ${styles.border} ${styles.card} shadow-sm`}>
             {w}
           </span>
         ))}
       </div>
 
-      <div className={`p-3 rounded-xl ${styles.card} border ${styles.border} text-base leading-relaxed`}>
+      <div className={`p-4 rounded-xl ${styles.card} border ${styles.border} text-base leading-relaxed`}>
         {segments.map((seg, idx) => {
           if (seg.type === 'text') {
             return <span key={`text-${idx}`} className={`text-base ${styles.text}`}>{seg.content}</span>;
@@ -933,12 +957,12 @@ const FillFromWordsQuestion = ({ question, selectedAnswer, onSelect, styles, lan
                 <select
                   value={userAnswers[blankIdx] || ''}
                   onChange={(e) => handleBlankChange(blankIdx, e.target.value)}
-                  className={`p-1 border-2 rounded-lg focus:ring-2 focus:ring-yellow-500 outline-none transition text-sm ${
+                  className={`p-1.5 border-2 rounded-lg focus:ring-2 focus:ring-yellow-500 outline-none transition text-sm ${
                     isDark
                       ? 'bg-[#0b0e1a] border-white/40 text-white'
                       : 'bg-white border-gray-500 text-gray-900'
                   }`}
-                  style={{ minWidth: '80px' }}
+                  style={{ minWidth: '100px' }}
                 >
                   <option value="">{language === 'ar' ? 'اختر' : 'Select'}</option>
                   {wordBank.map((w, i) => (
@@ -954,7 +978,9 @@ const FillFromWordsQuestion = ({ question, selectedAnswer, onSelect, styles, lan
   );
 };
 
-// 3.8 Sentence Reorder
+// ================================================================
+// 3.8 ترتيب الجملة (Sentence Reorder)
+// ================================================================
 const SentenceReorderQuestion = ({ question, selectedAnswer, onSelect, styles, language, isDark }) => {
   const allWords = Array.isArray(question.options) ? [...question.options] : [];
   const currentAnswer = Array.isArray(selectedAnswer) ? selectedAnswer : [];
@@ -985,27 +1011,27 @@ const SentenceReorderQuestion = ({ question, selectedAnswer, onSelect, styles, l
   };
 
   const arrowButtonStyle = (disabled) => ({
-    padding: '4px 6px',
+    padding: '6px 8px',
     borderRadius: '8px',
     border: `2px solid ${isDark ? '#fbbf24' : '#1e293b'}`,
     cursor: disabled ? 'not-allowed' : 'pointer',
     backgroundColor: isDark ? 'rgba(251,191,36,0.30)' : '#cbd5e1',
     color: isDark ? '#fbbf24' : '#0f172a',
     fontWeight: 'bold',
-    fontSize: '14px',
+    fontSize: '16px',
     lineHeight: 1,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    width: '28px',
-    height: '28px',
+    width: '34px',
+    height: '34px',
     transition: 'all 0.2s',
     opacity: disabled ? 0.3 : 1,
     boxShadow: disabled ? 'none' : '0 2px 6px rgba(0,0,0,0.3)',
   });
 
   const wordStyle = {
-    padding: '6px 12px',
+    padding: '8px 14px',
     borderRadius: '10px',
     border: `2px solid ${isDark ? 'rgba(251,191,36,0.8)' : '#334155'}`,
     backgroundColor: isDark ? 'rgba(251,191,36,0.20)' : '#ffffff',
@@ -1021,13 +1047,13 @@ const SentenceReorderQuestion = ({ question, selectedAnswer, onSelect, styles, l
   const [showGuide, setShowGuide] = useState(true);
 
   return (
-    <div className="space-y-2.5">
+    <div className="space-y-3">
       {showGuide && (
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -10 }}
-          className="relative p-2.5 rounded-xl text-xs mb-2"
+          className="relative p-3 rounded-xl text-xs mb-3"
           style={{
             backgroundColor: isDark ? 'rgba(251,191,36,0.15)' : '#eff6ff',
             border: `1px solid ${isDark ? '#fbbf24' : '#3b82f6'}`,
@@ -1038,12 +1064,12 @@ const SentenceReorderQuestion = ({ question, selectedAnswer, onSelect, styles, l
             className="absolute top-2 right-2 p-0.5 rounded-full bg-white/10 hover:bg-white/20 transition"
             style={{ color: isDark ? '#fbbf24' : '#3b82f6' }}
           >
-            <Icons.X className="h-3 w-3" />
+            <Icons.X className="h-3.5 w-3.5" />
           </button>
           <div className="flex items-start gap-2 pr-6">
-            <Icons.Info className="h-3.5 w-3.5 flex-shrink-0 mt-0.5" style={{ color: isDark ? '#fbbf24' : '#3b82f6' }} />
+            <Icons.Info className="h-4 w-4 flex-shrink-0 mt-0.5" style={{ color: isDark ? '#fbbf24' : '#3b82f6' }} />
             <div>
-              <p className="font-bold mb-0.5" style={{ color: isDark ? '#fbbf24' : '#1e40af' }}>
+              <p className="font-bold mb-1" style={{ color: isDark ? '#fbbf24' : '#1e40af' }}>
                 {language === 'ar' ? '📘 كيفية ترتيب الجملة:' : '📘 How to order the sentence:'}
               </p>
               <ul className="space-y-0.5 list-disc list-inside" style={{ color: isDark ? '#fcd34d' : '#1e3a8a' }}>
@@ -1059,14 +1085,14 @@ const SentenceReorderQuestion = ({ question, selectedAnswer, onSelect, styles, l
       {!showGuide && (
         <button
           onClick={() => setShowGuide(true)}
-          className="text-xs text-yellow-400 hover:text-yellow-300 transition flex items-center gap-1 mb-1"
+          className="text-xs text-yellow-400 hover:text-yellow-300 transition flex items-center gap-1 mb-2"
         >
           <Icons.Info className="h-3 w-3" /> {language === 'ar' ? 'إظهار الإرشادات' : 'Show guide'}
         </button>
       )}
 
       <div
-        className="min-h-[50px] p-3 rounded-xl border-2 border-dashed transition-all"
+        className="min-h-[60px] p-4 rounded-xl border-2 border-dashed transition-all"
         style={{
           borderColor: currentAnswer.length > 0 ? '#fbbf24' : (isDark ? '#6b7280' : '#9ca3af'),
           backgroundColor: currentAnswer.length > 0 ? 'rgba(251,191,36,0.08)' : (isDark ? 'rgba(255,255,255,0.04)' : '#f3f4f6'),
@@ -1078,11 +1104,11 @@ const SentenceReorderQuestion = ({ question, selectedAnswer, onSelect, styles, l
           addWord(word);
         }}
       >
-        <p className={`text-xs mb-1.5 ${styles.subtext}`}>
+        <p className={`text-xs mb-2 ${styles.subtext}`}>
           {language === 'ar' ? '📝 رتب الكلمات لتكوين الجملة الصحيحة' : '📝 Arrange the words to form the correct sentence'}
         </p>
         <div
-          className="flex items-center gap-1.5 overflow-x-auto pb-1 flex-nowrap"
+          className="flex items-center gap-2 overflow-x-auto pb-1 flex-nowrap"
           style={{ direction: 'ltr' }}
         >
           {currentAnswer.length === 0 && (
@@ -1099,7 +1125,7 @@ const SentenceReorderQuestion = ({ question, selectedAnswer, onSelect, styles, l
                 title={language === 'ar' ? 'تحريك لليسار' : 'Move left'}
                 className="hover:scale-110 transition-transform"
               >
-                <Icons.ChevronLeft className="h-3.5 w-3.5" />
+                <Icons.ChevronLeft className="h-4 w-4" />
               </button>
 
               <span
@@ -1118,7 +1144,7 @@ const SentenceReorderQuestion = ({ question, selectedAnswer, onSelect, styles, l
                 title={language === 'ar' ? 'تحريك لليمين' : 'Move right'}
                 className="hover:scale-110 transition-transform"
               >
-                <Icons.ChevronRight className="h-3.5 w-3.5" />
+                <Icons.ChevronRight className="h-4 w-4" />
               </button>
             </div>
           ))}
@@ -1126,13 +1152,13 @@ const SentenceReorderQuestion = ({ question, selectedAnswer, onSelect, styles, l
       </div>
 
       <div
-        className="p-2.5 rounded-xl"
+        className="p-3 rounded-xl"
         style={{
           border: `1px solid ${isDark ? 'rgba(255,255,255,0.15)' : '#d1d5db'}`,
           backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#f9fafb',
         }}
       >
-        <div className="flex items-center justify-between mb-1.5">
+        <div className="flex items-center justify-between mb-2">
           <p className={`text-xs ${styles.subtext}`}>
             📚 {language === 'ar' ? 'الكلمات المتاحة' : 'Available Words'}
           </p>
@@ -1140,7 +1166,7 @@ const SentenceReorderQuestion = ({ question, selectedAnswer, onSelect, styles, l
             {availableWords.length} {language === 'ar' ? 'كلمة متبقية' : 'words remaining'}
           </p>
         </div>
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex flex-wrap gap-2">
           {availableWords.length === 0 && (
             <p className={`text-xs italic ${styles.subtext}`}>
               {language === 'ar' ? 'تم استخدام جميع الكلمات' : 'All words used'}
@@ -1152,7 +1178,7 @@ const SentenceReorderQuestion = ({ question, selectedAnswer, onSelect, styles, l
               draggable
               onDragStart={(e) => handleDragStart(e, word)}
               onClick={() => addWord(word)}
-              className="px-2.5 py-1 rounded-lg border cursor-grab active:cursor-grabbing transition"
+              className="px-3 py-1.5 rounded-lg border cursor-grab active:cursor-grabbing transition"
               style={{
                 borderColor: isDark ? 'rgba(255,255,255,0.15)' : '#d1d5db',
                 backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#ffffff',
@@ -1168,7 +1194,9 @@ const SentenceReorderQuestion = ({ question, selectedAnswer, onSelect, styles, l
   );
 };
 
-// 3.9 Passage
+// ================================================================
+// 3.9 مكون القطعة (Passage) مع أداة التلوين وتكبير النص المستقل
+// ================================================================
 const PassageDisplay = ({ passageId, originalText, examId, styles, isDark, passageFontSize, onFontSizeChange }) => {
   const [highlights, setHighlights] = useState([]);
   const [selectedColor, setSelectedColor] = useState('#FFEB3B');
@@ -1289,15 +1317,16 @@ const PassageDisplay = ({ passageId, originalText, examId, styles, isDark, passa
   ];
 
   return (
-    <div className="space-y-2.5">
-      <div className="flex flex-wrap items-center gap-1.5 p-2 rounded-xl bg-white/10 dark:bg-black/20 backdrop-blur-sm border border-white/20 dark:border-white/10">
+    <div className="space-y-3">
+      {/* أزرار التحكم: تلوين + تكبير نص القطعة */}
+      <div className="flex flex-wrap items-center gap-2 p-2 rounded-xl bg-white/10 dark:bg-black/20 backdrop-blur-sm border border-white/20 dark:border-white/10">
         <div className="flex items-center gap-1">
           <span className={`text-xs ${styles.subtext} ml-1`}>🎨</span>
           <input
             type="color"
             value={selectedColor}
             onChange={(e) => setSelectedColor(e.target.value)}
-            className="w-7 h-7 rounded-lg cursor-pointer border border-white/20 bg-transparent"
+            className="w-8 h-8 rounded-lg cursor-pointer border border-white/20 bg-transparent"
             title="Choose highlight color"
           />
         </div>
@@ -1306,7 +1335,7 @@ const PassageDisplay = ({ passageId, originalText, examId, styles, isDark, passa
             <button
               key={color}
               onClick={() => setSelectedColor(color)}
-              className={`w-5 h-5 rounded-full border-2 transition-all ${
+              className={`w-6 h-6 rounded-full border-2 transition-all ${
                 selectedColor === color ? 'border-yellow-400 scale-110' : 'border-white/20 hover:scale-105'
               }`}
               style={{ backgroundColor: color }}
@@ -1316,14 +1345,14 @@ const PassageDisplay = ({ passageId, originalText, examId, styles, isDark, passa
         </div>
         <button
           onClick={applyHighlight}
-          className="px-2.5 py-1 rounded-lg bg-yellow-400/20 text-yellow-300 hover:bg-yellow-400/30 transition text-xs font-bold flex items-center gap-1"
+          className="px-3 py-1.5 rounded-lg bg-yellow-400/20 text-yellow-300 hover:bg-yellow-400/30 transition text-xs font-bold flex items-center gap-1"
         >
           <Icons.Highlighter className="h-3 w-3" /> Highlight Selected
         </button>
         {highlights.length > 0 && (
           <button
             onClick={() => setShowResetConfirm(true)}
-            className="px-2.5 py-1 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30 transition text-xs font-bold flex items-center gap-1"
+            className="px-3 py-1.5 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30 transition text-xs font-bold flex items-center gap-1"
           >
             <Icons.Eraser className="h-3 w-3" /> Reset All
           </button>
@@ -1332,14 +1361,15 @@ const PassageDisplay = ({ passageId, originalText, examId, styles, isDark, passa
           {highlights.length} highlight{highlights.length !== 1 ? 's' : ''}
         </span>
 
-        <div className="w-px h-5 bg-white/20 mx-1.5" />
+        <div className="w-px h-6 bg-white/20 mx-2" />
         
+        {/* أزرار تكبير نص القطعة فقط */}
         <span className={`text-xs ${styles.subtext}`}>📏</span>
         {['text-xs', 'text-sm', 'text-base', 'text-lg', 'text-xl'].map(size => (
           <button
             key={size}
             onClick={() => onFontSizeChange && onFontSizeChange(size)}
-            className={`px-1.5 py-0.5 rounded-lg text-xs transition ${
+            className={`px-2 py-1 rounded-lg text-xs transition ${
               passageFontSize === size
                 ? 'bg-yellow-400/20 text-yellow-400'
                 : 'text-white/60 hover:text-white/90'
@@ -1351,18 +1381,18 @@ const PassageDisplay = ({ passageId, originalText, examId, styles, isDark, passa
       </div>
 
       {showResetConfirm && (
-        <div className="p-2.5 rounded-xl bg-red-500/10 border border-red-500/30 flex items-center justify-between gap-3">
+        <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/30 flex items-center justify-between gap-3">
           <span className="text-xs text-red-400">Are you sure you want to remove all highlights?</span>
           <div className="flex gap-2">
             <button
               onClick={resetAllHighlights}
-              className="px-2.5 py-1 rounded-lg bg-red-500 text-white text-xs font-bold hover:bg-red-600 transition"
+              className="px-3 py-1 rounded-lg bg-red-500 text-white text-xs font-bold hover:bg-red-600 transition"
             >
               Yes, remove all
             </button>
             <button
               onClick={() => setShowResetConfirm(false)}
-              className="px-2.5 py-1 rounded-lg bg-white/10 text-white/70 text-xs hover:bg-white/20 transition"
+              className="px-3 py-1 rounded-lg bg-white/10 text-white/70 text-xs hover:bg-white/20 transition"
             >
               Cancel
             </button>
@@ -1373,7 +1403,7 @@ const PassageDisplay = ({ passageId, originalText, examId, styles, isDark, passa
       <div
         ref={containerRef}
         dir="ltr"
-        className={`p-3 rounded-xl ${styles.card} border ${styles.border} select-text`}
+        className={`p-4 rounded-xl ${styles.card} border ${styles.border} select-text`}
         style={{ direction: 'ltr', textAlign: 'left' }}
       >
         <div className={`${passageFontSize || 'text-base'} ${styles.text} leading-relaxed whitespace-pre-wrap`}>
@@ -1390,14 +1420,14 @@ const PassageDisplay = ({ passageId, originalText, examId, styles, isDark, passa
 };
 
 // ================================================================
-// 4. شاشة التفاصيل قبل البدء
+// 4. شاشة التفاصيل قبل البدء (النسخة الفخمة – كوكبية)
 // ================================================================
 const ExamIntroScreen = ({ exam, startExam, loading, styles, language, isDark }) => {
   const [isPulsing, setIsPulsing] = useState(true);
   const [countdown, setCountdown] = useState(null);
-  const teacherName = exam?.teacher_name || 'مستر محمد رضوان';
+  const teacherName = exam?.teacher_name || 'مستر محمد رضوان'; // ✅ لن يظهر "غير محدد" أبداً
   const teacherInitial = teacherName.charAt(0).toUpperCase();
-  const courseName = exam?.course_name || '';
+  const courseName = exam?.course_name || ''; // عرض الكورس فقط إن وجد، بدون "غير محدد"
 
   useEffect(() => {
     const interval = setInterval(() => setIsPulsing(prev => !prev), 1500);
@@ -1422,50 +1452,51 @@ const ExamIntroScreen = ({ exam, startExam, loading, styles, language, isDark })
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.6, type: 'spring' }}
-      className={`max-w-2xl mx-auto p-5 md:p-7 rounded-3xl border backdrop-blur-3xl shadow-2xl relative overflow-hidden ${
+      transition={{ duration: 0.8, type: 'spring' }}
+      className={`max-w-3xl mx-auto p-6 md:p-10 rounded-3xl border backdrop-blur-3xl shadow-2xl relative overflow-hidden ${
         isDark
           ? 'bg-white/10 border-white/20 shadow-yellow-400/30'
           : 'bg-white/50 border-gray-300 shadow-yellow-400/40'
       }`}
     >
+      {/* تأثير الكوكب الدري – خلفيات لامعة متحركة */}
       <div className="absolute inset-0 bg-gradient-to-br from-yellow-400/30 via-amber-500/20 to-orange-600/10 animate-pulse" />
-      <div className="absolute -top-20 -right-20 w-72 h-72 bg-yellow-400/30 rounded-full blur-[80px] animate-pulse" />
-      <div className="absolute -bottom-20 -left-20 w-72 h-72 bg-cyan-400/20 rounded-full blur-[80px] animate-pulse delay-1000" />
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[450px] h-[450px] bg-gradient-to-r from-yellow-400/10 to-transparent rounded-full blur-[120px] animate-spin-slow" />
+      <div className="absolute -top-20 -right-20 w-80 h-80 bg-yellow-400/30 rounded-full blur-[80px] animate-pulse" />
+      <div className="absolute -bottom-20 -left-20 w-80 h-80 bg-cyan-400/20 rounded-full blur-[80px] animate-pulse delay-1000" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-gradient-to-r from-yellow-400/10 to-transparent rounded-full blur-[120px] animate-spin-slow" />
 
       {countdown !== null ? (
         <motion.div
           key="countdown"
           initial={{ scale: 0.8, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          className="flex flex-col items-center justify-center py-16 relative z-10"
+          className="flex flex-col items-center justify-center py-20 relative z-10"
         >
           <motion.div
             animate={{ scale: [1, 1.3, 1] }}
             transition={{ duration: 0.5, repeat: Infinity }}
-            className="text-7xl font-black text-yellow-400 drop-shadow-2xl"
+            className="text-8xl font-black text-yellow-400 drop-shadow-2xl"
           >
             {countdown}
           </motion.div>
-          <p className={`text-lg ${styles.text} mt-3`}>
+          <p className={`text-xl ${styles.text} mt-4`}>
             {language === 'ar' ? 'استعد...' : 'Get Ready...'}
           </p>
         </motion.div>
       ) : (
         <div className="relative z-10">
-          <div className="text-center mb-4">
+          <div className="text-center mb-6">
             <motion.div
               animate={{ scale: isPulsing ? 1.1 : 1, rotate: [0, 5, -5, 0] }}
               transition={{ duration: 2, ease: 'easeInOut', repeat: Infinity }}
-              className="inline-flex p-3 rounded-full bg-gradient-to-br from-yellow-400/40 to-yellow-600/40 border-2 border-yellow-400/60 shadow-2xl shadow-yellow-400/40"
+              className="inline-flex p-4 rounded-full bg-gradient-to-br from-yellow-400/40 to-yellow-600/40 border-2 border-yellow-400/60 shadow-2xl shadow-yellow-400/40"
             >
-              <Icons.Clipboard className="h-12 w-12 text-white drop-shadow-lg" />
+              <Icons.Clipboard className="h-16 w-16 text-white drop-shadow-lg" />
             </motion.div>
             <motion.h2
-              initial={{ y: -15, opacity: 0 }}
+              initial={{ y: -20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
-              className={`text-2xl md:text-3xl font-extrabold ${styles.text} mt-3`}
+              className={`text-3xl md:text-4xl font-extrabold ${styles.text} mt-4`}
             >
               {exam?.title}
             </motion.h2>
@@ -1474,21 +1505,22 @@ const ExamIntroScreen = ({ exam, startExam, loading, styles, language, isDark })
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.2 }}
-                className={`${styles.subtext} text-sm mt-1`}
+                className={`${styles.subtext} text-base mt-2`}
               >
                 {exam.description}
               </motion.p>
             )}
-            <div className="w-20 h-1 bg-gradient-to-r from-yellow-400 to-yellow-600 mx-auto mt-2 rounded-full" />
+            <div className="w-24 h-1 bg-gradient-to-r from-yellow-400 to-yellow-600 mx-auto mt-3 rounded-full" />
           </div>
 
+          {/* معلومات المعلم والكورس – بدون "غير محدد" */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.25 }}
-            className={`mb-3 p-3 rounded-xl ${isDark ? 'bg-white/5 border border-white/10' : 'bg-gray-50 border border-gray-200'} flex items-center gap-3`}
+            className={`mb-4 p-4 rounded-xl ${isDark ? 'bg-white/5 border border-white/10' : 'bg-gray-50 border border-gray-200'} flex items-center gap-4`}
           >
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-yellow-400 to-yellow-600 flex items-center justify-center text-black font-bold text-lg shadow-lg">
+            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-yellow-400 to-yellow-600 flex items-center justify-center text-black font-bold text-xl shadow-lg">
               {teacherInitial}
             </div>
             <div>
@@ -1499,40 +1531,42 @@ const ExamIntroScreen = ({ exam, startExam, loading, styles, language, isDark })
             </div>
           </motion.div>
 
+          {/* معلومات الامتحان */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.35 }}
-            className={`grid grid-cols-2 md:grid-cols-4 gap-2 p-3 rounded-xl ${isDark ? 'bg-black/20 border border-white/10' : 'bg-gray-100 border border-gray-200'} backdrop-blur-sm`}
+            className={`grid grid-cols-2 md:grid-cols-4 gap-3 p-4 rounded-xl ${isDark ? 'bg-black/20 border border-white/10' : 'bg-gray-100 border border-gray-200'} backdrop-blur-sm`}
           >
-            <div className="text-center flex flex-col items-center gap-0.5">
-              <Icons.BookOpen className="h-4 w-4 text-yellow-400" />
+            <div className="text-center flex flex-col items-center gap-1">
+              <Icons.BookOpen className="h-5 w-5 text-yellow-400" />
               <p className={`text-xs ${styles.subtext}`}>{language === 'ar' ? 'الأسئلة' : 'Questions'}</p>
-              <p className={`text-base font-bold ${styles.text}`}>{exam?.questionCount || 0}</p>
+              <p className={`text-lg font-bold ${styles.text}`}>{exam?.questionCount || 0}</p>
             </div>
-            <div className="text-center flex flex-col items-center gap-0.5">
-              <Icons.Clock className="h-4 w-4 text-yellow-400" />
+            <div className="text-center flex flex-col items-center gap-1">
+              <Icons.Clock className="h-5 w-5 text-yellow-400" />
               <p className={`text-xs ${styles.subtext}`}>{language === 'ar' ? 'المدة' : 'Duration'}</p>
-              <p className={`text-base font-bold ${styles.text}`}>{exam?.duration_minutes || 0} {language === 'ar' ? 'د' : 'm'}</p>
+              <p className={`text-lg font-bold ${styles.text}`}>{exam?.duration_minutes || 0} {language === 'ar' ? 'د' : 'm'}</p>
             </div>
-            <div className="text-center flex flex-col items-center gap-0.5">
-              <Icons.Star className="h-4 w-4 text-yellow-400" />
+            <div className="text-center flex flex-col items-center gap-1">
+              <Icons.Star className="h-5 w-5 text-yellow-400" />
               <p className={`text-xs ${styles.subtext}`}>{language === 'ar' ? 'الدرجة الكلية' : 'Total Marks'}</p>
-              <p className={`text-base font-bold ${styles.text}`}>{exam?.total_marks || 0}</p>
+              <p className={`text-lg font-bold ${styles.text}`}>{exam?.total_marks || 0}</p>
             </div>
-            <div className="text-center flex flex-col items-center gap-0.5">
-              <Icons.Shield className="h-4 w-4 text-yellow-400" />
+            <div className="text-center flex flex-col items-center gap-1">
+              <Icons.Shield className="h-5 w-5 text-yellow-400" />
               <p className={`text-xs ${styles.subtext}`}>{language === 'ar' ? 'المخالفات المسموحة' : 'Max Violations'}</p>
-              <p className={`text-base font-bold ${styles.text}`}>{exam?.maxViolations || 5}</p>
+              <p className={`text-lg font-bold ${styles.text}`}>{exam?.maxViolations || 5}</p>
             </div>
           </motion.div>
 
-          <div className="mt-4 relative z-10">
+          {/* شريط التقدم (0%) */}
+          <div className="mt-6 relative z-10">
             <div className="flex justify-between text-xs">
               <span className={`${styles.subtext}`}>{language === 'ar' ? 'جاهز للانطلاق' : 'Ready to start'}</span>
               <span className={`${styles.text} font-bold`}>0%</span>
             </div>
-            <div className="w-full h-1.5 bg-white/20 rounded-full overflow-hidden">
+            <div className="w-full h-2 bg-white/20 rounded-full overflow-hidden">
               <motion.div
                 initial={{ width: 0 }}
                 animate={{ width: '0%' }}
@@ -1541,12 +1575,13 @@ const ExamIntroScreen = ({ exam, startExam, loading, styles, language, isDark })
             </div>
           </div>
 
-          <div className={`mt-3 p-3 rounded-xl ${isDark ? 'bg-red-500/10 border border-red-500/20' : 'bg-red-50 border border-red-200'} relative z-10`}>
-            <p className={`text-xs font-semibold ${isDark ? 'text-red-400' : 'text-red-600'} flex items-center gap-1.5`}>
-              <Icons.Shield className="h-3.5 w-3.5" />
+          {/* قائمة الأمان */}
+          <div className={`mt-4 p-4 rounded-xl ${isDark ? 'bg-red-500/10 border border-red-500/20' : 'bg-red-50 border border-red-200'} relative z-10`}>
+            <p className={`text-xs font-semibold ${isDark ? 'text-red-400' : 'text-red-600'} flex items-center gap-2`}>
+              <Icons.Shield className="h-4 w-4" />
               {language === 'ar' ? '🔒 بيئة امتحان آمنة' : '🔒 Secure Exam Environment'}
             </p>
-            <ul className={`text-[10px] ${isDark ? 'text-gray-300' : 'text-gray-700'} mt-1 space-y-0.5 list-disc list-inside`}>
+            <ul className={`text-xs ${isDark ? 'text-gray-300' : 'text-gray-700'} mt-1 space-y-0.5 list-disc list-inside`}>
               <li>{language === 'ar' ? 'سيتم ملء الشاشة تلقائياً' : 'Fullscreen will be activated'}</li>
               <li>{language === 'ar' ? 'النسخ واللصق وتصوير الشاشة ممنوع' : 'Copy, paste & screenshots are disabled'}</li>
               <li>{language === 'ar' ? 'الخروج من الامتحان يسجل مخالفة' : 'Leaving the exam logs a violation'}</li>
@@ -1554,23 +1589,24 @@ const ExamIntroScreen = ({ exam, startExam, loading, styles, language, isDark })
             </ul>
           </div>
 
+          {/* زر البدء */}
           <motion.button
             onClick={handleStart}
             disabled={loading || exam?.attemptsLeft <= 0}
             whileHover={{ scale: 1.03 }}
             whileTap={{ scale: 0.97 }}
-            className={`w-full mt-4 py-3 rounded-xl font-bold text-black transition-all duration-300 relative z-10 ${
+            className={`w-full mt-6 py-3.5 rounded-xl font-bold text-black transition-all duration-300 relative z-10 ${
               exam?.attemptsLeft > 0
                 ? 'bg-gradient-to-r from-yellow-400 to-yellow-600 hover:shadow-2xl shadow-lg shadow-yellow-400/30'
                 : 'bg-gray-500 cursor-not-allowed opacity-50'
             }`}
           >
             {loading ? (
-              <><div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin inline-block mr-2" /> {language === 'ar' ? 'جاري التحميل...' : 'Loading...'}</>
+              <><div className="w-5 h-5 border-2 border-black/30 border-t-black rounded-full animate-spin inline-block mr-2" /> {language === 'ar' ? 'جاري التحميل...' : 'Loading...'}</>
             ) : exam?.attemptsLeft <= 0 ? (
               language === 'ar' ? '🚫 استنفدت المحاولات' : '🚫 No attempts left'
             ) : (
-              <><Icons.Rocket className="h-4 w-4 inline mr-2" /> {language === 'ar' ? '🚀 بدء الامتحان' : '🚀 Start Exam'}</>
+              <><Icons.Rocket className="h-5 w-5 inline mr-2" /> {language === 'ar' ? '🚀 بدء الامتحان' : '🚀 Start Exam'}</>
             )}
           </motion.button>
         </div>
@@ -1580,7 +1616,7 @@ const ExamIntroScreen = ({ exam, startExam, loading, styles, language, isDark })
 };
 
 // ================================================================
-// 5. المؤقت المميز
+// 5. المؤقت المميز (عرض الدقائق والثواني فقط)
 // ================================================================
 const ExamTimer = ({ remaining, isWarning, isCritical, styles }) => {
   const mins = Math.floor(remaining / 60);
@@ -1588,15 +1624,15 @@ const ExamTimer = ({ remaining, isWarning, isCritical, styles }) => {
   const timeStr = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 
   return (
-    <div className={`flex items-center gap-2 px-4 py-2 rounded-2xl border-2 font-bold transition-all duration-500 shadow-xl backdrop-blur-xl ${
+    <div className={`flex items-center gap-2 px-6 py-3 rounded-2xl border-2 font-bold transition-all duration-500 shadow-xl backdrop-blur-xl ${
       isCritical
         ? 'bg-gradient-to-r from-red-500/40 to-red-600/40 border-red-500/80 text-red-500 animate-pulse shadow-red-500/30'
         : isWarning
         ? 'bg-gradient-to-r from-yellow-400/40 to-yellow-500/40 border-yellow-400/80 text-yellow-400 shadow-yellow-400/30'
         : `bg-gradient-to-r from-yellow-400/20 to-yellow-500/20 border-yellow-400/50 ${styles.text} shadow-yellow-400/20`
     }`}>
-      <Icons.Clock className={`h-5 w-5 ${isCritical ? 'text-red-500' : isWarning ? 'text-yellow-400' : 'text-yellow-400'}`} />
-      <span className="font-mono text-2xl font-black tabular-nums tracking-wider drop-shadow-lg">
+      <Icons.Clock className={`h-6 w-6 ${isCritical ? 'text-red-500' : isWarning ? 'text-yellow-400' : 'text-yellow-400'}`} />
+      <span className="font-mono text-3xl font-black tabular-nums tracking-wider drop-shadow-lg">
         {timeStr}
       </span>
     </div>
@@ -1604,15 +1640,15 @@ const ExamTimer = ({ remaining, isWarning, isCritical, styles }) => {
 };
 
 // ================================================================
-// 6. شريط التقدم المحسّن
+// 6. شريط التقدم المحسّن مع أنيميشن وأيقونات + عرض الوقت
 // ================================================================
 const ProgressBar = ({ answered, total, isDark, timeRemaining }) => {
   const percentage = total === 0 ? 0 : (answered / total) * 100;
   const isComplete = percentage === 100;
 
   return (
-    <div className="w-full flex items-center gap-3">
-      <div className="relative flex-1 h-2.5 bg-white/10 rounded-full overflow-hidden shadow-inner">
+    <div className="w-full flex items-center gap-4">
+      <div className="relative flex-1 h-3 bg-white/10 rounded-full overflow-hidden shadow-inner">
         <motion.div
           initial={{ width: 0 }}
           animate={{ width: `${percentage}%` }}
@@ -1627,19 +1663,19 @@ const ProgressBar = ({ answered, total, isDark, timeRemaining }) => {
           initial={{ left: '0%' }}
           animate={{ left: `${percentage}%` }}
           transition={{ duration: 0.6, ease: 'easeOut' }}
-          className="absolute top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full bg-white border-2 border-yellow-400 shadow-lg"
+          className="absolute top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-white border-2 border-yellow-400 shadow-lg"
           style={{ left: `${Math.min(percentage, 100)}%`, transform: 'translate(-50%, -50%)' }}
         />
       </div>
-      <div className="flex items-center gap-2 flex-shrink-0">
-        <span className="text-xs font-bold text-white/90 bg-black/20 px-2 py-0.5 rounded-full">
+      <div className="flex items-center gap-3 flex-shrink-0">
+        <span className="text-sm font-bold text-white/90 bg-black/20 px-3 py-1 rounded-full">
           {answered}/{total}
         </span>
-        <span className="text-xs font-bold text-yellow-400 bg-black/20 px-2 py-0.5 rounded-full">
+        <span className="text-sm font-bold text-yellow-400 bg-black/20 px-2 py-1 rounded-full">
           {Math.round(percentage)}%
         </span>
         {timeRemaining !== undefined && (
-          <span className="text-[10px] text-white/60 bg-black/20 px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
+          <span className="text-xs text-white/60 bg-black/20 px-2 py-0.5 rounded-full flex items-center gap-1">
             <Icons.Clock className="h-3 w-3" /> {formatTime(timeRemaining)}
           </span>
         )}
@@ -1649,7 +1685,7 @@ const ProgressBar = ({ answered, total, isDark, timeRemaining }) => {
             animate={{ scale: 1 }}
             className="text-emerald-400"
           >
-            <Icons.CheckCircle className="h-4 w-4" />
+            <Icons.CheckCircle className="h-5 w-5" />
           </motion.span>
         )}
       </div>
@@ -1658,13 +1694,13 @@ const ProgressBar = ({ answered, total, isDark, timeRemaining }) => {
 };
 
 // ================================================================
-// 7. الشريط الجانبي
+// 7. الشريط الجانبي مع تأثيرات hover و tap
 // ================================================================
 const QuestionSidebar = ({ 
   questions, 
   answers, 
   markedQuestions, 
-  reviewMarkedQuestions,
+  reviewMarkedQuestions, // ✅ إضافة prop
   currentIndex, 
   currentQuestion,
   goToQuestion, 
@@ -1698,21 +1734,21 @@ const QuestionSidebar = ({
   });
 
   return (
-    <div className={`relative flex-shrink-0 transition-all duration-300 ${isOpen ? 'w-56' : 'w-10'} hidden sm:block`}>
+    <div className={`relative flex-shrink-0 transition-all duration-300 ${isOpen ? 'w-64' : 'w-12'} hidden sm:block`}>
       <button
         onClick={() => setIsOpen(!isOpen)}
         style={{ touchAction: 'manipulation' }}
-        className={`absolute top-3 ${isOpen ? 'right-1' : 'right-0'} z-10 p-1.5 rounded-lg ${styles.card} bg-opacity-60 backdrop-blur-sm border ${styles.border} hover:bg-opacity-80 transition-all`}
+        className={`absolute top-4 ${isOpen ? 'right-2' : 'right-1'} z-10 p-2 rounded-lg ${styles.card} bg-opacity-60 backdrop-blur-sm border ${styles.border} hover:bg-opacity-80 transition-all`}
       >
-        {isOpen ? <Icons.ChevronRight className="h-3.5 w-3.5" /> : <Icons.ChevronLeft className="h-3.5 w-3.5" />}
+        {isOpen ? <Icons.ChevronRight className="h-4 w-4" /> : <Icons.ChevronLeft className="h-4 w-4" />}
       </button>
-      <div className={`h-full overflow-y-auto p-2 ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'} transition-all duration-300`}>
-        <p className={`text-xs font-bold ${styles.text} opacity-70 mb-1.5`}>{language === 'ar' ? 'قائمة الأسئلة' : 'Questions'}</p>
-        <div className="flex gap-0.5 mb-2 text-xs">
+      <div className={`h-full overflow-y-auto p-3 ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'} transition-all duration-300`}>
+        <p className={`text-xs font-bold ${styles.text} opacity-70 mb-2`}>{language === 'ar' ? 'قائمة الأسئلة' : 'Questions'}</p>
+        <div className="flex gap-1 mb-3 text-xs">
           {['all', 'answered', 'marked', 'unanswered'].map(f => {
             const labels = { all: language === 'ar' ? 'الكل' : 'All', answered: language === 'ar' ? 'مجاب' : 'Answered', marked: language === 'ar' ? 'مؤجل' : 'Marked', unanswered: language === 'ar' ? 'غير مجاب' : 'Unanswered' };
             return (
-              <button key={f} onClick={() => setFilter(f)} style={{ touchAction: 'manipulation' }} className={`px-1.5 py-0.5 rounded-lg transition text-[10px] ${filter === f ? 'bg-yellow-400/20 text-yellow-400' : `${styles.card} bg-opacity-20 ${styles.text} opacity-60`}`}>
+              <button key={f} onClick={() => setFilter(f)} style={{ touchAction: 'manipulation' }} className={`px-2 py-0.5 rounded-lg transition ${filter === f ? 'bg-yellow-400/20 text-yellow-400' : `${styles.card} bg-opacity-20 ${styles.text} opacity-60`}`}>
                 {labels[f]}
               </button>
             );
@@ -1725,18 +1761,19 @@ const QuestionSidebar = ({
           let statusIcon = null;
           if (status === 'answered') {
             statusColor = 'border-green-500 bg-green-500/20 text-green-300';
-            statusIcon = <Icons.CheckCircle className="h-3.5 w-3.5 text-green-400" />;
+            statusIcon = <Icons.CheckCircle className="h-4 w-4 text-green-400" />;
           } else if (status === 'marked') {
             statusColor = 'border-yellow-400 bg-yellow-400/20 text-yellow-300';
-            statusIcon = <Icons.Bookmark className="h-3.5 w-3.5 text-yellow-400" />;
+            statusIcon = <Icons.Bookmark className="h-4 w-4 text-yellow-400" />;
           } else {
             statusColor = 'border-gray-500/30 bg-gray-500/10 text-gray-400';
-            statusIcon = <Icons.Circle className="h-3.5 w-3.5 text-gray-400" />;
+            statusIcon = <Icons.Circle className="h-4 w-4 text-gray-400" />;
           }
+          // ✅ إضافة حالة للمراجعة (إذا كان السؤال محدداً للمراجعة)
           const isReviewMarked = reviewMarkedQuestions.includes(q.id);
           if (isReviewMarked) {
             statusColor = 'border-yellow-400 bg-yellow-400/20 text-yellow-300';
-            statusIcon = <Icons.Flag className="h-3.5 w-3.5 text-yellow-400" />;
+            statusIcon = <Icons.Flag className="h-4 w-4 text-yellow-400" />;
           }
           const isCurrent = originalIdx === currentIndex;
           return (
@@ -1747,11 +1784,11 @@ const QuestionSidebar = ({
               onClick={() => goToQuestion(originalIdx)}
               style={{ touchAction: 'manipulation' }}
               title={q.question_text}
-              className={`w-full flex items-center justify-between p-1.5 rounded-lg border transition-all duration-200 text-sm ${
+              className={`w-full flex items-center justify-between p-2 rounded-lg border transition-all duration-200 text-sm ${
                 isCurrent ? 'border-yellow-400 bg-yellow-400/10 shadow-lg shadow-yellow-400/10' : statusColor
               }`}
             >
-              <span className={`font-medium ${isCurrent ? 'text-yellow-400' : styles.text} opacity-80 text-xs`}>
+              <span className={`font-medium ${isCurrent ? 'text-yellow-400' : styles.text} opacity-80`}>
                 {idx + 1} {isCurrent && '◀'}
               </span>
               <div>{statusIcon}</div>
@@ -1764,7 +1801,7 @@ const QuestionSidebar = ({
 };
 
 // ================================================================
-// 8. شاشة القفل (LockOverlay)
+// 8. شاشة القفل (LockOverlay) – بدون صوت
 // ================================================================
 const LockOverlay = ({ violations, maxViolations, language, styles, onCancel, onCloseExam }) => {
   const [countdown, setCountdown] = useState(5);
@@ -1806,19 +1843,19 @@ const LockOverlay = ({ violations, maxViolations, language, styles, onCancel, on
       exit={{ opacity: 0 }}
       className="fixed inset-0 z-[9999] bg-black/95 backdrop-blur-xl flex items-center justify-center"
     >
-      <div className="text-center space-y-3 px-4 max-w-md">
+      <div className="text-center space-y-4 px-6 max-w-md">
         <motion.div
           animate={{ scale: [1, 1.2, 1] }}
           transition={{ duration: 1, repeat: Infinity }}
-          className="inline-flex p-3 rounded-full bg-red-500/20 border-2 border-red-500/50"
+          className="inline-flex p-4 rounded-full bg-red-500/20 border-2 border-red-500/50"
         >
-          <Icons.AlertTriangle className="h-10 w-10 text-red-400" />
+          <Icons.AlertTriangle className="h-12 w-12 text-red-400" />
         </motion.div>
-        <h2 className="text-2xl font-extrabold text-red-400">
+        <h2 className="text-3xl font-extrabold text-red-400">
           {language === 'ar' ? '⚠️ تحذير أمني!' : '⚠️ Security Alert!'}
         </h2>
-        <p className="text-white text-4xl font-bold">{countdown}</p>
-        <p className="text-white/80 text-sm">
+        <p className="text-white text-5xl font-bold">{countdown}</p>
+        <p className="text-white/80 text-base">
           {language === 'ar' 
             ? `تم اكتشاف خروجك من بيئة الامتحان (${violations} من ${maxViolations}). العودة فوراً إلى ملء الشاشة خلال ${countdown} ثوانٍ.`
             : `Tab switch detected (${violations} of ${maxViolations}). Return to fullscreen within ${countdown} seconds.`}
@@ -1827,7 +1864,7 @@ const LockOverlay = ({ violations, maxViolations, language, styles, onCancel, on
           <button
             onClick={handleCancel}
             style={{ touchAction: 'manipulation' }}
-            className="px-6 py-2.5 bg-yellow-500 hover:bg-yellow-600 text-black font-bold rounded-xl transition-colors shadow-xl text-base"
+            className="px-8 py-3 bg-yellow-500 hover:bg-yellow-600 text-black font-bold rounded-xl transition-colors shadow-xl text-lg"
           >
             {language === 'ar' ? '🔄 إلغاء الإغلاق والعودة الآن' : '🔄 Cancel closure and return now'}
           </button>
@@ -1840,7 +1877,7 @@ const LockOverlay = ({ violations, maxViolations, language, styles, onCancel, on
               else if (el.msRequestFullscreen) el.msRequestFullscreen();
             }}
             style={{ touchAction: 'manipulation' }}
-            className="px-6 py-2.5 bg-blue-500/30 hover:bg-blue-500/50 text-blue-300 font-bold rounded-xl transition-colors text-base"
+            className="px-8 py-3 bg-blue-500/30 hover:bg-blue-500/50 text-blue-300 font-bold rounded-xl transition-colors text-lg"
           >
             {language === 'ar' ? '📱 محاولة ملء الشاشة يدوياً' : '📱 Try fullscreen manually'}
           </button>
@@ -1854,7 +1891,7 @@ const LockOverlay = ({ violations, maxViolations, language, styles, onCancel, on
 };
 
 // ================================================================
-// 9. العلامة المائية
+// 9. العلامة المائية – محسّنة ومكثّفة
 // ================================================================
 const SecureWatermark = ({ user, examTitle, isDark }) => {
   const watermarkText = `${user?.full_name || 'Student'} | ${user?.email || ''} | ${user?.phone || ''} | ${user?.school || ''} | ${user?.grade || ''} | ${user?.governorate || ''} | ${examTitle || ''}`;
@@ -1899,13 +1936,13 @@ const FontControls = ({ fontSize, setFontSize, isBold, setIsBold, isItalic, setI
   ];
 
   return (
-    <div className="flex items-center gap-0.5 p-1 rounded-xl bg-white/10 dark:bg-white/5 backdrop-blur-sm border border-white/20 dark:border-white/10">
+    <div className="flex items-center gap-1 p-1 rounded-xl bg-white/10 dark:bg-white/5 backdrop-blur-sm border border-white/20 dark:border-white/10">
       {sizes.map((s) => (
         <button
           key={s.value}
           onClick={() => setFontSize(s.value)}
           style={{ touchAction: 'manipulation' }}
-          className={`px-1.5 py-0.5 rounded-lg text-xs transition-all ${
+          className={`px-2 py-1 rounded-lg text-xs transition-all ${
             fontSize === s.value
               ? 'bg-yellow-400/20 text-yellow-400'
               : isDark ? 'text-white/60 hover:text-white/90' : 'text-gray-600 hover:text-gray-900'
@@ -1915,38 +1952,38 @@ const FontControls = ({ fontSize, setFontSize, isBold, setIsBold, isItalic, setI
           {s.label}
         </button>
       ))}
-      <div className="w-px h-5 bg-white/20 dark:bg-white/10 mx-1" />
+      <div className="w-px h-6 bg-white/20 dark:bg-white/10 mx-1" />
       <button
         onClick={() => setIsBold(!isBold)}
         style={{ touchAction: 'manipulation' }}
-        className={`p-0.5 rounded-lg transition-all ${
+        className={`p-1 rounded-lg transition-all ${
           isBold
             ? 'bg-yellow-400/20 text-yellow-400'
             : isDark ? 'text-white/60 hover:text-white/90' : 'text-gray-600 hover:text-gray-900'
         }`}
         title={language === 'ar' ? 'عريض' : 'Bold'}
       >
-        <Icons.Bold className="h-3.5 w-3.5" />
+        <Icons.Bold className="h-4 w-4" />
       </button>
       <button
         onClick={() => setIsItalic(!isItalic)}
         style={{ touchAction: 'manipulation' }}
-        className={`p-0.5 rounded-lg transition-all ${
+        className={`p-1 rounded-lg transition-all ${
           isItalic
             ? 'bg-yellow-400/20 text-yellow-400'
             : isDark ? 'text-white/60 hover:text-white/90' : 'text-gray-600 hover:text-gray-900'
         }`}
         title={language === 'ar' ? 'مائل' : 'Italic'}
       >
-        <Icons.Italic className="h-3.5 w-3.5" />
+        <Icons.Italic className="h-4 w-4" />
       </button>
       <button
         onClick={resetFont}
         style={{ touchAction: 'manipulation' }}
-        className="p-0.5 rounded-lg text-gray-400 dark:text-white/40 hover:text-gray-600 dark:hover:text-white/80 transition-all"
+        className="p-1 rounded-lg text-gray-400 dark:text-white/40 hover:text-gray-600 dark:hover:text-white/80 transition-all"
         title={language === 'ar' ? 'إعادة تعيين' : 'Reset'}
       >
-        <Icons.RotateCcw className="h-3.5 w-3.5" />
+        <Icons.RotateCcw className="h-4 w-4" />
       </button>
     </div>
   );
@@ -2003,10 +2040,10 @@ const ExamSettingsPanel = ({
       <button
         onClick={() => setIsOpen(!isOpen)}
         style={{ touchAction: 'manipulation' }}
-        className={`p-1.5 rounded-lg transition ${isOpen ? 'bg-yellow-400/20 text-yellow-400' : 'bg-white/5 text-white/60 hover:text-white/90'}`}
+        className={`p-2 rounded-lg transition ${isOpen ? 'bg-yellow-400/20 text-yellow-400' : 'bg-white/5 text-white/60 hover:text-white/90'}`}
         title={language === 'ar' ? 'الإعدادات' : 'Settings'}
       >
-        <Icons.Settings className="h-4 w-4" />
+        <Icons.Settings className="h-5 w-5" />
       </button>
 
       <AnimatePresence>
@@ -2015,28 +2052,28 @@ const ExamSettingsPanel = ({
             initial={{ opacity: 0, y: -10, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -10, scale: 0.95 }}
-            className={`absolute right-0 top-full mt-1.5 p-3 rounded-xl ${styles.card} border ${styles.border} shadow-2xl z-[99999] w-64 max-h-[80vh] overflow-y-auto`}
+            className={`absolute right-0 top-full mt-2 p-4 rounded-xl ${styles.card} border ${styles.border} shadow-2xl z-[99999] w-72 max-h-[80vh] overflow-y-auto`}
             style={{ direction: 'ltr' }}
           >
-            <div className="flex justify-between items-center mb-2">
+            <div className="flex justify-between items-center mb-3">
               <h4 className={`text-sm font-bold ${styles.text}`}>
                 {language === 'ar' ? '⚙️ الإعدادات' : '⚙️ Settings'}
               </h4>
               <button onClick={() => setIsOpen(false)} className="text-red-400 hover:text-red-300 transition">
-                <Icons.X className="h-3.5 w-3.5" />
+                <Icons.X className="h-4 w-4" />
               </button>
             </div>
 
-            <div className="mb-2.5">
-              <p className={`text-xs ${styles.subtext} mb-0.5`}>
+            <div className="mb-3">
+              <p className={`text-xs ${styles.subtext} mb-1`}>
                 {language === 'ar' ? '📏 حجم الخط' : '📏 Font Size'}
               </p>
-              <div className="flex gap-0.5">
+              <div className="flex gap-1">
                 {sizes.map((s) => (
                   <button
                     key={s.value}
                     onClick={() => setFontSize(s.value)}
-                    className={`px-1.5 py-0.5 rounded-lg text-xs transition ${
+                    className={`px-2 py-1 rounded-lg text-xs transition ${
                       fontSize === s.value
                         ? 'bg-yellow-400/20 text-yellow-400'
                         : `${styles.card} ${styles.subtext} hover:${styles.text}`
@@ -2048,46 +2085,46 @@ const ExamSettingsPanel = ({
               </div>
             </div>
 
-            <div className="mb-2.5">
-              <p className={`text-xs ${styles.subtext} mb-0.5`}>
+            <div className="mb-3">
+              <p className={`text-xs ${styles.subtext} mb-1`}>
                 {language === 'ar' ? '✏️ أنماط الخط' : '✏️ Font Styles'}
               </p>
-              <div className="flex gap-1.5">
+              <div className="flex gap-2">
                 <button
                   onClick={() => setIsBold(!isBold)}
-                  className={`p-1.5 rounded-lg transition ${
+                  className={`p-2 rounded-lg transition ${
                     isBold
                       ? 'bg-yellow-400/20 text-yellow-400'
                       : `${styles.card} ${styles.subtext} hover:${styles.text}`
                   }`}
                 >
-                  <Icons.Bold className="h-3.5 w-3.5" />
+                  <Icons.Bold className="h-4 w-4" />
                 </button>
                 <button
                   onClick={() => setIsItalic(!isItalic)}
-                  className={`p-1.5 rounded-lg transition ${
+                  className={`p-2 rounded-lg transition ${
                     isItalic
                       ? 'bg-yellow-400/20 text-yellow-400'
                       : `${styles.card} ${styles.subtext} hover:${styles.text}`
                   }`}
                 >
-                  <Icons.Italic className="h-3.5 w-3.5" />
+                  <Icons.Italic className="h-4 w-4" />
                 </button>
                 <button
                   onClick={resetFont}
-                  className={`p-1.5 rounded-lg transition ${styles.card} ${styles.subtext} hover:${styles.text}`}
+                  className={`p-2 rounded-lg transition ${styles.card} ${styles.subtext} hover:${styles.text}`}
                 >
-                  <Icons.RotateCcw className="h-3.5 w-3.5" />
+                  <Icons.RotateCcw className="h-4 w-4" />
                 </button>
               </div>
             </div>
 
-            <div className="mb-2.5">
-              <p className={`text-xs ${styles.subtext} mb-0.5`}>
+            <div className="mb-3">
+              <p className={`text-xs ${styles.subtext} mb-1`}>
                 {language === 'ar' ? '🎨 تخصيص الألوان' : '🎨 Custom Colors'}
               </p>
-              <div className="flex flex-wrap gap-1.5 items-center">
-                <div className="flex items-center gap-0.5">
+              <div className="flex flex-wrap gap-2 items-center">
+                <div className="flex items-center gap-1">
                   <span className={`text-xs ${styles.subtext}`}>
                     {language === 'ar' ? 'خلفية:' : 'Bg:'}
                   </span>
@@ -2095,10 +2132,10 @@ const ExamSettingsPanel = ({
                     type="color"
                     value={bgColor}
                     onChange={(e) => handleBgColorChange(e.target.value)}
-                    className="w-7 h-7 rounded-lg cursor-pointer border border-white/20 bg-transparent"
+                    className="w-8 h-8 rounded-lg cursor-pointer border border-white/20 bg-transparent"
                   />
                 </div>
-                <div className="flex items-center gap-0.5">
+                <div className="flex items-center gap-1">
                   <span className={`text-xs ${styles.subtext}`}>
                     {language === 'ar' ? 'نص:' : 'Text:'}
                   </span>
@@ -2106,31 +2143,31 @@ const ExamSettingsPanel = ({
                     type="color"
                     value={textColor}
                     onChange={(e) => handleTextColorChange(e.target.value)}
-                    className="w-7 h-7 rounded-lg cursor-pointer border border-white/20 bg-transparent"
+                    className="w-8 h-8 rounded-lg cursor-pointer border border-white/20 bg-transparent"
                   />
                 </div>
                 <button
                   onClick={resetAll}
-                  className={`text-xs px-1.5 py-0.5 rounded-lg ${styles.card} ${styles.subtext} hover:${styles.text} transition`}
+                  className={`text-xs px-2 py-1 rounded-lg ${styles.card} ${styles.subtext} hover:${styles.text} transition`}
                 >
                   {language === 'ar' ? 'إعادة تعيين الكل' : 'Reset All'}
                 </button>
               </div>
             </div>
 
-            <div className="border-t border-white/10 pt-1.5 flex flex-wrap gap-0.5">
+            <div className="border-t border-white/10 pt-2 flex flex-wrap gap-1">
               <button
                 onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-                className={`text-xs px-1.5 py-0.5 rounded-lg ${styles.card} ${styles.subtext} hover:${styles.text} transition`}
+                className={`text-xs px-2 py-1 rounded-lg ${styles.card} ${styles.subtext} hover:${styles.text} transition`}
               >
-                <Icons.ArrowUp className="h-3 w-3 inline mr-0.5" />
-                {language === 'ar' ? 'أعلى' : 'Top'}
+                <Icons.ArrowUp className="h-3 w-3 inline mr-1" />
+                {language === 'ar' ? 'أعلى الصفحة' : 'Top'}
               </button>
               <button
                 onClick={() => setIsOpen(false)}
-                className={`text-xs px-1.5 py-0.5 rounded-lg ${styles.card} ${styles.subtext} hover:${styles.text} transition`}
+                className={`text-xs px-2 py-1 rounded-lg ${styles.card} ${styles.subtext} hover:${styles.text} transition`}
               >
-                <Icons.X className="h-3 w-3 inline mr-0.5" />
+                <Icons.X className="h-3 w-3 inline mr-1" />
                 {language === 'ar' ? 'إغلاق' : 'Close'}
               </button>
             </div>
@@ -2142,7 +2179,7 @@ const ExamSettingsPanel = ({
 };
 
 // ================================================================
-// 12. نافذة تأكيد التسليم
+// 12. نافذة تأكيد التسليم – مخصصة وأنيقة
 // ================================================================
 const SubmitConfirmationModal = ({
   isOpen,
@@ -2164,47 +2201,47 @@ const SubmitConfirmationModal = ({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[999999] bg-black/80 backdrop-blur-xl flex items-center justify-center p-3"
+      className="fixed inset-0 z-[999999] bg-black/80 backdrop-blur-xl flex items-center justify-center p-4"
       onClick={onClose}
     >
       <motion.div
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.9, opacity: 0 }}
-        className={`max-w-md w-full p-6 rounded-3xl ${styles.card} border ${styles.border} shadow-2xl`}
+        className={`max-w-lg w-full p-8 rounded-3xl ${styles.card} border ${styles.border} shadow-2xl`}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="text-center mb-4">
-          <div className="inline-flex p-3 rounded-full bg-yellow-400/20 border-2 border-yellow-400/30">
-            <Icons.ClipboardCheck className="h-10 w-10 text-yellow-400" />
+        <div className="text-center mb-6">
+          <div className="inline-flex p-4 rounded-full bg-yellow-400/20 border-2 border-yellow-400/30">
+            <Icons.ClipboardCheck className="h-12 w-12 text-yellow-400" />
           </div>
-          <h2 className={`text-xl font-extrabold mt-3 ${styles.text}`}>
+          <h2 className={`text-2xl font-extrabold mt-4 ${styles.text}`}>
             {language === 'ar' ? 'تأكيد تسليم الامتحان' : 'Confirm Submission'}
           </h2>
         </div>
 
-        <div className="space-y-2">
-          <div className={`flex justify-between p-2.5 rounded-xl ${isDark ? 'bg-white/5' : 'bg-gray-50'} border ${styles.border}`}>
+        <div className="space-y-3">
+          <div className={`flex justify-between p-3 rounded-xl ${isDark ? 'bg-white/5' : 'bg-gray-50'} border ${styles.border}`}>
             <span className={styles.text}>{language === 'ar' ? 'إجمالي الأسئلة' : 'Total Questions'}</span>
             <span className="font-bold text-yellow-400">{totalQuestions}</span>
           </div>
-          <div className={`flex justify-between p-2.5 rounded-xl ${isDark ? 'bg-white/5' : 'bg-gray-50'} border ${styles.border}`}>
+          <div className={`flex justify-between p-3 rounded-xl ${isDark ? 'bg-white/5' : 'bg-gray-50'} border ${styles.border}`}>
             <span className="text-green-400">{language === 'ar' ? 'تم الإجابة' : 'Answered'}</span>
             <span className="font-bold text-green-400">{answeredCount}</span>
           </div>
-          <div className={`flex justify-between p-2.5 rounded-xl ${isDark ? 'bg-white/5' : 'bg-gray-50'} border ${styles.border}`}>
+          <div className={`flex justify-between p-3 rounded-xl ${isDark ? 'bg-white/5' : 'bg-gray-50'} border ${styles.border}`}>
             <span className="text-red-400">{language === 'ar' ? 'لم تُجب' : 'Unanswered'}</span>
             <span className="font-bold text-red-400">{unanswered}</span>
           </div>
-          <div className={`flex justify-between p-2.5 rounded-xl ${isDark ? 'bg-white/5' : 'bg-gray-50'} border ${styles.border}`}>
+          <div className={`flex justify-between p-3 rounded-xl ${isDark ? 'bg-white/5' : 'bg-gray-50'} border ${styles.border}`}>
             <span className="text-yellow-400">{language === 'ar' ? 'للمراجعة' : 'For Review'}</span>
             <span className="font-bold text-yellow-400">{reviewCount}</span>
           </div>
         </div>
 
         {unanswered > 0 && (
-          <div className={`mt-3 p-2.5 rounded-xl ${isDark ? 'bg-yellow-500/10 border border-yellow-500/20' : 'bg-yellow-50 border border-yellow-200'}`}>
-            <p className={`text-xs ${isDark ? 'text-yellow-300' : 'text-yellow-700'}`}>
+          <div className={`mt-4 p-3 rounded-xl ${isDark ? 'bg-yellow-500/10 border border-yellow-500/20' : 'bg-yellow-50 border border-yellow-200'}`}>
+            <p className={`text-sm ${isDark ? 'text-yellow-300' : 'text-yellow-700'}`}>
               ⚠️ {language === 'ar'
                 ? `يوجد ${unanswered} سؤال/أسئلة غير مجابة. هل أنت متأكد من التسليم؟`
                 : `There are ${unanswered} unanswered question(s). Are you sure you want to submit?`}
@@ -2212,16 +2249,16 @@ const SubmitConfirmationModal = ({
           </div>
         )}
 
-        <div className="flex gap-2.5 mt-4">
+        <div className="flex gap-3 mt-6">
           <button
             onClick={onConfirm}
-            className="flex-1 py-2.5 bg-gradient-to-r from-yellow-400 to-yellow-600 text-black font-bold rounded-xl hover:scale-[1.02] transition shadow-xl"
+            className="flex-1 py-3 bg-gradient-to-r from-yellow-400 to-yellow-600 text-black font-bold rounded-xl hover:scale-[1.02] transition shadow-xl"
           >
             {language === 'ar' ? '✅ تأكيد التسليم' : '✅ Confirm Submit'}
           </button>
           <button
             onClick={onClose}
-            className={`flex-1 py-2.5 rounded-xl transition ${
+            className={`flex-1 py-3 rounded-xl transition ${
               isDark ? 'bg-white/10 hover:bg-white/20 text-white border border-white/20' : 'bg-gray-200 hover:bg-gray-300 text-gray-800 border border-gray-300'
             }`}
           >
@@ -2234,7 +2271,7 @@ const SubmitConfirmationModal = ({
 };
 
 // ================================================================
-// 13. الصفحة الرئيسية – النسخة النهائية مع جميع التعديلات
+// 13. الصفحة الرئيسية – النسخة النهائية مع التعديلات المطلوبة
 // ================================================================
 export default function StudentExamPage() {
   const router = useRouter();
@@ -2256,7 +2293,7 @@ export default function StudentExamPage() {
   const [questions, setQuestions] = useState([]);
   const [passages, setPassages] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [examStatus, setExamStatus] = useState('intro');
+  const [examStatus, setExamStatus] = useState('intro'); // intro, waiting, started, submitted
   const [error, setError] = useState('');
 
   const [student, setStudent] = useState(null);
@@ -2265,6 +2302,7 @@ export default function StudentExamPage() {
   const [answers, setAnswers] = useState({});
   const [markedQuestions, setMarkedQuestions] = useState([]);
   const [highlightedQuestions, setHighlightedQuestions] = useState([]);
+  // ✅ إضافة حالة reviewMarkedQuestions لتخزين الأسئلة المحددة للمراجعة
   const [reviewMarkedQuestions, setReviewMarkedQuestions] = useState([]);
   const [timeRemaining, setTimeRemaining] = useState(0);
   const [examStartedAt, setExamStartedAt] = useState(null);
@@ -2283,21 +2321,26 @@ export default function StudentExamPage() {
     setIsItalic(false);
   };
 
+  // ===== حالة شاشة الانتظار بعد التسليم =====
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // ===== حالة نافذة تأكيد التسليم =====
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [submitStats, setSubmitStats] = useState({ total: 0, answered: 0, review: 0 });
 
+  // ===== متغيرات الأمان =====
   const [fullscreenExitCount, setFullscreenExitCount] = useState(0);
   const MAX_FULLSCREEN_EXITS = exam?.maxFullscreenExits || 3;
   const [isExamForcedClosed, setIsExamForcedClosed] = useState(false);
   const visibilityTimerRef = useRef(null);
   const visibilityStartTimeRef = useRef(null);
 
+  // ===== متغيرات جديدة للتحكم في سلوك الخروج من ملء الشاشة (مهلة سماح) =====
   const [fullscreenExitTimer, setFullscreenExitTimer] = useState(null);
-  const fullscreenExitAttemptsRef = useRef(0);
-  const FULLSCREEN_GRACE_PERIOD = 3000;
+  const fullscreenExitAttemptsRef = useRef(0); // استخدام ref بدلاً من state
+  const FULLSCREEN_GRACE_PERIOD = 3000; // 3 ثواني مهلة للعودة
 
+  // ===== حالة إظهار الزر العائم للعودة إلى ملء الشاشة =====
   const [showFullscreenButton, setShowFullscreenButton] = useState(false);
 
   const timerRef = useRef(null);
@@ -2309,20 +2352,18 @@ export default function StudentExamPage() {
   const lastWidthRef = useRef(0);
   const lastHeightRef = useRef(0);
 
+  // ===== إضافة isRenderingRef لتجنب تحديث الحالة أثناء التصيير =====
   const isRenderingRef = useRef(false);
 
+  // ===== التحقق من وجود محاولة ناجحة سابقة =====
   const [passedAttempt, setPassedAttempt] = useState(null);
   const [showPassedScreen, setShowPassedScreen] = useState(false);
 
+  // ✅ حالات جديدة للتحكم في الوصول إلى الامتحان (الكورسات المدفوعة)
   const [accessDenied, setAccessDenied] = useState(false);
   const [accessReason, setAccessReason] = useState('');
   const [isCheckingAccess, setIsCheckingAccess] = useState(false);
 
-  // مراجع الإجابات والمخالفات
-  useEffect(() => { answersRef.current = answers; }, [answers]);
-  useEffect(() => { violationsRef.current = violations; }, [violations]);
-
-  // دالة التحقق من وجود محاولة ناجحة
   const checkIfPassed = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -2340,7 +2381,9 @@ export default function StudentExamPage() {
         setPassedAttempt(data);
         setShowPassedScreen(true);
       }
-    } catch (err) {}
+    } catch (err) {
+      // لا يوجد محاولة ناجحة، نكمل عادي
+    }
   }, [examId]);
 
   useEffect(() => {
@@ -2349,7 +2392,28 @@ export default function StudentExamPage() {
     }
   }, [examId, checkIfPassed]);
 
-  // دالة طلب ملء الشاشة
+  // ===== مراجع الإجابات والمخالفات =====
+  useEffect(() => { answersRef.current = answers; }, [answers]);
+  useEffect(() => { violationsRef.current = violations; }, [violations]);
+
+  // ===== دالة التشغيل الصوتي للتحذير (تُستخدم فقط عند محاولات الاختراق) =====
+  const playAlert = useCallback((frequency = 800) => {
+    try {
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(frequency, audioCtx.currentTime);
+      gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.5);
+      osc.start(audioCtx.currentTime);
+      osc.stop(audioCtx.currentTime + 0.5);
+    } catch (e) {}
+  }, []);
+
+  // ===== دالة طلب ملء الشاشة (تدعم جميع المتصفحات) =====
   const requestFullscreen = useCallback(() => {
     const el = document.documentElement;
     try {
@@ -2365,9 +2429,7 @@ export default function StudentExamPage() {
     } catch (e) {}
   }, []);
 
-  // ================================================================
-  // ✅ دالة الإغلاق القسري مع دعم السبب وتحديث المحاولات بشكل صحيح
-  // ================================================================
+  // ===== دالة الإغلاق القسري =====
   const forceCloseExam = useCallback(async (reason = 'security_violation') => {
     if (examStatus === 'submitted' || isExamForcedClosed) return;
     setIsExamForcedClosed(true);
@@ -2396,7 +2458,7 @@ export default function StudentExamPage() {
           .eq('id', attemptId);
       }
 
-      // ✅ تحديث المحاولات المتبقية من قاعدة البيانات
+      // ✅ جلب عدد المحاولات المنتهية من القاعدة لتحديث العدد بدقة
       try {
         const { data: { user } } = await supabase.auth.getUser();
         const { data: allAttempts } = await supabase
@@ -2411,14 +2473,15 @@ export default function StudentExamPage() {
         sessionStorage.setItem(`exam_${examId}_attempts_left`, remaining.toString());
         setAttemptsLeft(remaining);
       } catch (e) {
+        // لو فشل الجلب، نخصم 1 كإجراء احتياطي
         const remaining = Math.max(0, attemptsLeft - 1);
         sessionStorage.setItem(`exam_${examId}_attempts_left`, remaining.toString());
         setAttemptsLeft(remaining);
       }
 
       toast.error(language === 'ar'
-        ? `❌ تم إغلاق الامتحان. المحاولات المتبقية: ${attemptsLeft}`
-        : `❌ Exam closed. Attempts left: ${attemptsLeft}`
+        ? `❌ تم إغلاق الامتحان بسبب خروقات أمنية متكررة. المحاولات المتبقية: ${attemptsLeft}`
+        : `❌ Exam closed due to repeated security violations. Attempts left: ${attemptsLeft}`
       );
 
       router.push(`/dashboard/student/exams/${examId}/result?score=0&total=${exam?.total_marks || 0}`);
@@ -2428,13 +2491,14 @@ export default function StudentExamPage() {
     }
   }, [examStatus, isExamForcedClosed, examId, attemptId, attemptsLeft, language, router, fullscreenExitCount, exam]);
 
-  // معالج الخروج من ملء الشاشة
+  // ===== معالج الخروج من ملء الشاشة – مع زر عائم ومهلة سماح =====
   const handleFullscreenChange = useCallback(() => {
     if (examStatus !== 'started' || isExamForcedClosed) return;
 
     const isFullscreen = !!document.fullscreenElement;
     const isVisible = document.visibilityState === 'visible';
 
+    // إذا كان في ملء الشاشة، نخفي الزر ونلغي المؤقتات
     if (isFullscreen) {
       setShowFullscreenButton(false);
       if (fullscreenExitTimer) {
@@ -2445,11 +2509,16 @@ export default function StudentExamPage() {
       return;
     }
 
+    // إذا كان التبويب غير مرئي، يتولى handleVisibilityChange الأمر (طرد فوري)
     if (!isVisible) return;
 
+    // التبويب مرئي ولكن ليس في ملء الشاشة → نعرض الزر العائم
     setShowFullscreenButton(true);
+
+    // محاولة فورية للعودة (قد تنجح في بعض المتصفحات)
     requestFullscreen();
 
+    // بدء مهلة سماح (3 ثوانٍ) لتسجيل مخالفة إذا لم يعد المستخدم
     if (!fullscreenExitTimer) {
       const timer = setTimeout(() => {
         if (!document.fullscreenElement) {
@@ -2469,21 +2538,23 @@ export default function StudentExamPage() {
       }, FULLSCREEN_GRACE_PERIOD);
       setFullscreenExitTimer(timer);
     }
-  }, [examStatus, isExamForcedClosed, requestFullscreen, forceCloseExam, language, fullscreenExitTimer, FULLSCREEN_GRACE_PERIOD, MAX_FULLSCREEN_EXITS]);
+  }, [examStatus, isExamForcedClosed, requestFullscreen, forceCloseExam, maxViolations, language, fullscreenExitTimer, FULLSCREEN_GRACE_PERIOD, MAX_FULLSCREEN_EXITS]);
 
-  // معالج تغيير التبويب (طرد فوري)
+  // ===== مراقبة تغيير التبويب (Visibility Change) – طرد فوري =====
   const handleVisibilityChange = useCallback(() => {
     if (examStatus !== 'started' || isExamForcedClosed) return;
 
     const isVisible = document.visibilityState === 'visible';
 
     if (!isVisible) {
+      // ✅ تغيير التبويب = طرد فوري (إغلاق الامتحان مباشرة)
       toast.error(
         language === 'ar'
           ? '⚠️ تم رصد تغيير التبويب - سيتم إغلاق الامتحان فوراً'
           : '⚠️ Tab switch detected - exam will be closed immediately',
         { duration: 3000 }
       );
+      // إغلاق فوري دون مهلة
       forceCloseExam('tab_switch');
     }
   }, [examStatus, isExamForcedClosed, forceCloseExam, language]);
@@ -2523,30 +2594,42 @@ export default function StudentExamPage() {
     };
   }, [examStatus, isExamForcedClosed, examId, forceCloseExam, language]);
 
-  // دالة تفعيل قفل الأمان
+  // ===== دالة تفعيل قفل الأمان الشامل (موسعة وقوية) =====
   const enableSecurityLockdown = useCallback(() => {
+    // --- منع أحداث الفأرة ---
     const handleContextMenu = (e) => e.preventDefault();
+
+    // --- منع النسخ واللصق ---
     const handleCopyPasteCut = (e) => e.preventDefault();
+
+    // --- منع جميع اختصارات لوحة المفاتيح الخطيرة (قائمة موسعة) ---
     const handleKeyDown = (e) => {
+      // منع F11 و ESC بشكل قهري
       if (e.key === 'F11' || e.key === 'Escape') {
         e.preventDefault();
         e.stopPropagation();
+        // عند الضغط على ESC، نعيد محاولة ملء الشاشة
         if (e.key === 'Escape') {
           setTimeout(() => requestFullscreen(), 50);
         }
         return false;
       }
+
+      // منع اختصارات أخرى خطيرة
       const forbiddenKeys = [
         'F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8', 'F9', 'F10', 'F12',
         'PrintScreen', 'ScrollLock', 'Pause',
         'BrowserHome', 'BrowserSearch', 'BrowserFavorites', 'BrowserRefresh',
         'ContextMenu', 'Meta', 'OS'
       ];
+
       if (forbiddenKeys.includes(e.key)) {
         e.preventDefault();
         e.stopPropagation();
         return false;
       }
+
+      // قائمة التركيبات المحظورة
       const forbiddenCombos = [
         e.ctrlKey && (e.key === 'F11' || e.key === 'f'),
         e.metaKey && (e.key === 'F11' || e.key === 'f'),
@@ -2569,9 +2652,11 @@ export default function StudentExamPage() {
         e.ctrlKey && e.key === 'Escape',
         e.key === 'Meta' && e.ctrlKey,
       ];
+
       if (forbiddenCombos.some(combo => combo)) {
         e.preventDefault();
         e.stopPropagation();
+        // ✅ تأخير toast لتجنب تحديث الحالة أثناء التصيير
         setTimeout(() => {
           toast.error(
             language === 'ar'
@@ -2589,9 +2674,12 @@ export default function StudentExamPage() {
       }
     };
 
+    // --- منع أحداث السحب والإفلات ---
     const handleDragStart = (e) => e.preventDefault();
     const handleDrop = (e) => e.preventDefault();
     const handleDragOver = (e) => e.preventDefault();
+
+    // --- منع الطباعة ---
     const handleBeforePrint = (e) => {
       e.preventDefault();
       setTimeout(() => {
@@ -2600,8 +2688,11 @@ export default function StudentExamPage() {
       }, 0);
       return false;
     };
+
+    // --- مراقبة فقدان التركيز (للأجهزة الجوالة) ---
     const handleBlur = () => {
       if (examStatus === 'started') {
+        // ✅ تأخير تحديث الحالة إلى ما بعد التصيير
         setTimeout(() => {
           setViolations(prev => {
             const newV = prev + 1;
@@ -2612,21 +2703,31 @@ export default function StudentExamPage() {
         }, 0);
       }
     };
+
+    // --- منع إيماءات السحب من الحواف (للموبايل) ---
     const handleTouchMove = (e) => {
       if (e.touches && e.touches.length === 1) {
         const touch = e.touches[0];
+        // منع السحب من الحواف اليمنى أو اليسرى (قد يفتح قائمة النظام)
         if (touch.clientX < 30 || touch.clientX > window.innerWidth - 30) {
           e.preventDefault();
+          // محاولة العودة إلى ملء الشاشة
           setTimeout(() => requestFullscreen(), 100);
         }
       }
     };
+
+    // --- منع زر العودة على Android ---
     const handlePopState = () => {
+      // منع الرجوع للخلف في التاريخ
       history.pushState(null, '', window.location.href);
     };
 
+    // --- مراقبة DOM بحساسية أقل ---
     const observer = new MutationObserver((mutations) => {
+      // نراقب فقط التغييرات التي قد تشير إلى محاولة اختراق حقيقية
       for (const mutation of mutations) {
+        // 1. إذا تم إزالة عناصر مهمة (مثل طبقات الحماية)
         if (mutation.type === 'childList' && mutation.removedNodes.length > 0) {
           const removed = Array.from(mutation.removedNodes);
           for (const node of removed) {
@@ -2639,6 +2740,7 @@ export default function StudentExamPage() {
             }
           }
         }
+        // 2. إذا تم تغيير style بطريقة مشبوهة
         if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
           const target = mutation.target;
           if (target.style && 
@@ -2651,8 +2753,10 @@ export default function StudentExamPage() {
             }, 0);
           }
         }
+        // 3. إذا تم تغيير class بطريقة مشبوهة
         if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
           const target = mutation.target;
+          // ✅ تحويل className إلى سلسلة نصية
           const className = String(target.className || '');
           if (className && 
               (className.includes('overflow-visible') || 
@@ -2665,20 +2769,22 @@ export default function StudentExamPage() {
         }
       }
     });
+    // نراقب العنصر الرئيسي فقط (وليس document.documentElement بالكامل)
     const targetElement = document.getElementById('exam-container') || document.body;
     observer.observe(targetElement, { 
       attributes: true, 
       childList: true, 
       subtree: true,
-      attributeFilter: ['style', 'class', 'id']
+      attributeFilter: ['style', 'class', 'id'] // نراقب فقط تغييرات محددة
     });
 
+    // --- إضافة جميع المستمعين ---
     window.addEventListener('blur', handleBlur);
     document.addEventListener('contextmenu', handleContextMenu);
     document.addEventListener('copy', handleCopyPasteCut);
     document.addEventListener('paste', handleCopyPasteCut);
     document.addEventListener('cut', handleCopyPasteCut);
-    document.addEventListener('keydown', handleKeyDown, true);
+    document.addEventListener('keydown', handleKeyDown, true); // استخدام capture phase
     document.addEventListener('dragstart', handleDragStart);
     document.addEventListener('drop', handleDrop);
     document.addEventListener('dragover', handleDragOver);
@@ -2686,6 +2792,7 @@ export default function StudentExamPage() {
     document.addEventListener('touchmove', handleTouchMove, { passive: false });
     window.addEventListener('popstate', handlePopState);
 
+    // --- دالة التنظيف ---
     return () => {
       window.removeEventListener('blur', handleBlur);
       document.removeEventListener('contextmenu', handleContextMenu);
@@ -2703,13 +2810,15 @@ export default function StudentExamPage() {
     };
   }, [maxViolations, forceCloseExam, examStatus, language, requestFullscreen]);
 
-  // فحص ملء الشاشة الدوري
+  // ===== فحص ملء الشاشة الدوري (كل 2 ثانية مع تحذير فقط) =====
   useEffect(() => {
     if (examStatus !== 'started') return;
     
     const fullscreenCheck = setInterval(() => {
       if (!document.fullscreenElement && !isExamForcedClosed) {
         requestFullscreen();
+        
+        // ✅ نعرض تحذيراً فقط وليس مخالفة فورية
         setTimeout(() => {
           toast(
             language === 'ar' 
@@ -2719,35 +2828,40 @@ export default function StudentExamPage() {
           );
         }, 0);
       }
-    }, 2000);
+    }, 2000); // كل 2 ثانية بدلاً من 150ms
 
     return () => clearInterval(fullscreenCheck);
   }, [examStatus, requestFullscreen, isExamForcedClosed, language]);
 
-  // دالة التحقق من صلاحية الوصول
+  // ✅ دالة التحقق من صلاحية الوصول إلى الامتحان (الكورسات المدفوعة)
   const verifyExamAccess = useCallback(async (courseId) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.push('/login'); return false; }
 
+      // إذا لم يتم تمرير courseId أو كان فارغاً => سماح تلقائي
       if (!courseId) return true;
 
+      // جلب بيانات الكورس
       const { data: course, error: courseError } = await supabase
         .from('courses')
         .select('id, is_free, price')
         .eq('id', courseId)
         .single();
 
+      // إذا لم يكن هناك كورس أو كان مجانياً => سماح
       if (courseError || !course || course.is_free || course.price === 0) {
         return true;
       }
 
+      // ✅ الكورس مدفوع => التحقق من الاشتراك والأجهزة باستخدام الدالة المعدة
       const accessResult = await checkCourseAccess(courseId, user.id);
 
       if (accessResult.allowed) {
         return true;
       }
 
+      // ❌ رفض الوصول
       setAccessDenied(true);
       setAccessReason(accessResult.reason || 'default');
       return false;
@@ -2759,7 +2873,7 @@ export default function StudentExamPage() {
     }
   }, [router]);
 
-  // جلب بيانات الامتحان
+  // ===== جلب بيانات الامتحان =====
   const fetchExamData = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -2768,6 +2882,7 @@ export default function StudentExamPage() {
       const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single();
       setStudent(profile);
 
+      // ✅ التحقق المبكر: إذا كان الطالب ناجحاً سابقاً، لا نكمل تحميل البيانات
       if (passedAttempt || showPassedScreen) {
         setLoading(false);
         return;
@@ -2784,6 +2899,7 @@ export default function StudentExamPage() {
         return;
       }
 
+      // ===== جلب اسم المعلم والكورس =====
       let courseName = null;
       let teacherName = 'مستر محمد رضوان';
       if (examData.course_id) {
@@ -2795,6 +2911,8 @@ export default function StudentExamPage() {
         if (teacher?.full_name) teacherName = teacher.full_name;
       }
 
+      // ✅ التحقق من صلاحية الوصول (الكورسات المدفوعة)
+      // نمرر course_id من examData
       setIsCheckingAccess(true);
       const hasAccess = await verifyExamAccess(examData.course_id);
       setIsCheckingAccess(false);
@@ -2807,20 +2925,24 @@ export default function StudentExamPage() {
       const start = examData.start_date ? toLocalDate(examData.start_date) : null;
       const end = examData.end_date ? toLocalDate(examData.end_date) : null;
 
+      // ===== التحقق من وجود محاولات سابقة =====
       const { data: attempts } = await supabase
         .from('exam_attempts')
         .select('id, status, score, passed')
         .eq('exam_id', examId)
         .eq('student_id', user.id);
       
+      // ✅ حساب المحاولات المتبقية من قاعدة البيانات (المصدر الوحيد)
       const attemptsAllowed = examData.attempts_allowed || 1;
       const completedCount = attempts?.filter(
         a => a.status === 'completed' || a.status === 'terminated'
       ).length || 0;
       const attemptsLeftVal = Math.max(0, attemptsAllowed - completedCount);
       setAttemptsLeft(attemptsLeftVal);
+      // نخزنه في sessionStorage كمرجع سريع
       sessionStorage.setItem(`exam_${examId}_attempts_left`, attemptsLeftVal.toString());
 
+      // ===== التحقق من وجود محاولة ناجحة =====
       const hasPassed = attempts?.some(a => a.passed === true);
       if (hasPassed) {
         const { data: passedData } = await supabase
@@ -2840,10 +2962,12 @@ export default function StudentExamPage() {
         }
       }
 
+      // تخزين المحاولات المتبقية في sessionStorage
       const storedAttempts = sessionStorage.getItem(`exam_${examId}_attempts_left`);
       if (storedAttempts !== null) {
         const savedAttempts = parseInt(storedAttempts, 10);
         if (!isNaN(savedAttempts) && savedAttempts < attemptsLeftVal) {
+          // نستخدم القيمة الأقل (الأكثر أماناً)
           setAttemptsLeft(savedAttempts);
         }
       }
@@ -2854,6 +2978,7 @@ export default function StudentExamPage() {
         return;
       }
 
+      // ===== جلب الأسئلة =====
       const { data: questionsData, error: qError } = await supabase
         .from('exam_questions')
         .select('*')
@@ -2912,6 +3037,7 @@ export default function StudentExamPage() {
         end_date: examData.end_date,
       });
 
+      // ✅ التحقق من وقت البدء
       if (start && now < start) {
         setExamStatus('waiting');
         setLoading(false);
@@ -2927,9 +3053,12 @@ export default function StudentExamPage() {
       const duration = (examData.duration_minutes || 60) * 60;
       setTimeRemaining(duration);
 
-      // إنهاء المحاولات المفتوحة بصمت
+      // ===== معالجة المحاولات المفتوحة (in_progress) =====
+      // ✅ التعديل الجديد: إنهاء أي محاولة مفتوحة بصمت وبدء محاولة جديدة
       const inProgress = attempts?.find(a => a.status === 'in_progress');
       if (inProgress) {
+        // إنهاء الجلسة القديمة بصمت (تحويلها إلى terminated)
+        // لضمان عدم وجود أي جلسة مفتوحة تؤثر على المحاولة الجديدة
         try {
           await supabase
             .from('exam_attempts')
@@ -2948,13 +3077,24 @@ export default function StudentExamPage() {
           console.warn('⚠️ فشل إغلاق المحاولة القديمة:', e);
         }
 
+        // لا نستأنف أي شيء، سنبدأ محاولة جديدة
+        // نمسح أي آثار للجلسة القديمة من sessionStorage
         sessionStorage.removeItem(`exam_${examId}_answers`);
         sessionStorage.removeItem(`exam_${examId}_highlights`);
-        setAnswers({});
-        setCurrentIndex(0);
+        setAnswers({});          // إجابات فاضية
+        setCurrentIndex(0);       // نبدأ من السؤال الأول
       }
 
+      // ✅ بعد معالجة المحاولات المفتوحة، نضبط التايمر على المدة الكاملة
       setTimeRemaining(duration);
+
+      // ✅ إزالة كود reload logic بالكامل (الذي كان يخصم محاولات عند إعادة التحميل)
+      // تم حذف الجزء التالي:
+      // const reloadKey = `exam_${examId}_load_count`;
+      // const reloadCount = parseInt(sessionStorage.getItem(reloadKey) || '0', 10);
+      // sessionStorage.setItem(reloadKey, (reloadCount + 1).toString());
+      // if (reloadCount > 0 && inProgress) { ... }
+
       setLoading(false);
     } catch (err) {
       console.error('Fetch error:', err);
@@ -2967,7 +3107,9 @@ export default function StudentExamPage() {
     fetchExamData();
   }, [fetchExamData]);
 
-  // تقديم الامتحان (submitExam)
+  // ================================================================
+  // ✅ تقديم الامتحان باستخدام gradeExam (تم نقله قبل startExam)
+  // ================================================================
   const submitExam = useCallback(async (isAuto = false) => {
     if (examStatus === 'submitted') return;
     setExamStatus('submitted');
@@ -2977,6 +3119,7 @@ export default function StudentExamPage() {
       let answersObj = answersRef.current;
       let questionsForGrading = questions;
 
+      // تحويل الإجابات والأسئلة
       if (questionsForGrading && questionsForGrading.length) {
         questionsForGrading = questionsForGrading.map(q => {
           const qCopy = { ...q };
@@ -3009,6 +3152,7 @@ export default function StudentExamPage() {
         });
       }
 
+      // ✅ حساب الدرجات
       const { totalScore, maxPossibleScore, questionGrades } = gradeExam(
         questionsForGrading,
         answersObj,
@@ -3023,6 +3167,7 @@ export default function StudentExamPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('لم يتم تسجيل الدخول');
 
+      // محاولة تحديث المحاولة الحالية
       if (attemptId && attemptId !== 'null' && attemptId !== 'undefined') {
         const { error: updateError } = await supabase
           .from('exam_attempts')
@@ -3045,6 +3190,7 @@ export default function StudentExamPage() {
         }
       }
 
+      // إنشاء محاولة جديدة إذا فشل التحديث
       if (!attemptIdFinal) {
         await supabase
           .from('exam_attempts')
@@ -3105,7 +3251,7 @@ export default function StudentExamPage() {
         }
       }
 
-      // تحديث المحاولات المتبقية
+      // ✅ تحديث المحاولات المتبقية من قاعدة البيانات بعد التسليم
       try {
         const { data: allAttempts } = await supabase
           .from('exam_attempts')
@@ -3119,6 +3265,7 @@ export default function StudentExamPage() {
         sessionStorage.setItem(`exam_${examId}_attempts_left`, newAttemptsLeft.toString());
         setAttemptsLeft(newAttemptsLeft);
       } catch (e) {
+        // احتياطي: خصم 1
         const newAttemptsLeft = Math.max(0, attemptsLeft - 1);
         sessionStorage.setItem(`exam_${examId}_attempts_left`, newAttemptsLeft.toString());
         setAttemptsLeft(newAttemptsLeft);
@@ -3140,10 +3287,13 @@ export default function StudentExamPage() {
     }
   }, [examStatus, questions, attemptId, examId, router, language, attemptsLeft, exam]);
 
-  // بدء الامتحان (startExam)
+  // ================================================================
+  // ✅ بدء الامتحان مع تفعيل الأمان الشامل (بعد submitExam)
+  // ================================================================
   const startExam = useCallback(async () => {
     if (examStatus === 'started') return;
 
+    // ✅ ضمان بيئة نضيفة: مسح جميع الإجابات والحالات القديمة
     setAnswers({});
     setMarkedQuestions([]);
     setHighlightedQuestions([]);
@@ -3153,14 +3303,17 @@ export default function StudentExamPage() {
     setFullscreenExitCount(0);
     fullscreenExitAttemptsRef.current = 0;
 
+    // ✅ ضبط التايمر على المدة الكاملة من الامتحان
     const fullDurationSeconds = (exam?.duration_minutes || 60) * 60;
     setTimeRemaining(fullDurationSeconds);
 
+    // ✅ إلغاء أي مؤقت قديم شغال
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
 
+    // ✅ التحقق من صلاحية الوصول قبل بدء الامتحان (مرة أخرى للتأكيد)
     if (exam?.course_id) {
       const hasAccess = await verifyExamAccess(exam.course_id);
       if (!hasAccess) {
@@ -3192,7 +3345,10 @@ export default function StudentExamPage() {
       toast.error(language === 'ar' ? 'فشل بدء الامتحان' : 'Failed to start exam');
     }
 
+    // تفعيل ملء الشاشة الإجباري
     requestFullscreen();
+
+    // ✅ تفعيل قفل الأمان الشامل
     enableSecurityLockdown();
 
     if (timerRef.current) clearInterval(timerRef.current);
@@ -3208,7 +3364,7 @@ export default function StudentExamPage() {
     }, 1000);
   }, [examStatus, examId, exam, examStartedAt, language, requestFullscreen, enableSecurityLockdown, verifyExamAccess, submitExam]);
 
-  // مراقبة الأمان
+  // ===== useEffect لتفعيل مراقبة الأمان =====
   useEffect(() => {
     if (examStatus !== 'started') return;
 
@@ -3218,6 +3374,7 @@ export default function StudentExamPage() {
     document.addEventListener('MSFullscreenChange', handleFullscreenChange);
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
+    // تفعيل قفل الأمان (يتم استدعاؤه مرة أخرى للتأكيد)
     const cleanupSecurity = enableSecurityLockdown();
 
     return () => {
@@ -3230,7 +3387,7 @@ export default function StudentExamPage() {
     };
   }, [examStatus, handleFullscreenChange, handleVisibilityChange, enableSecurityLockdown]);
 
-  // دوال التنقل والتفاعل
+  // ===== دالة فتح نافذة تأكيد التسليم =====
   const openSubmitModal = useCallback(() => {
     const realQuestions = questions.filter(q => q.type !== 'passage');
     const answered = realQuestions.filter(q => {
@@ -3248,23 +3405,29 @@ export default function StudentExamPage() {
 
   const confirmSubmit = useCallback(() => {
     setShowSubmitModal(false);
+    // ✅ التقاط الإجابات فوراً
     const finalAnswers = { ...answers };
     answersRef.current = finalAnswers;
     setIsSubmitting(true);
+    // ✅ استدعاء submitExam مباشرة دون تأخير
     submitExam(false);
   }, [answers, submitExam]);
 
+  // ===== دالة toggleReviewMark =====
   const toggleReviewMark = useCallback((id) => {
     setReviewMarkedQuestions(prev =>
       prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
     );
   }, []);
 
+  // ===== دوال التنقل =====
   const goToQuestion = useCallback((index) => {
     if (index >= 0 && index < questions.length) {
       setCurrentIndex(index);
     }
   }, [questions]);
+
+  const currentQuestion = questions[currentIndex];
 
   const goToNextUnanswered = useCallback(() => {
     for (let i = currentIndex + 1; i < questions.length; i++) {
@@ -3282,7 +3445,7 @@ export default function StudentExamPage() {
       }
     }
     toast('لا توجد أسئلة غير مجابة', { icon: 'ℹ️' });
-  }, [currentIndex, questions, answers, goToQuestion]);
+  }, [currentIndex, questions, answers, goToQuestion, language]);
 
   const toggleMark = useCallback((id) => {
     setMarkedQuestions(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
@@ -3296,6 +3459,7 @@ export default function StudentExamPage() {
     });
   }, [examId]);
 
+  // ===== معالجة الإجابة =====
   const handleAnswer = useCallback((id, value) => {
     setAnswers(prev => {
       const newAnswers = { ...prev, [id]: value };
@@ -3304,6 +3468,7 @@ export default function StudentExamPage() {
     });
   }, [examId]);
 
+  // ===== دالة الخروج الطارئ =====
   const emergencyExit = useCallback(() => {
     if (examStatus === 'started' && !isExamForcedClosed) {
       if (confirm(language === 'ar' ? '⚠️ سيتم خصم محاولة ومسح جميع إجاباتك. هل أنت متأكد؟' : '⚠️ One attempt will be deducted and all answers cleared. Are you sure?')) {
@@ -3319,8 +3484,7 @@ export default function StudentExamPage() {
     return ans !== undefined && ans !== null && ans !== '';
   }).length;
 
-  const currentQuestion = questions[currentIndex];
-
+  // ===== عرض السؤال =====
   const renderQuestion = useCallback((q) => {
     const type = getQuestionType(q.type);
     const answer = answers[q.id];
@@ -3329,7 +3493,7 @@ export default function StudentExamPage() {
 
     if (q.type === 'passage') {
       return (
-        <div className={`space-y-3 ${isHighlighted ? 'bg-yellow-100 dark:bg-yellow-900/20 p-3 rounded-xl' : ''}`}>
+        <div className={`space-y-4 ${isHighlighted ? 'bg-yellow-100 dark:bg-yellow-900/20 p-4 rounded-xl' : ''}`}>
           <PassageDisplay
             passageId={q.id}
             originalText={q.question_text}
@@ -3339,7 +3503,7 @@ export default function StudentExamPage() {
             passageFontSize={passageFontSize}
             onFontSizeChange={setPassageFontSize}
           />
-          <p className={`text-sm ${styles.text} font-medium`}>
+          <p className={`text-base ${styles.text} font-medium`}>
             {language === 'ar' ? 'هذه قطعة نصية، لا توجد أسئلة فرعية' : 'This is a passage, no sub-questions'}
           </p>
         </div>
@@ -3377,7 +3541,7 @@ export default function StudentExamPage() {
         break;
       default:
         questionComponent = (
-          <div className={`p-3 rounded-xl ${styles.card} border ${styles.border}`}>
+          <div className={`p-4 rounded-xl ${styles.card} border ${styles.border}`}>
             <p className={`text-sm ${styles.text}`}>{language === 'ar' ? 'نوع سؤال غير مدعوم' : 'Unsupported question type'}</p>
           </div>
         );
@@ -3390,15 +3554,16 @@ export default function StudentExamPage() {
         exit={{ opacity: 0, scale: 0.95 }}
         transition={{ duration: 0.25 }}
         whileHover={{ scale: 1.01 }}
-        className={`space-y-3 ${isHighlighted ? 'bg-yellow-100 dark:bg-yellow-900/20 p-3 rounded-xl' : ''}`}
+        className={`space-y-4 ${isHighlighted ? 'bg-yellow-100 dark:bg-yellow-900/20 p-4 rounded-xl' : ''}`}
       >
-        <div className="flex items-center gap-1.5 mb-2 flex-wrap">
-          <span className={`text-xs font-bold text-yellow-400 bg-yellow-400/10 px-2.5 py-1 rounded-lg flex items-center gap-1`}>
+        {/* رأس السؤال مع زر المراجعة */}
+        <div className="flex items-center gap-2 mb-3 flex-wrap">
+          <span className={`text-xs font-bold text-yellow-400 bg-yellow-400/10 px-3 py-1 rounded-lg flex items-center gap-1`}>
             <Icons.HelpCircle className="h-3 w-3" />
             {language === 'ar' ? 'سؤال' : 'Q'} {questions.findIndex(qq => qq.id === q.id) + 1}/{questions.length}
           </span>
           {q.difficulty && (
-            <span className={`text-[9px] px-2 py-0.5 rounded-lg capitalize font-medium ${
+            <span className={`text-[10px] px-2.5 py-1 rounded-lg capitalize font-medium ${
               q.difficulty === 'easy' ? 'bg-green-500/20 text-green-400' :
               q.difficulty === 'medium' ? 'bg-yellow-500/20 text-yellow-400' :
               'bg-red-500/20 text-red-400'
@@ -3408,24 +3573,25 @@ export default function StudentExamPage() {
             </span>
           )}
           {q.marks > 0 && (
-            <span className="text-[9px] bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded-lg font-medium">
-              <Icons.Star className="h-2.5 w-2.5 inline mr-0.5" />
+            <span className="text-[10px] bg-blue-500/20 text-blue-400 px-2.5 py-1 rounded-lg font-medium">
+              <Icons.Star className="h-3 w-3 inline mr-1" />
               {q.marks} {language === 'ar' ? 'درجة' : 'pts'}
             </span>
           )}
           {highlightedQuestions.includes(q.id) && (
-            <span className="text-[9px] bg-yellow-400/20 text-yellow-400 px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
-              <Icons.Highlighter className="h-2.5 w-2.5" /> ★
+            <span className="text-[10px] bg-yellow-400/20 text-yellow-400 px-2 py-0.5 rounded-full flex items-center gap-1">
+              <Icons.Highlighter className="h-3 w-3" /> ★ مظلل
             </span>
           )}
           {answers[q.id] !== undefined && answers[q.id] !== null && answers[q.id] !== '' && (
-            <span className="text-[9px] bg-green-500/20 text-green-400 px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
-              <Icons.CheckCircle className="h-2.5 w-2.5" /> {language === 'ar' ? 'تمت' : 'Answered'}
+            <span className="text-[10px] bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full flex items-center gap-1">
+              <Icons.CheckCircle className="h-3 w-3" /> {language === 'ar' ? 'تمت الإجابة' : 'Answered'}
             </span>
           )}
+          {/* ✅ زر المراجعة – يظهر في كلا الوضعين */}
           <button
             onClick={() => toggleReviewMark(q.id)}
-            className={`px-1.5 py-0.5 rounded-lg text-[9px] font-semibold transition ${
+            className={`px-2 py-1 rounded-lg text-[10px] font-semibold transition ${
               reviewMarkedQuestions.includes(q.id)
                 ? 'bg-yellow-400/30 text-yellow-400 border border-yellow-400/50'
                 : isDark
@@ -3435,9 +3601,9 @@ export default function StudentExamPage() {
             title={language === 'ar' ? 'وضع علامة للمراجعة' : 'Mark for review'}
           >
             {reviewMarkedQuestions.includes(q.id) ? (
-              <Icons.Flag className="h-2.5 w-2.5 inline mr-0.5" />
+              <Icons.Flag className="h-3 w-3 inline mr-1" />
             ) : (
-              <Icons.Flag className="h-2.5 w-2.5 inline mr-0.5 opacity-50" />
+              <Icons.Flag className="h-3 w-3 inline mr-1 opacity-50" />
             )}
             {reviewMarkedQuestions.includes(q.id)
               ? (language === 'ar' ? 'مراجعة ✓' : 'Review ✓')
@@ -3464,12 +3630,22 @@ export default function StudentExamPage() {
     );
   }, [answers, handleAnswer, styles, language, passages, isDark, fontSize, isBold, isItalic, highlightedQuestions, examId, passageFontSize, questions, toggleReviewMark, reviewMarkedQuestions]);
 
-  // حالات التحميل والخطأ والوصول
+  const correctAnswers = useMemo(() => {
+    const result = {};
+    questions.forEach(q => {
+      if (q.correct_answer) {
+        result[q.id] = q.correct_answer;
+      }
+    });
+    return result;
+  }, [questions]);
+
+  // ===== شاشة تحميل =====
   if (loading || isCheckingAccess) {
     return (
       <div className={`min-h-screen w-full flex items-center justify-center ${isDark ? 'bg-[#0b0e1a]' : 'bg-gray-50'}`}>
-        <div className="flex flex-col items-center gap-2.5">
-          <div className="w-10 h-10 border-4 border-yellow-400/30 border-t-yellow-400 rounded-full animate-spin" />
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-12 h-12 border-4 border-yellow-400/30 border-t-yellow-400 rounded-full animate-spin" />
           <p className={`text-sm ${styles.subtext}`}>
             {isCheckingAccess 
               ? (language === 'ar' ? 'جاري التحقق من الصلاحية...' : 'Verifying access...')
@@ -3481,18 +3657,19 @@ export default function StudentExamPage() {
     );
   }
 
+  // ===== عرض الخطأ =====
   if (error) {
     return (
-      <div className={`min-h-screen ${isDark ? 'bg-[#0b0e1a]' : 'bg-gray-50'} flex items-center justify-center p-3`}>
-        <div className={`max-w-md w-full p-6 rounded-3xl ${styles.card} border ${styles.border} text-center space-y-3 shadow-2xl`}>
-          <div className="inline-flex p-3 rounded-full bg-red-500/20 border-2 border-red-500/30">
+      <div className={`min-h-screen ${isDark ? 'bg-[#0b0e1a]' : 'bg-gray-50'} flex items-center justify-center p-4`}>
+        <div className={`max-w-md w-full p-8 rounded-3xl ${styles.card} border ${styles.border} text-center space-y-4 shadow-2xl`}>
+          <div className="inline-flex p-4 rounded-full bg-red-500/20 border-2 border-red-500/30">
             <Icons.XCircle className="h-10 w-10 text-red-400" />
           </div>
-          <h2 className={`text-lg font-bold ${styles.text}`}>
+          <h2 className={`text-xl font-bold ${styles.text}`}>
             {language === 'ar' ? 'لا يمكن دخول الامتحان' : 'Cannot Enter Exam'}
           </h2>
           <p className={`${styles.text} text-sm leading-relaxed opacity-70`}>{error}</p>
-          <button onClick={() => router.push('/dashboard/student/courses')} style={{ touchAction: 'manipulation' }} className="px-5 py-2 bg-yellow-400 text-black font-bold rounded-xl hover:bg-yellow-500 transition shadow-lg shadow-yellow-400/20">
+          <button onClick={() => router.push('/dashboard/student/courses')} style={{ touchAction: 'manipulation' }} className="px-6 py-2.5 bg-yellow-400 text-black font-bold rounded-xl hover:bg-yellow-500 transition shadow-lg shadow-yellow-400/20">
             {language === 'ar' ? 'العودة للكورسات' : 'Back to Courses'}
           </button>
         </div>
@@ -3500,6 +3677,7 @@ export default function StudentExamPage() {
     );
   }
 
+  // ===== ✅ شاشة رفض الوصول (الكورسات المدفوعة) =====
   if (accessDenied) {
     const messages = {
       no_subscription: language === 'ar' 
@@ -3519,26 +3697,26 @@ export default function StudentExamPage() {
     const message = messages[accessReason] || messages.default;
 
     return (
-      <div className={`min-h-screen ${isDark ? 'bg-[#0b0e1a]' : 'bg-gray-50'} flex items-center justify-center p-3`}>
-        <div className={`max-w-md w-full p-6 rounded-3xl ${styles.card} border ${styles.border} text-center space-y-3 shadow-2xl`}>
-          <div className="inline-flex p-3 rounded-full bg-red-500/20 border-2 border-red-500/30">
-            <Icons.Lock className="h-10 w-10 text-red-400" />
+      <div className={`min-h-screen ${isDark ? 'bg-[#0b0e1a]' : 'bg-gray-50'} flex items-center justify-center p-4`}>
+        <div className={`max-w-md w-full p-8 rounded-3xl ${styles.card} border ${styles.border} text-center space-y-4 shadow-2xl`}>
+          <div className="inline-flex p-4 rounded-full bg-red-500/20 border-2 border-red-500/30">
+            <Icons.Lock className="h-12 w-12 text-red-400" />
           </div>
-          <h2 className={`text-xl font-extrabold ${styles.text}`}>
+          <h2 className={`text-2xl font-extrabold ${styles.text}`}>
             {language === 'ar' ? '🚫 وصول ممنوع' : '🚫 Access Denied'}
           </h2>
-          <p className={`${styles.text} text-sm leading-relaxed opacity-80`}>{message}</p>
-          <div className="flex flex-col sm:flex-row gap-2 justify-center mt-3">
+          <p className={`${styles.text} text-base leading-relaxed opacity-80`}>{message}</p>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center mt-4">
             <button
               onClick={() => router.push(`/dashboard/student/courses/${exam?.course_id}`)}
-              className="px-5 py-2 bg-yellow-400 text-black font-bold rounded-xl hover:bg-yellow-500 transition shadow-lg shadow-yellow-400/20"
+              className="px-6 py-2.5 bg-yellow-400 text-black font-bold rounded-xl hover:bg-yellow-500 transition shadow-lg shadow-yellow-400/20"
             >
               {language === 'ar' ? 'العودة للكورس' : 'Back to Course'}
             </button>
             {accessReason === 'no_subscription' && exam?.course_id && (
               <button
                 onClick={() => router.push(`/dashboard/student/courses/${exam.course_id}/payment`)}
-                className="px-5 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-bold rounded-xl hover:scale-105 transition shadow-lg shadow-blue-500/30"
+                className="px-6 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-bold rounded-xl hover:scale-105 transition shadow-lg shadow-blue-500/30"
               >
                 {language === 'ar' ? 'الاشتراك الآن' : 'Subscribe Now'}
               </button>
@@ -3549,10 +3727,12 @@ export default function StudentExamPage() {
     );
   }
 
+  // ===== شاشة انتظار بدء الامتحان =====
   if (examStatus === 'waiting' && exam?.start_date) {
     return <ExamCountdownScreen exam={exam} styles={styles} language={language} isDark={isDark} />;
   }
 
+  // ===== شاشة "تم الاجتياز" (ناجح سابقاً) =====
   if (showPassedScreen && passedAttempt) {
     const totalMarks = (passedAttempt.total_marks > 0) 
       ? passedAttempt.total_marks 
@@ -3564,61 +3744,102 @@ export default function StudentExamPage() {
     const examTitle = exam?.title || (language === 'ar' ? 'الامتحان' : 'Exam');
 
     return (
-      <div className={`min-h-screen w-full ${isDark ? 'bg-[#0b0e1a]' : 'bg-gray-50'} flex items-center justify-center p-3`}>
+      <div className={`min-h-screen w-full ${isDark ? 'bg-[#0b0e1a]' : 'bg-gray-50'} flex items-center justify-center p-4`}>
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.6, type: 'spring' }}
-          className={`max-w-3xl w-full p-6 rounded-3xl ${styles.card} border ${styles.border} shadow-2xl`}
+          className={`max-w-4xl w-full p-8 rounded-3xl ${styles.card} border ${styles.border} shadow-2xl`}
         >
-          <div className="text-center mb-4">
-            <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ duration: 2, repeat: Infinity }} className="inline-flex p-3 rounded-full bg-emerald-500/20 border-4 border-emerald-400">
-              <Icons.Trophy className="h-16 w-16 text-emerald-400" />
+          {/* أيقونة النجاح */}
+          <div className="text-center mb-6">
+            <motion.div
+              animate={{ scale: [1, 1.2, 1] }}
+              transition={{ duration: 2, repeat: Infinity }}
+              className="inline-flex p-4 rounded-full bg-emerald-500/20 border-4 border-emerald-400"
+            >
+              <Icons.Trophy className="h-20 w-20 text-emerald-400" />
             </motion.div>
-            <h1 className={`text-3xl font-extrabold mt-3 ${styles.text}`}>🎉 {language === 'ar' ? 'لقد اجتزت هذا الاختبار!' : 'You passed this exam!'}</h1>
-            <p className={`text-base ${styles.subtext} mt-1`}>{language === 'ar' ? `لقد حققت درجة ${passedAttempt.score} من ${totalMarks}` : `You scored ${passedAttempt.score} out of ${totalMarks}`}</p>
-            <div className="w-20 h-1 bg-gradient-to-r from-emerald-400 to-emerald-600 mx-auto mt-2 rounded-full" />
+            <h1 className={`text-4xl font-extrabold mt-4 ${styles.text}`}>
+              🎉 {language === 'ar' ? 'لقد اجتزت هذا الاختبار!' : 'You passed this exam!'}
+            </h1>
+            <p className={`text-lg ${styles.subtext} mt-2`}>
+              {language === 'ar' 
+                ? `لقد حققت درجة ${passedAttempt.score} من ${totalMarks}`
+                : `You scored ${passedAttempt.score} out of ${totalMarks}`}
+            </p>
+            <div className="w-24 h-1 bg-gradient-to-r from-emerald-400 to-emerald-600 mx-auto mt-3 rounded-full" />
           </div>
 
-          <div className={`relative p-5 rounded-2xl border-2 border-yellow-400/40 bg-gradient-to-br from-amber-50/50 via-white to-yellow-50/50 dark:from-yellow-900/10 dark:via-gray-900/10 dark:to-yellow-900/10 backdrop-blur-sm overflow-hidden shadow-inner`}>
+          {/* شهادة تقدير فاخرة */}
+          <div className={`relative p-8 rounded-3xl border-2 border-yellow-400/40 bg-gradient-to-br from-amber-50/50 via-white to-yellow-50/50 dark:from-yellow-900/10 dark:via-gray-900/10 dark:to-yellow-900/10 backdrop-blur-sm overflow-hidden shadow-inner`}>
+            <div className="absolute inset-0 opacity-10 pointer-events-none">
+              <div className="absolute -top-20 -right-20 w-80 h-80 bg-yellow-400 rounded-full blur-3xl animate-pulse" />
+              <div className="absolute -bottom-20 -left-20 w-80 h-80 bg-yellow-600 rounded-full blur-3xl animate-pulse delay-1000" />
+            </div>
+            
             <div className="relative z-10 text-center">
-              <div className="flex justify-center mb-2">
-                <div className="p-2 rounded-xl bg-gradient-to-br from-yellow-400/20 to-yellow-600/20 border-2 border-yellow-400/40 shadow-lg">
-                  <Icons.Award className="h-10 w-10 text-yellow-500" />
+              <div className="flex justify-center mb-4">
+                <div className="p-3 rounded-2xl bg-gradient-to-br from-yellow-400/20 to-yellow-600/20 border-2 border-yellow-400/40 shadow-lg">
+                  <Icons.Award className="h-12 w-12 text-yellow-500" />
                 </div>
               </div>
-              <h2 className={`text-3xl font-extrabold ${styles.text} mb-1`}>{language === 'ar' ? 'شهادة تقدير' : 'Certificate of Achievement'}</h2>
-              <div className="w-20 h-1 bg-gradient-to-r from-yellow-400 via-yellow-500 to-yellow-600 mx-auto my-2 rounded-full" />
-              <p className={`text-sm ${styles.subtext}`}>{language === 'ar' ? 'تُمنح هذه الشهادة للطالب' : 'This certificate is awarded to'}</p>
-              <p className={`text-2xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-yellow-500 to-amber-600 my-2`}>{student?.full_name || 'طالب'}</p>
-              <p className={`text-sm ${styles.subtext}`}>{language === 'ar' ? 'لاجتيازه امتحان' : 'for successfully passing the exam'}</p>
-              <p className={`text-xl font-bold ${styles.text} my-1.5 px-3 py-1 bg-yellow-400/10 rounded-xl inline-block border border-yellow-400/20`}>“{examTitle}”</p>
-              <div className="flex justify-center items-center gap-3 mt-3 flex-wrap">
-                <div className={`px-4 py-1.5 rounded-xl ${grade.bg} ${grade.color} border ${grade.border} shadow-sm`}>
-                  <span className="text-base font-bold">{grade.emoji} {grade.label}</span>
+              
+              <h2 className={`text-4xl font-extrabold ${styles.text} mb-2`}>
+                {language === 'ar' ? 'شهادة تقدير' : 'Certificate of Achievement'}
+              </h2>
+              
+              <div className="w-24 h-1 bg-gradient-to-r from-yellow-400 via-yellow-500 to-yellow-600 mx-auto my-3 rounded-full" />
+              
+              <p className={`text-base ${styles.subtext}`}>
+                {language === 'ar' ? 'تُمنح هذه الشهادة للطالب' : 'This certificate is awarded to'}
+              </p>
+              
+              <p className={`text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-yellow-500 to-amber-600 my-3`}>
+                {student?.full_name || 'طالب'}
+              </p>
+              
+              <p className={`text-base ${styles.subtext}`}>
+                {language === 'ar' ? 'لاجتيازه امتحان' : 'for successfully passing the exam'}
+              </p>
+              
+              <p className={`text-2xl font-bold ${styles.text} my-2 px-4 py-1 bg-yellow-400/10 rounded-xl inline-block border border-yellow-400/20`}>
+                “{examTitle}”
+              </p>
+              
+              <div className="flex justify-center items-center gap-4 mt-4 flex-wrap">
+                <div className={`px-5 py-2.5 rounded-xl ${grade.bg} ${grade.color} border ${grade.border} shadow-sm`}>
+                  <span className="text-lg font-bold">{grade.emoji} {grade.label}</span>
                 </div>
-                <div className={`px-4 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 shadow-sm`}>
-                  <span className="text-base font-bold">{percentage}%</span>
+                <div className={`px-5 py-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 shadow-sm`}>
+                  <span className="text-lg font-bold">{percentage}%</span>
                 </div>
               </div>
-              <div className="flex justify-center gap-6 mt-3 text-sm">
+              
+              <div className="flex justify-center gap-8 mt-5 text-sm">
                 <div>
                   <p className={`text-xs ${styles.subtext}`}>{language === 'ar' ? 'الدرجة' : 'Score'}</p>
-                  <p className={`text-lg font-bold text-emerald-400`}>{passedAttempt.score} / {totalMarks}</p>
+                  <p className={`text-xl font-bold text-emerald-400`}>{passedAttempt.score} / {totalMarks}</p>
                 </div>
                 <div>
                   <p className={`text-xs ${styles.subtext}`}>{language === 'ar' ? 'التاريخ' : 'Date'}</p>
-                  <p className={`text-base font-bold ${styles.text}`}>{new Date(passedAttempt.submitted_at).toLocaleDateString('ar-EG')}</p>
+                  <p className={`text-lg font-bold ${styles.text}`}>{new Date(passedAttempt.submitted_at).toLocaleDateString('ar-EG')}</p>
                 </div>
               </div>
-              <div className="mt-4 pt-3 border-t-2 border-dashed border-yellow-400/30">
-                <p className={`text-sm font-bold ${styles.text}`}>{language === 'ar' ? 'منصة محمد رضوان التعليمية' : 'Mohamed Radwan Learning Platform'}</p>
-                <p className={`text-xs ${styles.subtext} mt-0.5`}>{language === 'ar' ? 'شهادة معتمدة' : 'Certified'}</p>
+              
+              <div className="mt-6 pt-4 border-t-2 border-dashed border-yellow-400/30">
+                <p className={`text-sm font-bold ${styles.text}`}>
+                  {language === 'ar' ? 'منصة محمد رضوان التعليمية' : 'Mohamed Radwan Learning Platform'}
+                </p>
+                <p className={`text-xs ${styles.subtext} mt-0.5`}>
+                  {language === 'ar' ? 'شهادة معتمدة' : 'Certified'}
+                </p>
               </div>
             </div>
           </div>
 
-          <div className={`grid grid-cols-2 md:grid-cols-4 gap-2 p-3 rounded-xl ${isDark ? 'bg-white/5 border border-white/10' : 'bg-gray-50 border border-gray-200'} mt-3`}>
+          {/* معلومات المحاولة */}
+          <div className={`grid grid-cols-2 md:grid-cols-4 gap-4 p-4 rounded-xl ${isDark ? 'bg-white/5 border border-white/10' : 'bg-gray-50 border border-gray-200'} mt-4`}>
             <div className="text-center">
               <p className={`text-xs ${styles.subtext}`}>{language === 'ar' ? 'التاريخ' : 'Date'}</p>
               <p className={`text-sm font-bold ${styles.text}`}>{new Date(passedAttempt.submitted_at).toLocaleDateString('ar-EG')}</p>
@@ -3637,12 +3858,74 @@ export default function StudentExamPage() {
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-2 mt-4 pt-3 border-t border-white/10">
-            <button onClick={() => generateQuestionsPDF(questions, language, examId, supabase, exam?.title)} className={`px-4 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${isDark ? 'bg-yellow-400/20 hover:bg-yellow-400/30 text-yellow-300 border border-yellow-400/30' : 'bg-yellow-100 hover:bg-yellow-200 text-yellow-800 border border-yellow-300'}`}>
-              <Icons.FileText className="h-3.5 w-3.5" /> {language === 'ar' ? 'تصدير الأسئلة (PDF)' : 'Export Questions (PDF)'}
+          {/* عرض الأسئلة والإجابات للمراجعة */}
+          <div className="mt-6">
+            <h3 className={`text-lg font-bold ${styles.text} mb-3 flex items-center gap-2`}>
+              <Icons.FileText className="h-5 w-5 text-yellow-400" />
+              {language === 'ar' ? 'مراجعة إجاباتك' : 'Review Your Answers'}
+            </h3>
+            <div className="max-h-96 overflow-y-auto space-y-3 pr-2">
+              {passedAttempt.answers && Object.keys(passedAttempt.answers).slice(0, 10).map((qId, idx) => {
+                const question = questions.find(q => q.id === qId);
+                if (!question) return null;
+                const userAns = passedAttempt.answers[qId];
+                const isCorrect = Array.isArray(question.correct_answer) 
+                  ? question.correct_answer.some(c => String(userAns).trim() === String(c).trim())
+                  : String(userAns).trim() === String(question.correct_answer).trim();
+                return (
+                  <div key={qId} className={`p-3 rounded-xl border ${isCorrect ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-red-500/30 bg-red-500/5'}`}>
+                    <div className="flex justify-between items-start gap-2">
+                      <div className="flex-1">
+                        <p className={`text-sm font-medium ${styles.text}`}>
+                          <span className="text-yellow-400">#{idx+1}</span> {question.question_text}
+                        </p>
+                        <p className={`text-xs mt-1 ${styles.subtext}`}>
+                          {language === 'ar' ? 'إجابتك: ' : 'Your answer: '}
+                          <span className={isCorrect ? 'text-emerald-400 font-bold' : 'text-red-400 font-bold'}>
+                            {typeof userAns === 'object' ? JSON.stringify(userAns) : userAns}
+                          </span>
+                        </p>
+                        {!isCorrect && (
+                          <p className={`text-xs text-emerald-400 mt-0.5`}>
+                            {language === 'ar' ? 'الإجابة الصحيحة: ' : 'Correct answer: '}
+                            {Array.isArray(question.correct_answer) 
+                              ? question.correct_answer.join(', ')
+                              : question.correct_answer}
+                          </p>
+                        )}
+                      </div>
+                      <span className={`text-sm font-bold ${isCorrect ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {isCorrect ? '✓' : '✗'}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+              {Object.keys(passedAttempt.answers || {}).length > 10 && (
+                <p className={`text-xs ${styles.subtext} text-center py-2`}>
+                  {language === 'ar' ? `... و ${Object.keys(passedAttempt.answers).length - 10} سؤال آخر` : `... and ${Object.keys(passedAttempt.answers).length - 10} more questions`}
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* أزرار الإجراءات */}
+          <div className="flex flex-wrap gap-3 mt-6 pt-4 border-t border-white/10">
+            <button
+              onClick={() => generateQuestionsPDF(questions, language, examId, supabase, exam?.title)}
+              className={`px-6 py-2.5 rounded-xl text-sm font-bold transition flex items-center gap-2 ${
+                isDark ? 'bg-yellow-400/20 hover:bg-yellow-400/30 text-yellow-300 border border-yellow-400/30' : 'bg-yellow-100 hover:bg-yellow-200 text-yellow-800 border border-yellow-300'
+              }`}
+            >
+              <Icons.FileText className="h-4 w-4" /> {language === 'ar' ? 'تصدير الأسئلة (PDF)' : 'Export Questions (PDF)'}
             </button>
-            <Link href="/dashboard/student/courses" className={`px-4 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${isDark ? 'bg-white/10 hover:bg-white/20 text-white border border-white/20' : 'bg-gray-200 hover:bg-gray-300 text-gray-800 border border-gray-300'}`}>
-              <Icons.BookOpen className="h-3.5 w-3.5" /> {language === 'ar' ? 'العودة للكورسات' : 'Back to Courses'}
+            <Link
+              href="/dashboard/student/courses"
+              className={`px-6 py-2.5 rounded-xl text-sm font-bold transition flex items-center gap-2 ${
+                isDark ? 'bg-white/10 hover:bg-white/20 text-white border border-white/20' : 'bg-gray-200 hover:bg-gray-300 text-gray-800 border border-gray-300'
+              }`}
+            >
+              <Icons.BookOpen className="h-4 w-4" /> {language === 'ar' ? 'العودة للكورسات' : 'Back to Courses'}
             </Link>
           </div>
         </motion.div>
@@ -3650,19 +3933,28 @@ export default function StudentExamPage() {
     );
   }
 
+  // ===== شاشة المقدمة =====
   if (examStatus === 'intro') {
     return (
-      <div className={`min-h-screen ${isDark ? 'bg-[#0b0e1a]' : 'bg-gray-50'} flex items-center justify-center p-3`}>
-        <ExamIntroScreen exam={exam} startExam={startExam} loading={loading} styles={styles} language={language} isDark={isDark} />
+      <div className={`min-h-screen ${isDark ? 'bg-[#0b0e1a]' : 'bg-gray-50'} flex items-center justify-center p-4`}>
+        <ExamIntroScreen
+          exam={exam}
+          startExam={startExam}
+          loading={loading}
+          styles={styles}
+          language={language}
+          isDark={isDark}
+        />
       </div>
     );
   }
 
-  // ===== واجهة الامتحان الرئيسية (مضغوطة الهوامش) =====
+  // ===== واجهة الامتحان الرئيسية =====
   return (
     <div id="exam-container" className={`h-dvh w-screen overflow-hidden ${isDark ? 'bg-[#0b0e1a]' : 'bg-gray-50'} ${styles.text} relative flex flex-col`}>
       <SecureWatermark user={student} examTitle={exam?.title} isDark={isDark} />
 
+      {/* زر عائم للعودة إلى ملء الشاشة */}
       {showFullscreenButton && (
         <motion.button
           initial={{ opacity: 0, y: 20 }}
@@ -3673,9 +3965,9 @@ export default function StudentExamPage() {
             setShowFullscreenButton(false);
           }}
           style={{ touchAction: 'manipulation' }}
-          className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-[9999] px-4 py-2 bg-yellow-500 text-black font-bold rounded-xl shadow-2xl flex items-center gap-1.5 hover:bg-yellow-400 transition-all text-sm"
+          className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-[9999] px-6 py-3 bg-yellow-500 text-black font-bold rounded-xl shadow-2xl flex items-center gap-2 hover:bg-yellow-400 transition-all"
         >
-          <Icons.Maximize className="h-4 w-4" />
+          <Icons.Maximize className="h-5 w-5" />
           {language === 'ar' ? '🔄 العودة إلى ملء الشاشة' : '🔄 Return to fullscreen'}
         </motion.button>
       )}
@@ -3693,12 +3985,13 @@ export default function StudentExamPage() {
             }}
             onCloseExam={() => {
               setShowLockScreen(false);
-              forceCloseExam('security_violation');
+              forceCloseExam();
             }}
           />
         )}
       </AnimatePresence>
 
+      {/* شاشة الانتظار بعد التسليم */}
       <AnimatePresence>
         {isSubmitting && (
           <motion.div
@@ -3707,9 +4000,34 @@ export default function StudentExamPage() {
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-[99999] bg-black/90 backdrop-blur-2xl flex flex-col items-center justify-center"
           >
-            <motion.div animate={{ rotate: 360 }} transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }} className="w-14 h-14 border-4 border-yellow-400/30 border-t-yellow-400 rounded-full" />
-            <p className="text-white text-xl font-bold mt-4">{language === 'ar' ? '⏳ جاري مراجعة إجاباتك...' : '⏳ Reviewing your answers...'}</p>
-            <p className="text-white/60 text-sm mt-1">{language === 'ar' ? 'يرجى الانتظار لحظة' : 'Please wait a moment'}</p>
+            <motion.div
+              animate={{ rotate: 360 }}
+              transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }}
+              className="w-20 h-20 border-4 border-yellow-400/30 border-t-yellow-400 rounded-full"
+            />
+            <p className="text-white text-2xl font-bold mt-6">
+              {language === 'ar' ? '⏳ جاري مراجعة إجاباتك...' : '⏳ Reviewing your answers...'}
+            </p>
+            <p className="text-white/60 text-sm mt-2">
+              {language === 'ar' ? 'يرجى الانتظار لحظة' : 'Please wait a moment'}
+            </p>
+            <div className="mt-8 flex gap-2">
+              <motion.div
+                animate={{ y: [0, -10, 0] }}
+                transition={{ duration: 0.6, repeat: Infinity, delay: 0 }}
+                className="w-3 h-3 bg-yellow-400 rounded-full"
+              />
+              <motion.div
+                animate={{ y: [0, -10, 0] }}
+                transition={{ duration: 0.6, repeat: Infinity, delay: 0.2 }}
+                className="w-3 h-3 bg-yellow-400 rounded-full"
+              />
+              <motion.div
+                animate={{ y: [0, -10, 0] }}
+                transition={{ duration: 0.6, repeat: Infinity, delay: 0.4 }}
+                className="w-3 h-3 bg-yellow-400 rounded-full"
+              />
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -3719,7 +4037,7 @@ export default function StudentExamPage() {
           questions={questions}
           answers={answers}
           markedQuestions={markedQuestions}
-          reviewMarkedQuestions={reviewMarkedQuestions}
+          reviewMarkedQuestions={reviewMarkedQuestions} // ✅ تمرير القائمة
           currentIndex={currentIndex}
           currentQuestion={currentQuestion}
           goToQuestion={goToQuestion}
@@ -3728,15 +4046,15 @@ export default function StudentExamPage() {
         />
 
         <div className="flex-1 flex flex-col overflow-hidden">
-          {/* ===== الشريط العلوي (مضغوط) ===== */}
-          <div className={`flex-shrink-0 px-3 py-2 border-b ${isDark ? 'border-white/10 bg-[#0b0e1a]/90' : 'border-gray-200 bg-gray-50/90'} backdrop-blur-lg`}>
-            <div className="flex flex-wrap items-center justify-between gap-1.5 max-w-6xl mx-auto">
-              <div className="flex items-center gap-2">
-                <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-yellow-400 to-yellow-600 flex items-center justify-center text-black font-bold text-xs shadow-lg">
+          {/* ===== الشريط العلوي المحسّن ===== */}
+          <div className={`flex-shrink-0 px-4 py-3 border-b ${isDark ? 'border-white/10 bg-[#0b0e1a]/90' : 'border-gray-200 bg-gray-50/90'} backdrop-blur-lg`}>
+            <div className="flex flex-wrap items-center justify-between gap-2 max-w-6xl mx-auto">
+              <div className="flex items-center gap-3">
+                <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-yellow-400 to-yellow-600 flex items-center justify-center text-black font-bold text-sm shadow-lg">
                   {student?.full_name?.charAt(0) || 'ط'}
                 </div>
                 <div className="hidden sm:block">
-                  <p className={`text-xs font-bold ${styles.text} truncate max-w-[150px] opacity-90`}>
+                  <p className={`text-sm font-bold ${styles.text} truncate max-w-[200px] opacity-90`}>
                     {exam?.title || ''}
                   </p>
                 </div>
@@ -3749,51 +4067,71 @@ export default function StudentExamPage() {
                 styles={styles}
               />
 
-              <div className="flex items-center gap-1.5 text-xs">
-                <div className="flex items-center gap-1 bg-white/5 px-2 py-0.5 rounded-full border border-white/10">
-                  <Icons.CheckCircle className={`h-3 w-3 ${answeredCount === questions.length ? 'text-emerald-400' : 'text-yellow-400'}`} />
+              <div className="flex items-center gap-3 text-xs">
+                <div className="flex items-center gap-1.5 bg-white/5 px-2.5 py-1 rounded-full border border-white/10">
+                  <Icons.CheckCircle className={`h-3.5 w-3.5 ${answeredCount === questions.length ? 'text-emerald-400' : 'text-yellow-400'}`} />
                   <span className="text-white/80">{answeredCount}/{questions.length}</span>
                 </div>
-                <div className="flex items-center gap-1 bg-red-500/10 px-2 py-0.5 rounded-full border border-red-500/20">
-                  <Icons.AlertTriangle className="h-3 w-3 text-red-400" />
+                <div className="flex items-center gap-1.5 bg-red-500/10 px-2.5 py-1 rounded-full border border-red-500/20">
+                  <Icons.AlertTriangle className="h-3.5 w-3.5 text-red-400" />
                   <span className="text-red-400">{violations}/{maxViolations}</span>
                 </div>
-                <div className="hidden sm:flex items-center gap-1 bg-yellow-500/10 px-2 py-0.5 rounded-full border border-yellow-500/20">
-                  <Icons.Maximize className="h-3 w-3 text-yellow-400" />
+                <div className="hidden sm:flex items-center gap-1.5 bg-yellow-500/10 px-2.5 py-1 rounded-full border border-yellow-500/20">
+                  <Icons.Maximize className="h-3.5 w-3.5 text-yellow-400" />
                   <span className="text-yellow-400">{fullscreenExitCount}/{MAX_FULLSCREEN_EXITS}</span>
                 </div>
               </div>
             </div>
 
-            <div className="max-w-6xl mx-auto mt-0.5">
-              <div className="flex items-center gap-1.5">
+            {/* شريط التقدم المحسّن */}
+            <div className="max-w-6xl mx-auto mt-1">
+              <div className="flex items-center gap-2">
                 <ProgressBar answered={answeredCount} total={questions.length} isDark={isDark} timeRemaining={timeRemaining} />
               </div>
             </div>
 
-            <div className="flex justify-between items-center mt-1 max-w-6xl mx-auto">
-              <div className="flex gap-0.5">
-                <button onClick={() => goToQuestion(currentIndex - 1)} disabled={currentIndex === 0 || !exam?.allow_backward} style={{ touchAction: 'manipulation' }} className={`p-1 rounded-lg transition disabled:opacity-30 ${isDark ? 'bg-white/5 hover:bg-white/10 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-800'}`}>
-                  <Icons.ChevronRight className="h-3.5 w-3.5" />
+            {/* أزرار التحكم العلوية */}
+            <div className="flex justify-between items-center mt-2 max-w-6xl mx-auto">
+              <div className="flex gap-1">
+                <button 
+                  onClick={() => goToQuestion(currentIndex - 1)} 
+                  disabled={currentIndex === 0 || !exam?.allow_backward} 
+                  style={{ touchAction: 'manipulation' }} 
+                  className={`p-1 rounded-lg transition disabled:opacity-30 ${
+                    isDark
+                      ? 'bg-white/5 hover:bg-white/10 text-white'
+                      : 'bg-gray-100 hover:bg-gray-200 text-gray-800'
+                  }`}
+                >
+                  <Icons.ChevronRight className="h-4 w-4" />
                 </button>
-                <button onClick={goToNextUnanswered} style={{ touchAction: 'manipulation' }} className="p-1 rounded-lg bg-white/5 hover:bg-white/10 transition" title={language === 'ar' ? 'الانتقال لأول سؤال غير مجاب' : 'Go to next unanswered'}><Icons.ArrowRight className="h-3.5 w-3.5" /></button>
-                <button onClick={() => toggleHighlight(currentQuestion?.id)} style={{ touchAction: 'manipulation' }} className={`p-1 rounded-lg transition ${highlightedQuestions.includes(currentQuestion?.id) ? 'bg-yellow-500/20 text-yellow-400' : 'bg-white/5 text-white/40 hover:text-white/80'}`} title={language === 'ar' ? 'تظليل السؤال' : 'Highlight Question'}>
-                  <Icons.Highlighter className="h-3.5 w-3.5" />
+                <button onClick={goToNextUnanswered} style={{ touchAction: 'manipulation' }} className="p-1 rounded-lg bg-white/5 hover:bg-white/10 transition" title={language === 'ar' ? 'الانتقال لأول سؤال غير مجاب' : 'Go to next unanswered'}><Icons.ArrowRight className="h-4 w-4" /></button>
+                <button
+                  onClick={() => toggleHighlight(currentQuestion?.id)}
+                  style={{ touchAction: 'manipulation' }}
+                  className={`p-1 rounded-lg transition ${
+                    highlightedQuestions.includes(currentQuestion?.id)
+                      ? 'bg-yellow-500/20 text-yellow-400'
+                      : 'bg-white/5 text-white/40 hover:text-white/80'
+                  }`}
+                  title={language === 'ar' ? 'تظليل السؤال' : 'Highlight Question'}
+                >
+                  <Icons.Highlighter className="h-4 w-4" />
                 </button>
               </div>
-              <div className="flex gap-0.5 items-center">
-                {/* ✅ زر تبديل الثيم – يستخدم toggleTheme مباشرة */}
+              <div className="flex gap-1 items-center">
+                {/* ✅ زر تبديل الوضع الفاتح/الداكن – يستخدم toggleTheme */}
                 <button
                   onClick={toggleTheme}
                   style={{ touchAction: 'manipulation' }}
-                  className={`p-1.5 rounded-lg transition ${
+                  className={`p-2 rounded-lg transition ${
                     isDark
                       ? 'bg-yellow-400/20 text-yellow-400 hover:bg-yellow-400/30'
-                      : 'bg-gray-700/10 text-gray-700 hover:bg-gray-700/20 dark:text-white'
+                      : 'bg-gray-700/10 text-gray-700 hover:bg-gray-700/20'
                   }`}
                   title={language === 'ar' ? 'تغيير الوضع' : 'Toggle Theme'}
                 >
-                  {isDark ? <Icons.Sun className="h-4 w-4" /> : <Icons.Moon className="h-4 w-4" />}
+                  {isDark ? <Icons.Sun className="h-5 w-5" /> : <Icons.Moon className="h-5 w-5" />}
                 </button>
                 <FontControls
                   fontSize={fontSize}
@@ -3821,45 +4159,50 @@ export default function StudentExamPage() {
                 <button
                   onClick={emergencyExit}
                   style={{ touchAction: 'manipulation' }}
-                  className={`px-2.5 py-1 rounded-lg transition text-[10px] font-bold ${
+                  className={`px-3 py-1 rounded-lg transition text-xs font-bold ${
                     isDark
                       ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
                       : 'bg-red-100 text-red-700 hover:bg-red-200 border border-red-300'
                   }`}
                   title={language === 'ar' ? 'خروج (خصم محاولة)' : 'Exit (Deduct Attempt)'}
                 >
-                  <Icons.LogOut className="h-3.5 w-3.5 inline mr-0.5" /> {language === 'ar' ? 'خروج' : 'Exit'}
+                  <Icons.LogOut className="h-4 w-4 inline mr-1" /> {language === 'ar' ? 'خروج (خصم محاولة)' : 'Exit (Deduct Attempt)'}
                 </button>
               </div>
             </div>
 
-            <div className="flex gap-0.5 mt-1 max-w-6xl mx-auto overflow-x-auto pb-0.5 sm:hidden">
+            {/* نقاط التنقل السريع للهواتف */}
+            <div className="flex gap-1 mt-2 max-w-6xl mx-auto overflow-x-auto pb-1 sm:hidden">
               {questions.map((q, idx) => {
                 const ans = answers[q.id];
                 const isAnswered = ans !== undefined && ans !== null && ans !== '';
+                const isMarked = markedQuestions.includes(q.id);
                 const isCurrent = idx === currentIndex;
+                const isHighlighted = highlightedQuestions.includes(q.id);
                 let bg = 'bg-white/20';
                 if (isAnswered) bg = 'bg-emerald-400';
+                else if (isMarked) bg = 'bg-purple-400';
+                if (isHighlighted) bg = 'bg-yellow-400';
                 if (isCurrent) bg = 'bg-yellow-400';
                 return (
-                  <button key={q.id} onClick={() => goToQuestion(idx)} style={{ touchAction: 'manipulation' }} className={`flex-shrink-0 h-1 w-2 rounded-full transition-all ${bg} ${isCurrent ? 'w-4' : ''}`} />
+                  <button key={q.id} onClick={() => goToQuestion(idx)} style={{ touchAction: 'manipulation' }} className={`flex-shrink-0 h-1.5 w-3 rounded-full transition-all ${bg} ${isCurrent ? 'w-6' : ''}`} />
                 );
               })}
             </div>
           </div>
 
-          {/* ===== منطقة عرض السؤال (مضغوطة الهوامش) ===== */}
+          {/* ===== منطقة عرض السؤال المحسّنة ===== */}
           <div className="flex-1 overflow-y-auto bg-gradient-to-br from-transparent via-yellow-400/5 to-blue-500/5">
-            <div className="max-w-3xl mx-auto px-4 py-3">
+            <div className="max-w-4xl mx-auto px-6 py-8">
               <AnimatePresence mode="wait">
                 {currentQuestion && (
                   <motion.div
                     key={currentQuestion.id}
-                    initial={{ opacity: 0, x: 20 }}
+                    initial={{ opacity: 0, x: 30 }}
                     animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -20 }}
+                    exit={{ opacity: 0, x: -30 }}
                     transition={{ duration: 0.25, ease: 'easeInOut' }}
-                    className="space-y-3"
+                    className="space-y-6"
                   >
                     {renderQuestion(currentQuestion)}
                   </motion.div>
@@ -3868,58 +4211,77 @@ export default function StudentExamPage() {
             </div>
           </div>
 
-          {/* ===== الشريط السفلي (مضغوط) ===== */}
-          <div className={`flex-shrink-0 px-3 py-2 border-t ${isDark ? 'border-white/10 bg-[#0b0e1a]/90' : 'border-gray-200 bg-gray-50/90'} backdrop-blur-lg`}>
-            <div className="flex items-center justify-between max-w-3xl mx-auto gap-2">
-              <button
-                onClick={() => goToQuestion(currentIndex - 1)}
-                disabled={currentIndex === 0 || !exam?.allow_backward}
-                style={{ touchAction: 'manipulation' }}
-                className={`px-3 py-1.5 rounded-xl border font-medium text-xs hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition flex items-center gap-0.5 ${
-                  isDark 
-                    ? 'bg-white/5 border-white/10 text-white/80 hover:bg-white/10' 
-                    : 'bg-gray-100 border-gray-300 text-gray-800 hover:bg-gray-200'
-                }`}
-              >
-                <Icons.ChevronRight className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">{language === 'ar' ? 'السابق' : 'Previous'}</span>
-              </button>
-
-              <div className="flex items-center gap-1.5">
-                {currentIndex < questions.length - 1 && (
-                  <button
-                    onClick={() => goToQuestion(currentIndex + 1)}
-                    style={{ touchAction: 'manipulation' }}
-                    className="px-4 py-1.5 rounded-xl bg-yellow-400 text-black font-bold text-xs hover:bg-yellow-500 transition flex items-center gap-0.5 shadow-lg shadow-yellow-400/20"
-                  >
-                    <span>{language === 'ar' ? 'التالي' : 'Next'}</span>
-                    <Icons.ChevronLeft className="h-3.5 w-3.5" />
-                  </button>
-                )}
+          {/* ===== الشريط السفلي الجديد (المتحرك) ===== */}
+          <div className={`flex-shrink-0 px-4 py-3 border-t ${isDark ? 'border-white/10 bg-[#0b0e1a]/90' : 'border-gray-200 bg-gray-50/90'} backdrop-blur-lg`}>
+            <div className="flex flex-wrap items-center justify-between gap-3 max-w-4xl mx-auto">
+              {/* أزرار التنقل */}
+              <div className="flex items-center gap-2">
                 <button
-                  onClick={openSubmitModal}
+                  onClick={() => goToQuestion(currentIndex - 1)}
+                  disabled={currentIndex === 0 || !exam?.allow_backward}
                   style={{ touchAction: 'manipulation' }}
-                  className="px-4 py-1.5 rounded-xl bg-gradient-to-r from-emerald-400 to-emerald-600 text-white font-bold text-xs hover:from-emerald-500 hover:to-emerald-700 transition flex items-center gap-0.5 shadow-lg shadow-emerald-400/20"
+                  className={`p-2 rounded-xl border font-medium text-sm hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition ${
+                    isDark 
+                      ? 'bg-white/5 border-white/10 text-white/80 hover:bg-white/10' 
+                      : 'bg-gray-100 border-gray-300 text-gray-800 hover:bg-gray-200'
+                  }`}
                 >
-                  <Icons.CheckCircle className="h-3.5 w-3.5" />
-                  <span>{language === 'ar' ? 'تسليم' : 'Submit'}</span>
+                  <Icons.ChevronRight className="h-5 w-5" />
+                </button>
+                <span className={`text-xs ${styles.subtext}`}>
+                  {currentIndex + 1} / {questions.length}
+                </span>
+                <button
+                  onClick={() => goToQuestion(currentIndex + 1)}
+                  disabled={currentIndex === questions.length - 1}
+                  style={{ touchAction: 'manipulation' }}
+                  className={`p-2 rounded-xl border font-medium text-sm hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition ${
+                    isDark 
+                      ? 'bg-white/5 border-white/10 text-white/80 hover:bg-white/10' 
+                      : 'bg-gray-100 border-gray-300 text-gray-800 hover:bg-gray-200'
+                  }`}
+                >
+                  <Icons.ChevronLeft className="h-5 w-5" />
                 </button>
               </div>
 
+              {/* نقاط التنقل السريع (جميع الشاشات) */}
+              <div className="flex items-center gap-1 overflow-x-auto px-2 py-1 flex-1 justify-center">
+                {questions.map((q, idx) => {
+                  const ans = answers[q.id];
+                  const isAnswered = ans !== undefined && ans !== null && ans !== '';
+                  const isCurrent = idx === currentIndex;
+                  let bg = 'bg-white/20';
+                  if (isAnswered) bg = 'bg-emerald-400';
+                  if (isCurrent) bg = 'bg-yellow-400';
+                  return (
+                    <button
+                      key={q.id}
+                      onClick={() => goToQuestion(idx)}
+                      style={{ touchAction: 'manipulation' }}
+                      className={`flex-shrink-0 h-2 w-4 rounded-full transition-all ${bg} ${isCurrent ? 'scale-125' : ''}`}
+                      title={`سؤال ${idx + 1}`}
+                    />
+                  );
+                })}
+              </div>
+
+              {/* زر التسليم */}
               <button
-                onClick={() => goToQuestion(currentIndex + 1)}
-                disabled={currentIndex === questions.length - 1}
+                onClick={openSubmitModal}
                 style={{ touchAction: 'manipulation' }}
-                className="px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-white/80 font-medium text-xs hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition flex items-center gap-0.5"
+                className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-400 to-emerald-600 text-white font-bold text-sm hover:from-emerald-500 hover:to-emerald-700 transition flex items-center gap-1 shadow-lg shadow-emerald-400/20"
               >
-                <span className="hidden sm:inline">{language === 'ar' ? 'التالي' : 'Next'}</span>
-                <Icons.ChevronLeft className="h-3.5 w-3.5" />
+                <Icons.CheckCircle className="h-4 w-4" />
+                <span className="hidden sm:inline">{language === 'ar' ? 'تسليم' : 'Submit'}</span>
               </button>
             </div>
           </div>
+
         </div>
       </div>
 
+      {/* ===== نافذة تأكيد التسليم ===== */}
       <SubmitConfirmationModal
         isOpen={showSubmitModal}
         onClose={() => setShowSubmitModal(false)}
