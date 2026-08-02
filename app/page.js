@@ -1016,7 +1016,7 @@ const FooterSection = ({ isDark }) => {
             <ul className="space-y-1 text-[9px] sm:text-[10px]">
               <li><a href="#courses" className={`${isDark ? 'text-gray-400 hover:text-blue-400' : 'text-gray-500 hover:text-blue-600'} transition`}>الكورسات</a></li>
               <li><a href="#features" className={`${isDark ? 'text-gray-400 hover:text-blue-400' : 'text-gray-500 hover:text-blue-600'} transition`}>المميزات</a></li>
-              <li><a href="#countdown" className={`${isDark ? 'text-gray-400 hover:text-yellow-400' : 'text-gray-500 hover:text-yellow-600'} transition`}>⏳ الامتحانات</a></li>
+              <li><a href="#countdown" className={`${isDark ? 'text-gray-400 hover:text-yellow-400' : 'text-gray-500 hover:text-yellow-600'} transition`}>⏳المتبقي على امتحانات الثانوية العامة</a></li>
               <li><a href="#contact" className={`${isDark ? 'text-gray-400 hover:text-blue-400' : 'text-gray-500 hover:text-blue-600'} transition`}>تواصل معنا</a></li>
             </ul>
           </div>
