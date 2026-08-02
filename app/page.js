@@ -1,8 +1,10 @@
 // app/page.js
 // ================================================================
 // 🏛️ الصفحة الرئيسية – منصة مستر محمد رضوان
-// نسخة متجاوبة بالكامل – مع تحجيم مثالي لجميع الأجهزة
-// ✅ تم تقليل الأحجام والهوامش بشكل كبير لتحسين الرؤية على جميع الشاشات
+// نسخة متجاوبة بالكامل – مع عداد تنازلي لامتحانات الثانوية العامة
+// ✅ إزالة عرض 3 ثانوي واستبداله بعداد حقيقي
+// ✅ العروض أصبحت عامة لجميع المراحل (عدا 3 ثانوي)
+// ✅ رابط في الهيدر للانتقال للعداد
 // ================================================================
 
 'use client';
@@ -17,7 +19,7 @@ import { supabase } from '@/lib/supabaseClient';
 import WaveBorderCard from '@/components/WaveBorderCard';
 
 // ================================================================
-// 📌 البيانات الثابتة – مميزات المنصة (بدون تغيير)
+// 📌 البيانات الثابتة – مميزات المنصة
 // ================================================================
 
 const PLATFORM_FEATURES = [
@@ -66,29 +68,20 @@ const PLATFORM_FEATURES = [
 ];
 
 // ================================================================
-// 🎁 العروض الترويجية (بدون تغيير)
+// 🎁 العروض الترويجية (خاصة بغير 3 ثانوي)
 // ================================================================
-
-const PROMO_THIRD_SECONDARY = {
-  id: 'promo-third-secondary',
-  title: 'عرض خاص لطلاب 3 ثانوي',
-  subtitle: 'أعلى 3 طلاب في الامتحان الشامل = الترم التاني مجاني',
-  description: 'لو أنت في 3 ثانوي وكنت معانا وحققت من أعلى الدرجات في الامتحان الشامل (اللي من 60) على منصتنا، الترم التاني والمراجعة النهائية هيكونوا مجانيين بالكامل لأعلى 3 طلاب. ربنا يوفقكم جميعاً.',
-  cta: 'شارك الآن واحجز مكانك',
-  ctaLink: 'https://wa.me/201552191172',
-};
 
 const PROMO_GENERAL = {
   id: 'promo-general',
-  title: '🎯 الترم التاني مجاناً',
-  subtitle: 'أعلى 3 طلاب يحققون أعلى الدرجات في امتحان الإنجليزي',
-  description: 'لو أنت من أوائل الطلاب اللي حققوا أعلى الدرجات في امتحان اللغة الإنجليزية في الترم الأول، الكورس الخاص بالترم التاني هيكون مجاني ليك بالكامل. بس لأعلى 3 طلاب هيبعتوا نتائجهم على واتساب المستر.',
-  cta: 'بادر بالمشاركة عشان تكون من الأعلى',
+  title: '🎯 عرض خاص لجميع الطلاب',
+  subtitle: 'خصم 20% على جميع الكورسات',
+  description: 'استفد من الخصم المميز عند الاشتراك في أي كورس على منصتنا. العرض ساري حتى نهاية الشهر. اغتنم الفرصة وابدأ رحلة التعلم الآن!',
+  cta: 'اشترك الآن واحصل على الخصم',
   ctaLink: 'https://wa.me/201552191172',
 };
 
 // ================================================================
-// 🌐 روابط التواصل الاجتماعي (بدون تغيير)
+// 🌐 روابط التواصل الاجتماعي
 // ================================================================
 
 const SOCIAL_LINKS = [
@@ -146,7 +139,123 @@ const SOCIAL_LINKS = [
 ];
 
 // ================================================================
-// 🎨 خلفية متطورة مع تأثيرات متحركة (مبسطة للجوال) – بدون تغيير
+// ⏳ مكون العداد التنازلي لامتحانات الثانوية العامة
+// ================================================================
+
+const CountdownTimer = ({ isDark }) => {
+  const [timeLeft, setTimeLeft] = useState({
+    days: 0,
+    hours: 0,
+    minutes: 0,
+    seconds: 0,
+  });
+  const [isClient, setIsClient] = useState(false);
+
+  // تاريخ بدء امتحانات الثانوية العامة 2027 – 26 يونيو الساعة 9 صباحاً
+  const targetDate = new Date('2027-06-26T09:00:00').getTime();
+
+  useEffect(() => {
+    setIsClient(true);
+    const interval = setInterval(() => {
+      const now = Date.now();
+      const diff = targetDate - now;
+
+      if (diff <= 0) {
+        setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+        clearInterval(interval);
+        return;
+      }
+
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+      setTimeLeft({ days, hours, minutes, seconds });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [targetDate]);
+
+  if (!isClient) {
+    return (
+      <div className="flex justify-center items-center h-32">
+        <div className="w-8 h-8 border-4 border-yellow-400/30 border-t-yellow-400 rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  const items = [
+    { label: 'أيام', value: timeLeft.days, color: 'from-yellow-400 to-amber-500' },
+    { label: 'ساعات', value: timeLeft.hours, color: 'from-blue-400 to-cyan-500' },
+    { label: 'دقائق', value: timeLeft.minutes, color: 'from-green-400 to-emerald-500' },
+    { label: 'ثواني', value: timeLeft.seconds, color: 'from-pink-400 to-rose-500' },
+  ];
+
+  return (
+    <div className="relative">
+      {/* خلفية ضبابية متحركة */}
+      <div className="absolute inset-0 bg-gradient-to-br from-yellow-400/10 via-blue-400/10 to-green-400/10 blur-3xl -z-10" />
+      
+      <div className={`relative overflow-hidden rounded-2xl border-2 border-yellow-400/50 p-6 sm:p-8 text-center backdrop-blur-2xl ${
+        isDark ? 'bg-white/10' : 'bg-white/80'
+      } shadow-2xl shadow-yellow-400/20`}>
+        
+        {/* تأثير تدرج متحرك */}
+        <div className="absolute -inset-1 bg-gradient-to-r from-yellow-400/20 via-blue-400/20 to-green-400/20 opacity-30 animate-pulse" />
+        
+        <div className="relative z-10">
+          {/* عنوان العداد */}
+          <div className="flex items-center justify-center gap-2 mb-4">
+            <motion.div
+              animate={{ scale: [1, 1.1, 1] }}
+              transition={{ duration: 2, repeat: Infinity }}
+            >
+              <Icons.Clock className="h-8 w-8 text-yellow-400" />
+            </motion.div>
+            <h3 className="text-xl sm:text-2xl font-bold text-yellow-400">
+              ⏳ المتبقي على امتحانات الثانوية العامة
+            </h3>
+          </div>
+
+          {/* العدادات الأربعة */}
+          <div className="grid grid-cols-4 gap-3 sm:gap-4 max-w-2xl mx-auto">
+            {items.map((item, idx) => (
+              <motion.div
+                key={item.label}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: idx * 0.1 }}
+                className={`relative p-3 sm:p-4 rounded-xl bg-gradient-to-br ${item.color} bg-opacity-20 border border-white/20 backdrop-blur-sm`}
+              >
+                <div className="text-3xl sm:text-4xl md:text-5xl font-black tabular-nums text-white drop-shadow-lg">
+                  {String(item.value).padStart(2, '0')}
+                </div>
+                <div className="text-[10px] sm:text-xs font-bold text-white/80 mt-1 uppercase tracking-wider">
+                  {item.label}
+                </div>
+                <div className="absolute inset-0 rounded-xl bg-gradient-to-t from-white/5 to-transparent pointer-events-none" />
+              </motion.div>
+            ))}
+          </div>
+
+          {/* تاريخ الامتحان */}
+          <p className={`text-xs sm:text-sm mt-4 ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+            📅 يبدأ الامتحان يوم <span className="font-bold text-yellow-400">السبت 26 يونيو 2027</span> الساعة <span className="font-bold text-blue-400">9:00 صباحاً</span>
+          </p>
+
+          {/* دعاء للطلاب */}
+          <p className={`text-[10px] sm:text-xs mt-2 ${isDark ? 'text-gray-400' : 'text-gray-500'} font-arabic`}>
+            🤲 اللهم وفق جميع الطلاب ويسر لهم الامتحانات
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ================================================================
+// 🎨 خلفية متطورة مع تأثيرات متحركة
 // ================================================================
 
 const ElegantBackground = ({ isDark }) => {
@@ -222,7 +331,7 @@ const ElegantBackground = ({ isDark }) => {
 };
 
 // ================================================================
-// 🧭 مؤشر التمرير – تم تصغيره قليلاً
+// 🧭 مؤشر التمرير
 // ================================================================
 
 const ScrollIndicator = ({ targetId }) => {
@@ -262,7 +371,7 @@ const ScrollIndicator = ({ targetId }) => {
 };
 
 // ================================================================
-// ⬆️ زر العودة للأعلى – تم تصغيره قليلاً
+// ⬆️ زر العودة للأعلى
 // ================================================================
 
 const ScrollToTopButton = ({ show, onClick }) => (
@@ -284,7 +393,7 @@ const ScrollToTopButton = ({ show, onClick }) => (
 );
 
 // ================================================================
-// 🃏 بطاقة الكورس – تم تصغير الأحجام والهوامش بشكل كبير
+// 🃏 بطاقة الكورس – مصغرة مع تحسينات الاستجابة
 // ================================================================
 
 const CourseCard = ({ course, teacher, index }) => {
@@ -322,7 +431,6 @@ const CourseCard = ({ course, teacher, index }) => {
       >
         <div className="absolute inset-0 bg-gradient-to-br from-blue-400/10 via-transparent to-green-400/10 opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
 
-        {/* ✅ ارتفاع الصورة أصغر على الجوال */}
         <div className="relative h-24 xs:h-28 sm:h-36 md:h-40 overflow-hidden">
           {course?.cover_image ? (
             <motion.img
@@ -371,7 +479,6 @@ const CourseCard = ({ course, teacher, index }) => {
           </div>
         </div>
 
-        {/* ✅ محتوى البطاقة – نص أصغر قليلاً */}
         <div className="p-2 xs:p-2.5 sm:p-3.5">
           <h3 className={`text-[10px] xs:text-xs sm:text-sm font-bold mb-0.5 line-clamp-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
             {course?.title || 'كورس'}
@@ -412,7 +519,7 @@ const CourseCard = ({ course, teacher, index }) => {
 };
 
 // ================================================================
-// 🃏 بطاقة المميزات – تم تصغير الأيقونة والمسافة
+// 🃏 بطاقة المميزات
 // ================================================================
 
 const FeatureCard = ({ feature, index }) => {
@@ -471,7 +578,7 @@ const FeatureCard = ({ feature, index }) => {
 };
 
 // ================================================================
-// 🃏 بطاقة التواصل – تصغير الأيقونات والهوامش
+// 🃏 بطاقة التواصل
 // ================================================================
 
 const SocialCard = ({ link, index }) => {
@@ -561,9 +668,10 @@ const SocialCard = ({ link, index }) => {
 };
 
 // ================================================================
-// 📐 أقسام الصفحة الرئيسية (بقيت المكونات لم تتغير كثيراً)
+// 📐 أقسام الصفحة الرئيسية
 // ================================================================
 
+// ----- قسم الهيرو (الرئيسي) -----
 const HeroSection = ({ isDark }) => {
   const { scrollY } = useScroll();
   const y = useTransform(scrollY, [0, 500], [0, 40]);
@@ -647,24 +755,25 @@ const HeroSection = ({ isDark }) => {
             </motion.a>
           </motion.div>
 
+          {/* ✅ عرض ترويجي عام (لجميع المراحل – عدا 3 ثانوي) */}
           <motion.div
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.6, duration: 0.5, ease: [0.25, 0.1, 0.25, 1] }}
+            transition={{ delay: 0.6, duration: 0.5 }}
             className="max-w-2xl mx-auto"
           >
             <div
               className={`relative p-3 sm:p-4 md:p-5 rounded-xl sm:rounded-2xl border-2 ${
                 isDark
-                  ? 'bg-gradient-to-br from-blue-500/30 to-green-500/30 border-blue-400/60'
-                  : 'bg-gradient-to-br from-blue-100/90 to-green-100/90 border-blue-400/70'
-              } backdrop-blur-2xl shadow-xl shadow-blue-400/40 hover:shadow-blue-400/60 transition-all duration-500 overflow-hidden`}
+                  ? 'bg-gradient-to-br from-green-500/30 to-blue-500/30 border-green-400/60'
+                  : 'bg-gradient-to-br from-green-100/90 to-blue-100/90 border-green-400/70'
+              } backdrop-blur-2xl shadow-xl shadow-green-400/40 hover:shadow-green-400/60 transition-all duration-500 overflow-hidden`}
             >
-              <div className="absolute inset-0 bg-gradient-to-br from-blue-400/15 via-transparent to-green-400/15 animate-pulse" />
+              <div className="absolute inset-0 bg-gradient-to-br from-green-400/15 via-transparent to-blue-400/15 animate-pulse" />
 
               <div className="relative flex flex-col md:flex-row items-center gap-2 md:gap-3 text-center md:text-right">
                 <motion.div
-                  className="flex-shrink-0 p-2 rounded-full bg-gradient-to-br from-blue-400 to-green-400 shadow-lg shadow-blue-400/40"
+                  className="flex-shrink-0 p-2 rounded-full bg-gradient-to-br from-green-400 to-blue-400 shadow-lg shadow-green-400/40"
                   animate={{
                     scale: [1, 1.05, 1],
                     rotate: [0, 3, -3, 0],
@@ -675,14 +784,14 @@ const HeroSection = ({ isDark }) => {
                     ease: 'easeInOut',
                   }}
                 >
-                  <Icons.Trophy className="h-5 w-5 sm:h-6 sm:w-6 md:h-7 md:w-7 text-white" />
+                  <Icons.Gift className="h-5 w-5 sm:h-6 sm:w-6 md:h-7 md:w-7 text-white" />
                 </motion.div>
 
                 <div className="flex-1">
-                  <p className={`text-xs sm:text-sm md:text-base font-bold ${isDark ? 'text-blue-300' : 'text-blue-700'}`}>
+                  <p className={`text-xs sm:text-sm md:text-base font-bold ${isDark ? 'text-green-300' : 'text-green-700'}`}>
                     🎯 {PROMO_GENERAL.title}
                   </p>
-                  <p className={`text-[10px] sm:text-xs md:text-sm font-bold ${isDark ? 'text-green-300' : 'text-green-700'}`}>
+                  <p className={`text-[10px] sm:text-xs md:text-sm font-bold ${isDark ? 'text-blue-300' : 'text-blue-700'}`}>
                     {PROMO_GENERAL.subtitle}
                   </p>
                   <p className={`text-[9px] sm:text-[10px] md:text-xs ${isDark ? 'text-gray-300' : 'text-gray-600'} max-w-lg mx-auto md:mx-0 mt-0.5 leading-relaxed`}>
@@ -712,6 +821,7 @@ const HeroSection = ({ isDark }) => {
   );
 };
 
+// ----- قسم الكورسات -----
 const CoursesSection = ({ isDark, courses, teachers, loading }) => {
   if (loading) {
     return (
@@ -785,6 +895,7 @@ const CoursesSection = ({ isDark, courses, teachers, loading }) => {
   );
 };
 
+// ----- قسم المميزات -----
 const FeaturesSection = ({ isDark }) => {
   return (
     <section id="features" className={`py-8 sm:py-12 md:py-16 px-3 sm:px-4 ${isDark ? 'bg-[#0a0e1a]/80' : 'bg-white'}`}>
@@ -814,6 +925,18 @@ const FeaturesSection = ({ isDark }) => {
   );
 };
 
+// ----- قسم العداد التنازلي (جديد) -----
+const CountdownSection = ({ isDark }) => {
+  return (
+    <section id="countdown" className={`py-8 sm:py-12 md:py-16 px-3 sm:px-4 ${isDark ? 'bg-[#0a0e1a]/80' : 'bg-white'}`}>
+      <div className="container mx-auto max-w-4xl">
+        <CountdownTimer isDark={isDark} />
+      </div>
+    </section>
+  );
+};
+
+// ----- قسم العروض (خاص بغير 3 ثانوي) -----
 const PromoSection = ({ isDark }) => {
   return (
     <section id="promo" className={`py-8 sm:py-12 md:py-16 px-3 sm:px-4 ${isDark ? 'bg-[#0a0e1a]' : 'bg-white'}`}>
@@ -823,40 +946,40 @@ const PromoSection = ({ isDark }) => {
           whileInView={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.5, ease: [0.25, 0.1, 0.25, 1] }}
           viewport={{ once: true }}
-          className={`relative overflow-hidden rounded-xl sm:rounded-2xl p-4 sm:p-6 md:p-8 text-center border-2 border-blue-400/50 ${
+          className={`relative overflow-hidden rounded-xl sm:rounded-2xl p-4 sm:p-6 md:p-8 text-center border-2 border-green-400/50 ${
             isDark ? 'bg-white/10' : 'bg-white/90'
-          } backdrop-blur-2xl shadow-xl shadow-blue-400/20`}
+          } backdrop-blur-2xl shadow-xl shadow-green-400/20`}
         >
-          <div className="absolute inset-0 bg-gradient-to-br from-blue-400/20 via-transparent to-green-400/20 pointer-events-none" />
+          <div className="absolute inset-0 bg-gradient-to-br from-green-400/20 via-transparent to-blue-400/20 pointer-events-none" />
           <div className="relative z-10">
             <motion.div
               initial={{ scale: 0.8, opacity: 0 }}
               whileInView={{ scale: 1, opacity: 1 }}
               transition={{ duration: 0.3 }}
-              className="inline-flex p-2 sm:p-3 rounded-full bg-blue-400/30 mb-2 sm:mb-3"
+              className="inline-flex p-2 sm:p-3 rounded-full bg-green-400/30 mb-2 sm:mb-3"
             >
-              <Icons.Clock className="h-5 w-5 sm:h-6 sm:w-6 md:h-8 md:w-8 text-blue-400" />
+              <Icons.Gift className="h-5 w-5 sm:h-6 sm:w-6 md:h-8 md:w-8 text-green-400" />
             </motion.div>
             <h3 className={`text-lg sm:text-xl md:text-2xl font-bold mb-1.5 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-              {PROMO_THIRD_SECONDARY.title}
+              {PROMO_GENERAL.title}
             </h3>
-            <p className={`text-sm sm:text-base mb-0.5 ${isDark ? 'text-blue-300' : 'text-blue-700'} font-bold`}>
-              {PROMO_THIRD_SECONDARY.subtitle}
+            <p className={`text-sm sm:text-base mb-0.5 ${isDark ? 'text-green-300' : 'text-green-700'} font-bold`}>
+              {PROMO_GENERAL.subtitle}
             </p>
             <p className={`text-[10px] sm:text-xs max-w-lg mx-auto mb-3 sm:mb-4 ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
-              {PROMO_THIRD_SECONDARY.description}
+              {PROMO_GENERAL.description}
             </p>
             <a
-              href={PROMO_THIRD_SECONDARY.ctaLink}
+              href={PROMO_GENERAL.ctaLink}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 px-4 py-2 sm:px-6 sm:py-2.5 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-bold rounded-xl hover:from-green-600 hover:to-emerald-600 transition shadow-xl shadow-green-500/30 text-[10px] sm:text-xs"
             >
               <Icons.MessageCircle className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-              {PROMO_THIRD_SECONDARY.cta}
+              {PROMO_GENERAL.cta}
             </a>
             <p className={`text-[8px] sm:text-[10px] mt-2 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-              * العرض لأعلى 3 طلاب يحققون أعلى الدرجات، ربنا يوفقكم جميعاً
+              * العرض ساري حتى نهاية الشهر لجميع الطلاب (عدا طلاب 3 ثانوي)
             </p>
           </div>
         </motion.div>
@@ -865,10 +988,7 @@ const PromoSection = ({ isDark }) => {
   );
 };
 
-// ================================================================
-// 📞 قسم التواصل – تعديل الأيقونات والهوامش
-// ================================================================
-
+// ----- قسم التواصل -----
 const ContactSection = ({ isDark }) => {
   const sortedLinks = useMemo(() => {
     const primary = SOCIAL_LINKS.find(l => l.isPrimary);
@@ -935,10 +1055,7 @@ const ContactSection = ({ isDark }) => {
   );
 };
 
-// ================================================================
-// 📌 FooterSection – تم تصغيره قليلاً
-// ================================================================
-
+// ----- قسم الفوتر -----
 const FooterSection = ({ isDark }) => {
   return (
     <footer className={`${isDark ? 'bg-[#030812]/90 border-white/5' : 'bg-white/90 border-gray-200/50'} border-t py-6 sm:py-8 px-3 sm:px-4 backdrop-blur-xl`}>
@@ -968,6 +1085,7 @@ const FooterSection = ({ isDark }) => {
             <ul className="space-y-1 sm:space-y-1.5 text-[10px] sm:text-xs">
               <li><a href="#courses" className={`${isDark ? 'text-gray-300 hover:text-blue-400' : 'text-gray-600 hover:text-blue-600'} transition font-medium`}>الكورسات</a></li>
               <li><a href="#features" className={`${isDark ? 'text-gray-300 hover:text-blue-400' : 'text-gray-600 hover:text-blue-600'} transition font-medium`}>المميزات</a></li>
+              <li><a href="#countdown" className={`${isDark ? 'text-gray-300 hover:text-yellow-400' : 'text-gray-600 hover:text-yellow-600'} transition font-medium`}>⏳ الامتحانات</a></li>
               <li><a href="#promo" className={`${isDark ? 'text-gray-300 hover:text-blue-400' : 'text-gray-600 hover:text-blue-600'} transition font-medium`}>العروض</a></li>
               <li><a href="#contact" className={`${isDark ? 'text-gray-300 hover:text-blue-400' : 'text-gray-600 hover:text-blue-600'} transition font-medium`}>تواصل معنا</a></li>
             </ul>
@@ -1015,7 +1133,7 @@ const FooterSection = ({ isDark }) => {
 };
 
 // ================================================================
-// 🏠 الصفحة الرئيسية
+// 🏠 الصفحة الرئيسية – التجميع النهائي
 // ================================================================
 
 export default function Home() {
@@ -1114,6 +1232,7 @@ export default function Home() {
         style={{ scaleX: scrollProgress }}
       />
 
+      {/* ===== الهيدر ===== */}
       <header className={`fixed top-0 left-0 right-0 z-40 transition-all duration-500 ${headerBg}`}>
         <div className="container mx-auto px-3 sm:px-4 py-2 sm:py-2.5 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-1.5 sm:gap-2 group">
@@ -1130,14 +1249,21 @@ export default function Home() {
             </div>
           </Link>
 
+          {/* ✅ روابط التنقل – تم إضافة "⏳ الامتحانات" */}
           <div className="hidden md:flex items-center gap-4 text-[10px] sm:text-xs font-bold">
-            {['الكورسات', 'المميزات', 'العروض', 'تواصل'].map((item, i) => (
+            {[
+              { label: 'الكورسات', href: '#courses' },
+              { label: 'المميزات', href: '#features' },
+              { label: '⏳ الامتحانات', href: '#countdown' },
+              { label: 'العروض', href: '#promo' },
+              { label: 'تواصل', href: '#contact' },
+            ].map((item, i) => (
               <a
                 key={i}
-                href={`#${['courses', 'features', 'promo', 'contact'][i]}`}
-                className={`${isDark ? 'text-gray-200 hover:text-blue-400' : 'text-gray-700 hover:text-blue-600'} transition relative after:absolute after:bottom-0 after:right-0 after:w-0 after:h-0.5 after:bg-blue-400 after:transition-all hover:after:w-full`}
+                href={item.href}
+                className={`${isDark ? 'text-gray-200 hover:text-yellow-400' : 'text-gray-700 hover:text-yellow-600'} transition relative after:absolute after:bottom-0 after:right-0 after:w-0 after:h-0.5 after:bg-yellow-400 after:transition-all hover:after:w-full ${item.label.includes('⏳') ? 'font-bold text-yellow-400' : ''}`}
               >
-                {item}
+                {item.label}
               </a>
             ))}
           </div>
@@ -1179,9 +1305,11 @@ export default function Home() {
         </div>
       </header>
 
+      {/* ===== المحتوى الرئيسي ===== */}
       <HeroSection isDark={isDark} />
       <CoursesSection isDark={isDark} courses={courses} teachers={teachers} loading={loading} />
       <FeaturesSection isDark={isDark} />
+      <CountdownSection isDark={isDark} />  {/* ✅ تم إضافة قسم العداد */}
       <PromoSection isDark={isDark} />
       <ContactSection isDark={isDark} />
       <FooterSection isDark={isDark} />
@@ -1225,6 +1353,9 @@ export default function Home() {
         .antialiased {
           -webkit-font-smoothing: antialiased;
           -moz-osx-font-smoothing: grayscale;
+        }
+        .tabular-nums {
+          font-variant-numeric: tabular-nums;
         }
       `}</style>
     </div>
