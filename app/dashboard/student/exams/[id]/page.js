@@ -5,6 +5,8 @@
 // ✅ تطبيق الثيم الفاتح/الداكن بتباين عالٍ جداً
 // ✅ شريط تنقل سفلي متحرك سريع الاستجابة
 // ✅ تحسين الشريط العلوي للأداء
+// ✅ شريط سفلي مع تمرير أفقي حقيقي
+// ✅ أزرار تنقل كبيرة وواضحة في كلا الوضعين
 // ================================================================
 
 'use client';
@@ -3088,13 +3090,6 @@ export default function StudentExamPage() {
       // ✅ بعد معالجة المحاولات المفتوحة، نضبط التايمر على المدة الكاملة
       setTimeRemaining(duration);
 
-      // ✅ إزالة كود reload logic بالكامل (الذي كان يخصم محاولات عند إعادة التحميل)
-      // تم حذف الجزء التالي:
-      // const reloadKey = `exam_${examId}_load_count`;
-      // const reloadCount = parseInt(sessionStorage.getItem(reloadKey) || '0', 10);
-      // sessionStorage.setItem(reloadKey, (reloadCount + 1).toString());
-      // if (reloadCount > 0 && inProgress) { ... }
-
       setLoading(false);
     } catch (err) {
       console.error('Fetch error:', err);
@@ -3949,7 +3944,9 @@ export default function StudentExamPage() {
     );
   }
 
-  // ===== واجهة الامتحان الرئيسية =====
+  // ================================================================
+  // ✅ واجهة الامتحان الرئيسية – مع شريط سفلي يعمل بشكل حقيقي
+  // ================================================================
   return (
     <div id="exam-container" className={`h-dvh w-screen overflow-hidden ${isDark ? 'bg-[#0b0e1a]' : 'bg-gray-50'} ${styles.text} relative flex flex-col`}>
       <SecureWatermark user={student} examTitle={exam?.title} isDark={isDark} />
@@ -3965,7 +3962,7 @@ export default function StudentExamPage() {
             setShowFullscreenButton(false);
           }}
           style={{ touchAction: 'manipulation' }}
-          className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-[9999] px-6 py-3 bg-yellow-500 text-black font-bold rounded-xl shadow-2xl flex items-center gap-2 hover:bg-yellow-400 transition-all"
+          className="fixed bottom-24 left-1/2 transform -translate-x-1/2 z-[9999] px-6 py-3 bg-yellow-500 text-black font-bold rounded-xl shadow-2xl flex items-center gap-2 hover:bg-yellow-400 transition-all"
         >
           <Icons.Maximize className="h-5 w-5" />
           {language === 'ar' ? '🔄 العودة إلى ملء الشاشة' : '🔄 Return to fullscreen'}
@@ -4211,72 +4208,82 @@ export default function StudentExamPage() {
             </div>
           </div>
 
-          {/* ===== الشريط السفلي الجديد (المتحرك) ===== */}
-          <div className={`flex-shrink-0 px-4 py-3 border-t ${isDark ? 'border-white/10 bg-[#0b0e1a]/90' : 'border-gray-200 bg-gray-50/90'} backdrop-blur-lg`}>
-            <div className="flex flex-wrap items-center justify-between gap-3 max-w-4xl mx-auto">
-              {/* أزرار التنقل */}
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => goToQuestion(currentIndex - 1)}
-                  disabled={currentIndex === 0 || !exam?.allow_backward}
-                  style={{ touchAction: 'manipulation' }}
-                  className={`p-2 rounded-xl border font-medium text-sm hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition ${
-                    isDark 
-                      ? 'bg-white/5 border-white/10 text-white/80 hover:bg-white/10' 
-                      : 'bg-gray-100 border-gray-300 text-gray-800 hover:bg-gray-200'
-                  }`}
-                >
-                  <Icons.ChevronRight className="h-5 w-5" />
-                </button>
-                <span className={`text-xs ${styles.subtext}`}>
-                  {currentIndex + 1} / {questions.length}
-                </span>
-                <button
-                  onClick={() => goToQuestion(currentIndex + 1)}
-                  disabled={currentIndex === questions.length - 1}
-                  style={{ touchAction: 'manipulation' }}
-                  className={`p-2 rounded-xl border font-medium text-sm hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition ${
-                    isDark 
-                      ? 'bg-white/5 border-white/10 text-white/80 hover:bg-white/10' 
-                      : 'bg-gray-100 border-gray-300 text-gray-800 hover:bg-gray-200'
-                  }`}
-                >
-                  <Icons.ChevronLeft className="h-5 w-5" />
-                </button>
-              </div>
+          {/* ================================================================ */}
+          {/* ===== الشريط السفلي الجديد – مع تمرير أفقي حقيقي ===== */}
+          {/* ================================================================ */}
+          <div className={`flex-shrink-0 px-3 py-3 border-t ${isDark ? 'border-white/20 bg-[#0b0e1a]/95' : 'border-gray-300 bg-gray-100/95'} backdrop-blur-lg`}>
+            <div className="flex items-center gap-2 max-w-6xl mx-auto">
+              
+              {/* زر السابق */}
+              <button
+                onClick={() => goToQuestion(currentIndex - 1)}
+                disabled={currentIndex === 0 || !exam?.allow_backward}
+                style={{ touchAction: 'manipulation' }}
+                className={`p-3 rounded-2xl border-2 font-bold text-lg transition disabled:opacity-30 disabled:cursor-not-allowed flex-shrink-0 ${
+                  isDark
+                    ? 'bg-white/10 border-white/30 text-white hover:bg-white/20 hover:scale-105'
+                    : 'bg-gray-200 border-gray-400 text-gray-800 hover:bg-gray-300 hover:scale-105'
+                }`}
+                title={language === 'ar' ? 'السؤال السابق' : 'Previous'}
+              >
+                <Icons.ChevronRight className="h-6 w-6" />
+              </button>
 
-              {/* نقاط التنقل السريع (جميع الشاشات) */}
-              <div className="flex items-center gap-1 overflow-x-auto px-2 py-1 flex-1 justify-center">
-                {questions.map((q, idx) => {
-                  const ans = answers[q.id];
-                  const isAnswered = ans !== undefined && ans !== null && ans !== '';
-                  const isCurrent = idx === currentIndex;
-                  let bg = 'bg-white/20';
-                  if (isAnswered) bg = 'bg-emerald-400';
-                  if (isCurrent) bg = 'bg-yellow-400';
-                  return (
-                    <button
-                      key={q.id}
-                      onClick={() => goToQuestion(idx)}
-                      style={{ touchAction: 'manipulation' }}
-                      className={`flex-shrink-0 h-2 w-4 rounded-full transition-all ${bg} ${isCurrent ? 'scale-125' : ''}`}
-                      title={`سؤال ${idx + 1}`}
-                    />
-                  );
-                })}
+              {/* عداد السؤال */}
+              <span className={`text-sm font-bold ${styles.text} min-w-[60px] text-center flex-shrink-0`}>
+                {currentIndex + 1}/{questions.length}
+              </span>
+
+              {/* زر التالي */}
+              <button
+                onClick={() => goToQuestion(currentIndex + 1)}
+                disabled={currentIndex === questions.length - 1}
+                style={{ touchAction: 'manipulation' }}
+                className={`p-3 rounded-2xl border-2 font-bold text-lg transition disabled:opacity-30 disabled:cursor-not-allowed flex-shrink-0 ${
+                  isDark
+                    ? 'bg-white/10 border-white/30 text-white hover:bg-white/20 hover:scale-105'
+                    : 'bg-gray-200 border-gray-400 text-gray-800 hover:bg-gray-300 hover:scale-105'
+                }`}
+                title={language === 'ar' ? 'السؤال التالي' : 'Next'}
+              >
+                <Icons.ChevronLeft className="h-6 w-6" />
+              </button>
+
+              {/* ===== شريط النقاط – مع تمرير أفقي حقيقي ===== */}
+              <div className="flex-1 overflow-x-auto overflow-y-hidden px-1 py-1 scrollbar-thin scrollbar-thumb-yellow-400/30 scrollbar-track-transparent">
+                <div className="flex flex-nowrap gap-1.5 min-w-max">
+                  {questions.map((q, idx) => {
+                    const ans = answers[q.id];
+                    const isAnswered = ans !== undefined && ans !== null && ans !== '';
+                    const isCurrent = idx === currentIndex;
+                    let bg = 'bg-white/20';
+                    if (isAnswered) bg = 'bg-emerald-400';
+                    if (isCurrent) bg = 'bg-yellow-400';
+                    return (
+                      <button
+                        key={q.id}
+                        onClick={() => goToQuestion(idx)}
+                        style={{ touchAction: 'manipulation' }}
+                        className={`flex-shrink-0 h-3.5 w-6 rounded-full transition-all ${bg} ${isCurrent ? 'scale-125 shadow-lg shadow-yellow-400/50 ring-2 ring-yellow-400/30' : ''}`}
+                        title={`${language === 'ar' ? 'سؤال' : 'Q'} ${idx + 1}${isAnswered ? ' ✓' : ''}`}
+                      />
+                    );
+                  })}
+                </div>
               </div>
 
               {/* زر التسليم */}
               <button
                 onClick={openSubmitModal}
                 style={{ touchAction: 'manipulation' }}
-                className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-400 to-emerald-600 text-white font-bold text-sm hover:from-emerald-500 hover:to-emerald-700 transition flex items-center gap-1 shadow-lg shadow-emerald-400/20"
+                className="px-4 py-3 rounded-2xl bg-gradient-to-r from-emerald-400 to-emerald-600 text-white font-bold text-sm hover:from-emerald-500 hover:to-emerald-700 transition flex items-center gap-2 shadow-lg shadow-emerald-400/30 flex-shrink-0"
               >
-                <Icons.CheckCircle className="h-4 w-4" />
+                <Icons.CheckCircle className="h-5 w-5" />
                 <span className="hidden sm:inline">{language === 'ar' ? 'تسليم' : 'Submit'}</span>
               </button>
             </div>
           </div>
+          {/* ===== نهاية الشريط السفلي ===== */}
 
         </div>
       </div>
