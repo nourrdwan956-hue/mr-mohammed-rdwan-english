@@ -1,31 +1,10 @@
 // app/dashboard/student/exams/[id]/page.js
-// النسخة النهائية – مع نظام المراجعة وتأكيد التسليم المتقدم
-// ✅ إضافة reviewMarkedQuestions لتخزين الأسئلة المحددة للمراجعة
-// ✅ إضافة زر مراجعة بجانب كل سؤال (يظهر في الشريط الجانبي بلون أصفر وعلامة Flag)
-// ✅ نافذة تأكيد تسليم أنيقة تعرض إحصائيات الإجابات والمراجعة
-// ✅ تحسين العودة التلقائية لملء الشاشة (مهلة سماح 3 ثوانٍ)
-// ✅ إزالة setTimeout غير الضروري في تأكيد التسليم
-// ✅ تعديل handleVisibilityChange لجعل تغيير التبويب طرداً فورياً
-// ✅ إضافة زر عائم للعودة إلى ملء الشاشة
-// ✅ إصلاح ظهور زر المراجعة في الوضع الفاتح والداكن
 // ================================================================
-// 🎯 التعديلات المطلوبة للتوافق مع نظام الكورسات المدفوعة (الاشتراك + الأجهزة)
-// ================================================================
-// ✅ تعديل fetchExamData – إزالة استئناف الجلسات القديمة وإنهائها بصمت
-// ✅ تعديل startExam – ضمان بداية جديدة 100% مع تايمر كامل وإعادة ضبط الحالة
-// ✅ تعديل حساب المحاولات المتبقية – الاعتماد على قاعدة البيانات فقط
-// ✅ تعديل forceCloseExam – تحديث المحاولات المتبقية بناءً على عدد المحاولات المنتهية في القاعدة
-// ✅ تحسين checkIfPassed – منع الدخول لأي ناجح مع إضافة شرط مبكر في fetchExamData
-// ✅ إضافة زر الوضع الفاتح/الداكن بدون تسجيل غش
-// ✅ إزالة كود خصم المحاولات عند إعادة التحميل (reload logic) بالكامل
-// ✅ إعادة ترتيب الدوال (submitExam قبل startExam) لتجنب خطأ التهيئة
-// ✅ إصلاح زر تبديل الوضع الفاتح/الداكن ليعمل يدوياً دون استدعاء useTheme داخل callback
-// ================================================================
-// ✅ التعديلات الجديدة:
-// 1. تقليص الأحجام والهوامش بشكل معقول مع الحفاظ على الوضوح.
-// 2. إصلاح زر تبديل الثيم باستخدام useTheme و toggleTheme.
-// 3. معالجة خصم المحاولات عند إعادة التحميل (F5) مع منع الخصم المزدوج.
-// 4. الحفاظ على جميع ميزات الأمان والوظائف.
+// 🏛️ صفحة الامتحان – النسخة النهائية مع التعديلات المطلوبة
+// ✅ إصلاح خصم المحاولات عند إعادة التحميل (مع منع الخصم المزدوج)
+// ✅ تقليص الهوامش والتباعد الداخلي مع الحفاظ على حجم النص
+// ✅ زر تبديل الثيم يعمل بشكل صحيح
+// ✅ الحفاظ على جميع ميزات الأمان والوظائف
 // ================================================================
 
 'use client';
@@ -130,13 +109,12 @@ const getGrade = (percentage) => {
 };
 
 // ================================================================
-// 1.5 دالة تصدير الأسئلة إلى PDF (نسخة محسّنة مع جلب الأسئلة تلقائياً وعلامة مائية ونموذج إجابة)
+// 1.5 دالة تصدير الأسئلة إلى PDF
 // ================================================================
 const generateQuestionsPDF = async (questions, language, examId, supabaseClient, examTitle) => {
   try {
     let finalQuestions = questions;
 
-    // إذا كانت الأسئلة فارغة، نجلبها من قاعدة البيانات
     if (!finalQuestions || finalQuestions.length === 0) {
       if (!examId) {
         toast.error(language === 'ar' ? 'معرف الامتحان غير موجود' : 'Exam ID not found');
@@ -157,7 +135,6 @@ const generateQuestionsPDF = async (questions, language, examId, supabaseClient,
       finalQuestions = data;
     }
 
-    // جلب بيانات الطالب الحالية
     const { data: { user } } = await supabaseClient.auth.getUser();
     const { data: profile } = await supabaseClient
       .from('profiles')
@@ -174,7 +151,6 @@ const generateQuestionsPDF = async (questions, language, examId, supabaseClient,
 
     const watermarkText = `${studentName} | ${studentEmail} | ${studentPhone} | ${studentSchool} | ${studentGrade} | ${studentGovernorate} | ${examTitle || ''}`;
 
-    // إنشاء العنصر المؤقت
     const element = document.createElement('div');
     element.style.cssText = `
       padding: 30px 25px;
@@ -188,7 +164,6 @@ const generateQuestionsPDF = async (questions, language, examId, supabaseClient,
       margin: 0 auto;
     `;
 
-    // --- العلامة المائية (طبقة شفافة) ---
     const watermarkDiv = document.createElement('div');
     watermarkDiv.style.cssText = `
       position: absolute;
@@ -215,12 +190,10 @@ const generateQuestionsPDF = async (questions, language, examId, supabaseClient,
       letter-spacing: 1px;
       word-break: break-word;
     `;
-    // تكرار النص بشكل كافٍ لملء المساحة
     const watermarkTextRepeated = (watermarkText + ' ').repeat(30);
     watermarkDiv.textContent = watermarkTextRepeated;
     element.appendChild(watermarkDiv);
 
-    // --- المحتوى (فوق العلامة المائية) ---
     const content = document.createElement('div');
     content.style.cssText = `
       position: relative;
@@ -228,7 +201,6 @@ const generateQuestionsPDF = async (questions, language, examId, supabaseClient,
       background: transparent;
     `;
 
-    // عنوان الامتحان
     const title = document.createElement('h1');
     title.style.cssText = `
       text-align: center;
@@ -252,7 +224,6 @@ const generateQuestionsPDF = async (questions, language, examId, supabaseClient,
     subtitle.textContent = language === 'ar' ? 'أسئلة الامتحان' : 'Exam Questions';
     content.appendChild(subtitle);
 
-    // الأسئلة
     const questionsList = finalQuestions.filter(q => q.type !== 'passage');
     questionsList.forEach((q, idx) => {
       const block = document.createElement('div');
@@ -286,7 +257,6 @@ const generateQuestionsPDF = async (questions, language, examId, supabaseClient,
       textDiv.textContent = q.question_text;
       block.appendChild(textDiv);
 
-      // MCQ
       if (q.type === 'multiple_choice' && Array.isArray(q.options)) {
         const optionsDiv = document.createElement('div');
         optionsDiv.style.cssText = 'margin-right: 20px; font-size: 15px; color: #374151;';
@@ -300,7 +270,6 @@ const generateQuestionsPDF = async (questions, language, examId, supabaseClient,
         block.appendChild(optionsDiv);
       }
 
-      // Fill from words
       if (q.type === 'fill_from_words' && Array.isArray(q.options)) {
         const bankDiv = document.createElement('div');
         bankDiv.style.cssText = 'margin-top: 10px;';
@@ -320,7 +289,6 @@ const generateQuestionsPDF = async (questions, language, examId, supabaseClient,
         block.appendChild(bankDiv);
       }
 
-      // Sentence reorder
       if (q.type === 'sentence_reorder' && Array.isArray(q.options)) {
         const bankDiv = document.createElement('div');
         bankDiv.style.cssText = 'margin-top: 10px;';
@@ -340,7 +308,6 @@ const generateQuestionsPDF = async (questions, language, examId, supabaseClient,
         block.appendChild(bankDiv);
       }
 
-      // الدرجة
       const marksDiv = document.createElement('div');
       marksDiv.style.cssText = 'font-size:13px;color:#6b7280;margin-top:10px;';
       marksDiv.textContent = `${language === 'ar' ? 'الدرجة:' : 'Marks:'} ${q.marks}`;
@@ -349,7 +316,6 @@ const generateQuestionsPDF = async (questions, language, examId, supabaseClient,
       content.appendChild(block);
     });
 
-    // --- نموذج الإجابة (صفحة جديدة) ---
     const answerKeyTitle = document.createElement('h2');
     answerKeyTitle.style.cssText = `
       text-align: center;
@@ -387,7 +353,6 @@ const generateQuestionsPDF = async (questions, language, examId, supabaseClient,
       const answerDiv = document.createElement('div');
       answerDiv.style.cssText = 'font-size: 14px; color: #1f2937;';
 
-      // عرض الإجابة الصحيحة حسب النوع
       if (q.type === 'multiple_choice' && Array.isArray(q.options)) {
         const correctOpt = q.options.find(opt => opt.isCorrect === true);
         if (correctOpt) {
@@ -410,7 +375,6 @@ const generateQuestionsPDF = async (questions, language, examId, supabaseClient,
         answerDiv.innerHTML = `<span style="font-weight:600;">${language === 'ar' ? 'الإجابة الصحيحة:' : 'Correct answer:'}</span> ${correctAns}`;
       }
 
-      // إضافة الشرح إن وجد
       if (q.explanation) {
         const explDiv = document.createElement('div');
         explDiv.style.cssText = 'margin-top: 6px; font-size: 13px; color: #4b5563; background: #fef3c7; padding: 6px 10px; border-radius: 6px;';
@@ -422,7 +386,6 @@ const generateQuestionsPDF = async (questions, language, examId, supabaseClient,
       content.appendChild(block);
     });
 
-    // تذييل الصفحة
     const footer = document.createElement('div');
     footer.style.cssText = `
       text-align: center;
@@ -438,7 +401,6 @@ const generateQuestionsPDF = async (questions, language, examId, supabaseClient,
     element.appendChild(content);
     document.body.appendChild(element);
 
-    // استخدام html2canvas لالتقاط الصورة
     const canvas = await html2canvas(element, {
       scale: 2,
       useCORS: true,
@@ -451,14 +413,12 @@ const generateQuestionsPDF = async (questions, language, examId, supabaseClient,
 
     document.body.removeChild(element);
 
-    // إنشاء PDF
     const pdf = new jsPDF('p', 'mm', 'a4');
     const imgData = canvas.toDataURL('image/png');
     const imgProps = pdf.getImageProperties(imgData);
     const pdfWidth = pdf.internal.pageSize.getWidth();
     const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
 
-    // تقسيم إلى صفحات
     const pageHeight = pdf.internal.pageSize.getHeight();
     let heightLeft = pdfHeight;
     let position = 0;
@@ -501,7 +461,7 @@ const ExamCountdownScreen = ({ exam, styles, language, isDark }) => {
       setRemaining(prev => {
         if (prev <= 1000) {
           clearInterval(timer);
-          window.location.reload(); // بمجرد انتهاء العد التنازلي، إعادة تحميل الصفحة للدخول للامتحان
+          window.location.reload();
           return 0;
         }
         return prev - 1000;
@@ -525,7 +485,7 @@ const ExamCountdownScreen = ({ exam, styles, language, isDark }) => {
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.5, type: 'spring' }}
-        className={`max-w-xl w-full p-6 md:p-8 rounded-3xl border backdrop-blur-2xl shadow-2xl relative z-10 ${
+        className={`max-w-xl w-full p-5 md:p-7 rounded-3xl border backdrop-blur-2xl shadow-2xl relative z-10 ${
           isDark
             ? 'bg-white/10 border-white/20 shadow-yellow-400/20'
             : 'bg-white/60 border-gray-300 shadow-yellow-400/30'
@@ -535,7 +495,7 @@ const ExamCountdownScreen = ({ exam, styles, language, isDark }) => {
           <motion.div
             animate={{ rotate: 360 }}
             transition={{ duration: 20, repeat: Infinity, ease: 'linear' }}
-            className="inline-flex p-3 rounded-full bg-yellow-400/20 border-2 border-yellow-400/30 mb-4"
+            className="inline-flex p-3 rounded-full bg-yellow-400/20 border-2 border-yellow-400/30 mb-3"
           >
             <Icons.Clock className="h-12 w-12 text-yellow-400" />
           </motion.div>
@@ -545,7 +505,7 @@ const ExamCountdownScreen = ({ exam, styles, language, isDark }) => {
           </h1>
           <p className={`text-base ${styles.subtext} mb-4`}>{exam?.title}</p>
           
-          <div className="flex items-center justify-center gap-3 md:gap-4 mb-6">
+          <div className="flex items-center justify-center gap-3 md:gap-4 mb-5">
             <div className="flex flex-col items-center">
               <div className={`w-16 h-16 md:w-20 md:h-20 rounded-2xl ${styles.card} border ${styles.border} flex items-center justify-center backdrop-blur-md`}>
                 <span className="text-3xl md:text-4xl font-black text-yellow-400 tabular-nums">{String(days).padStart(2, '0')}</span>
@@ -575,7 +535,7 @@ const ExamCountdownScreen = ({ exam, styles, language, isDark }) => {
             </div>
           </div>
 
-          <p className={`text-xs sm:text-sm ${styles.subtext} mb-4`}>
+          <p className={`text-xs sm:text-sm ${styles.subtext} mb-3`}>
             {language === 'ar'
               ? 'لم يبدأ الامتحان بعد. يمكنك العودة عند انتهاء المؤقت.'
               : 'The exam has not started yet. You can return when the countdown ends.'}
@@ -583,7 +543,7 @@ const ExamCountdownScreen = ({ exam, styles, language, isDark }) => {
 
           <button
             onClick={() => router.push('/dashboard/student/courses')}
-            className="px-6 py-2.5 bg-gradient-to-r from-yellow-400 to-yellow-600 text-black font-bold rounded-xl hover:scale-105 transition shadow-xl"
+            className="px-5 py-2 bg-gradient-to-r from-yellow-400 to-yellow-600 text-black font-bold rounded-xl hover:scale-105 transition shadow-xl"
           >
             {language === 'ar' ? 'العودة للكورسات' : 'Back to Courses'}
           </button>
@@ -594,10 +554,10 @@ const ExamCountdownScreen = ({ exam, styles, language, isDark }) => {
 };
 
 // ================================================================
-// 3. مكونات الأسئلة (مع تباين عالٍ)
+// 3. مكونات الأسئلة (مع تباين عالٍ) – تم تقليص الهوامش الداخلية فقط
 // ================================================================
 
-// 3.1 MCQ – مع إزالة الخلط (ترتيب ثابت حسب قاعدة البيانات)
+// 3.1 MCQ
 const MCQQuestion = ({ question, selectedAnswer, onSelect, styles, language, isDark }) => {
   const rawOptions = Array.isArray(question.options) ? question.options : [];
   const labels = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
@@ -620,7 +580,7 @@ const MCQQuestion = ({ question, selectedAnswer, onSelect, styles, language, isD
             whileTap={{ scale: 0.98 }}
             onClick={() => onSelect(label)}
             style={{ touchAction: 'manipulation' }}
-            className={`w-full text-right p-3 rounded-xl border-4 border-solid transition-all duration-200 flex items-center gap-3 backdrop-blur-sm ${
+            className={`w-full text-right p-3 rounded-xl border-4 border-solid transition-all duration-200 flex items-center gap-2.5 backdrop-blur-sm ${
               isSelected
                 ? 'border-yellow-400 bg-yellow-400/20 shadow-lg shadow-yellow-400/30'
                 : `${isDark ? 'border-white/10 hover:border-yellow-400/40' : 'border-gray-600 hover:border-yellow-400/70'} ${styles.card} bg-opacity-50 hover:bg-white/20`
@@ -649,7 +609,7 @@ const MCQQuestion = ({ question, selectedAnswer, onSelect, styles, language, isD
   );
 };
 
-// 3.2 صح/خطأ
+// 3.2 True/False
 const TrueFalseQuestion = ({ selectedAnswer, onSelect, styles, language }) => {
   const options = [
     { value: 'true', label: language === 'ar' ? '✅ صحيح' : '✅ True', color: 'emerald' },
@@ -673,7 +633,7 @@ const TrueFalseQuestion = ({ selectedAnswer, onSelect, styles, language }) => {
             whileTap={{ scale: 0.95 }}
             onClick={() => onSelect(opt.value)}
             style={{ touchAction: 'manipulation' }}
-            className={`p-4 rounded-xl border-2 transition-all duration-200 font-bold text-base flex items-center justify-center gap-2 backdrop-blur-sm ${selectedClass}`}
+            className={`p-3.5 rounded-xl border-2 transition-all duration-200 font-bold text-base flex items-center justify-center gap-2 backdrop-blur-sm ${selectedClass}`}
           >
             <span className="text-lg">{opt.value === 'true' ? '✅' : '❌'}</span>
             <span>{opt.label}</span>
@@ -684,7 +644,7 @@ const TrueFalseQuestion = ({ selectedAnswer, onSelect, styles, language }) => {
   );
 };
 
-// 3.3 توصيل (Matching)
+// 3.3 Matching
 const MatchingQuestion = ({ question, selectedAnswer, onSelect, styles, language }) => {
   const pairs = Array.isArray(question.options) ? question.options : [];
   const [leftItems] = useState(() => pairs.map(p => p.left).sort(() => Math.random() - 0.5));
@@ -770,7 +730,7 @@ const MatchingQuestion = ({ question, selectedAnswer, onSelect, styles, language
   );
 };
 
-// 3.4 ترتيب (Ordering)
+// 3.4 Ordering
 const OrderingQuestion = ({ question, selectedAnswer, onSelect, styles, language }) => {
   const items = Array.isArray(question.options) ? question.options : [];
   const [ordered, setOrdered] = useState(selectedAnswer || [...items].sort(() => Math.random() - 0.5));
@@ -811,7 +771,7 @@ const OrderingQuestion = ({ question, selectedAnswer, onSelect, styles, language
   );
 };
 
-// 3.5 ملء الفراغ (Fill Blank)
+// 3.5 Fill Blank
 const FillBlankQuestion = ({ question, selectedAnswer, onSelect, styles, language, isDark }) => {
   const answer = selectedAnswer || '';
   return (
@@ -822,7 +782,7 @@ const FillBlankQuestion = ({ question, selectedAnswer, onSelect, styles, languag
           value={answer}
           onChange={(e) => onSelect(e.target.value)}
           placeholder={language === 'ar' ? 'أدخل الإجابة...' : 'Enter answer...'}
-          className={`w-full p-3 bg-transparent ${styles.text} placeholder-${styles.subtext} text-sm focus:outline-none`}
+          className={`w-full p-2.5 bg-transparent ${styles.text} placeholder-${styles.subtext} text-sm focus:outline-none`}
           style={{ background: 'transparent' }}
         />
       </div>
@@ -835,7 +795,7 @@ const FillBlankQuestion = ({ question, selectedAnswer, onSelect, styles, languag
   );
 };
 
-// 3.6 مقالي (Essay)
+// 3.6 Essay
 const EssayQuestion = ({ question, selectedAnswer, onSelect, styles, language, isDark }) => {
   const answer = selectedAnswer || '';
   const wordLimit = question.word_limit || question.max_words || 0;
@@ -856,7 +816,7 @@ const EssayQuestion = ({ question, selectedAnswer, onSelect, styles, language, i
           onChange={handleChange}
           rows={6}
           placeholder={language === 'ar' ? 'اكتب إجابتك بالتفصيل هنا...' : 'Write your detailed answer here...'}
-          className={`w-full p-3 bg-transparent ${styles.text} placeholder-${styles.subtext} text-sm resize-y focus:outline-none`}
+          className={`w-full p-2.5 bg-transparent ${styles.text} placeholder-${styles.subtext} text-sm resize-y focus:outline-none`}
           style={{ background: 'transparent' }}
         />
       </div>
@@ -880,7 +840,7 @@ const EssayQuestion = ({ question, selectedAnswer, onSelect, styles, language, i
   );
 };
 
-// 3.7 إكمال من كلمات معطاة
+// 3.7 Fill From Words
 const FillFromWordsQuestion = ({ question, selectedAnswer, onSelect, styles, language, isDark }) => {
   const rawWords = Array.isArray(question.options) ? question.options : [];
   const wordBank = rawWords.map(w =>
@@ -921,7 +881,7 @@ const FillFromWordsQuestion = ({ question, selectedAnswer, onSelect, styles, lan
           <span className={`text-base ${styles.text}`}>{text}</span>
         </div>
         <p className={`text-xs text-red-400`}>
-          ⚠️ {language === 'ar' ? 'لم يتم اكتشاف فراغات في النص. قد يكون السؤال غير مكتمل.' : 'No blanks detected. Question may be incomplete.'}
+          ⚠️ {language === 'ar' ? 'لم يتم اكتشاف فراغات في النص.' : 'No blanks detected.'}
         </p>
       </div>
     );
@@ -942,7 +902,7 @@ const FillFromWordsQuestion = ({ question, selectedAnswer, onSelect, styles, lan
           <span className={`text-base ${styles.text}`}>{text}</span>
         </div>
         <p className={`text-xs text-red-400`}>
-          ⚠️ {language === 'ar' ? 'لا توجد كلمات في صندوق الكلمات لهذا السؤال' : 'No words in word bank'}
+          ⚠️ {language === 'ar' ? 'لا توجد كلمات في صندوق الكلمات' : 'No words in word bank'}
         </p>
       </div>
     );
@@ -994,7 +954,7 @@ const FillFromWordsQuestion = ({ question, selectedAnswer, onSelect, styles, lan
   );
 };
 
-// 3.8 ترتيب الجملة (Sentence Reorder)
+// 3.8 Sentence Reorder
 const SentenceReorderQuestion = ({ question, selectedAnswer, onSelect, styles, language, isDark }) => {
   const allWords = Array.isArray(question.options) ? [...question.options] : [];
   const currentAnswer = Array.isArray(selectedAnswer) ? selectedAnswer : [];
@@ -1208,7 +1168,7 @@ const SentenceReorderQuestion = ({ question, selectedAnswer, onSelect, styles, l
   );
 };
 
-// 3.9 مكون القطعة (Passage) مع أداة التلوين وتكبير النص المستقل
+// 3.9 Passage
 const PassageDisplay = ({ passageId, originalText, examId, styles, isDark, passageFontSize, onFontSizeChange }) => {
   const [highlights, setHighlights] = useState([]);
   const [selectedColor, setSelectedColor] = useState('#FFEB3B');
@@ -1430,7 +1390,7 @@ const PassageDisplay = ({ passageId, originalText, examId, styles, isDark, passa
 };
 
 // ================================================================
-// 4. شاشة التفاصيل قبل البدء (النسخة الفخمة – كوكبية)
+// 4. شاشة التفاصيل قبل البدء
 // ================================================================
 const ExamIntroScreen = ({ exam, startExam, loading, styles, language, isDark }) => {
   const [isPulsing, setIsPulsing] = useState(true);
@@ -1463,7 +1423,7 @@ const ExamIntroScreen = ({ exam, startExam, loading, styles, language, isDark })
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.6, type: 'spring' }}
-      className={`max-w-2xl mx-auto p-5 md:p-8 rounded-3xl border backdrop-blur-3xl shadow-2xl relative overflow-hidden ${
+      className={`max-w-2xl mx-auto p-5 md:p-7 rounded-3xl border backdrop-blur-3xl shadow-2xl relative overflow-hidden ${
         isDark
           ? 'bg-white/10 border-white/20 shadow-yellow-400/30'
           : 'bg-white/50 border-gray-300 shadow-yellow-400/40'
@@ -1620,7 +1580,7 @@ const ExamIntroScreen = ({ exam, startExam, loading, styles, language, isDark })
 };
 
 // ================================================================
-// 5. المؤقت المميز (عرض الدقائق والثواني فقط)
+// 5. المؤقت المميز
 // ================================================================
 const ExamTimer = ({ remaining, isWarning, isCritical, styles }) => {
   const mins = Math.floor(remaining / 60);
@@ -1644,7 +1604,7 @@ const ExamTimer = ({ remaining, isWarning, isCritical, styles }) => {
 };
 
 // ================================================================
-// 6. شريط التقدم المحسّن مع أنيميشن وأيقونات + عرض الوقت
+// 6. شريط التقدم المحسّن
 // ================================================================
 const ProgressBar = ({ answered, total, isDark, timeRemaining }) => {
   const percentage = total === 0 ? 0 : (answered / total) * 100;
@@ -1698,7 +1658,7 @@ const ProgressBar = ({ answered, total, isDark, timeRemaining }) => {
 };
 
 // ================================================================
-// 7. الشريط الجانبي مع تأثيرات hover و tap
+// 7. الشريط الجانبي
 // ================================================================
 const QuestionSidebar = ({ 
   questions, 
@@ -1804,7 +1764,7 @@ const QuestionSidebar = ({
 };
 
 // ================================================================
-// 8. شاشة القفل (LockOverlay) – بدون صوت
+// 8. شاشة القفل (LockOverlay)
 // ================================================================
 const LockOverlay = ({ violations, maxViolations, language, styles, onCancel, onCloseExam }) => {
   const [countdown, setCountdown] = useState(5);
@@ -1894,7 +1854,7 @@ const LockOverlay = ({ violations, maxViolations, language, styles, onCancel, on
 };
 
 // ================================================================
-// 9. العلامة المائية – محسّنة ومكثّفة
+// 9. العلامة المائية
 // ================================================================
 const SecureWatermark = ({ user, examTitle, isDark }) => {
   const watermarkText = `${user?.full_name || 'Student'} | ${user?.email || ''} | ${user?.phone || ''} | ${user?.school || ''} | ${user?.grade || ''} | ${user?.governorate || ''} | ${examTitle || ''}`;
@@ -2182,7 +2142,7 @@ const ExamSettingsPanel = ({
 };
 
 // ================================================================
-// 12. نافذة تأكيد التسليم – مخصصة وأنيقة
+// 12. نافذة تأكيد التسليم
 // ================================================================
 const SubmitConfirmationModal = ({
   isOpen,
@@ -2274,13 +2234,13 @@ const SubmitConfirmationModal = ({
 };
 
 // ================================================================
-// 13. الصفحة الرئيسية – النسخة النهائية مع نظام المراجعة وتأكيد التسليم المتقدم
+// 13. الصفحة الرئيسية – النسخة النهائية مع جميع التعديلات
 // ================================================================
 export default function StudentExamPage() {
   const router = useRouter();
   const params = useParams();
   const examId = params.id;
-  const { theme, language, toggleTheme } = useTheme();
+  const { theme, language, toggleTheme } = useTheme(); // ✅ استخدمنا toggleTheme
   const isDark = theme === 'dark';
 
   const contrast = isDark ? HC.dark : HC.light;
@@ -2405,7 +2365,9 @@ export default function StudentExamPage() {
     } catch (e) {}
   }, []);
 
-  // دالة الإغلاق القسري (مع دعم سبب reload)
+  // ================================================================
+  // ✅ دالة الإغلاق القسري مع دعم السبب وتحديث المحاولات بشكل صحيح
+  // ================================================================
   const forceCloseExam = useCallback(async (reason = 'security_violation') => {
     if (examStatus === 'submitted' || isExamForcedClosed) return;
     setIsExamForcedClosed(true);
@@ -2434,7 +2396,7 @@ export default function StudentExamPage() {
           .eq('id', attemptId);
       }
 
-      // تحديث المحاولات المتبقية من قاعدة البيانات
+      // ✅ تحديث المحاولات المتبقية من قاعدة البيانات
       try {
         const { data: { user } } = await supabase.auth.getUser();
         const { data: allAttempts } = await supabase
@@ -2526,7 +2488,9 @@ export default function StudentExamPage() {
     }
   }, [examStatus, isExamForcedClosed, forceCloseExam, language]);
 
-  // معالج إعادة التحميل (F5) مع منع الخصم المزدوج
+  // ================================================================
+  // ✅ معالج إعادة التحميل (F5) مع خصم المحاولة ومنع الخصم المزدوج
+  // ================================================================
   useEffect(() => {
     if (examStatus !== 'started') return;
 
@@ -2534,13 +2498,16 @@ export default function StudentExamPage() {
       if (examStatus === 'started' && !isExamForcedClosed) {
         const penaltyKey = `exam_${examId}_reload_penalty_applied`;
         if (!sessionStorage.getItem(penaltyKey)) {
+          // نضع علامة لمنع الخصم المزدوج
           sessionStorage.setItem(penaltyKey, 'true');
           e.preventDefault();
           e.returnValue = language === 'ar' ? '⚠️ سيتم خصم محاولة عند إعادة التحميل. هل تريد المتابعة؟' : '⚠️ One attempt will be deducted on reload. Continue?';
+          // نستخدم setTimeout لضمان تنفيذ الإغلاق بعد مغادرة الصفحة
           setTimeout(() => {
             forceCloseExam('reload');
           }, 100);
         } else {
+          // تم خصم المحاولة مسبقاً، نمنع الإغلاق الإضافي
           e.preventDefault();
           e.returnValue = language === 'ar' ? '⚠️ تم خصم محاولة بالفعل، هل تريد المتابعة؟' : '⚠️ Attempt already deducted, continue?';
         }
@@ -3159,7 +3126,7 @@ export default function StudentExamPage() {
 
       sessionStorage.removeItem(`exam_${examId}_answers`);
       sessionStorage.removeItem(`exam_${examId}_highlights`);
-      sessionStorage.removeItem(`exam_${examId}_reload_penalty_applied`);
+      sessionStorage.removeItem(`exam_${examId}_reload_penalty_applied`); // مسح علامة الخصم
 
       setIsSubmitting(false);
 
@@ -3691,7 +3658,7 @@ export default function StudentExamPage() {
     );
   }
 
-  // واجهة الامتحان الرئيسية
+  // ===== واجهة الامتحان الرئيسية (مضغوطة الهوامش) =====
   return (
     <div id="exam-container" className={`h-dvh w-screen overflow-hidden ${isDark ? 'bg-[#0b0e1a]' : 'bg-gray-50'} ${styles.text} relative flex flex-col`}>
       <SecureWatermark user={student} examTitle={exam?.title} isDark={isDark} />
@@ -3761,7 +3728,7 @@ export default function StudentExamPage() {
         />
 
         <div className="flex-1 flex flex-col overflow-hidden">
-          {/* الشريط العلوي المحسّن (مضغوط) */}
+          {/* ===== الشريط العلوي (مضغوط) ===== */}
           <div className={`flex-shrink-0 px-3 py-2 border-b ${isDark ? 'border-white/10 bg-[#0b0e1a]/90' : 'border-gray-200 bg-gray-50/90'} backdrop-blur-lg`}>
             <div className="flex flex-wrap items-center justify-between gap-1.5 max-w-6xl mx-auto">
               <div className="flex items-center gap-2">
@@ -3815,16 +3782,9 @@ export default function StudentExamPage() {
                 </button>
               </div>
               <div className="flex gap-0.5 items-center">
+                {/* ✅ زر تبديل الثيم – يستخدم toggleTheme مباشرة */}
                 <button
-                  onClick={() => {
-                    toggleTheme();
-                    toast.success(
-                      !isDark 
-                        ? (language === 'ar' ? '🌙 تم التبديل إلى الوضع الداكن' : '🌙 Switched to Dark Mode')
-                        : (language === 'ar' ? '☀️ تم التبديل إلى الوضع الفاتح' : '☀️ Switched to Light Mode'),
-                      { duration: 1500 }
-                    );
-                  }}
+                  onClick={toggleTheme}
                   style={{ touchAction: 'manipulation' }}
                   className={`p-1.5 rounded-lg transition ${
                     isDark
@@ -3888,9 +3848,9 @@ export default function StudentExamPage() {
             </div>
           </div>
 
-          {/* منطقة عرض السؤال المحسّنة */}
+          {/* ===== منطقة عرض السؤال (مضغوطة الهوامش) ===== */}
           <div className="flex-1 overflow-y-auto bg-gradient-to-br from-transparent via-yellow-400/5 to-blue-500/5">
-            <div className="max-w-3xl mx-auto px-4 py-4">
+            <div className="max-w-3xl mx-auto px-4 py-3">
               <AnimatePresence mode="wait">
                 {currentQuestion && (
                   <motion.div
@@ -3899,7 +3859,7 @@ export default function StudentExamPage() {
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: -20 }}
                     transition={{ duration: 0.25, ease: 'easeInOut' }}
-                    className="space-y-4"
+                    className="space-y-3"
                   >
                     {renderQuestion(currentQuestion)}
                   </motion.div>
@@ -3908,7 +3868,7 @@ export default function StudentExamPage() {
             </div>
           </div>
 
-          {/* الشريط السفلي المحسّن */}
+          {/* ===== الشريط السفلي (مضغوط) ===== */}
           <div className={`flex-shrink-0 px-3 py-2 border-t ${isDark ? 'border-white/10 bg-[#0b0e1a]/90' : 'border-gray-200 bg-gray-50/90'} backdrop-blur-lg`}>
             <div className="flex items-center justify-between max-w-3xl mx-auto gap-2">
               <button
