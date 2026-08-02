@@ -1,11 +1,10 @@
 // app/dashboard/student/exams/[id]/page.js
 // ================================================================
-// 🏛️ الصفحة النهائية مع شريط تمرير أفقي للمحتوى
+// 🏛️ الصفحة النهائية مع تمرير طبيعي (أفقي وعمودي) للصفحة بأكملها
 // ✅ خصم محاولة عند الـ Reload (F5 / زر التحميل)
 // ✅ تطبيق الثيم الفاتح/الداكن بتباين عالٍ جداً
 // ✅ شريط سفلي مع أزرار تنقل بين الأسئلة وشريط نقاط
-// ✅ إضافة شريط تمرير أفقي داخل منطقة عرض السؤال (باستخدام input range)
-// ✅ تحسين الأداء والتجاوب
+// ✅ تحسين الأداء والتجاوب مع إمكانية التمرير الطبيعي
 // ================================================================
 
 'use client';
@@ -2272,7 +2271,7 @@ const SubmitConfirmationModal = ({
 };
 
 // ================================================================
-// 13. الصفحة الرئيسية – النسخة النهائية مع التعديلات المطلوبة
+// 13. الصفحة الرئيسية – النسخة النهائية مع التمرير الطبيعي
 // ================================================================
 export default function StudentExamPage() {
   const router = useRouter();
@@ -2344,13 +2343,6 @@ export default function StudentExamPage() {
   // ===== حالة إظهار الزر العائم للعودة إلى ملء الشاشة =====
   const [showFullscreenButton, setShowFullscreenButton] = useState(false);
 
-  // ===== حالة التمرير الأفقي =====
-  const contentContainerRef = useRef(null);
-  const [canScrollLeft, setCanScrollLeft] = useState(false);
-  const [canScrollRight, setCanScrollRight] = useState(false);
-  const [pageScrollLeft, setPageScrollLeft] = useState(0);
-  const [pageScrollWidth, setPageScrollWidth] = useState(0);
-
   const timerRef = useRef(null);
   const answersRef = useRef(answers);
   const violationsRef = useRef(violations);
@@ -2373,44 +2365,7 @@ export default function StudentExamPage() {
   const [isCheckingAccess, setIsCheckingAccess] = useState(false);
 
   // ===== دوال التحقق من إمكانية التمرير الأفقي =====
-  const updateScrollButtons = useCallback(() => {
-    if (contentContainerRef.current) {
-      const { scrollLeft, scrollWidth, clientWidth } = contentContainerRef.current;
-      setCanScrollLeft(scrollLeft > 1);
-      setCanScrollRight(scrollLeft + clientWidth < scrollWidth - 1);
-      setPageScrollLeft(scrollLeft);
-      setPageScrollWidth(Math.max(1, scrollWidth - clientWidth));
-    }
-  }, []);
-
-  useEffect(() => {
-    const container = contentContainerRef.current;
-    if (container) {
-      const handleScroll = () => {
-        updateScrollButtons();
-      };
-      container.addEventListener('scroll', handleScroll);
-      // التحقق الأولي بعد التصيير
-      setTimeout(updateScrollButtons, 100);
-      return () => container.removeEventListener('scroll', handleScroll);
-    }
-  }, [updateScrollButtons]);
-
-  // عند تغيير السؤال، نعيد ضبط التمرير إلى البداية ونحدث الأزرار
-  useEffect(() => {
-    if (contentContainerRef.current) {
-      contentContainerRef.current.scrollLeft = 0;
-      updateScrollButtons();
-    }
-  }, [currentIndex, updateScrollButtons]);
-
-  // ===== دوال التمرير الأفقي (لم نعد نستخدم الأزرار، ولكن نترك الدوال للاستخدام العام) =====
-  const scrollHorizontal = useCallback((direction) => {
-    if (contentContainerRef.current) {
-      const step = direction === 'left' ? -300 : 300;
-      contentContainerRef.current.scrollBy({ left: step, behavior: 'smooth' });
-    }
-  }, []);
+  // تم إزالتها لأننا نعتمد على التمرير الطبيعي للصفحة
 
   // ===== دالة التحقق من وجود محاولة ناجحة =====
   const checkIfPassed = useCallback(async () => {
@@ -3992,12 +3947,12 @@ export default function StudentExamPage() {
   }
 
   // ================================================================
-  // ✅ واجهة الامتحان الرئيسية – مع شريط سفلي يعمل بشكل حقيقي
+  // ✅ واجهة الامتحان الرئيسية – مع تمرير طبيعي (أفقي وعمودي) للصفحة بأكملها
   // ================================================================
   return (
     <div
       id="exam-container"
-      className={`h-screen w-screen overflow-hidden ${isDark ? 'bg-[#0b0e1a]' : 'bg-gray-50'} ${styles.text} relative flex flex-col`}
+      className={`min-h-screen w-full overflow-x-auto overflow-y-auto ${isDark ? 'bg-[#0b0e1a]' : 'bg-gray-50'} ${styles.text} relative flex flex-col`}
     >
       <SecureWatermark user={student} examTitle={exam?.title} isDark={isDark} />
 
@@ -4012,7 +3967,7 @@ export default function StudentExamPage() {
             setShowFullscreenButton(false);
           }}
           style={{ touchAction: 'manipulation' }}
-          className="fixed bottom-24 left-1/2 transform -translate-x-1/2 z-[9999] px-4 py-2 bg-yellow-500 text-black font-bold rounded-xl shadow-2xl flex items-center gap-2 hover:bg-yellow-400 transition-all text-sm"
+          className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-[9999] px-4 py-2 bg-yellow-500 text-black font-bold rounded-xl shadow-2xl flex items-center gap-2 hover:bg-yellow-400 transition-all text-sm"
         >
           <Icons.Maximize className="h-4 w-4" />
           {language === 'ar' ? '🔄 العودة لملء الشاشة' : '🔄 Return to fullscreen'}
@@ -4038,7 +3993,6 @@ export default function StudentExamPage() {
         )}
       </AnimatePresence>
 
-      {/* شاشة الانتظار بعد التسليم */}
       <AnimatePresence>
         {isSubmitting && (
           <motion.div
@@ -4079,8 +4033,8 @@ export default function StudentExamPage() {
         )}
       </AnimatePresence>
 
-      {/* ===== الهيكل الرئيسي: شريط جانبي + محتوى ===== */}
-      <div className="flex flex-1 overflow-hidden">
+      {/* ===== الهيكل الرئيسي ===== */}
+      <div className="flex flex-1 min-h-screen">
         {/* الشريط الجانبي (يظهر فقط على الشاشات المتوسطة+) */}
         <QuestionSidebar
           questions={questions}
@@ -4095,7 +4049,7 @@ export default function StudentExamPage() {
         />
 
         {/* ===== العمود الأيمن (المحتوى) ===== */}
-        <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+        <div className="flex-1 flex flex-col min-w-0">
           {/* ============================================================ */}
           {/* الشريط العلوي – نسخة مدمجة خفيفة الوزن */}
           {/* ============================================================ */}
@@ -4262,16 +4216,12 @@ export default function StudentExamPage() {
           </div>
 
           {/* ============================================================ */}
-          {/* ===== منطقة عرض السؤال – مع تمرير أفقي ===== */}
+          {/* ===== منطقة عرض السؤال – مع تمرير أفقي طبيعي ===== */}
           {/* ============================================================ */}
           <div className="flex-1 overflow-y-auto bg-gradient-to-br from-transparent via-yellow-400/5 to-blue-500/5">
             <div className="max-w-4xl mx-auto px-4 py-4 w-full">
-              {/* حاوية التمرير الأفقي */}
-              <div
-                ref={contentContainerRef}
-                className="overflow-x-auto overflow-y-visible scrollbar-thin scrollbar-thumb-yellow-400/30 scrollbar-track-transparent exam-scrollbar"
-              >
-                <div className="min-w-max w-full">
+              <div className="w-full overflow-x-auto overflow-y-visible exam-scrollbar" style={{ maxWidth: '100%' }}>
+                <div className="w-full min-w-[min(100%,_calc(100vw-2rem))]">
                   <AnimatePresence mode="wait">
                     {currentQuestion && (
                       <motion.div
@@ -4292,35 +4242,12 @@ export default function StudentExamPage() {
           </div>
 
           {/* ============================================================ */}
-          {/* ===== الشريط السفلي – مع شريط تمرير أفقي مخصص ===== */}
+          {/* ===== الشريط السفلي – أزرار التنقل ونقاط الأسئلة ===== */}
           {/* ============================================================ */}
           <div
             className={`flex-shrink-0 min-h-[56px] px-2 py-2 border-t ${isDark ? 'border-white/20 bg-[#0b0e1a]/95' : 'border-gray-300 bg-gray-100/95'} backdrop-blur-lg`}
           >
-            {/* شريط التمرير الأفقي المخصص */}
-            <div className="flex items-center gap-2 px-2 py-1 w-full max-w-6xl mx-auto">
-              <span className="text-xs text-gray-400 flex-shrink-0">←</span>
-              <input
-                type="range"
-                min="0"
-                max={Math.max(1, pageScrollWidth)}
-                value={pageScrollLeft}
-                onChange={(e) => {
-                  const val = parseInt(e.target.value);
-                  if (contentContainerRef.current) {
-                    contentContainerRef.current.scrollLeft = val;
-                  }
-                }}
-                className="flex-1 h-1.5 bg-gray-300 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer"
-                style={{
-                  background: `linear-gradient(to right, #fbbf24 ${(pageScrollWidth > 0 ? (pageScrollLeft / pageScrollWidth) * 100 : 0)}%, #d1d5db ${(pageScrollWidth > 0 ? (pageScrollLeft / pageScrollWidth) * 100 : 0)}%)`
-                }}
-              />
-              <span className="text-xs text-gray-400 flex-shrink-0">→</span>
-            </div>
-
-            {/* شريط التنقل بين الأسئلة (كما هو) */}
-            <div className="flex items-center gap-1 max-w-6xl mx-auto w-full h-full mt-1">
+            <div className="flex items-center gap-1 max-w-6xl mx-auto w-full h-full">
               {/* زر السابق */}
               <button
                 onClick={() => goToQuestion(currentIndex - 1)}
