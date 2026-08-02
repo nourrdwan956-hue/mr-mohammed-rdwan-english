@@ -1,6 +1,9 @@
 // app/dashboard/student/courses/page.js
 // ================================================================
-// 🏛️ صفحة قائمة الكورسات – متجاوبة بالكامل
+// 🏛️ صفحة قائمة الكورسات – متجاوبة بالكامل ومضغوطة
+// ✅ تصغير الأحجام والهوامش
+// ✅ إضافة عرض محتوى الكورس (فيديوهات - امتحانات - كتب) قبل الشراء
+// ✅ منع التشغيل حتى الدفع
 // ================================================================
 
 'use client';
@@ -85,9 +88,9 @@ const WaveBorderCard = ({ children, className = '', initialColor = 'blue', onCol
   };
 
   return (
-    <div className={`relative rounded-2xl sm:rounded-3xl overflow-hidden group ${className}`}>
-      <div className="absolute inset-0 rounded-2xl sm:rounded-3xl" style={gradientStyle} />
-      <div className="relative z-10 h-full w-full rounded-2xl sm:rounded-3xl backdrop-blur-sm bg-[var(--bg-card)] border border-[var(--border-color)] transition-all duration-300 group-hover:shadow-2xl">
+    <div className={`relative rounded-2xl overflow-hidden group ${className}`}>
+      <div className="absolute inset-0 rounded-2xl" style={gradientStyle} />
+      <div className="relative z-10 h-full w-full rounded-2xl backdrop-blur-sm bg-[var(--bg-card)] border border-[var(--border-color)] transition-all duration-300 group-hover:shadow-2xl">
         {children}
       </div>
     </div>
@@ -129,7 +132,7 @@ function parseGrade(gradeText) {
 }
 
 // ================================================================
-// 🎴 بطاقة كورس – تصميم فاخر مع غلاف 16:9 ومستطيل جانبي للسعر (متجاوبة)
+// 🎴 بطاقة كورس – تصميم فاخر مع غلاف 16:9 ومحتوى الكورس المعروض
 // ================================================================
 const CourseCard = ({
   course,
@@ -147,11 +150,45 @@ const CourseCard = ({
   const [enrolling, setEnrolling] = useState(false);
   const [cardColor, setCardColor] = useState(CARD_COLORS[Math.floor(Math.random() * CARD_COLORS.length)]);
   const [isHovered, setIsHovered] = useState(false);
+  const [showContent, setShowContent] = useState(false);
+  const [courseContent, setCourseContent] = useState(null);
+  const [loadingContent, setLoadingContent] = useState(false);
 
   const price = course.price || 0;
   const isFree = course.is_free || price === 0;
   const videosCount = course.videos_count || 0;
   const duration = course.duration || null;
+
+  // جلب محتوى الكورس (فيديوهات، امتحانات، كتب)
+  const fetchCourseContent = useCallback(async () => {
+    if (courseContent) return;
+    setLoadingContent(true);
+    try {
+      const [videosRes, examsRes, booksRes] = await Promise.all([
+        supabase.from('videos').select('id, title, display_mode, is_published').eq('course_id', course.id).order('order_index', { ascending: true }),
+        supabase.from('exams').select('id, title, is_published').eq('course_id', course.id).order('created_at', { ascending: true }),
+        supabase.from('books').select('id, title, file_url, drive_file_id, is_published').eq('course_id', course.id).order('created_at', { ascending: true })
+      ]);
+
+      setCourseContent({
+        videos: videosRes.data || [],
+        exams: examsRes.data || [],
+        books: booksRes.data || [],
+      });
+    } catch (err) {
+      console.error('Error fetching course content:', err);
+    } finally {
+      setLoadingContent(false);
+    }
+  }, [course.id, courseContent]);
+
+  const handleToggleContent = (e) => {
+    e.stopPropagation();
+    if (!showContent && !courseContent) {
+      fetchCourseContent();
+    }
+    setShowContent(!showContent);
+  };
 
   const handleColorChange = (newColor) => setCardColor(newColor);
 
@@ -179,25 +216,136 @@ const CourseCard = ({
     if (onPayment) onPayment(course.id);
   };
 
-  // عرض السعر بشكل أنيق
   const priceDisplay = isFree 
-    ? <span className="text-green-400 font-bold text-xl sm:text-2xl">{language === 'ar' ? 'مجاني' : 'Free'}</span>
-    : <span className="text-yellow-400 font-bold text-2xl sm:text-3xl">{price} <span className="text-sm font-normal text-gray-400">ج.م</span></span>;
+    ? <span className="text-green-400 font-bold text-lg">{language === 'ar' ? 'مجاني' : 'Free'}</span>
+    : <span className="text-yellow-400 font-bold text-xl">{price} <span className="text-xs font-normal text-gray-400">ج.م</span></span>;
+
+  // عرض محتوى الكورس
+  const renderContent = () => {
+    if (loadingContent) {
+      return (
+        <div className="flex justify-center py-2">
+          <Icons.Loader2 className="h-4 w-4 animate-spin text-blue-400" />
+        </div>
+      );
+    }
+    if (!courseContent) return null;
+
+    const { videos, exams, books } = courseContent;
+    const hasContent = videos.length > 0 || exams.length > 0 || books.length > 0;
+
+    if (!hasContent) {
+      return (
+        <p className={`text-xs ${styles.subtext} opacity-60`}>
+          {language === 'ar' ? 'لا يوجد محتوى مضاف بعد' : 'No content added yet'}
+        </p>
+      );
+    }
+
+    return (
+      <div className="space-y-2 text-xs">
+        {/* الفيديوهات */}
+        {videos.length > 0 && (
+          <div>
+            <div className={`flex items-center gap-1.5 font-semibold ${cardColor.text} mb-0.5`}>
+              <Icons.Video className="h-3 w-3" />
+              <span>{language === 'ar' ? 'فيديوهات' : 'Videos'} ({videos.length})</span>
+            </div>
+            <ul className="space-y-0.5 pr-2">
+              {videos.slice(0, 5).map((v, idx) => (
+                <li key={v.id} className={`flex items-center gap-1 text-[10px] ${styles.subtext} opacity-70`}>
+                  <span className="w-4 text-center text-[8px] text-gray-400">{idx + 1}.</span>
+                  <span className="truncate">{v.title}</span>
+                  {!isEnrolled && (
+                    <span className="text-[8px] text-yellow-400/60 mr-auto">🔒</span>
+                  )}
+                </li>
+              ))}
+              {videos.length > 5 && (
+                <li className={`text-[9px] ${styles.subtext} opacity-50 pr-4`}>
+                  + {videos.length - 5} {language === 'ar' ? 'فيديو إضافي' : 'more videos'}
+                </li>
+              )}
+            </ul>
+          </div>
+        )}
+
+        {/* الامتحانات */}
+        {exams.length > 0 && (
+          <div>
+            <div className={`flex items-center gap-1.5 font-semibold ${cardColor.text} mb-0.5`}>
+              <Icons.FileText className="h-3 w-3" />
+              <span>{language === 'ar' ? 'امتحانات' : 'Exams'} ({exams.length})</span>
+            </div>
+            <ul className="space-y-0.5 pr-2">
+              {exams.slice(0, 3).map((e, idx) => (
+                <li key={e.id} className={`flex items-center gap-1 text-[10px] ${styles.subtext} opacity-70`}>
+                  <span className="w-4 text-center text-[8px] text-gray-400">{idx + 1}.</span>
+                  <span className="truncate">{e.title}</span>
+                  {!isEnrolled && (
+                    <span className="text-[8px] text-yellow-400/60 mr-auto">🔒</span>
+                  )}
+                </li>
+              ))}
+              {exams.length > 3 && (
+                <li className={`text-[9px] ${styles.subtext} opacity-50 pr-4`}>
+                  + {exams.length - 3} {language === 'ar' ? 'امتحان إضافي' : 'more exams'}
+                </li>
+              )}
+            </ul>
+          </div>
+        )}
+
+        {/* الكتب */}
+        {books.length > 0 && (
+          <div>
+            <div className={`flex items-center gap-1.5 font-semibold ${cardColor.text} mb-0.5`}>
+              <Icons.Book className="h-3 w-3" />
+              <span>{language === 'ar' ? 'كتب' : 'Books'} ({books.length})</span>
+            </div>
+            <ul className="space-y-0.5 pr-2">
+              {books.slice(0, 3).map((b, idx) => (
+                <li key={b.id} className={`flex items-center gap-1 text-[10px] ${styles.subtext} opacity-70`}>
+                  <span className="w-4 text-center text-[8px] text-gray-400">{idx + 1}.</span>
+                  <span className="truncate">{b.title}</span>
+                  {!isEnrolled && (
+                    <span className="text-[8px] text-yellow-400/60 mr-auto">🔒</span>
+                  )}
+                </li>
+              ))}
+              {books.length > 3 && (
+                <li className={`text-[9px] ${styles.subtext} opacity-50 pr-4`}>
+                  + {books.length - 3} {language === 'ar' ? 'كتاب إضافي' : 'more books'}
+                </li>
+              )}
+            </ul>
+          </div>
+        )}
+
+        {!isEnrolled && (
+          <p className={`text-[9px] ${styles.subtext} opacity-40 mt-1 flex items-center gap-1`}>
+            <Icons.Lock className="h-2.5 w-2.5" />
+            {language === 'ar' ? 'المحتوى مقفل، اشترك لفتحه' : 'Content locked, subscribe to unlock'}
+          </p>
+        )}
+      </div>
+    );
+  };
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 30 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: '-50px' }}
-      whileHover={{ y: -6 }}
-      transition={{ duration: 0.5, type: 'spring', stiffness: 300, damping: 20 }}
+      whileHover={{ y: -4 }}
+      transition={{ duration: 0.4, type: 'spring', stiffness: 300, damping: 20 }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       className="w-full max-w-5xl mx-auto"
     >
-      <WaveBorderCard initialColor={cardColor.name} onColorChange={handleColorChange} intensity={1.2}>
-        <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl">
-          {/* ✅ غلاف بنسبة 16:9 (أفقي عريض) */}
+      <WaveBorderCard initialColor={cardColor.name} onColorChange={handleColorChange} intensity={1}>
+        <div className="relative overflow-hidden rounded-2xl">
+          {/* غلاف 16:9 – أصغر قليلاً */}
           <div className="relative w-full aspect-[16/9] bg-gradient-to-br from-gray-800/80 via-gray-900/60 to-gray-950/90 overflow-hidden">
             {course.cover_image ? (
               <>
@@ -210,128 +358,161 @@ const CourseCard = ({
               </>
             ) : (
               <div className="flex items-center justify-center w-full h-full">
-                <Icons.BookOpen className="h-20 w-20 sm:h-28 sm:w-28 md:h-32 md:w-32 text-gray-600/40" />
+                <Icons.BookOpen className="h-16 w-16 sm:h-20 sm:w-20 text-gray-600/40" />
               </div>
             )}
 
-            {/* شارة الحالة (مشترك) */}
+            {/* شارة الحالة */}
             {isEnrolled && (
-              <div className="absolute top-3 right-3 sm:top-4 sm:right-4 z-10">
-                <span className="px-3 py-1.5 sm:px-4 sm:py-2 rounded-full text-[10px] sm:text-sm font-bold bg-gradient-to-r from-blue-500/90 to-indigo-500/90 text-white backdrop-blur-md border border-blue-400/40 shadow-xl shadow-blue-500/30">
-                  {language === 'ar' ? '✅ مشترك' : '✅ Enrolled'}
+              <div className="absolute top-2 right-2 sm:top-3 sm:right-3 z-10">
+                <span className="px-2 py-1 sm:px-3 sm:py-1 rounded-full text-[8px] sm:text-[10px] font-bold bg-gradient-to-r from-blue-500/90 to-indigo-500/90 text-white backdrop-blur-md border border-blue-400/40 shadow-lg shadow-blue-500/30">
+                  ✅ {language === 'ar' ? 'مشترك' : 'Enrolled'}
                 </span>
               </div>
             )}
 
             {/* شريط التقدم */}
             {isEnrolled && progress > 0 && (
-              <div className="absolute bottom-0 left-0 right-0 h-1.5 sm:h-2 bg-white/10 backdrop-blur-sm">
+              <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-white/10 backdrop-blur-sm">
                 <motion.div
                   initial={{ width: 0 }}
                   animate={{ width: `${Math.min(progress, 100)}%` }}
                   transition={{ duration: 1.2, ease: 'easeOut' }}
                   className="h-full bg-gradient-to-r from-yellow-400 via-amber-400 to-yellow-500 shadow-lg shadow-yellow-500/50"
                 />
-                <span className="absolute bottom-2 right-2 text-[8px] sm:text-xs font-bold text-white/90 bg-black/50 px-1.5 py-0.5 sm:px-2 sm:py-0.5 rounded-full backdrop-blur-sm">
+                <span className="absolute bottom-1.5 right-1.5 text-[7px] sm:text-[9px] font-bold text-white/90 bg-black/50 px-1.5 py-0.5 rounded-full backdrop-blur-sm">
                   {Math.round(progress)}%
                 </span>
               </div>
             )}
 
-            {/* عنوان الكورس يظهر عند التمرير (hover) */}
-            <div className="absolute bottom-3 left-3 right-16 sm:bottom-4 sm:left-4 sm:right-20 z-10">
-              <h3 className={`text-base sm:text-xl md:text-2xl lg:text-3xl font-bold text-white drop-shadow-lg line-clamp-2 ${isHovered ? 'opacity-100' : 'opacity-0'} transition-opacity duration-500`}>
+            {/* عنوان الكورس يظهر عند التمرير */}
+            <div className="absolute bottom-2 left-2 right-14 sm:bottom-3 sm:left-3 sm:right-16 z-10">
+              <h3 className={`text-sm sm:text-base md:text-lg font-bold text-white drop-shadow-lg line-clamp-2 ${isHovered ? 'opacity-100' : 'opacity-0'} transition-opacity duration-500`}>
                 {course.title}
               </h3>
             </div>
           </div>
 
-          {/* ===== المحتوى السفلي – متجاوب ===== */}
-          <div className="p-4 sm:p-5 md:p-6 lg:p-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 sm:gap-5">
-            {/* النص */}
-            <div className="flex-1 min-w-0">
-              <h3 className={`text-base sm:text-lg md:text-xl lg:text-2xl font-bold ${styles.text} line-clamp-2 mb-1`}>
-                {course.title}
-              </h3>
-              <p className={`text-xs sm:text-sm md:text-base ${styles.subtext} line-clamp-2 opacity-80`}>
-                {course.description || (language === 'ar' ? 'كورس مميز في اللغة الإنجليزية' : 'Featured English course')}
-              </p>
+          {/* ===== المحتوى السفلي – مضغوط ===== */}
+          <div className="p-3 sm:p-4 flex flex-col gap-3">
+            {/* الصف العلوي: العنوان + السعر */}
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div className="flex-1 min-w-0">
+                <h3 className={`text-sm sm:text-base font-bold ${styles.text} line-clamp-1`}>
+                  {course.title}
+                </h3>
+                <p className={`text-[10px] sm:text-xs ${styles.subtext} line-clamp-1 opacity-70`}>
+                  {course.description || (language === 'ar' ? 'كورس مميز في اللغة الإنجليزية' : 'Featured English course')}
+                </p>
+                {/* إحصائيات صغيرة */}
+                <div className="flex flex-wrap items-center gap-1.5 mt-1 text-[9px] sm:text-[10px] text-gray-400">
+                  {videosCount > 0 && (
+                    <span className="flex items-center gap-0.5 bg-white/5 px-1.5 py-0.5 rounded-full border border-white/5">
+                      <Icons.Video className="h-2.5 w-2.5" /> {videosCount}
+                    </span>
+                  )}
+                  {duration && (
+                    <span className="flex items-center gap-0.5 bg-white/5 px-1.5 py-0.5 rounded-full border border-white/5">
+                      <Icons.Clock className="h-2.5 w-2.5" /> {duration}
+                    </span>
+                  )}
+                </div>
+              </div>
 
-              {/* إحصائيات */}
-              <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-2 text-[10px] sm:text-sm text-gray-400 dark:text-gray-500">
-                {videosCount > 0 && (
-                  <span className="flex items-center gap-1 bg-white/5 px-2 py-1 sm:px-3 sm:py-1 rounded-full border border-white/5">
-                    <Icons.Video className="h-3 w-3 sm:h-4 sm:w-4"/> {videosCount} {language === 'ar' ? 'فيديو' : 'videos'}
-                  </span>
+              {/* السعر والأزرار */}
+              <div className="flex flex-wrap items-center gap-2 flex-shrink-0">
+                {!isEnrolled && (
+                  <div className={`px-2.5 py-1 rounded-lg border ${isFree ? 'border-green-400/30 bg-green-500/10' : 'border-yellow-400/30 bg-yellow-500/10'} shadow-sm min-w-[55px] text-center`}>
+                    {priceDisplay}
+                  </div>
                 )}
-                {duration && (
-                  <span className="flex items-center gap-1 bg-white/5 px-2 py-1 sm:px-3 sm:py-1 rounded-full border border-white/5">
-                    <Icons.Clock className="h-3 w-3 sm:h-4 sm:w-4"/> {duration}
-                  </span>
+
+                <div className="flex items-center gap-0.5">
+                  <button
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggleFavorite(course.id); }}
+                    className={`p-1.5 rounded-full transition-all duration-300 hover:scale-110 ${
+                      isFavorite ? 'bg-red-500/20' : 'hover:bg-white/10'
+                    }`}
+                  >
+                    <Icons.Heart className={`h-3.5 w-3.5 transition-colors ${isFavorite ? 'fill-red-500 text-red-500' : 'text-gray-400'}`} />
+                  </button>
+                  <button
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); onTogglePin(course.id); }}
+                    className={`p-1.5 rounded-full transition-all duration-300 hover:scale-110 ${
+                      isPinned ? 'bg-yellow-500/20' : 'hover:bg-white/10'
+                    }`}
+                  >
+                    <Icons.Pin className={`h-3.5 w-3.5 transition-colors ${isPinned ? 'fill-yellow-400 text-yellow-400' : 'text-gray-400'}`} />
+                  </button>
+                </div>
+
+                {isEnrolled ? (
+                  <Link
+                    href={`/dashboard/student/courses/${course.id}`}
+                    className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-yellow-400 to-yellow-600 text-black font-bold text-[10px] sm:text-xs hover:scale-105 transition-all duration-300 shadow-lg shadow-yellow-400/30 flex items-center gap-1 whitespace-nowrap"
+                  >
+                    <Icons.Play className="h-2.5 w-2.5" />
+                    {language === 'ar' ? 'متابعة' : 'Continue'}
+                  </Link>
+                ) : (
+                  <button
+                    onClick={isFree ? handleEnroll : handlePayment}
+                    disabled={enrolling}
+                    className={`px-3 py-1.5 rounded-lg font-bold text-[10px] sm:text-xs transition-all duration-300 flex items-center gap-1 whitespace-nowrap ${
+                      isFree
+                        ? 'bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-400 hover:scale-105 border border-green-400/30'
+                        : 'bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:scale-105 shadow-lg shadow-blue-500/30'
+                    }`}
+                  >
+                    {enrolling ? <Icons.Loader2 className="h-2.5 w-2.5 animate-spin" /> : (isFree ? <Icons.UserPlus className="h-2.5 w-2.5" /> : <Icons.ShoppingCart className="h-2.5 w-2.5" />)}
+                    {enrolling ? (language === 'ar' ? 'جاري...' : 'Loading...') : (isFree ? (language === 'ar' ? 'اشترك' : 'Enroll') : (language === 'ar' ? 'اشترِ' : 'Buy'))}
+                  </button>
                 )}
               </div>
             </div>
 
-            {/* ===== المستطيل الجانبي للسعر والأزرار – متجاوب ===== */}
-            <div className="flex flex-wrap items-center justify-center sm:justify-end gap-3 sm:gap-4 flex-shrink-0">
-              {/* مستطيل السعر – يظهر فقط للمستخدمين غير المشتركين */}
-              {!isEnrolled && (
-                <div className={`px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl border-2 ${isFree ? 'border-green-400/40 bg-green-500/10' : 'border-yellow-400/40 bg-yellow-500/10'} backdrop-blur-sm shadow-lg ${isFree ? 'shadow-green-500/20' : 'shadow-yellow-500/20'} min-w-[70px] sm:min-w-[90px] text-center`}>
-                  {priceDisplay}
-                </div>
-              )}
+            {/* ===== قسم محتوى الكورس (جديد) ===== */}
+            <div className="border-t border-white/10 pt-2">
+              <button
+                onClick={handleToggleContent}
+                className={`flex items-center gap-1.5 text-[10px] sm:text-xs font-semibold ${cardColor.text} hover:opacity-80 transition-all duration-300 w-full text-right`}
+              >
+                <Icons.List className="h-3.5 w-3.5" />
+                <span>{language === 'ar' ? 'محتوى الكورس' : 'Course Content'}</span>
+                <motion.div
+                  animate={{ rotate: showContent ? 180 : 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="mr-auto"
+                >
+                  <Icons.ChevronDown className="h-3.5 w-3.5" />
+                </motion.div>
+                <span className={`text-[8px] ${styles.subtext} opacity-50 mr-1`}>
+                  ({courseContent ? `${courseContent.videos.length + courseContent.exams.length + courseContent.books.length}` : '...'})
+                </span>
+              </button>
 
-              {/* أزرار التفاعل */}
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggleFavorite(course.id); }}
-                  className={`p-2 rounded-full transition-all duration-300 hover:scale-110 ${
-                    isFavorite ? 'bg-red-500/20' : 'hover:bg-white/10'
-                  }`}
-                  aria-label={language === 'ar' ? 'إضافة للمفضلة' : 'Add to favorites'}
-                >
-                  <Icons.Heart className={`h-4 w-4 sm:h-5 sm:w-5 transition-colors ${isFavorite ? 'fill-red-500 text-red-500' : 'text-gray-400'}`} />
-                </button>
-                <button
-                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); onTogglePin(course.id); }}
-                  className={`p-2 rounded-full transition-all duration-300 hover:scale-110 ${
-                    isPinned ? 'bg-yellow-500/20' : 'hover:bg-white/10'
-                  }`}
-                  title={language === 'ar' ? (isPinned ? 'إلغاء التثبيت' : 'تثبيت الكورس') : (isPinned ? 'Unpin' : 'Pin')}
-                >
-                  <Icons.Pin className={`h-4 w-4 sm:h-5 sm:w-5 transition-colors ${isPinned ? 'fill-yellow-400 text-yellow-400' : 'text-gray-400'}`} />
-                </button>
-              </div>
-
-              {/* زر الإجراء الرئيسي */}
-              {isEnrolled ? (
-                <Link
-                  href={`/dashboard/student/courses/${course.id}`}
-                  className="px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl bg-gradient-to-r from-yellow-400 to-yellow-600 text-black font-bold text-xs sm:text-sm hover:scale-105 transition-all duration-300 shadow-lg shadow-yellow-400/40 flex items-center gap-1.5 whitespace-nowrap"
-                >
-                  <Icons.Play className="h-3 w-3 sm:h-4 sm:w-4" />
-                  {language === 'ar' ? 'متابعة' : 'Continue'}
-                </Link>
-              ) : (
-                <button
-                  onClick={isFree ? handleEnroll : handlePayment}
-                  disabled={enrolling}
-                  className={`px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all duration-300 flex items-center gap-1.5 whitespace-nowrap ${
-                    isFree
-                      ? 'bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-400 hover:scale-105 border-2 border-green-400/40 hover:border-green-400/70'
-                      : 'bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:scale-105 shadow-xl shadow-blue-500/40'
-                  }`}
-                >
-                  {enrolling ? <Icons.Loader2 className="h-3 w-3 sm:h-4 sm:w-4 animate-spin" /> : (isFree ? <Icons.UserPlus className="h-3 w-3 sm:h-4 sm:w-4" /> : <Icons.ShoppingCart className="h-3 w-3 sm:h-4 sm:w-4" />)}
-                  {enrolling ? (language === 'ar' ? 'جاري...' : 'Loading...') : (isFree ? (language === 'ar' ? 'اشترك' : 'Enroll') : (language === 'ar' ? 'اشترِ' : 'Buy'))}
-                </button>
-              )}
+              <AnimatePresence>
+                {showContent && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.3 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="pt-2 pb-0.5">
+                      {renderContent()}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           </div>
 
           {/* تأثير توهج عند hover */}
           {isHovered && (
-            <div className={`absolute inset-0 pointer-events-none bg-gradient-to-t from-${cardColor.name}-500/10 via-transparent to-transparent transition-opacity duration-500 rounded-2xl sm:rounded-3xl`} />
+            <div className={`absolute inset-0 pointer-events-none bg-gradient-to-t from-${cardColor.name}-500/10 via-transparent to-transparent transition-opacity duration-500 rounded-2xl`} />
           )}
         </div>
       </WaveBorderCard>
@@ -340,7 +521,7 @@ const CourseCard = ({
 };
 
 // ================================================================
-// الصفحة الرئيسية – مع أسهم تمرير في منتصف الشاشة (متجاوبة)
+// الصفحة الرئيسية – مع أسهم تمرير في منتصف الشاشة (مضغوطة)
 // ================================================================
 export default function StudentCoursesPage() {
   const router = useRouter();
@@ -363,10 +544,8 @@ export default function StudentCoursesPage() {
   const containerRef = useRef(null);
   const scrollTimeoutRef = useRef(null);
 
-  // حالات الأسهم
   const [showScrollUp, setShowScrollUp] = useState(false);
   const [showScrollDown, setShowScrollDown] = useState(true);
-  const [isScrolling, setIsScrolling] = useState(false);
   const [hideArrows, setHideArrows] = useState(false);
 
   // المفضلة
@@ -416,7 +595,7 @@ export default function StudentCoursesPage() {
 
   useEffect(() => { if (!fetchedRef.current) { fetchedRef.current = true; fetchAllCourses(); } }, []);
 
-  // ===== مراقبة التمرير للتحكم في الأسهم =====
+  // مراقبة التمرير للأسهم
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -435,7 +614,6 @@ export default function StudentCoursesPage() {
       updateArrows();
 
       if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
-
       scrollTimeoutRef.current = setTimeout(() => {
         setHideArrows(true);
       }, 1500);
@@ -450,11 +628,10 @@ export default function StudentCoursesPage() {
     };
   }, []);
 
-  // دوال التمرير
   const scrollUp = () => {
     const container = containerRef.current;
     if (!container) return;
-    container.scrollBy({ top: -300, behavior: 'smooth' });
+    container.scrollBy({ top: -250, behavior: 'smooth' });
     setHideArrows(false);
     setTimeout(() => setHideArrows(true), 1500);
   };
@@ -462,12 +639,12 @@ export default function StudentCoursesPage() {
   const scrollDown = () => {
     const container = containerRef.current;
     if (!container) return;
-    container.scrollBy({ top: 300, behavior: 'smooth' });
+    container.scrollBy({ top: 250, behavior: 'smooth' });
     setHideArrows(false);
     setTimeout(() => setHideArrows(true), 1500);
   };
 
-  // فلترة وترتيب مع دعم التثبيت
+  // فلترة وترتيب
   const filteredCourses = useMemo(() => {
     let result = allCourses;
     if (!showAllCourses && studentGradeInfo.stageEn) {
@@ -538,9 +715,9 @@ export default function StudentCoursesPage() {
   if (loading) {
     return (
       <div className="h-full w-full flex items-center justify-center bg-[var(--bg-primary)]">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 sm:w-16 sm:h-16 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin" />
-          <p className={`${styles.subtext} text-base sm:text-lg font-medium`}>{language === 'ar' ? 'جاري تحميل الكورسات...' : 'Loading courses...'}</p>
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 sm:w-12 sm:h-12 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin" />
+          <p className={`${styles.subtext} text-sm sm:text-base font-medium`}>{language === 'ar' ? 'جاري تحميل الكورسات...' : 'Loading courses...'}</p>
         </div>
       </div>
     );
@@ -550,9 +727,9 @@ export default function StudentCoursesPage() {
     return (
       <div className="h-full w-full flex items-center justify-center bg-[var(--bg-primary)]">
         <div className="text-center">
-          <Icons.AlertTriangle className="h-12 w-12 sm:h-16 sm:w-16 text-red-400 mx-auto mb-4" />
-          <p className={`text-base sm:text-lg font-semibold ${styles.text}`}>{error}</p>
-          <button onClick={fetchAllCourses} className="mt-4 px-5 py-2.5 sm:px-6 sm:py-3 bg-blue-500/20 text-blue-500 rounded-xl hover:bg-blue-500/30 transition font-bold text-sm sm:text-base">
+          <Icons.AlertTriangle className="h-10 w-10 sm:h-12 sm:w-12 text-red-400 mx-auto mb-3" />
+          <p className={`text-sm sm:text-base font-semibold ${styles.text}`}>{error}</p>
+          <button onClick={fetchAllCourses} className="mt-3 px-4 py-2 sm:px-5 sm:py-2.5 bg-blue-500/20 text-blue-500 rounded-lg hover:bg-blue-500/30 transition font-bold text-xs sm:text-sm">
             {language === 'ar' ? 'إعادة المحاولة' : 'Retry'}
           </button>
         </div>
@@ -569,18 +746,18 @@ export default function StudentCoursesPage() {
         className="h-screen overflow-y-auto scroll-smooth"
         style={{ scrollBehavior: 'smooth' }}
       >
-        <div className="max-w-5xl mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8 pb-16 sm:pb-20">
-          {/* الهيدر – متجاوب */}
+        <div className="max-w-5xl mx-auto px-3 sm:px-4 py-3 sm:py-4 pb-12 sm:pb-16">
+          {/* الهيدر – مضغوط */}
           {hasCourses && (
             <motion.div 
-              initial={{ opacity: 0, y: -20 }} 
+              initial={{ opacity: 0, y: -15 }} 
               animate={{ opacity: 1, y: 0 }} 
-              transition={{ duration: 0.6, type: 'spring', stiffness: 200 }}
-              className="mb-6 sm:mb-8 space-y-4 sm:space-y-6"
+              transition={{ duration: 0.5, type: 'spring', stiffness: 200 }}
+              className="mb-4 sm:mb-5 space-y-3 sm:space-y-4"
             >
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
-                  <h1 className={`text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black tracking-tight ${styles.text} flex flex-wrap items-center gap-2 sm:gap-3`}>
+                  <h1 className={`text-2xl sm:text-3xl md:text-4xl font-black tracking-tight ${styles.text} flex flex-wrap items-center gap-1.5 sm:gap-2`}>
                     <span className="bg-gradient-to-r from-blue-500 to-purple-500 bg-clip-text text-transparent">
                       {language === 'ar' ? '📚 استكشف' : '📚 Explore'}
                     </span>
@@ -589,66 +766,63 @@ export default function StudentCoursesPage() {
                       {language === 'ar' ? 'الكورسات' : 'Courses'}
                     </span>
                   </h1>
-                  <p className={`mt-1 sm:mt-2 text-sm sm:text-base md:text-lg ${styles.subtext} max-w-xl opacity-80`}>
+                  <p className={`mt-0.5 text-xs sm:text-sm ${styles.subtext} max-w-xl opacity-70`}>
                     {language === 'ar'
-                      ? `اختر الكورس المناسب لك من بين ${totalCoursesCount} كورس، وتعرف على محتواه قبل الاشتراك.`
-                      : `Choose the right course from ${totalCoursesCount} courses, and explore the content before subscribing.`
+                      ? `اختر الكورس المناسب لك من بين ${totalCoursesCount} كورس`
+                      : `Choose the right course from ${totalCoursesCount} courses`
                     }
                   </p>
                   {studentGradeInfo.stageEn && (
-                    <div className="mt-2 sm:mt-3 flex flex-wrap items-center gap-2 sm:gap-3">
-                      <span className="px-3 py-1.5 sm:px-4 sm:py-2 rounded-full bg-gradient-to-r from-blue-500/20 to-indigo-500/20 text-blue-600 dark:text-blue-400 text-xs sm:text-sm md:text-base font-bold border border-blue-400/30 backdrop-blur-sm">
+                    <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                      <span className="px-2.5 py-1 rounded-full bg-gradient-to-r from-blue-500/20 to-indigo-500/20 text-blue-600 dark:text-blue-400 text-[9px] sm:text-xs font-bold border border-blue-400/30 backdrop-blur-sm">
                         {stageDisplayName} {studentGradeInfo.level ? `- الصف ${studentGradeInfo.level}` : ''}
-                      </span>
-                      <span className={`text-[10px] sm:text-sm ${styles.subtext} opacity-60`}>
-                        {language === 'ar' ? 'الكورسات المعروضة حسب صفك' : 'Courses filtered by your grade'}
                       </span>
                     </div>
                   )}
                 </div>
                 <button
                   onClick={() => setShowAllCourses(!showAllCourses)}
-                  className={`px-4 py-2.5 sm:px-5 sm:py-3 rounded-xl text-xs sm:text-sm md:text-base font-bold transition-all duration-300 flex items-center gap-2 whitespace-nowrap ${
+                  className={`px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg text-[10px] sm:text-xs font-bold transition-all duration-300 flex items-center gap-1.5 whitespace-nowrap ${
                     showAllCourses 
-                      ? 'bg-gradient-to-r from-blue-500/20 to-indigo-500/20 text-blue-500 border-2 border-blue-400/40 shadow-lg shadow-blue-500/20' 
+                      ? 'bg-gradient-to-r from-blue-500/20 to-indigo-500/20 text-blue-500 border border-blue-400/30 shadow-lg shadow-blue-500/20' 
                       : `${styles.card} border ${styles.border} ${styles.text} hover:border-blue-400/50 hover:shadow-lg`
                   }`}
                 >
                   {showAllCourses ? (
-                    <><Icons.Filter className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> {language === 'ar' ? 'عرض صفي فقط' : 'My Grade Only'}</>
+                    <><Icons.Filter className="h-3 w-3" /> {language === 'ar' ? 'عرض صفي فقط' : 'My Grade Only'}</>
                   ) : (
-                    <><Icons.Grid2X2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> {language === 'ar' ? 'عرض الكل' : 'Show All'}</>
+                    <><Icons.Grid2X2 className="h-3 w-3" /> {language === 'ar' ? 'عرض الكل' : 'Show All'}</>
                   )}
                 </button>
               </div>
 
-              {/* شريط البحث والفلترة – متجاوب */}
-              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 items-stretch">
+              {/* شريط البحث والفلترة – مضغوط */}
+              <div className="flex flex-col sm:flex-row gap-1.5 sm:gap-2 items-stretch">
                 <div className="relative flex-1 group">
-                  <Icons.Search className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 h-4 w-4 sm:h-5 sm:w-5 text-gray-400 group-focus-within:text-blue-400 transition-colors" />
+                  <Icons.Search className="absolute left-2.5 sm:left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 sm:h-4 sm:w-4 text-gray-400 group-focus-within:text-blue-400 transition-colors" />
                   <input
                     type="text" 
                     value={search} 
                     onChange={(e) => setSearch(e.target.value)}
                     placeholder={language === 'ar' ? 'ابحث عن كورس...' : 'Search courses...'}
-                    className={`w-full pl-9 sm:pl-12 pr-3 sm:pr-4 py-3 sm:py-4 rounded-xl sm:rounded-2xl text-sm sm:text-base md:text-lg ${styles.input} border ${styles.border} focus:ring-4 focus:ring-blue-400/30 outline-none transition-all duration-300 placeholder:text-gray-400/50`}
+                    className={`w-full pl-8 sm:pl-10 pr-3 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm ${styles.input} border ${styles.border} focus:ring-3 focus:ring-blue-400/30 outline-none transition-all duration-300 placeholder:text-gray-400/50`}
                   />
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-1.5">
                   <select 
                     value={sort} 
                     onChange={(e) => setSort(e.target.value)} 
-                    className={`flex-1 sm:flex-none px-3 sm:px-5 py-3 sm:py-4 rounded-xl sm:rounded-2xl text-sm sm:text-base font-medium ${styles.input} border ${styles.border} focus:ring-2 focus:ring-blue-400/30 outline-none transition-all cursor-pointer min-w-[100px]`}
+                    className={`flex-1 sm:flex-none px-2.5 sm:px-4 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm font-medium ${styles.input} border ${styles.border} focus:ring-2 focus:ring-blue-400/30 outline-none transition-all cursor-pointer min-w-[80px]`}
                   >
                     <option value="newest">{language === 'ar' ? 'الأحدث' : 'Newest'}</option>
                     <option value="popular">{language === 'ar' ? 'الأكثر شعبية' : 'Popular'}</option>
                     <option value="priceAsc">{language === 'ar' ? 'الأقل سعراً' : 'Price ↑'}</option>
                     <option value="priceDesc">{language === 'ar' ? 'الأعلى سعراً' : 'Price ↓'}</option>
                   </select>
-                  <div className={`flex rounded-xl sm:rounded-2xl border ${styles.border} overflow-hidden shadow-sm`}>
+                  <div className={`flex rounded-lg border ${styles.border} overflow-hidden shadow-sm`}>
                     <button 
                       onClick={() => setFilterFree(null)} 
-                      className={`px-3 sm:px-5 py-2.5 sm:py-3 text-[10px] sm:text-sm font-semibold transition-all duration-300 ${
+                      className={`px-2.5 sm:px-4 py-1.5 sm:py-2 text-[8px] sm:text-[10px] font-semibold transition-all duration-300 ${
                         filterFree === null 
                           ? 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-lg shadow-blue-500/30' 
                           : `${styles.card} ${styles.text} hover:bg-white/10`
@@ -658,7 +832,7 @@ export default function StudentCoursesPage() {
                     </button>
                     <button 
                       onClick={() => setFilterFree(true)} 
-                      className={`px-3 sm:px-5 py-2.5 sm:py-3 text-[10px] sm:text-sm font-semibold transition-all duration-300 ${
+                      className={`px-2.5 sm:px-4 py-1.5 sm:py-2 text-[8px] sm:text-[10px] font-semibold transition-all duration-300 ${
                         filterFree === true 
                           ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg shadow-green-500/30' 
                           : `${styles.card} ${styles.text} hover:bg-white/10`
@@ -668,7 +842,7 @@ export default function StudentCoursesPage() {
                     </button>
                     <button 
                       onClick={() => setFilterFree(false)} 
-                      className={`px-3 sm:px-5 py-2.5 sm:py-3 text-[10px] sm:text-sm font-semibold transition-all duration-300 ${
+                      className={`px-2.5 sm:px-4 py-1.5 sm:py-2 text-[8px] sm:text-[10px] font-semibold transition-all duration-300 ${
                         filterFree === false 
                           ? 'bg-gradient-to-r from-yellow-500 to-amber-500 text-white shadow-lg shadow-yellow-500/30' 
                           : `${styles.card} ${styles.text} hover:bg-white/10`
@@ -683,15 +857,15 @@ export default function StudentCoursesPage() {
           )}
 
           {/* شبكة الكورسات */}
-          <div className="grid grid-cols-1 gap-6 sm:gap-8 md:gap-10">
+          <div className="grid grid-cols-1 gap-4 sm:gap-5">
             {paginatedCourses.length > 0 ? (
               paginatedCourses.map((course, index) => (
                 <motion.div
                   key={course.id}
-                  initial={{ opacity: 0, y: 30 }}
+                  initial={{ opacity: 0, y: 20 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true, margin: '-50px' }}
-                  transition={{ duration: 0.5, delay: index * 0.06 }}
+                  transition={{ duration: 0.4, delay: index * 0.04 }}
                 >
                   <CourseCard
                     course={course}
@@ -712,15 +886,15 @@ export default function StudentCoursesPage() {
               <motion.div 
                 initial={{ opacity: 0, scale: 0.9 }} 
                 animate={{ opacity: 1, scale: 1 }} 
-                className="col-span-full flex flex-col items-center justify-center py-16 sm:py-24 md:py-32"
+                className="col-span-full flex flex-col items-center justify-center py-12 sm:py-16"
               >
-                <div className="w-32 h-32 sm:w-40 sm:h-40 md:w-48 md:h-48 rounded-full bg-gradient-to-br from-gray-500/10 to-gray-600/10 flex items-center justify-center mb-4 sm:mb-6 border border-gray-400/20">
-                  <Icons.BookOpen className="h-14 w-14 sm:h-20 sm:w-20 md:h-24 md:w-24 text-gray-500/40" />
+                <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-full bg-gradient-to-br from-gray-500/10 to-gray-600/10 flex items-center justify-center mb-3 border border-gray-400/20">
+                  <Icons.BookOpen className="h-10 w-10 sm:h-14 sm:w-14 text-gray-500/40" />
                 </div>
-                <h2 className={`text-2xl sm:text-3xl md:text-4xl font-bold ${styles.text} mb-2 sm:mb-4`}>
+                <h2 className={`text-xl sm:text-2xl font-bold ${styles.text} mb-1.5`}>
                   {language === 'ar' ? 'لا يوجد كورسات حالية' : 'No Courses Available'}
                 </h2>
-                <p className={`${styles.subtext} text-center max-w-md text-sm sm:text-base md:text-lg opacity-70`}>
+                <p className={`${styles.subtext} text-center max-w-md text-xs sm:text-sm opacity-70`}>
                   {language === 'ar' 
                     ? 'يمكنك تغيير الفلاتر أو الانتظار لإضافة كورسات جديدة.' 
                     : 'You can change filters or wait for new courses to be added.'}
@@ -728,7 +902,7 @@ export default function StudentCoursesPage() {
                 {!showAllCourses && allCourses.length > 0 && (
                   <button 
                     onClick={() => setShowAllCourses(true)} 
-                    className="mt-6 sm:mt-8 px-6 py-3 sm:px-8 sm:py-4 bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-bold rounded-xl sm:rounded-2xl hover:scale-105 transition-all duration-300 shadow-2xl shadow-blue-500/30 text-sm sm:text-base md:text-lg"
+                    className="mt-4 px-5 py-2 sm:px-6 sm:py-2.5 bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-bold rounded-lg hover:scale-105 transition-all duration-300 shadow-lg shadow-blue-500/30 text-xs sm:text-sm"
                   >
                     {language === 'ar' ? 'عرض جميع الكورسات' : 'Show All Courses'}
                   </button>
@@ -739,15 +913,15 @@ export default function StudentCoursesPage() {
 
           {/* ترقيم الصفحات */}
           {totalPages > 1 && hasCourses && (
-            <div className="flex justify-center items-center gap-2 sm:gap-3 mt-8 sm:mt-12 pb-6 sm:pb-8">
+            <div className="flex justify-center items-center gap-1.5 sm:gap-2 mt-5 sm:mt-6 pb-4">
               <button 
                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))} 
                 disabled={currentPage === 1} 
-                className={`p-2 sm:p-3 rounded-xl border ${styles.border} ${styles.card} disabled:opacity-30 hover:border-blue-400/50 transition-all duration-300 hover:scale-105`}
+                className={`p-1.5 sm:p-2 rounded-lg border ${styles.border} ${styles.card} disabled:opacity-30 hover:border-blue-400/50 transition-all duration-300 hover:scale-105`}
               >
-                <Icons.ChevronRight className="h-5 w-5 sm:h-6 sm:w-6" />
+                <Icons.ChevronRight className="h-4 w-4 sm:h-5 sm:w-5" />
               </button>
-              <div className="flex gap-1.5 sm:gap-2">
+              <div className="flex gap-1 sm:gap-1.5">
                 {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
                   let page;
                   if (totalPages <= 7) page = i + 1;
@@ -761,9 +935,9 @@ export default function StudentCoursesPage() {
                     <button
                       key={page}
                       onClick={() => setCurrentPage(page)}
-                      className={`w-9 h-9 sm:w-11 sm:h-11 md:w-12 md:h-12 rounded-xl text-sm sm:text-base font-bold transition-all duration-300 ${
+                      className={`w-7 h-7 sm:w-9 sm:h-9 rounded-lg text-xs sm:text-sm font-bold transition-all duration-300 ${
                         currentPage === page 
-                          ? 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-xl shadow-blue-500/40 scale-105' 
+                          ? 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-lg shadow-blue-500/40 scale-105' 
                           : `${styles.card} border ${styles.border} ${styles.text} hover:border-blue-400/50 hover:scale-105`
                       }`}
                     >
@@ -775,28 +949,27 @@ export default function StudentCoursesPage() {
               <button 
                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} 
                 disabled={currentPage === totalPages} 
-                className={`p-2 sm:p-3 rounded-xl border ${styles.border} ${styles.card} disabled:opacity-30 hover:border-blue-400/50 transition-all duration-300 hover:scale-105`}
+                className={`p-1.5 sm:p-2 rounded-lg border ${styles.border} ${styles.card} disabled:opacity-30 hover:border-blue-400/50 transition-all duration-300 hover:scale-105`}
               >
-                <Icons.ChevronLeft className="h-5 w-5 sm:h-6 sm:w-6" />
+                <Icons.ChevronLeft className="h-4 w-4 sm:h-5 sm:w-5" />
               </button>
             </div>
           )}
         </div>
       </div>
 
-      {/* أسهم التمرير – متجاوبة */}
+      {/* أسهم التمرير – مضغوطة */}
       <AnimatePresence>
         {showScrollUp && !hideArrows && (
           <motion.button
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 0.8, scale: 1 }}
             exit={{ opacity: 0, scale: 0.8 }}
-            transition={{ duration: 0.3 }}
+            transition={{ duration: 0.25 }}
             onClick={scrollUp}
-            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-[60px] sm:-translate-y-[70px] z-50 p-3 sm:p-4 rounded-full bg-gradient-to-r from-blue-500/80 to-indigo-500/80 text-white shadow-2xl shadow-blue-500/30 hover:scale-110 hover:opacity-100 transition-all duration-300 backdrop-blur-md border border-white/20"
-            aria-label="Scroll up"
+            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-[50px] sm:-translate-y-[60px] z-50 p-2.5 sm:p-3 rounded-full bg-gradient-to-r from-blue-500/80 to-indigo-500/80 text-white shadow-2xl shadow-blue-500/30 hover:scale-110 hover:opacity-100 transition-all duration-300 backdrop-blur-md border border-white/20"
           >
-            <Icons.ChevronUp className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8" />
+            <Icons.ChevronUp className="h-5 w-5 sm:h-6 sm:w-6" />
           </motion.button>
         )}
       </AnimatePresence>
@@ -807,12 +980,11 @@ export default function StudentCoursesPage() {
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 0.8, scale: 1 }}
             exit={{ opacity: 0, scale: 0.8 }}
-            transition={{ duration: 0.3 }}
+            transition={{ duration: 0.25 }}
             onClick={scrollDown}
-            className="fixed left-1/2 top-1/2 -translate-x-1/2 translate-y-[60px] sm:translate-y-[70px] z-50 p-3 sm:p-4 rounded-full bg-gradient-to-r from-green-500/80 to-emerald-500/80 text-white shadow-2xl shadow-green-500/30 hover:scale-110 hover:opacity-100 transition-all duration-300 backdrop-blur-md border border-white/20"
-            aria-label="Scroll down"
+            className="fixed left-1/2 top-1/2 -translate-x-1/2 translate-y-[50px] sm:translate-y-[60px] z-50 p-2.5 sm:p-3 rounded-full bg-gradient-to-r from-green-500/80 to-emerald-500/80 text-white shadow-2xl shadow-green-500/30 hover:scale-110 hover:opacity-100 transition-all duration-300 backdrop-blur-md border border-white/20"
           >
-            <Icons.ChevronDown className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8" />
+            <Icons.ChevronDown className="h-5 w-5 sm:h-6 sm:w-6" />
           </motion.button>
         )}
       </AnimatePresence>
