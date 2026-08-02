@@ -2349,6 +2349,9 @@ export default function StudentExamPage() {
   const contentContainerRef = useRef(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
+  // ===== إضافة حالات للتمرير الأفقي المخصص =====
+  const [pageScrollLeft, setPageScrollLeft] = useState(0);
+  const [pageScrollWidth, setPageScrollWidth] = useState(0);
 
   const timerRef = useRef(null);
   const answersRef = useRef(answers);
@@ -2377,6 +2380,17 @@ export default function StudentExamPage() {
       const { scrollLeft, scrollWidth, clientWidth } = contentContainerRef.current;
       setCanScrollLeft(scrollLeft > 1);
       setCanScrollRight(scrollLeft + clientWidth < scrollWidth - 1);
+      setPageScrollLeft(scrollLeft);
+      setPageScrollWidth(Math.max(1, scrollWidth - clientWidth));
+    }
+  }, []);
+
+  // دالة تحديث معلومات التمرير
+  const updateScrollInfo = useCallback(() => {
+    if (contentContainerRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = contentContainerRef.current;
+      setPageScrollLeft(scrollLeft);
+      setPageScrollWidth(Math.max(1, scrollWidth - clientWidth));
     }
   }, []);
 
@@ -2398,7 +2412,7 @@ export default function StudentExamPage() {
     }
   }, [currentIndex, updateScrollButtons]);
 
-  // ===== دوال التمرير الأفقي =====
+  // ===== دوال التمرير الأفقي (لم نعد نستخدم الأزرار، ولكن نترك الدوال للاستخدام العام) =====
   const scrollHorizontal = useCallback((direction) => {
     if (contentContainerRef.current) {
       const step = direction === 'left' ? -300 : 300;
@@ -4286,12 +4300,35 @@ export default function StudentExamPage() {
           </div>
 
           {/* ============================================================ */}
-          {/* ===== الشريط السفلي – مدمج وخفيف مع أزرار تمرير أفقي ===== */}
+          {/* ===== الشريط السفلي – مع شريط تمرير أفقي مخصص ===== */}
           {/* ============================================================ */}
           <div
             className={`flex-shrink-0 min-h-[56px] px-2 py-2 border-t ${isDark ? 'border-white/20 bg-[#0b0e1a]/95' : 'border-gray-300 bg-gray-100/95'} backdrop-blur-lg`}
           >
-            <div className="flex items-center gap-1 max-w-6xl mx-auto w-full h-full">
+            {/* شريط التمرير الأفقي المخصص */}
+            <div className="flex items-center gap-2 px-2 py-1 w-full max-w-6xl mx-auto">
+              <span className="text-xs text-gray-400 flex-shrink-0">←</span>
+              <input
+                type="range"
+                min="0"
+                max={Math.max(1, pageScrollWidth)}
+                value={pageScrollLeft}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value);
+                  if (contentContainerRef.current) {
+                    contentContainerRef.current.scrollLeft = val;
+                  }
+                }}
+                className="flex-1 h-1.5 bg-gray-300 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer"
+                style={{
+                  background: `linear-gradient(to right, #fbbf24 ${(pageScrollWidth > 0 ? (pageScrollLeft / pageScrollWidth) * 100 : 0)}%, #d1d5db ${(pageScrollWidth > 0 ? (pageScrollLeft / pageScrollWidth) * 100 : 0)}%)`
+                }}
+              />
+              <span className="text-xs text-gray-400 flex-shrink-0">→</span>
+            </div>
+
+            {/* شريط التنقل بين الأسئلة (كما هو) */}
+            <div className="flex items-center gap-1 max-w-6xl mx-auto w-full h-full mt-1">
               {/* زر السابق */}
               <button
                 onClick={() => goToQuestion(currentIndex - 1)}
@@ -4327,22 +4364,6 @@ export default function StudentExamPage() {
                 <Icons.ChevronLeft className="h-5 w-5" />
               </button>
 
-              {/* زر التمرير لليسار (أفقي) */}
-              {canScrollLeft && (
-                <button
-                  onClick={() => scrollHorizontal('left')}
-                  style={{ touchAction: 'manipulation' }}
-                  className={`p-2 rounded-xl border-2 font-bold text-sm transition flex-shrink-0 ${
-                    isDark
-                      ? 'bg-yellow-400/20 border-yellow-400/40 text-yellow-300 hover:bg-yellow-400/30 hover:scale-105'
-                      : 'bg-yellow-200 border-yellow-400 text-yellow-800 hover:bg-yellow-300 hover:scale-105'
-                  }`}
-                  title={language === 'ar' ? 'تحريك المحتوى لليسار' : 'Scroll left'}
-                >
-                  <Icons.ChevronRight className="h-5 w-5" />
-                </button>
-              )}
-
               {/* شريط النقاط – مع تمرير أفقي حقيقي وارتفاع صغير */}
               <div className="flex-1 overflow-x-auto overflow-y-hidden px-1 py-0.5 scrollbar-thin scrollbar-thumb-yellow-400/30 scrollbar-track-transparent">
                 <div className="flex flex-nowrap gap-1.5 min-w-max">
@@ -4365,22 +4386,6 @@ export default function StudentExamPage() {
                   })}
                 </div>
               </div>
-
-              {/* زر التمرير لليمين (أفقي) */}
-              {canScrollRight && (
-                <button
-                  onClick={() => scrollHorizontal('right')}
-                  style={{ touchAction: 'manipulation' }}
-                  className={`p-2 rounded-xl border-2 font-bold text-sm transition flex-shrink-0 ${
-                    isDark
-                      ? 'bg-yellow-400/20 border-yellow-400/40 text-yellow-300 hover:bg-yellow-400/30 hover:scale-105'
-                      : 'bg-yellow-200 border-yellow-400 text-yellow-800 hover:bg-yellow-300 hover:scale-105'
-                  }`}
-                  title={language === 'ar' ? 'تحريك المحتوى لليمين' : 'Scroll right'}
-                >
-                  <Icons.ChevronLeft className="h-5 w-5" />
-                </button>
-              )}
 
               {/* زر التسليم */}
               <button
