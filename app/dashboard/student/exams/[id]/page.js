@@ -1,10 +1,11 @@
 // app/dashboard/student/exams/[id]/page.js
 // ================================================================
-// 🏛️ الصفحة النهائية مع تمرير طبيعي (أفقي وعمودي) للصفحة بأكملها
+// 🏛️ الصفحة النهائية مع تمرير طبيعي وتحسينات الهواتف
 // ✅ خصم محاولة عند الـ Reload (F5 / زر التحميل)
 // ✅ تطبيق الثيم الفاتح/الداكن بتباين عالٍ جداً
-// ✅ شريط سفلي مع أزرار تنقل بين الأسئلة وشريط نقاط
-// ✅ تحسين الأداء والتجاوب مع إمكانية التمرير الطبيعي
+// ✅ شريط سفلي مع أزرار تنقل وشريط نقاط + زر تسليم كبير
+// ✅ تحسين الرؤية على الأجهزة الصغيرة وتصغير الأيقونات
+// ✅ منع الطباعة (Ctrl+P) ومفاتيح الاختصار
 // ================================================================
 
 'use client';
@@ -1624,15 +1625,15 @@ const ExamTimer = ({ remaining, isWarning, isCritical, styles }) => {
   const timeStr = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 
   return (
-    <div className={`flex items-center gap-2 px-6 py-3 rounded-2xl border-2 font-bold transition-all duration-500 shadow-xl backdrop-blur-xl ${
+    <div className={`flex items-center gap-2 px-3 md:px-6 py-2 md:py-3 rounded-2xl border-2 font-bold transition-all duration-500 shadow-xl backdrop-blur-xl ${
       isCritical
         ? 'bg-gradient-to-r from-red-500/40 to-red-600/40 border-red-500/80 text-red-500 animate-pulse shadow-red-500/30'
         : isWarning
         ? 'bg-gradient-to-r from-yellow-400/40 to-yellow-500/40 border-yellow-400/80 text-yellow-400 shadow-yellow-400/30'
         : `bg-gradient-to-r from-yellow-400/20 to-yellow-500/20 border-yellow-400/50 ${styles.text} shadow-yellow-400/20`
     }`}>
-      <Icons.Clock className={`h-6 w-6 ${isCritical ? 'text-red-500' : isWarning ? 'text-yellow-400' : 'text-yellow-400'}`} />
-      <span className="font-mono text-3xl font-black tabular-nums tracking-wider drop-shadow-lg">
+      <Icons.Clock className={`h-4 w-4 md:h-6 md:w-6 ${isCritical ? 'text-red-500' : isWarning ? 'text-yellow-400' : 'text-yellow-400'}`} />
+      <span className="font-mono text-lg md:text-3xl font-black tabular-nums tracking-wider drop-shadow-lg">
         {timeStr}
       </span>
     </div>
@@ -1647,8 +1648,8 @@ const ProgressBar = ({ answered, total, isDark, timeRemaining }) => {
   const isComplete = percentage === 100;
 
   return (
-    <div className="w-full flex items-center gap-4">
-      <div className="relative flex-1 h-3 bg-white/10 rounded-full overflow-hidden shadow-inner">
+    <div className="w-full flex items-center gap-2 md:gap-4">
+      <div className="relative flex-1 h-2 md:h-3 bg-white/10 rounded-full overflow-hidden shadow-inner">
         <motion.div
           initial={{ width: 0 }}
           animate={{ width: `${percentage}%` }}
@@ -1663,20 +1664,20 @@ const ProgressBar = ({ answered, total, isDark, timeRemaining }) => {
           initial={{ left: '0%' }}
           animate={{ left: `${percentage}%` }}
           transition={{ duration: 0.6, ease: 'easeOut' }}
-          className="absolute top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-white border-2 border-yellow-400 shadow-lg"
+          className="absolute top-1/2 -translate-y-1/2 w-3 h-3 md:w-4 md:h-4 rounded-full bg-white border-2 border-yellow-400 shadow-lg"
           style={{ left: `${Math.min(percentage, 100)}%`, transform: 'translate(-50%, -50%)' }}
         />
       </div>
-      <div className="flex items-center gap-3 flex-shrink-0">
-        <span className="text-sm font-bold text-white/90 bg-black/20 px-3 py-1 rounded-full">
+      <div className="flex items-center gap-1 md:gap-3 flex-shrink-0">
+        <span className="text-xs md:text-sm font-bold text-white/90 bg-black/20 px-2 md:px-3 py-0.5 md:py-1 rounded-full">
           {answered}/{total}
         </span>
-        <span className="text-sm font-bold text-yellow-400 bg-black/20 px-2 py-1 rounded-full">
+        <span className="text-xs md:text-sm font-bold text-yellow-400 bg-black/20 px-1.5 md:px-2 py-0.5 md:py-1 rounded-full">
           {Math.round(percentage)}%
         </span>
         {timeRemaining !== undefined && (
-          <span className="text-xs text-white/60 bg-black/20 px-2 py-0.5 rounded-full flex items-center gap-1">
-            <Icons.Clock className="h-3 w-3" /> {formatTime(timeRemaining)}
+          <span className="text-[10px] md:text-xs text-white/60 bg-black/20 px-1.5 md:px-2 py-0.5 rounded-full flex items-center gap-1">
+            <Icons.Clock className="h-2 w-2 md:h-3 md:w-3" /> {formatTime(timeRemaining)}
           </span>
         )}
         {isComplete && (
@@ -1685,7 +1686,7 @@ const ProgressBar = ({ answered, total, isDark, timeRemaining }) => {
             animate={{ scale: 1 }}
             className="text-emerald-400"
           >
-            <Icons.CheckCircle className="h-5 w-5" />
+            <Icons.CheckCircle className="h-4 w-4 md:h-5 md:w-5" />
           </motion.span>
         )}
       </div>
@@ -1936,13 +1937,13 @@ const FontControls = ({ fontSize, setFontSize, isBold, setIsBold, isItalic, setI
   ];
 
   return (
-    <div className="flex items-center gap-1 p-1 rounded-xl bg-white/10 dark:bg-white/5 backdrop-blur-sm border border-white/20 dark:border-white/10">
+    <div className="flex items-center gap-0.5 md:gap-1 p-0.5 md:p-1 rounded-xl bg-white/10 dark:bg-white/5 backdrop-blur-sm border border-white/20 dark:border-white/10">
       {sizes.map((s) => (
         <button
           key={s.value}
           onClick={() => setFontSize(s.value)}
           style={{ touchAction: 'manipulation' }}
-          className={`px-2 py-1 rounded-lg text-xs transition-all ${
+          className={`px-1.5 md:px-2 py-0.5 md:py-1 rounded-lg text-[10px] md:text-xs transition-all ${
             fontSize === s.value
               ? 'bg-yellow-400/20 text-yellow-400'
               : isDark ? 'text-white/60 hover:text-white/90' : 'text-gray-600 hover:text-gray-900'
@@ -1952,38 +1953,38 @@ const FontControls = ({ fontSize, setFontSize, isBold, setIsBold, isItalic, setI
           {s.label}
         </button>
       ))}
-      <div className="w-px h-6 bg-white/20 dark:bg-white/10 mx-1" />
+      <div className="w-px h-5 md:h-6 bg-white/20 dark:bg-white/10 mx-0.5 md:mx-1" />
       <button
         onClick={() => setIsBold(!isBold)}
         style={{ touchAction: 'manipulation' }}
-        className={`p-1 rounded-lg transition-all ${
+        className={`p-0.5 md:p-1 rounded-lg transition-all ${
           isBold
             ? 'bg-yellow-400/20 text-yellow-400'
             : isDark ? 'text-white/60 hover:text-white/90' : 'text-gray-600 hover:text-gray-900'
         }`}
         title={language === 'ar' ? 'عريض' : 'Bold'}
       >
-        <Icons.Bold className="h-4 w-4" />
+        <Icons.Bold className="h-3 w-3 md:h-4 md:w-4" />
       </button>
       <button
         onClick={() => setIsItalic(!isItalic)}
         style={{ touchAction: 'manipulation' }}
-        className={`p-1 rounded-lg transition-all ${
+        className={`p-0.5 md:p-1 rounded-lg transition-all ${
           isItalic
             ? 'bg-yellow-400/20 text-yellow-400'
             : isDark ? 'text-white/60 hover:text-white/90' : 'text-gray-600 hover:text-gray-900'
         }`}
         title={language === 'ar' ? 'مائل' : 'Italic'}
       >
-        <Icons.Italic className="h-4 w-4" />
+        <Icons.Italic className="h-3 w-3 md:h-4 md:w-4" />
       </button>
       <button
         onClick={resetFont}
         style={{ touchAction: 'manipulation' }}
-        className="p-1 rounded-lg text-gray-400 dark:text-white/40 hover:text-gray-600 dark:hover:text-white/80 transition-all"
+        className="p-0.5 md:p-1 rounded-lg text-gray-400 dark:text-white/40 hover:text-gray-600 dark:hover:text-white/80 transition-all"
         title={language === 'ar' ? 'إعادة تعيين' : 'Reset'}
       >
-        <Icons.RotateCcw className="h-4 w-4" />
+        <Icons.RotateCcw className="h-3 w-3 md:h-4 md:w-4" />
       </button>
     </div>
   );
@@ -2040,10 +2041,10 @@ const ExamSettingsPanel = ({
       <button
         onClick={() => setIsOpen(!isOpen)}
         style={{ touchAction: 'manipulation' }}
-        className={`p-2 rounded-lg transition ${isOpen ? 'bg-yellow-400/20 text-yellow-400' : 'bg-white/5 text-white/60 hover:text-white/90'}`}
+        className={`p-1 md:p-2 rounded-lg transition ${isOpen ? 'bg-yellow-400/20 text-yellow-400' : 'bg-white/5 text-white/60 hover:text-white/90'}`}
         title={language === 'ar' ? 'الإعدادات' : 'Settings'}
       >
-        <Icons.Settings className="h-5 w-5" />
+        <Icons.Settings className="h-4 w-4 md:h-5 md:w-5" />
       </button>
 
       <AnimatePresence>
@@ -2271,7 +2272,7 @@ const SubmitConfirmationModal = ({
 };
 
 // ================================================================
-// 13. الصفحة الرئيسية – النسخة النهائية مع التمرير الطبيعي
+// 13. الصفحة الرئيسية – النسخة النهائية مع التمرير الطبيعي وتحسينات الهواتف
 // ================================================================
 export default function StudentExamPage() {
   const router = useRouter();
@@ -2363,9 +2364,6 @@ export default function StudentExamPage() {
   const [accessDenied, setAccessDenied] = useState(false);
   const [accessReason, setAccessReason] = useState('');
   const [isCheckingAccess, setIsCheckingAccess] = useState(false);
-
-  // ===== دوال التحقق من إمكانية التمرير الأفقي =====
-  // تم إزالتها لأننا نعتمد على التمرير الطبيعي للصفحة
 
   // ===== دالة التحقق من وجود محاولة ناجحة =====
   const checkIfPassed = useCallback(async () => {
@@ -2598,7 +2596,7 @@ export default function StudentExamPage() {
     };
   }, [examStatus, isExamForcedClosed, examId, forceCloseExam, language]);
 
-  // ===== دالة تفعيل قفل الأمان الشامل (موسعة وقوية) =====
+  // ===== دالة تفعيل قفل الأمان الشامل (موسعة وقوية) مع منع الطباعة =====
   const enableSecurityLockdown = useCallback(() => {
     // --- منع أحداث الفأرة ---
     const handleContextMenu = (e) => e.preventDefault();
@@ -2606,13 +2604,27 @@ export default function StudentExamPage() {
     // --- منع النسخ واللصق ---
     const handleCopyPasteCut = (e) => e.preventDefault();
 
+    // --- منع الطباعة (Ctrl+P) وزر الطباعة ---
+    const handleBeforePrint = (e) => {
+      e.preventDefault();
+      toast.error(language === 'ar' ? '🖨️ الطباعة غير مسموحة أثناء الامتحان' : '🖨️ Printing is not allowed during exam');
+      return false;
+    };
+
     // --- منع جميع اختصارات لوحة المفاتيح الخطيرة (قائمة موسعة) ---
     const handleKeyDown = (e) => {
+      // منع Ctrl+P أو Cmd+P
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'p' || e.key === 'P')) {
+        e.preventDefault();
+        e.stopPropagation();
+        toast.error(language === 'ar' ? '🖨️ الطباعة غير مسموحة' : '🖨️ Printing disabled');
+        return false;
+      }
+
       // منع F11 و ESC بشكل قهري
       if (e.key === 'F11' || e.key === 'Escape') {
         e.preventDefault();
         e.stopPropagation();
-        // عند الضغط على ESC، نعيد محاولة ملء الشاشة
         if (e.key === 'Escape') {
           setTimeout(() => requestFullscreen(), 50);
         }
@@ -2660,7 +2672,6 @@ export default function StudentExamPage() {
       if (forbiddenCombos.some(combo => combo)) {
         e.preventDefault();
         e.stopPropagation();
-        // ✅ تأخير toast لتجنب تحديث الحالة أثناء التصيير
         setTimeout(() => {
           toast.error(
             language === 'ar'
@@ -2683,20 +2694,9 @@ export default function StudentExamPage() {
     const handleDrop = (e) => e.preventDefault();
     const handleDragOver = (e) => e.preventDefault();
 
-    // --- منع الطباعة ---
-    const handleBeforePrint = (e) => {
-      e.preventDefault();
-      setTimeout(() => {
-        setViolations(prev => Math.min(prev + 1, maxViolations));
-        toast.error(language === 'ar' ? '🖨️ الطباعة معطلة أثناء الامتحان' : '🖨️ Printing is disabled during the exam');
-      }, 0);
-      return false;
-    };
-
     // --- مراقبة فقدان التركيز (للأجهزة الجوالة) ---
     const handleBlur = () => {
       if (examStatus === 'started') {
-        // ✅ تأخير تحديث الحالة إلى ما بعد التصيير
         setTimeout(() => {
           setViolations(prev => {
             const newV = prev + 1;
@@ -2712,10 +2712,8 @@ export default function StudentExamPage() {
     const handleTouchMove = (e) => {
       if (e.touches && e.touches.length === 1) {
         const touch = e.touches[0];
-        // منع السحب من الحواف اليمنى أو اليسرى (قد يفتح قائمة النظام)
         if (touch.clientX < 30 || touch.clientX > window.innerWidth - 30) {
           e.preventDefault();
-          // محاولة العودة إلى ملء الشاشة
           setTimeout(() => requestFullscreen(), 100);
         }
       }
@@ -2723,15 +2721,12 @@ export default function StudentExamPage() {
 
     // --- منع زر العودة على Android ---
     const handlePopState = () => {
-      // منع الرجوع للخلف في التاريخ
       history.pushState(null, '', window.location.href);
     };
 
     // --- مراقبة DOM بحساسية أقل ---
     const observer = new MutationObserver((mutations) => {
-      // نراقب فقط التغييرات التي قد تشير إلى محاولة اختراق حقيقية
       for (const mutation of mutations) {
-        // 1. إذا تم إزالة عناصر مهمة (مثل طبقات الحماية)
         if (mutation.type === 'childList' && mutation.removedNodes.length > 0) {
           const removed = Array.from(mutation.removedNodes);
           for (const node of removed) {
@@ -2744,7 +2739,6 @@ export default function StudentExamPage() {
             }
           }
         }
-        // 2. إذا تم تغيير style بطريقة مشبوهة
         if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
           const target = mutation.target;
           if (target.style && 
@@ -2757,10 +2751,8 @@ export default function StudentExamPage() {
             }, 0);
           }
         }
-        // 3. إذا تم تغيير class بطريقة مشبوهة
         if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
           const target = mutation.target;
-          // ✅ تحويل className إلى سلسلة نصية
           const className = String(target.className || '');
           if (className && 
               (className.includes('overflow-visible') || 
@@ -2773,32 +2765,32 @@ export default function StudentExamPage() {
         }
       }
     });
-    // نراقب العنصر الرئيسي فقط (وليس document.documentElement بالكامل)
     const targetElement = document.getElementById('exam-container') || document.body;
     observer.observe(targetElement, { 
       attributes: true, 
       childList: true, 
       subtree: true,
-      attributeFilter: ['style', 'class', 'id'] // نراقب فقط تغييرات محددة
+      attributeFilter: ['style', 'class', 'id']
     });
 
     // --- إضافة جميع المستمعين ---
     window.addEventListener('blur', handleBlur);
+    window.addEventListener('beforeprint', handleBeforePrint);
     document.addEventListener('contextmenu', handleContextMenu);
     document.addEventListener('copy', handleCopyPasteCut);
     document.addEventListener('paste', handleCopyPasteCut);
     document.addEventListener('cut', handleCopyPasteCut);
-    document.addEventListener('keydown', handleKeyDown, true); // استخدام capture phase
+    document.addEventListener('keydown', handleKeyDown, true);
     document.addEventListener('dragstart', handleDragStart);
     document.addEventListener('drop', handleDrop);
     document.addEventListener('dragover', handleDragOver);
-    window.addEventListener('beforeprint', handleBeforePrint);
     document.addEventListener('touchmove', handleTouchMove, { passive: false });
     window.addEventListener('popstate', handlePopState);
 
     // --- دالة التنظيف ---
     return () => {
       window.removeEventListener('blur', handleBlur);
+      window.removeEventListener('beforeprint', handleBeforePrint);
       document.removeEventListener('contextmenu', handleContextMenu);
       document.removeEventListener('copy', handleCopyPasteCut);
       document.removeEventListener('paste', handleCopyPasteCut);
@@ -2807,7 +2799,6 @@ export default function StudentExamPage() {
       document.removeEventListener('dragstart', handleDragStart);
       document.removeEventListener('drop', handleDrop);
       document.removeEventListener('dragover', handleDragOver);
-      window.removeEventListener('beforeprint', handleBeforePrint);
       document.removeEventListener('touchmove', handleTouchMove);
       window.removeEventListener('popstate', handlePopState);
       observer.disconnect();
@@ -2821,8 +2812,6 @@ export default function StudentExamPage() {
     const fullscreenCheck = setInterval(() => {
       if (!document.fullscreenElement && !isExamForcedClosed) {
         requestFullscreen();
-        
-        // ✅ نعرض تحذيراً فقط وليس مخالفة فورية
         setTimeout(() => {
           toast(
             language === 'ar' 
@@ -2832,7 +2821,7 @@ export default function StudentExamPage() {
           );
         }, 0);
       }
-    }, 2000); // كل 2 ثانية بدلاً من 150ms
+    }, 2000);
 
     return () => clearInterval(fullscreenCheck);
   }, [examStatus, requestFullscreen, isExamForcedClosed, language]);
@@ -2843,29 +2832,24 @@ export default function StudentExamPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.push('/login'); return false; }
 
-      // إذا لم يتم تمرير courseId أو كان فارغاً => سماح تلقائي
       if (!courseId) return true;
 
-      // جلب بيانات الكورس
       const { data: course, error: courseError } = await supabase
         .from('courses')
         .select('id, is_free, price')
         .eq('id', courseId)
         .single();
 
-      // إذا لم يكن هناك كورس أو كان مجانياً => سماح
       if (courseError || !course || course.is_free || course.price === 0) {
         return true;
       }
 
-      // ✅ الكورس مدفوع => التحقق من الاشتراك والأجهزة باستخدام الدالة المعدة
       const accessResult = await checkCourseAccess(courseId, user.id);
 
       if (accessResult.allowed) {
         return true;
       }
 
-      // ❌ رفض الوصول
       setAccessDenied(true);
       setAccessReason(accessResult.reason || 'default');
       return false;
@@ -2886,7 +2870,6 @@ export default function StudentExamPage() {
       const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single();
       setStudent(profile);
 
-      // ✅ التحقق المبكر: إذا كان الطالب ناجحاً سابقاً، لا نكمل تحميل البيانات
       if (passedAttempt || showPassedScreen) {
         setLoading(false);
         return;
@@ -2903,7 +2886,6 @@ export default function StudentExamPage() {
         return;
       }
 
-      // ===== جلب اسم المعلم والكورس =====
       let courseName = null;
       let teacherName = 'مستر محمد رضوان';
       if (examData.course_id) {
@@ -2915,8 +2897,6 @@ export default function StudentExamPage() {
         if (teacher?.full_name) teacherName = teacher.full_name;
       }
 
-      // ✅ التحقق من صلاحية الوصول (الكورسات المدفوعة)
-      // نمرر course_id من examData
       setIsCheckingAccess(true);
       const hasAccess = await verifyExamAccess(examData.course_id);
       setIsCheckingAccess(false);
@@ -2929,24 +2909,20 @@ export default function StudentExamPage() {
       const start = examData.start_date ? toLocalDate(examData.start_date) : null;
       const end = examData.end_date ? toLocalDate(examData.end_date) : null;
 
-      // ===== التحقق من وجود محاولات سابقة =====
       const { data: attempts } = await supabase
         .from('exam_attempts')
         .select('id, status, score, passed')
         .eq('exam_id', examId)
         .eq('student_id', user.id);
       
-      // ✅ حساب المحاولات المتبقية من قاعدة البيانات (المصدر الوحيد)
       const attemptsAllowed = examData.attempts_allowed || 1;
       const completedCount = attempts?.filter(
         a => a.status === 'completed' || a.status === 'terminated'
       ).length || 0;
       const attemptsLeftVal = Math.max(0, attemptsAllowed - completedCount);
       setAttemptsLeft(attemptsLeftVal);
-      // نخزنه في sessionStorage كمرجع سريع
       sessionStorage.setItem(`exam_${examId}_attempts_left`, attemptsLeftVal.toString());
 
-      // ===== التحقق من وجود محاولة ناجحة =====
       const hasPassed = attempts?.some(a => a.passed === true);
       if (hasPassed) {
         const { data: passedData } = await supabase
@@ -2966,12 +2942,10 @@ export default function StudentExamPage() {
         }
       }
 
-      // تخزين المحاولات المتبقية في sessionStorage
       const storedAttempts = sessionStorage.getItem(`exam_${examId}_attempts_left`);
       if (storedAttempts !== null) {
         const savedAttempts = parseInt(storedAttempts, 10);
         if (!isNaN(savedAttempts) && savedAttempts < attemptsLeftVal) {
-          // نستخدم القيمة الأقل (الأكثر أماناً)
           setAttemptsLeft(savedAttempts);
         }
       }
@@ -2982,7 +2956,6 @@ export default function StudentExamPage() {
         return;
       }
 
-      // ===== جلب الأسئلة =====
       const { data: questionsData, error: qError } = await supabase
         .from('exam_questions')
         .select('*')
@@ -3041,7 +3014,6 @@ export default function StudentExamPage() {
         end_date: examData.end_date,
       });
 
-      // ✅ التحقق من وقت البدء
       if (start && now < start) {
         setExamStatus('waiting');
         setLoading(false);
@@ -3057,12 +3029,8 @@ export default function StudentExamPage() {
       const duration = (examData.duration_minutes || 60) * 60;
       setTimeRemaining(duration);
 
-      // ===== معالجة المحاولات المفتوحة (in_progress) =====
-      // ✅ التعديل الجديد: إنهاء أي محاولة مفتوحة بصمت وبدء محاولة جديدة
       const inProgress = attempts?.find(a => a.status === 'in_progress');
       if (inProgress) {
-        // إنهاء الجلسة القديمة بصمت (تحويلها إلى terminated)
-        // لضمان عدم وجود أي جلسة مفتوحة تؤثر على المحاولة الجديدة
         try {
           await supabase
             .from('exam_attempts')
@@ -3081,15 +3049,12 @@ export default function StudentExamPage() {
           console.warn('⚠️ فشل إغلاق المحاولة القديمة:', e);
         }
 
-        // لا نستأنف أي شيء، سنبدأ محاولة جديدة
-        // نمسح أي آثار للجلسة القديمة من sessionStorage
         sessionStorage.removeItem(`exam_${examId}_answers`);
         sessionStorage.removeItem(`exam_${examId}_highlights`);
-        setAnswers({});          // إجابات فاضية
-        setCurrentIndex(0);       // نبدأ من السؤال الأول
+        setAnswers({});
+        setCurrentIndex(0);
       }
 
-      // ✅ بعد معالجة المحاولات المفتوحة، نضبط التايمر على المدة الكاملة
       setTimeRemaining(duration);
 
       setLoading(false);
@@ -3105,7 +3070,7 @@ export default function StudentExamPage() {
   }, [fetchExamData]);
 
   // ================================================================
-  // ✅ تقديم الامتحان باستخدام gradeExam (تم نقله قبل startExam)
+  // ✅ تقديم الامتحان باستخدام gradeExam
   // ================================================================
   const submitExam = useCallback(async (isAuto = false) => {
     if (examStatus === 'submitted') return;
@@ -3116,7 +3081,6 @@ export default function StudentExamPage() {
       let answersObj = answersRef.current;
       let questionsForGrading = questions;
 
-      // تحويل الإجابات والأسئلة
       if (questionsForGrading && questionsForGrading.length) {
         questionsForGrading = questionsForGrading.map(q => {
           const qCopy = { ...q };
@@ -3149,7 +3113,6 @@ export default function StudentExamPage() {
         });
       }
 
-      // ✅ حساب الدرجات
       const { totalScore, maxPossibleScore, questionGrades } = gradeExam(
         questionsForGrading,
         answersObj,
@@ -3164,7 +3127,6 @@ export default function StudentExamPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('لم يتم تسجيل الدخول');
 
-      // محاولة تحديث المحاولة الحالية
       if (attemptId && attemptId !== 'null' && attemptId !== 'undefined') {
         const { error: updateError } = await supabase
           .from('exam_attempts')
@@ -3187,7 +3149,6 @@ export default function StudentExamPage() {
         }
       }
 
-      // إنشاء محاولة جديدة إذا فشل التحديث
       if (!attemptIdFinal) {
         await supabase
           .from('exam_attempts')
@@ -3248,7 +3209,6 @@ export default function StudentExamPage() {
         }
       }
 
-      // ✅ تحديث المحاولات المتبقية من قاعدة البيانات بعد التسليم
       try {
         const { data: allAttempts } = await supabase
           .from('exam_attempts')
@@ -3262,7 +3222,6 @@ export default function StudentExamPage() {
         sessionStorage.setItem(`exam_${examId}_attempts_left`, newAttemptsLeft.toString());
         setAttemptsLeft(newAttemptsLeft);
       } catch (e) {
-        // احتياطي: خصم 1
         const newAttemptsLeft = Math.max(0, attemptsLeft - 1);
         sessionStorage.setItem(`exam_${examId}_attempts_left`, newAttemptsLeft.toString());
         setAttemptsLeft(newAttemptsLeft);
@@ -3270,7 +3229,7 @@ export default function StudentExamPage() {
 
       sessionStorage.removeItem(`exam_${examId}_answers`);
       sessionStorage.removeItem(`exam_${examId}_highlights`);
-      sessionStorage.removeItem(`exam_${examId}_reload_penalty_applied`); // مسح علامة الخصم
+      sessionStorage.removeItem(`exam_${examId}_reload_penalty_applied`);
 
       setIsSubmitting(false);
 
@@ -3285,12 +3244,11 @@ export default function StudentExamPage() {
   }, [examStatus, questions, attemptId, examId, router, language, attemptsLeft, exam]);
 
   // ================================================================
-  // ✅ بدء الامتحان مع تفعيل الأمان الشامل (بعد submitExam)
+  // ✅ بدء الامتحان مع تفعيل الأمان الشامل
   // ================================================================
   const startExam = useCallback(async () => {
     if (examStatus === 'started') return;
 
-    // ✅ ضمان بيئة نضيفة: مسح جميع الإجابات والحالات القديمة
     setAnswers({});
     setMarkedQuestions([]);
     setHighlightedQuestions([]);
@@ -3300,17 +3258,14 @@ export default function StudentExamPage() {
     setFullscreenExitCount(0);
     fullscreenExitAttemptsRef.current = 0;
 
-    // ✅ ضبط التايمر على المدة الكاملة من الامتحان
     const fullDurationSeconds = (exam?.duration_minutes || 60) * 60;
     setTimeRemaining(fullDurationSeconds);
 
-    // ✅ إلغاء أي مؤقت قديم شغال
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
 
-    // ✅ التحقق من صلاحية الوصول قبل بدء الامتحان (مرة أخرى للتأكيد)
     if (exam?.course_id) {
       const hasAccess = await verifyExamAccess(exam.course_id);
       if (!hasAccess) {
@@ -3342,10 +3297,7 @@ export default function StudentExamPage() {
       toast.error(language === 'ar' ? 'فشل بدء الامتحان' : 'Failed to start exam');
     }
 
-    // تفعيل ملء الشاشة الإجباري
     requestFullscreen();
-
-    // ✅ تفعيل قفل الأمان الشامل
     enableSecurityLockdown();
 
     if (timerRef.current) clearInterval(timerRef.current);
@@ -3371,7 +3323,6 @@ export default function StudentExamPage() {
     document.addEventListener('MSFullscreenChange', handleFullscreenChange);
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
-    // تفعيل قفل الأمان (يتم استدعاؤه مرة أخرى للتأكيد)
     const cleanupSecurity = enableSecurityLockdown();
 
     return () => {
@@ -3402,11 +3353,9 @@ export default function StudentExamPage() {
 
   const confirmSubmit = useCallback(() => {
     setShowSubmitModal(false);
-    // ✅ التقاط الإجابات فوراً
     const finalAnswers = { ...answers };
     answersRef.current = finalAnswers;
     setIsSubmitting(true);
-    // ✅ استدعاء submitExam مباشرة دون تأخير
     submitExam(false);
   }, [answers, submitExam]);
 
@@ -3553,7 +3502,6 @@ export default function StudentExamPage() {
         whileHover={{ scale: 1.01 }}
         className={`space-y-4 ${isHighlighted ? 'bg-yellow-100 dark:bg-yellow-900/20 p-4 rounded-xl' : ''}`}
       >
-        {/* رأس السؤال مع زر المراجعة */}
         <div className="flex items-center gap-2 mb-3 flex-wrap">
           <span className={`text-xs font-bold text-yellow-400 bg-yellow-400/10 px-3 py-1 rounded-lg flex items-center gap-1`}>
             <Icons.HelpCircle className="h-3 w-3" />
@@ -3585,7 +3533,6 @@ export default function StudentExamPage() {
               <Icons.CheckCircle className="h-3 w-3" /> {language === 'ar' ? 'تمت الإجابة' : 'Answered'}
             </span>
           )}
-          {/* ✅ زر المراجعة – يظهر في كلا الوضعين */}
           <button
             onClick={() => toggleReviewMark(q.id)}
             className={`px-2 py-1 rounded-lg text-[10px] font-semibold transition ${
@@ -3627,16 +3574,6 @@ export default function StudentExamPage() {
     );
   }, [answers, handleAnswer, styles, language, passages, isDark, fontSize, isBold, isItalic, highlightedQuestions, examId, passageFontSize, questions, toggleReviewMark, reviewMarkedQuestions]);
 
-  const correctAnswers = useMemo(() => {
-    const result = {};
-    questions.forEach(q => {
-      if (q.correct_answer) {
-        result[q.id] = q.correct_answer;
-      }
-    });
-    return result;
-  }, [questions]);
-
   // ===== شاشة تحميل =====
   if (loading || isCheckingAccess) {
     return (
@@ -3674,7 +3611,7 @@ export default function StudentExamPage() {
     );
   }
 
-  // ===== ✅ شاشة رفض الوصول (الكورسات المدفوعة) =====
+  // ===== ✅ شاشة رفض الوصول =====
   if (accessDenied) {
     const messages = {
       no_subscription: language === 'ar' 
@@ -3947,7 +3884,7 @@ export default function StudentExamPage() {
   }
 
   // ================================================================
-  // ✅ واجهة الامتحان الرئيسية – مع تمرير طبيعي (أفقي وعمودي) للصفحة بأكملها
+  // ✅ واجهة الامتحان الرئيسية – مع تمرير طبيعي وتحسينات الهواتف
   // ================================================================
   return (
     <div
@@ -3956,7 +3893,6 @@ export default function StudentExamPage() {
     >
       <SecureWatermark user={student} examTitle={exam?.title} isDark={isDark} />
 
-      {/* زر عائم للعودة إلى ملء الشاشة */}
       {showFullscreenButton && (
         <motion.button
           initial={{ opacity: 0, y: 20 }}
@@ -4035,7 +3971,6 @@ export default function StudentExamPage() {
 
       {/* ===== الهيكل الرئيسي ===== */}
       <div className="flex flex-1 min-h-screen">
-        {/* الشريط الجانبي (يظهر فقط على الشاشات المتوسطة+) */}
         <QuestionSidebar
           questions={questions}
           answers={answers}
@@ -4048,28 +3983,23 @@ export default function StudentExamPage() {
           styles={styles}
         />
 
-        {/* ===== العمود الأيمن (المحتوى) ===== */}
         <div className="flex-1 flex flex-col min-w-0">
-          {/* ============================================================ */}
-          {/* الشريط العلوي – نسخة مدمجة خفيفة الوزن */}
-          {/* ============================================================ */}
+          {/* ===== الشريط العلوي ===== */}
           <div
-            className={`flex-shrink-0 min-h-[60px] px-3 py-2 border-b ${isDark ? 'border-white/10 bg-[#0b0e1a]/90' : 'border-gray-200 bg-gray-50/90'} backdrop-blur-lg overflow-hidden`}
+            className={`flex-shrink-0 min-h-[56px] px-2 md:px-3 py-1.5 md:py-2 border-b ${isDark ? 'border-white/10 bg-[#0b0e1a]/90' : 'border-gray-200 bg-gray-50/90'} backdrop-blur-lg overflow-hidden`}
           >
             <div className="flex flex-wrap items-center justify-between gap-1 max-w-6xl mx-auto w-full">
-              {/* الجهة اليسرى: عنوان الامتحان + أيقونة الطالب */}
-              <div className="flex items-center gap-2">
-                <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-yellow-400 to-yellow-600 flex items-center justify-center text-black font-bold text-xs shadow-lg flex-shrink-0">
+              <div className="flex items-center gap-1.5 md:gap-2">
+                <div className="h-6 w-6 md:h-7 md:w-7 rounded-lg bg-gradient-to-br from-yellow-400 to-yellow-600 flex items-center justify-center text-black font-bold text-[10px] md:text-xs shadow-lg flex-shrink-0">
                   {student?.full_name?.charAt(0) || 'ط'}
                 </div>
                 <div className="hidden sm:block">
-                  <p className={`text-xs font-bold ${styles.text} truncate max-w-[140px] opacity-90`}>
+                  <p className={`text-[10px] md:text-xs font-bold ${styles.text} truncate max-w-[120px] md:max-w-[140px] opacity-90`}>
                     {exam?.title || ''}
                   </p>
                 </div>
               </div>
 
-              {/* المؤقت – بحجم أصغر */}
               <ExamTimer
                 remaining={timeRemaining}
                 isWarning={timeRemaining <= 300 && timeRemaining > 60}
@@ -4077,80 +4007,74 @@ export default function StudentExamPage() {
                 styles={styles}
               />
 
-              {/* مؤشرات الحالة – مدمجة */}
-              <div className="flex items-center gap-1.5 text-[10px]">
-                <div className="flex items-center gap-1 bg-white/5 px-2 py-0.5 rounded-full border border-white/10">
-                  <Icons.CheckCircle className={`h-3 w-3 ${answeredCount === questions.length ? 'text-emerald-400' : 'text-yellow-400'}`} />
+              <div className="flex items-center gap-1 text-[8px] md:text-[10px]">
+                <div className="flex items-center gap-0.5 md:gap-1 bg-white/5 px-1.5 md:px-2 py-0.5 rounded-full border border-white/10">
+                  <Icons.CheckCircle className={`h-2.5 w-2.5 md:h-3 md:w-3 ${answeredCount === questions.length ? 'text-emerald-400' : 'text-yellow-400'}`} />
                   <span className="text-white/80">{answeredCount}/{questions.length}</span>
                 </div>
-                <div className="flex items-center gap-1 bg-red-500/10 px-2 py-0.5 rounded-full border border-red-500/20">
-                  <Icons.AlertTriangle className="h-3 w-3 text-red-400" />
+                <div className="flex items-center gap-0.5 md:gap-1 bg-red-500/10 px-1.5 md:px-2 py-0.5 rounded-full border border-red-500/20">
+                  <Icons.AlertTriangle className="h-2.5 w-2.5 md:h-3 md:w-3 text-red-400" />
                   <span className="text-red-400">{violations}/{maxViolations}</span>
                 </div>
-                <div className="hidden lg:flex items-center gap-1 bg-yellow-500/10 px-2 py-0.5 rounded-full border border-yellow-500/20">
-                  <Icons.Maximize className="h-3 w-3 text-yellow-400" />
+                <div className="hidden lg:flex items-center gap-0.5 md:gap-1 bg-yellow-500/10 px-1.5 md:px-2 py-0.5 rounded-full border border-yellow-500/20">
+                  <Icons.Maximize className="h-2.5 w-2.5 md:h-3 md:w-3 text-yellow-400" />
                   <span className="text-yellow-400">{fullscreenExitCount}/{MAX_FULLSCREEN_EXITS}</span>
                 </div>
               </div>
             </div>
 
-            {/* شريط التقدم – مدمج */}
-            <div className="max-w-6xl mx-auto mt-1 w-full">
-              <div className="flex items-center gap-2">
-                <ProgressBar answered={answeredCount} total={questions.length} isDark={isDark} timeRemaining={timeRemaining} />
-              </div>
+            <div className="max-w-6xl mx-auto mt-0.5 md:mt-1 w-full">
+              <ProgressBar answered={answeredCount} total={questions.length} isDark={isDark} timeRemaining={timeRemaining} />
             </div>
 
-            {/* الصف الثالث: أزرار التحكم + الإعدادات – بأحجام صغيرة */}
-            <div className="flex flex-wrap items-center justify-between gap-1 mt-1 max-w-6xl mx-auto w-full">
-              <div className="flex items-center gap-1">
+            <div className="flex flex-wrap items-center justify-between gap-0.5 md:gap-1 mt-0.5 md:mt-1 max-w-6xl mx-auto w-full">
+              <div className="flex items-center gap-0.5 md:gap-1">
                 <button
                   onClick={() => goToQuestion(currentIndex - 1)}
                   disabled={currentIndex === 0 || !exam?.allow_backward}
                   style={{ touchAction: 'manipulation' }}
-                  className={`p-1 rounded-lg transition disabled:opacity-30 ${
+                  className={`p-0.5 md:p-1 rounded-lg transition disabled:opacity-30 ${
                     isDark
                       ? 'bg-white/5 hover:bg-white/10 text-white'
                       : 'bg-gray-100 hover:bg-gray-200 text-gray-800'
                   }`}
                 >
-                  <Icons.ChevronRight className="h-4 w-4" />
+                  <Icons.ChevronRight className="h-3 w-3 md:h-4 md:w-4" />
                 </button>
                 <button
                   onClick={goToNextUnanswered}
                   style={{ touchAction: 'manipulation' }}
-                  className="p-1 rounded-lg bg-white/5 hover:bg-white/10 transition"
+                  className="p-0.5 md:p-1 rounded-lg bg-white/5 hover:bg-white/10 transition"
                   title={language === 'ar' ? 'الانتقال لأول سؤال غير مجاب' : 'Go to next unanswered'}
                 >
-                  <Icons.ArrowRight className="h-4 w-4" />
+                  <Icons.ArrowRight className="h-3 w-3 md:h-4 md:w-4" />
                 </button>
                 <button
                   onClick={() => toggleHighlight(currentQuestion?.id)}
                   style={{ touchAction: 'manipulation' }}
-                  className={`p-1 rounded-lg transition ${
+                  className={`p-0.5 md:p-1 rounded-lg transition ${
                     highlightedQuestions.includes(currentQuestion?.id)
                       ? 'bg-yellow-500/20 text-yellow-400'
                       : 'bg-white/5 text-white/40 hover:text-white/80'
                   }`}
                   title={language === 'ar' ? 'تظليل السؤال' : 'Highlight Question'}
                 >
-                  <Icons.Highlighter className="h-4 w-4" />
+                  <Icons.Highlighter className="h-3 w-3 md:h-4 md:w-4" />
                 </button>
               </div>
 
-              <div className="flex items-center gap-1">
-                {/* تبديل الثيم */}
+              <div className="flex items-center gap-0.5 md:gap-1">
                 <button
                   onClick={toggleTheme}
                   style={{ touchAction: 'manipulation' }}
-                  className={`p-1.5 rounded-lg transition ${
+                  className={`p-1 md:p-1.5 rounded-lg transition ${
                     isDark
                       ? 'bg-yellow-400/20 text-yellow-400 hover:bg-yellow-400/30'
                       : 'bg-gray-700/10 text-gray-700 hover:bg-gray-700/20'
                   }`}
                   title={language === 'ar' ? 'تغيير الوضع' : 'Toggle Theme'}
                 >
-                  {isDark ? <Icons.Sun className="h-4 w-4" /> : <Icons.Moon className="h-4 w-4" />}
+                  {isDark ? <Icons.Sun className="h-3 w-3 md:h-4 md:w-4" /> : <Icons.Moon className="h-3 w-3 md:h-4 md:w-4" />}
                 </button>
 
                 <FontControls
@@ -4181,21 +4105,20 @@ export default function StudentExamPage() {
                 <button
                   onClick={emergencyExit}
                   style={{ touchAction: 'manipulation' }}
-                  className={`px-2 py-1 rounded-lg transition text-[10px] font-bold ${
+                  className={`px-1.5 md:px-2 py-0.5 md:py-1 rounded-lg transition text-[8px] md:text-[10px] font-bold ${
                     isDark
                       ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
                       : 'bg-red-100 text-red-700 hover:bg-red-200 border border-red-300'
                   }`}
                   title={language === 'ar' ? 'خروج (خصم محاولة)' : 'Exit (Deduct Attempt)'}
                 >
-                  <Icons.LogOut className="h-3 w-3 inline mr-1" />
+                  <Icons.LogOut className="h-2.5 w-2.5 md:h-3 md:w-3 inline mr-0.5 md:mr-1" />
                   <span className="hidden sm:inline">{language === 'ar' ? 'خروج' : 'Exit'}</span>
                 </button>
               </div>
             </div>
 
-            {/* نقاط التنقل السريع للهواتف (أصغر) */}
-            <div className="flex gap-1 mt-1 max-w-6xl mx-auto overflow-x-auto pb-0.5 sm:hidden">
+            <div className="flex gap-0.5 mt-0.5 max-w-6xl mx-auto overflow-x-auto pb-0.5 sm:hidden">
               {questions.map((q, idx) => {
                 const ans = answers[q.id];
                 const isAnswered = ans !== undefined && ans !== null && ans !== '';
@@ -4215,13 +4138,11 @@ export default function StudentExamPage() {
             </div>
           </div>
 
-          {/* ============================================================ */}
-          {/* ===== منطقة عرض السؤال – مع تمرير أفقي طبيعي ===== */}
-          {/* ============================================================ */}
+          {/* ===== منطقة عرض السؤال ===== */}
           <div className="flex-1 overflow-y-auto bg-gradient-to-br from-transparent via-yellow-400/5 to-blue-500/5">
-            <div className="max-w-4xl mx-auto px-4 py-4 w-full">
+            <div className="max-w-4xl mx-auto px-3 md:px-4 py-3 md:py-4 w-full">
               <div className="w-full overflow-x-auto overflow-y-visible exam-scrollbar" style={{ maxWidth: '100%' }}>
-                <div className="w-full min-w-[min(100%,_calc(100vw-2rem))]">
+                <div className="w-full min-w-[min(100%,_calc(100vw-1.5rem))]">
                   <AnimatePresence mode="wait">
                     {currentQuestion && (
                       <motion.div
@@ -4241,51 +4162,45 @@ export default function StudentExamPage() {
             </div>
           </div>
 
-          {/* ============================================================ */}
-          {/* ===== الشريط السفلي – أزرار التنقل ونقاط الأسئلة ===== */}
-          {/* ============================================================ */}
+          {/* ===== الشريط السفلي – مع زر تسليم كبير على الهواتف ===== */}
           <div
-            className={`flex-shrink-0 min-h-[56px] px-2 py-2 border-t ${isDark ? 'border-white/20 bg-[#0b0e1a]/95' : 'border-gray-300 bg-gray-100/95'} backdrop-blur-lg`}
+            className={`flex-shrink-0 min-h-[52px] md:min-h-[56px] px-2 py-1.5 md:py-2 border-t ${isDark ? 'border-white/20 bg-[#0b0e1a]/95' : 'border-gray-300 bg-gray-100/95'} backdrop-blur-lg`}
           >
             <div className="flex items-center gap-1 max-w-6xl mx-auto w-full h-full">
-              {/* زر السابق */}
               <button
                 onClick={() => goToQuestion(currentIndex - 1)}
                 disabled={currentIndex === 0 || !exam?.allow_backward}
                 style={{ touchAction: 'manipulation' }}
-                className={`p-2 rounded-xl border-2 font-bold text-sm transition disabled:opacity-30 disabled:cursor-not-allowed flex-shrink-0 ${
+                className={`p-1.5 md:p-2 rounded-xl border-2 font-bold text-sm transition disabled:opacity-30 disabled:cursor-not-allowed flex-shrink-0 ${
                   isDark
                     ? 'bg-white/10 border-white/30 text-white hover:bg-white/20 hover:scale-105'
                     : 'bg-gray-200 border-gray-400 text-gray-800 hover:bg-gray-300 hover:scale-105'
                 }`}
                 title={language === 'ar' ? 'السؤال السابق' : 'Previous'}
               >
-                <Icons.ChevronRight className="h-5 w-5" />
+                <Icons.ChevronRight className="h-4 w-4 md:h-5 md:w-5" />
               </button>
 
-              {/* عداد السؤال */}
-              <span className={`text-xs font-bold ${styles.text} min-w-[40px] text-center flex-shrink-0`}>
+              <span className={`text-[10px] md:text-xs font-bold ${styles.text} min-w-[32px] md:min-w-[40px] text-center flex-shrink-0`}>
                 {currentIndex + 1}/{questions.length}
               </span>
 
-              {/* زر التالي */}
               <button
                 onClick={() => goToQuestion(currentIndex + 1)}
                 disabled={currentIndex === questions.length - 1}
                 style={{ touchAction: 'manipulation' }}
-                className={`p-2 rounded-xl border-2 font-bold text-sm transition disabled:opacity-30 disabled:cursor-not-allowed flex-shrink-0 ${
+                className={`p-1.5 md:p-2 rounded-xl border-2 font-bold text-sm transition disabled:opacity-30 disabled:cursor-not-allowed flex-shrink-0 ${
                   isDark
                     ? 'bg-white/10 border-white/30 text-white hover:bg-white/20 hover:scale-105'
                     : 'bg-gray-200 border-gray-400 text-gray-800 hover:bg-gray-300 hover:scale-105'
                 }`}
                 title={language === 'ar' ? 'السؤال التالي' : 'Next'}
               >
-                <Icons.ChevronLeft className="h-5 w-5" />
+                <Icons.ChevronLeft className="h-4 w-4 md:h-5 md:w-5" />
               </button>
 
-              {/* شريط النقاط – مع تمرير أفقي حقيقي وارتفاع صغير */}
-              <div className="flex-1 overflow-x-auto overflow-y-hidden px-1 py-0.5 scrollbar-thin scrollbar-thumb-yellow-400/30 scrollbar-track-transparent">
-                <div className="flex flex-nowrap gap-1.5 min-w-max">
+              <div className="flex-1 overflow-x-auto overflow-y-hidden px-0.5 md:px-1 py-0.5 scrollbar-thin scrollbar-thumb-yellow-400/30 scrollbar-track-transparent">
+                <div className="flex flex-nowrap gap-1 md:gap-1.5 min-w-max">
                   {questions.map((q, idx) => {
                     const ans = answers[q.id];
                     const isAnswered = ans !== undefined && ans !== null && ans !== '';
@@ -4298,7 +4213,7 @@ export default function StudentExamPage() {
                         key={q.id}
                         onClick={() => goToQuestion(idx)}
                         style={{ touchAction: 'manipulation' }}
-                        className={`flex-shrink-0 h-2 w-5 rounded-full transition-all ${bg} ${isCurrent ? 'scale-125 shadow-lg shadow-yellow-400/50 ring-1 ring-yellow-400/30' : ''}`}
+                        className={`flex-shrink-0 h-1.5 md:h-2 w-3 md:w-5 rounded-full transition-all ${bg} ${isCurrent ? 'scale-125 shadow-lg shadow-yellow-400/50 ring-1 ring-yellow-400/30' : ''}`}
                         title={`${language === 'ar' ? 'سؤال' : 'Q'} ${idx + 1}${isAnswered ? ' ✓' : ''}`}
                       />
                     );
@@ -4306,21 +4221,20 @@ export default function StudentExamPage() {
                 </div>
               </div>
 
-              {/* زر التسليم */}
+              {/* زر التسليم – كبير على الهواتف */}
               <button
                 onClick={openSubmitModal}
                 style={{ touchAction: 'manipulation' }}
-                className="px-3 py-2 rounded-xl bg-gradient-to-r from-emerald-400 to-emerald-600 text-white font-bold text-sm hover:from-emerald-500 hover:to-emerald-700 transition flex items-center gap-1.5 shadow-lg shadow-emerald-400/30 flex-shrink-0"
+                className="px-3 md:px-4 py-1.5 md:py-2 rounded-xl bg-gradient-to-r from-emerald-400 to-emerald-600 text-white font-bold text-sm md:text-base hover:from-emerald-500 hover:to-emerald-700 transition flex items-center gap-1.5 shadow-lg shadow-emerald-400/30 flex-shrink-0"
               >
-                <Icons.CheckCircle className="h-4 w-4" />
-                <span className="hidden sm:inline">{language === 'ar' ? 'تسليم' : 'Submit'}</span>
+                <Icons.CheckCircle className="h-4 w-4 md:h-5 md:w-5" />
+                <span className="text-xs md:text-sm">{language === 'ar' ? 'تسليم' : 'Submit'}</span>
               </button>
             </div>
           </div>
         </div>
       </div>
 
-      {/* ===== نافذة تأكيد التسليم (كما هي) ===== */}
       <SubmitConfirmationModal
         isOpen={showSubmitModal}
         onClose={() => setShowSubmitModal(false)}
