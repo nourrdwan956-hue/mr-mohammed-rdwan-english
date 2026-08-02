@@ -96,7 +96,7 @@ body {
 a {
   color: var(--gold);
   text-decoration: none;
-  transition: color 0.2s; /* ✅ انتقال فقط على اللون */
+  transition: color 0.2s;
 }
 a:hover {
   color: var(--gold-light);
@@ -107,7 +107,7 @@ input, textarea, select {
   background-color: var(--bg-input);
   color: var(--text-primary);
   border-color: var(--border-color);
-  transition: border-color 0.2s, box-shadow 0.2s; /* ✅ انتقال محدد */
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
 input:focus, textarea:focus, select:focus {
   border-color: var(--gold);
@@ -121,7 +121,7 @@ input:focus, textarea:focus, select:focus {
   border: 1px solid var(--border-color);
   box-shadow: var(--shadow);
   border-radius: 16px;
-  transition: box-shadow 0.2s; /* ✅ انتقال محدد */
+  transition: box-shadow 0.2s;
 }
 .card:hover {
   box-shadow: var(--shadow-lg);
@@ -134,7 +134,7 @@ input:focus, textarea:focus, select:focus {
   font-weight: 700;
   padding: 10px 24px;
   border-radius: 12px;
-  transition: transform 0.2s, box-shadow 0.2s; /* ✅ انتقال محدد */
+  transition: transform 0.2s, box-shadow 0.2s;
 }
 .btn-primary:hover {
   transform: scale(1.02);
@@ -144,7 +144,7 @@ input:focus, textarea:focus, select:focus {
   transform: scale(0.98);
 }
 
-/* ===== شريط التمرير ===== */
+/* ===== شريط التمرير العام ===== */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -158,6 +158,56 @@ input:focus, textarea:focus, select:focus {
 }
 ::-webkit-scrollbar-thumb:hover {
   background: var(--gold-dark);
+}
+
+/* ================================================================ */
+/* ✅ شريط التمرير الأفقي المخصص لصفحة الامتحان (يظهر دائماً) */
+/* ================================================================ */
+
+/* للـ WebKit (Chrome, Safari, Edge) */
+.exam-scrollbar::-webkit-scrollbar {
+  height: 10px;                 /* ارتفاع الشريط */
+  width: 10px;
+}
+.exam-scrollbar::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+.exam-scrollbar::-webkit-scrollbar-thumb {
+  background: linear-gradient(to right, var(--gold-light), var(--gold));
+  border-radius: 12px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  box-shadow: 0 0 10px rgba(201, 168, 76, 0.2);
+  transition: all 0.3s ease;
+}
+.exam-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(to right, #fcd34d, var(--gold-dark));
+  box-shadow: 0 0 20px rgba(201, 168, 76, 0.4);
+}
+.exam-scrollbar::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* للـ Firefox */
+.exam-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--gold) rgba(255, 255, 255, 0.06);
+}
+
+/* ✅ نسخة للوضع الداكن مع تباين أعلى */
+.dark .exam-scrollbar::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.dark .exam-scrollbar::-webkit-scrollbar-thumb {
+  background: linear-gradient(to right, #fbbf24, #f59e0b);
+  box-shadow: 0 0 15px rgba(251, 191, 36, 0.15);
+}
+.dark .exam-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(to right, #fcd34d, #d97706);
+  box-shadow: 0 0 25px rgba(251, 191, 36, 0.3);
 }
 
 /* ===== أنماط إضافية لبيئة الامتحان ===== */
@@ -204,12 +254,17 @@ input:focus, textarea:focus, select:focus {
 /* ===== تحسين الجوال (شاشات صغيرة) ===== */
 @media (max-width: 640px) {
   .card {
-    padding: 12px !important;      /* تصغير padding البطاقات */
+    padding: 12px !important;
     border-radius: 12px !important;
   }
   .btn-primary {
     padding: 8px 16px;
     font-size: 14px;
+  }
+  
+  /* ✅ تصغير شريط التمرير على الجوال */
+  .exam-scrollbar::-webkit-scrollbar {
+    height: 6px;
   }
 }
 
@@ -221,5 +276,9 @@ input:focus, textarea:focus, select:focus {
   .btn-primary {
     padding: 6px 14px;
     font-size: 13px;
+  }
+  
+  .exam-scrollbar::-webkit-scrollbar {
+    height: 5px;
   }
 }

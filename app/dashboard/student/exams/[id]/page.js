@@ -4,8 +4,7 @@
 // ✅ خصم محاولة عند الـ Reload (F5 / زر التحميل)
 // ✅ تطبيق الثيم الفاتح/الداكن بتباين عالٍ جداً
 // ✅ شريط سفلي مع أزرار تنقل بين الأسئلة وشريط نقاط
-// ✅ إضافة شريط تمرير أفقي داخل منطقة عرض السؤال
-// ✅ أزرار تمرير أفقي (يمين/يسار) في الشريط السفلي
+// ✅ إضافة شريط تمرير أفقي داخل منطقة عرض السؤال (باستخدام input range)
 // ✅ تحسين الأداء والتجاوب
 // ================================================================
 
@@ -2349,7 +2348,6 @@ export default function StudentExamPage() {
   const contentContainerRef = useRef(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
-  // ===== إضافة حالات للتمرير الأفقي المخصص =====
   const [pageScrollLeft, setPageScrollLeft] = useState(0);
   const [pageScrollWidth, setPageScrollWidth] = useState(0);
 
@@ -2385,22 +2383,16 @@ export default function StudentExamPage() {
     }
   }, []);
 
-  // دالة تحديث معلومات التمرير
-  const updateScrollInfo = useCallback(() => {
-    if (contentContainerRef.current) {
-      const { scrollLeft, scrollWidth, clientWidth } = contentContainerRef.current;
-      setPageScrollLeft(scrollLeft);
-      setPageScrollWidth(Math.max(1, scrollWidth - clientWidth));
-    }
-  }, []);
-
   useEffect(() => {
     const container = contentContainerRef.current;
     if (container) {
-      container.addEventListener('scroll', updateScrollButtons);
+      const handleScroll = () => {
+        updateScrollButtons();
+      };
+      container.addEventListener('scroll', handleScroll);
       // التحقق الأولي بعد التصيير
       setTimeout(updateScrollButtons, 100);
-      return () => container.removeEventListener('scroll', updateScrollButtons);
+      return () => container.removeEventListener('scroll', handleScroll);
     }
   }, [updateScrollButtons]);
 
@@ -4277,7 +4269,7 @@ export default function StudentExamPage() {
               {/* حاوية التمرير الأفقي */}
               <div
                 ref={contentContainerRef}
-                className="overflow-x-auto overflow-y-visible scrollbar-thin scrollbar-thumb-yellow-400/30 scrollbar-track-transparent"
+                className="overflow-x-auto overflow-y-visible scrollbar-thin scrollbar-thumb-yellow-400/30 scrollbar-track-transparent exam-scrollbar"
               >
                 <div className="min-w-max w-full">
                   <AnimatePresence mode="wait">
