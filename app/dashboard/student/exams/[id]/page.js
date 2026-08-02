@@ -1,10 +1,11 @@
 // app/dashboard/student/exams/[id]/page.js
 // ================================================================
-// 🏛️ الصفحة النهائية مع تمرير طبيعي وتحسينات الهواتف
+// 🏛️ الصفحة النهائية – تحسين شامل للأجهزة الصغيرة والكبيرة
 // ✅ خصم محاولة عند الـ Reload (F5 / زر التحميل)
 // ✅ تطبيق الثيم الفاتح/الداكن بتباين عالٍ جداً
 // ✅ شريط سفلي مع أزرار تنقل وشريط نقاط + زر تسليم كبير
-// ✅ تحسين الرؤية على الأجهزة الصغيرة وتصغير الأيقونات
+// ✅ عرض الأسئلة والخيارات بالكامل دون تقطيع أو حاجة للتقليص
+// ✅ تحسين الرؤية على الهواتف مع الحفاظ على جودة العرض للشاشات الكبيرة
 // ✅ منع الطباعة (Ctrl+P) ومفاتيح الاختصار
 // ================================================================
 
@@ -576,10 +577,10 @@ const ExamCountdownScreen = ({ exam, styles, language, isDark }) => {
 };
 
 // ================================================================
-// 3. مكونات الأسئلة (مع تباين عالٍ)
+// 3. مكونات الأسئلة (مع تباين عالٍ وتحسين العرض)
 // ================================================================
 
-// 3.1 MCQ – مع إزالة الخلط (ترتيب ثابت حسب قاعدة البيانات)
+// 3.1 MCQ – مع تحسين عرض الخيارات لتظهر كاملة
 const MCQQuestion = ({ question, selectedAnswer, onSelect, styles, language, isDark }) => {
   const rawOptions = Array.isArray(question.options) ? question.options : [];
   const labels = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
@@ -593,7 +594,7 @@ const MCQQuestion = ({ question, selectedAnswer, onSelect, styles, language, isD
   });
 
   return (
-    <div className="space-y-2.5">
+    <div className="space-y-2.5 w-full">
       {options.map((opt, idx) => {
         const label = labels[idx];
         const isSelected = selectedAnswer === label;
@@ -603,18 +604,18 @@ const MCQQuestion = ({ question, selectedAnswer, onSelect, styles, language, isD
             whileTap={{ scale: 0.98 }}
             onClick={() => onSelect(label)}
             style={{ touchAction: 'manipulation' }}
-            className={`w-full text-right p-4 rounded-xl border-4 border-solid transition-all duration-200 flex items-center gap-3 backdrop-blur-sm ${
+            className={`w-full text-right p-3 md:p-4 rounded-xl border-4 border-solid transition-all duration-200 flex items-start gap-3 backdrop-blur-sm break-words overflow-wrap-anywhere ${
               isSelected
                 ? 'border-yellow-400 bg-yellow-400/20 shadow-lg shadow-yellow-400/30'
                 : `${isDark ? 'border-white/10 hover:border-yellow-400/40' : 'border-gray-600 hover:border-yellow-400/70'} ${styles.card} bg-opacity-50 hover:bg-white/20`
             }`}
           >
-            <span className={`flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm ${
+            <span className={`flex-shrink-0 w-7 h-7 md:w-8 md:h-8 rounded-lg flex items-center justify-center font-bold text-sm ${
               isSelected ? 'bg-yellow-400 text-black' : `${styles.card} bg-opacity-30 ${styles.text}`
             }`}>
               {label}
             </span>
-            <span className={`text-sm font-medium ${isSelected ? 'text-yellow-300' : styles.text}`}>
+            <span className={`text-sm md:text-base font-medium break-words flex-1 text-right ${isSelected ? 'text-yellow-300' : styles.text}`}>
               {opt.text}
             </span>
           </motion.button>
@@ -639,7 +640,7 @@ const TrueFalseQuestion = ({ selectedAnswer, onSelect, styles, language }) => {
     { value: 'false', label: language === 'ar' ? '❌ خطأ' : '❌ False', color: 'rose' },
   ];
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
       {options.map((opt) => {
         const isSelected = selectedAnswer === opt.value;
         const colorClass = opt.color === 'emerald'
@@ -699,7 +700,7 @@ const MatchingQuestion = ({ question, selectedAnswer, onSelect, styles, language
   };
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 w-full">
       <div className="grid grid-cols-2 gap-4 text-sm">
         <div className="space-y-2">
           <p className={`text-xs ${styles.subtext} font-semibold`}>{language === 'ar' ? 'العناصر' : 'Items'}</p>
@@ -717,7 +718,7 @@ const MatchingQuestion = ({ question, selectedAnswer, onSelect, styles, language
                   : `${styles.border} ${styles.card} bg-opacity-40 hover:bg-white/10`
               }`}
             >
-              <span className={`${styles.text} text-xs font-medium`}>{item}</span>
+              <span className={`${styles.text} text-xs font-medium break-words`}>{item}</span>
               {selected[item] && <span className="text-emerald-400 text-xs mr-2">✓</span>}
             </motion.div>
           ))}
@@ -738,7 +739,7 @@ const MatchingQuestion = ({ question, selectedAnswer, onSelect, styles, language
                   : `${styles.border} ${styles.card} bg-opacity-40 hover:bg-white/10`
               }`}
             >
-              <span className={`${styles.text} text-xs font-medium`}>{item}</span>
+              <span className={`${styles.text} text-xs font-medium break-words`}>{item}</span>
               {Object.values(selected).includes(item) && <span className="text-emerald-400 text-xs mr-2">✓</span>}
             </motion.div>
           ))}
@@ -768,7 +769,7 @@ const OrderingQuestion = ({ question, selectedAnswer, onSelect, styles, language
   };
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2 w-full">
       {ordered.map((item, idx) => (
         <div key={idx} className={`flex items-center gap-3 p-3 rounded-xl border-2 ${styles.border} ${styles.card} bg-opacity-50 backdrop-blur-sm`}>
           <div className="flex flex-col gap-0.5">
@@ -787,7 +788,7 @@ const OrderingQuestion = ({ question, selectedAnswer, onSelect, styles, language
               <Icons.ChevronDown className="h-4 w-4" />
             </button>
           </div>
-          <span className={`flex-1 text-sm ${styles.text}`}>{idx + 1}. {item}</span>
+          <span className={`flex-1 text-sm break-words ${styles.text}`}>{idx + 1}. {item}</span>
         </div>
       ))}
     </div>
@@ -798,7 +799,7 @@ const OrderingQuestion = ({ question, selectedAnswer, onSelect, styles, language
 const FillBlankQuestion = ({ question, selectedAnswer, onSelect, styles, language, isDark }) => {
   const answer = selectedAnswer || '';
   return (
-    <div className="space-y-2">
+    <div className="space-y-2 w-full">
       <div className={`w-full rounded-xl border-4 ${answer ? 'border-yellow-400' : isDark ? 'border-white/50' : 'border-gray-600'} transition-all duration-300 focus-within:ring-4 focus-within:ring-yellow-400/60 focus-within:border-yellow-400 ${styles.card} bg-opacity-${isDark ? '80' : '100'} shadow-inner shadow-lg`}>
         <input
           type="text"
@@ -832,7 +833,7 @@ const EssayQuestion = ({ question, selectedAnswer, onSelect, styles, language, i
   };
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 w-full">
       <div className={`w-full rounded-xl border-4 ${answer ? 'border-yellow-400' : isDark ? 'border-white/50' : 'border-gray-600'} transition-all duration-300 focus-within:ring-4 focus-within:ring-yellow-400/60 focus-within:border-yellow-400 ${styles.card} bg-opacity-${isDark ? '80' : '100'} shadow-inner shadow-lg`}>
         <textarea
           value={answer}
@@ -843,7 +844,7 @@ const EssayQuestion = ({ question, selectedAnswer, onSelect, styles, language, i
           style={{ background: 'transparent' }}
         />
       </div>
-      <div className="flex justify-between items-center text-xs">
+      <div className="flex justify-between items-center text-xs flex-wrap gap-1">
         <span className={isDark ? 'text-gray-300' : 'text-gray-700'}>
           {language === 'ar' ? 'عدد الكلمات' : 'Words'}: {wordCount}
           {wordLimit > 0 && ` / ${wordLimit}`}
@@ -901,8 +902,8 @@ const FillFromWordsQuestion = ({ question, selectedAnswer, onSelect, styles, lan
 
   if (segments.length === 0) {
     return (
-      <div className="space-y-4">
-        <div className={`p-4 rounded-xl ${styles.card} border ${styles.border} text-base leading-relaxed`}>
+      <div className="space-y-4 w-full">
+        <div className={`p-4 rounded-xl ${styles.card} border ${styles.border} text-base leading-relaxed break-words`}>
           <span className={`text-base ${styles.text}`}>{text}</span>
         </div>
         <p className={`text-xs text-red-400`}>
@@ -922,8 +923,8 @@ const FillFromWordsQuestion = ({ question, selectedAnswer, onSelect, styles, lan
 
   if (wordBank.length === 0) {
     return (
-      <div className="space-y-4">
-        <div className={`p-4 rounded-xl ${styles.card} border ${styles.border} text-base leading-relaxed`}>
+      <div className="space-y-4 w-full">
+        <div className={`p-4 rounded-xl ${styles.card} border ${styles.border} text-base leading-relaxed break-words`}>
           <span className={`text-base ${styles.text}`}>{text}</span>
         </div>
         <p className={`text-xs text-red-400`}>
@@ -934,19 +935,19 @@ const FillFromWordsQuestion = ({ question, selectedAnswer, onSelect, styles, lan
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 w-full">
       <div className="flex flex-wrap items-center gap-2 p-3 rounded-xl bg-white/10 border border-white/10">
         <span className={`text-xs font-semibold ${styles.subtext} ml-2`}>
           📚 {language === 'ar' ? 'صندوق الكلمات:' : 'Word Bank:'}
         </span>
         {wordBank.map((w, i) => (
-          <span key={i} className={`px-3 py-1 rounded-full text-sm border ${styles.border} ${styles.card} shadow-sm`}>
+          <span key={i} className={`px-3 py-1 rounded-full text-sm border ${styles.border} ${styles.card} shadow-sm break-words`}>
             {w}
           </span>
         ))}
       </div>
 
-      <div className={`p-4 rounded-xl ${styles.card} border ${styles.border} text-base leading-relaxed`}>
+      <div className={`p-4 rounded-xl ${styles.card} border ${styles.border} text-base leading-relaxed break-words`}>
         {segments.map((seg, idx) => {
           if (seg.type === 'text') {
             return <span key={`text-${idx}`} className={`text-base ${styles.text}`}>{seg.content}</span>;
@@ -1048,7 +1049,7 @@ const SentenceReorderQuestion = ({ question, selectedAnswer, onSelect, styles, l
   const [showGuide, setShowGuide] = useState(true);
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 w-full">
       {showGuide && (
         <motion.div
           initial={{ opacity: 0, y: -10 }}
@@ -1318,7 +1319,7 @@ const PassageDisplay = ({ passageId, originalText, examId, styles, isDark, passa
   ];
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 w-full">
       {/* أزرار التحكم: تلوين + تكبير نص القطعة */}
       <div className="flex flex-wrap items-center gap-2 p-2 rounded-xl bg-white/10 dark:bg-black/20 backdrop-blur-sm border border-white/20 dark:border-white/10">
         <div className="flex items-center gap-1">
@@ -1404,10 +1405,10 @@ const PassageDisplay = ({ passageId, originalText, examId, styles, isDark, passa
       <div
         ref={containerRef}
         dir="ltr"
-        className={`p-4 rounded-xl ${styles.card} border ${styles.border} select-text`}
+        className={`p-4 rounded-xl ${styles.card} border ${styles.border} select-text w-full overflow-x-auto`}
         style={{ direction: 'ltr', textAlign: 'left' }}
       >
-        <div className={`${passageFontSize || 'text-base'} ${styles.text} leading-relaxed whitespace-pre-wrap`}>
+        <div className={`${passageFontSize || 'text-base'} ${styles.text} leading-relaxed whitespace-pre-wrap break-words`}>
           {renderHighlightedText()}
         </div>
       </div>
@@ -3566,7 +3567,7 @@ export default function StudentExamPage() {
             onFontSizeChange={setPassageFontSize}
           />
         )}
-        <p className={`${fontSize} ${isBold ? 'font-bold' : 'font-medium'} ${isItalic ? 'italic' : ''} ${styles.text} leading-relaxed`}>
+        <p className={`${fontSize} ${isBold ? 'font-bold' : 'font-medium'} ${isItalic ? 'italic' : ''} ${styles.text} leading-relaxed break-words`}>
           {q.question_text}
         </p>
         {questionComponent}
@@ -4225,10 +4226,10 @@ export default function StudentExamPage() {
               <button
                 onClick={openSubmitModal}
                 style={{ touchAction: 'manipulation' }}
-                className="px-3 md:px-4 py-1.5 md:py-2 rounded-xl bg-gradient-to-r from-emerald-400 to-emerald-600 text-white font-bold text-sm md:text-base hover:from-emerald-500 hover:to-emerald-700 transition flex items-center gap-1.5 shadow-lg shadow-emerald-400/30 flex-shrink-0"
+                className="px-4 md:px-5 py-2 md:py-2.5 rounded-xl bg-gradient-to-r from-emerald-400 to-emerald-600 text-white font-bold text-base md:text-lg hover:from-emerald-500 hover:to-emerald-700 transition flex items-center gap-2 shadow-lg shadow-emerald-400/30 flex-shrink-0"
               >
-                <Icons.CheckCircle className="h-4 w-4 md:h-5 md:w-5" />
-                <span className="text-xs md:text-sm">{language === 'ar' ? 'تسليم' : 'Submit'}</span>
+                <Icons.CheckCircle className="h-5 w-5 md:h-6 md:w-6" />
+                <span>{language === 'ar' ? 'تسليم' : 'Submit'}</span>
               </button>
             </div>
           </div>
