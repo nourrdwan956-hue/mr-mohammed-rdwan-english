@@ -30,6 +30,8 @@ import { toast } from 'react-hot-toast';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import NotificationDrawer from '@/app/dashboard/student/components/NotificationDrawer';
+// ✅ استيراد المكون العام
+import WaveBorderCard from '@/components/WaveBorderCard';
 
 // ================================================================
 // دوال IndexedDB للملاحظات (بدون تغيير)
@@ -172,96 +174,17 @@ const MembershipCounter = ({ days, styles, language }) => {
 };
 
 // ================================================================
-// 3. ألوان البطاقات (بدون تغيير)
-// ================================================================
-const CARD_COLORS = [
-  { name: 'blue', text: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-500/10 dark:bg-blue-400/10', border: 'border-blue-400/30 dark:border-blue-400/20' },
-  { name: 'green', text: 'text-green-600 dark:text-green-400', bg: 'bg-green-500/10 dark:bg-green-400/10', border: 'border-green-400/30 dark:border-green-400/20' },
-  { name: 'orange', text: 'text-orange-600 dark:text-orange-400', bg: 'bg-orange-500/10 dark:bg-orange-400/10', border: 'border-orange-400/30 dark:border-orange-400/20' },
-  { name: 'red', text: 'text-red-600 dark:text-red-400', bg: 'bg-red-500/10 dark:bg-red-400/10', border: 'border-red-400/30 dark:border-red-400/20' },
-  { name: 'purple', text: 'text-purple-600 dark:text-purple-400', bg: 'bg-purple-500/10 dark:bg-purple-400/10', border: 'border-purple-400/30 dark:border-purple-400/20' },
-  { name: 'teal', text: 'text-teal-600 dark:text-teal-400', bg: 'bg-teal-500/10 dark:bg-teal-400/10', border: 'border-teal-400/30 dark:border-teal-400/20' },
-];
-
-const getRandomColor = (exclude = []) => {
-  const available = CARD_COLORS.filter(c => !exclude.includes(c.name));
-  if (available.length === 0) return CARD_COLORS[0];
-  return available[Math.floor(Math.random() * available.length)];
-};
-
-// ================================================================
-// 4. مكون الحدود الموجية – تم تعديل الفاصل إلى 100ms
-// ================================================================
-const WaveBorderCard = ({ children, className = '', initialColor = 'blue', onColorChange }) => {
-  const [color, setColor] = useState(CARD_COLORS.find(c => c.name === initialColor) || CARD_COLORS[0]);
-  const [rotation, setRotation] = useState(0);
-  const colorRef = useRef(color);
-  const isMounted = useRef(true);
-
-  useEffect(() => {
-    colorRef.current = color;
-  }, [color]);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (!isMounted.current) return;
-      setRotation(prev => {
-        const newRot = prev + 2;
-        if (newRot >= 360) {
-          const newColor = getRandomColor([colorRef.current.name]);
-          setColor(newColor);
-          if (onColorChange) {
-            onColorChange(newColor);
-          }
-          return 0;
-        }
-        return newRot;
-      });
-    }, 100); // ✅ تم التعديل من 50 إلى 100 لتقليل الحمل
-    return () => {
-      isMounted.current = false;
-      clearInterval(interval);
-    };
-  }, [onColorChange]);
-
-  const waveColors = [
-    `rgba(59, 130, 246, 0.6)`,
-    `rgba(37, 99, 235, 0.3)`,
-    `rgba(96, 165, 250, 0.5)`,
-    `rgba(59, 130, 246, 0.7)`,
-    `rgba(37, 99, 235, 0.2)`,
-  ];
-
-  const gradientStyle = {
-    background: `conic-gradient(from ${rotation}deg, ${waveColors.join(', ')})`,
-    borderRadius: '1.5rem',
-    padding: '3px',
-    WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
-    WebkitMaskComposite: 'xor',
-    maskComposite: 'exclude',
-  };
-
-  return (
-    <div className={`relative rounded-2xl overflow-hidden group ${className}`}>
-      <div
-        className="absolute inset-0 rounded-2xl"
-        style={gradientStyle}
-      />
-      <div className="relative z-10 h-full w-full rounded-2xl backdrop-blur-sm bg-[var(--bg-card)] border border-[var(--border-color)]">
-        {children}
-      </div>
-    </div>
-  );
-};
-
-// ================================================================
-// 5. بطاقة إحصائية – مصغرة مع تحسينات الاستجابة
+// 3. بطاقة إحصائية – مصغرة مع تحسينات الاستجابة (بألوان ثابتة)
 // ================================================================
 const LargeStatCard = ({ icon: Icon, label, value, styles, delay = 0 }) => {
-  const [color, setColor] = useState(CARD_COLORS[0]);
   const [isHovered, setIsHovered] = useState(false);
-
-  const handleColorChange = (newColor) => setColor(newColor);
+  // استخدام ألوان ثابتة (أزرق)
+  const color = {
+    name: 'blue',
+    text: 'text-blue-600 dark:text-blue-400',
+    bg: 'bg-blue-500/10 dark:bg-blue-400/10',
+    border: 'border-blue-400/30 dark:border-blue-400/20',
+  };
 
   return (
     <motion.div
@@ -272,7 +195,7 @@ const LargeStatCard = ({ icon: Icon, label, value, styles, delay = 0 }) => {
       onMouseLeave={() => setIsHovered(false)}
       whileHover={{ scale: 1.03 }}
     >
-      <WaveBorderCard initialColor={color.name} onColorChange={handleColorChange}>
+      <WaveBorderCard initialColor={color.name}>
         <div className="p-3 xs:p-4 sm:p-5 flex items-center justify-between gap-2 xs:gap-3">
           <div>
             <p className={`text-[10px] xs:text-xs sm:text-sm font-medium ${styles.subtext} mb-0.5`}>{label}</p>
@@ -294,14 +217,17 @@ const LargeStatCard = ({ icon: Icon, label, value, styles, delay = 0 }) => {
 };
 
 // ================================================================
-// 6. بطاقة كورس – مصغرة مع تحسينات الاستجابة
+// 4. بطاقة كورس – مصغرة (ألوان ثابتة)
 // ================================================================
 const LargeCourseCard = ({ course, progress, styles, theme, language }) => {
   const router = useRouter();
-  const [color, setColor] = useState(CARD_COLORS[1]);
   const [isHovered, setIsHovered] = useState(false);
-
-  const handleColorChange = (newColor) => setColor(newColor);
+  const color = {
+    name: 'green',
+    text: 'text-green-600 dark:text-green-400',
+    bg: 'bg-green-500/10 dark:bg-green-400/10',
+    border: 'border-green-400/30 dark:border-green-400/20',
+  };
 
   return (
     <motion.div
@@ -311,7 +237,7 @@ const LargeCourseCard = ({ course, progress, styles, theme, language }) => {
       className="relative cursor-pointer"
       onClick={() => router.push(`/dashboard/student/courses/${course.id}`)}
     >
-      <WaveBorderCard initialColor={color.name} onColorChange={handleColorChange}>
+      <WaveBorderCard initialColor={color.name}>
         <div className="p-3 xs:p-4 sm:p-5">
           <div className="flex items-start justify-between mb-2 xs:mb-3">
             <div className="flex items-center gap-2 xs:gap-3">
@@ -369,21 +295,24 @@ const LargeCourseCard = ({ course, progress, styles, theme, language }) => {
 };
 
 // ================================================================
-// 7. بطاقة الإعلانات – مصغرة مع تحسينات الاستجابة
+// 5. بطاقة الإعلانات – مصغرة (ألوان ثابتة)
 // ================================================================
 const SuperAnnouncements = ({ announcements, styles, language }) => {
   const [expanded, setExpanded] = useState(false);
   const [currentPage, setCurrentPage] = useState(0);
   const totalPages = announcements.length;
-  const [color, setColor] = useState(CARD_COLORS[2]);
   const [isHovered, setIsHovered] = useState(false);
-
-  const handleColorChange = (newColor) => setColor(newColor);
+  const color = {
+    name: 'orange',
+    text: 'text-orange-600 dark:text-orange-400',
+    bg: 'bg-orange-500/10 dark:bg-orange-400/10',
+    border: 'border-orange-400/30 dark:border-orange-400/20',
+  };
 
   if (totalPages === 0) {
     return (
       <motion.div initial={{ opacity: 0, y: 15 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
-        <WaveBorderCard initialColor={color.name} onColorChange={handleColorChange}>
+        <WaveBorderCard initialColor={color.name}>
           <div className="p-3 xs:p-4 space-y-2.5">
             <div className="flex items-center gap-1.5 xs:gap-2">
               <Megaphone className={`h-3.5 w-3.5 xs:h-4 xs:w-4 ${color.text}`} />
@@ -487,7 +416,7 @@ const SuperAnnouncements = ({ announcements, styles, language }) => {
         onMouseLeave={() => setIsHovered(false)}
         className="relative"
       >
-        <WaveBorderCard initialColor={color.name} onColorChange={handleColorChange}>
+        <WaveBorderCard initialColor={color.name}>
           <motion.div
             animate={isHovered ? { scale: 1.02 } : { scale: 1 }}
             transition={{ type: 'spring', stiffness: 300, damping: 25 }}
@@ -588,12 +517,16 @@ const SuperAnnouncements = ({ announcements, styles, language }) => {
 };
 
 // ================================================================
-// 8. بطاقة الملاحظة – مصغرة مع تحسينات الاستجابة
+// 6. بطاقة الملاحظة – مصغرة (ألوان ثابتة)
 // ================================================================
 const LargeNoteCard = ({ latestNote, language, styles, theme }) => {
   const router = useRouter();
-  const [color, setColor] = useState(CARD_COLORS[4]);
-  const handleColorChange = (newColor) => setColor(newColor);
+  const color = {
+    name: 'purple',
+    text: 'text-purple-600 dark:text-purple-400',
+    bg: 'bg-purple-500/10 dark:bg-purple-400/10',
+    border: 'border-purple-400/30 dark:border-purple-400/20',
+  };
 
   return (
     <motion.div
@@ -601,7 +534,7 @@ const LargeNoteCard = ({ latestNote, language, styles, theme }) => {
       onClick={() => router.push('/dashboard/student/notes')}
       className="relative cursor-pointer"
     >
-      <WaveBorderCard initialColor={color.name} onColorChange={handleColorChange}>
+      <WaveBorderCard initialColor={color.name}>
         <div className="p-3 xs:p-4 sm:p-5">
           <div className="flex items-center gap-1.5 xs:gap-2 mb-1.5 xs:mb-2">
             <div className={`p-1.5 xs:p-2 rounded-lg ${color.bg}`}>
@@ -630,7 +563,7 @@ const LargeNoteCard = ({ latestNote, language, styles, theme }) => {
 };
 
 // ================================================================
-// 9. شريط المعلومات اليومية – مصغر مع تحسينات الاستجابة
+// 7. شريط المعلومات اليومية – مصغر (ألوان ثابتة)
 // ================================================================
 const LanguageTipCarousel = ({ language, styles }) => {
   const tips = [
@@ -647,8 +580,13 @@ const LanguageTipCarousel = ({ language, styles }) => {
   ];
 
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [color, setColor] = useState(CARD_COLORS[5]);
   const totalTips = tips.length;
+  const color = {
+    name: 'teal',
+    text: 'text-teal-600 dark:text-teal-400',
+    bg: 'bg-teal-500/10 dark:bg-teal-400/10',
+    border: 'border-teal-400/30 dark:border-teal-400/20',
+  };
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -660,8 +598,6 @@ const LanguageTipCarousel = ({ language, styles }) => {
   const tip = tips[currentIndex];
   const tipText = language === 'ar' ? tip.ar : tip.en;
 
-  const handleColorChange = (newColor) => setColor(newColor);
-
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
@@ -669,7 +605,7 @@ const LanguageTipCarousel = ({ language, styles }) => {
       exit={{ opacity: 0, y: -8 }}
       key={currentIndex}
     >
-      <WaveBorderCard initialColor={color.name} onColorChange={handleColorChange}>
+      <WaveBorderCard initialColor={color.name}>
         <div className="p-3 xs:p-4 sm:p-5">
           <div className="flex items-start gap-2 xs:gap-3">
             <div className={`p-1.5 xs:p-2 rounded-lg ${color.bg} flex-shrink-0`}>
