@@ -178,7 +178,7 @@ const CountdownTimer = ({ isDark }) => {
 
   if (!isClient) {
     return (
-      <div className="flex justify-center items-center h-24">
+      <div className="flex justify-center items-center h-20">
         <div className="w-6 h-6 border-4 border-yellow-400/30 border-t-yellow-400 rounded-full animate-spin" />
       </div>
     );
@@ -207,7 +207,8 @@ const CountdownTimer = ({ isDark }) => {
               animate={{ scale: [1, 1.08, 1] }}
               transition={{ duration: 2, repeat: Infinity }}
             >
-              <Icons.Clock className="h-6 w-6 text-yellow-400" />
+              {/* ✅ تكبير أيقونة الساعة */}
+              <Icons.Clock className="h-8 w-8 text-yellow-400" />
             </motion.div>
             <h3 className="text-base sm:text-lg font-bold text-yellow-400">
               ⏳ المتبقي على امتحانات الثانوية العامة
@@ -544,7 +545,8 @@ const FeatureCard = ({ feature, index }) => {
             }}
             transition={{ duration: 0.3 }}
           >
-            <feature.icon className={`h-3 w-3 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} />
+            {/* ✅ تكبير أيقونات المميزات */}
+            <feature.icon className={`h-4 w-4 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} />
           </motion.div>
           <div>
             <h3 className={`text-[10px] xs:text-xs font-bold mb-0.5 ${isDark ? 'text-white' : 'text-gray-900'}`}>
@@ -585,7 +587,8 @@ const SocialCard = ({ link, index }) => {
         } backdrop-blur-sm`}
       >
         <div className={`p-1 rounded-lg ${link.color} bg-opacity-15 flex-shrink-0`}>
-          <link.icon className={`h-2.5 w-2.5 ${link.textColor}`} />
+          {/* ✅ تكبير أيقونات التواصل */}
+          <link.icon className={`h-3 w-3 ${link.textColor}`} />
         </div>
         <div className="flex-1 min-w-0">
           <p className={`text-[9px] xs:text-[10px] font-bold ${isDark ? 'text-white' : 'text-gray-900'} whitespace-nowrap`}>
@@ -630,7 +633,8 @@ const SocialCard = ({ link, index }) => {
       } backdrop-blur-sm`}
     >
       <div className={`p-1 rounded-lg ${link.color} bg-opacity-15 flex-shrink-0`}>
-        <link.icon className={`h-2.5 w-2.5 ${link.textColor}`} />
+        {/* ✅ تكبير أيقونات التواصل */}
+        <link.icon className={`h-3 w-3 ${link.textColor}`} />
       </div>
       <div className="flex-1 min-w-0">
         <p className={`text-[9px] xs:text-[10px] font-bold ${isDark ? 'text-white' : 'text-gray-900'} ${isPrimary ? 'text-blue-400' : ''} whitespace-nowrap`}>
@@ -660,7 +664,7 @@ const HeroSection = ({ isDark }) => {
   const y = useTransform(scrollY, [0, 500], [0, 30]);
 
   return (
-    <section className="relative min-h-[90vh] flex items-center justify-center px-3 sm:px-4 pt-14 sm:pt-16 pb-6 sm:pb-8 overflow-hidden">
+    <section className="relative min-h-[85vh] flex items-center justify-center px-3 sm:px-4 pt-10 sm:pt-12 pb-4 sm:pb-6 overflow-hidden">
       <motion.div style={{ y }} className="container mx-auto max-w-4xl text-center relative z-10">
         <motion.div
           initial={{ opacity: 0, y: 15 }}
@@ -808,8 +812,8 @@ const HeroSection = ({ isDark }) => {
 const CoursesSection = ({ isDark, courses, teachers, loading }) => {
   if (loading) {
     return (
-      <section className={`py-6 sm:py-10 px-3 sm:px-4 ${isDark ? 'bg-[#0a0e1a]' : 'bg-white'}`}>
-        <div className="container mx-auto max-w-6xl text-center py-6">
+      <section className={`py-4 sm:py-6 px-3 sm:px-4 ${isDark ? 'bg-[#0a0e1a]' : 'bg-white'}`}>
+        <div className="container mx-auto max-w-6xl text-center py-4">
           <motion.div
             animate={{ rotate: 360 }}
             transition={{ repeat: Infinity, duration: 1.2, ease: 'linear' }}
@@ -822,14 +826,14 @@ const CoursesSection = ({ isDark, courses, teachers, loading }) => {
   }
 
   return (
-    <section id="courses" className={`py-6 sm:py-10 md:py-14 px-3 sm:px-4 ${isDark ? 'bg-[#0a0e1a]' : 'bg-white'}`}>
+    <section id="courses" className={`py-4 sm:py-6 md:py-8 px-3 sm:px-4 ${isDark ? 'bg-[#0a0e1a]' : 'bg-white'}`}>
       <div className="container mx-auto max-w-6xl">
         <motion.div
           initial={{ opacity: 0 }}
           whileInView={{ opacity: 1 }}
           transition={{ duration: 0.35 }}
           viewport={{ once: true }}
-          className="text-center mb-4 sm:mb-6"
+          className="text-center mb-3 sm:mb-4"
         >
           <h2 className={`text-lg sm:text-xl md:text-2xl font-bold mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
             كورسات <span className="text-blue-400">مستر محمد رضوان</span>
@@ -840,7 +844,7 @@ const CoursesSection = ({ isDark, courses, teachers, loading }) => {
         </motion.div>
 
         {courses.length === 0 ? (
-          <div className="text-center py-6">
+          <div className="text-center py-4">
             <Icons.BookOpen className="h-10 w-10 sm:h-12 sm:w-12 text-gray-500/20 mx-auto mb-1.5" />
             <h3 className={`text-sm sm:text-base font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>مفيش كورسات متاحة حالياً</h3>
             <p className={`${isDark ? 'text-gray-400' : 'text-gray-500'} text-[10px] sm:text-xs mt-0.5`}>هتنزل قريب جداً، تابعنا!</p>
@@ -859,7 +863,7 @@ const CoursesSection = ({ isDark, courses, teachers, loading }) => {
         )}
 
         {courses.length > 0 && (
-          <div className="text-center mt-4 sm:mt-6">
+          <div className="text-center mt-4">
             <Link
               href="/dashboard/student/courses"
               className={`inline-flex items-center gap-1.5 px-4 py-1.5 sm:px-5 sm:py-2 text-[9px] sm:text-[10px] rounded-full border-2 transition-all duration-300 hover:scale-105 font-bold ${
@@ -881,14 +885,14 @@ const CoursesSection = ({ isDark, courses, teachers, loading }) => {
 // ----- المميزات -----
 const FeaturesSection = ({ isDark }) => {
   return (
-    <section id="features" className={`py-6 sm:py-10 md:py-14 px-3 sm:px-4 ${isDark ? 'bg-[#0a0e1a]/60' : 'bg-white'}`}>
+    <section id="features" className={`py-4 sm:py-6 md:py-8 px-3 sm:px-4 ${isDark ? 'bg-[#0a0e1a]/60' : 'bg-white'}`}>
       <div className="container mx-auto max-w-6xl">
         <motion.div
           initial={{ opacity: 0 }}
           whileInView={{ opacity: 1 }}
           transition={{ duration: 0.35 }}
           viewport={{ once: true }}
-          className="text-center mb-4 sm:mb-6"
+          className="text-center mb-3 sm:mb-4"
         >
           <h2 className={`text-lg sm:text-xl md:text-2xl font-bold mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
             إيه اللي هتستفيده معانا؟
@@ -911,7 +915,7 @@ const FeaturesSection = ({ isDark }) => {
 // ----- العداد التنازلي -----
 const CountdownSection = ({ isDark }) => {
   return (
-    <section id="countdown" className={`py-6 sm:py-10 md:py-14 px-3 sm:px-4 ${isDark ? 'bg-[#0a0e1a]/60' : 'bg-white'}`}>
+    <section id="countdown" className={`py-4 sm:py-6 md:py-8 px-3 sm:px-4 ${isDark ? 'bg-[#0a0e1a]/60' : 'bg-white'}`}>
       <div className="container mx-auto max-w-3xl">
         <CountdownTimer isDark={isDark} />
       </div>
@@ -929,14 +933,14 @@ const ContactSection = ({ isDark }) => {
   }, []);
 
   return (
-    <section id="contact" className={`py-6 sm:py-10 md:py-14 px-3 sm:px-4 ${isDark ? 'bg-[#0a0e1a]/60' : 'bg-white'}`}>
+    <section id="contact" className={`py-4 sm:py-6 md:py-8 px-3 sm:px-4 ${isDark ? 'bg-[#0a0e1a]/60' : 'bg-white'}`}>
       <div className="container mx-auto max-w-4xl">
         <motion.div
           initial={{ opacity: 0 }}
           whileInView={{ opacity: 1 }}
           transition={{ duration: 0.35 }}
           viewport={{ once: true }}
-          className="text-center mb-4 sm:mb-6"
+          className="text-center mb-3 sm:mb-4"
         >
           <h2 className={`text-lg sm:text-xl md:text-2xl font-bold mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
             تواصل <span className="text-blue-400">مع مستر محمد رضوان</span>
@@ -958,7 +962,7 @@ const ContactSection = ({ isDark }) => {
           whileInView={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.35, delay: 0.15 }}
           viewport={{ once: true }}
-          className={`mt-4 sm:mt-5 p-3 sm:p-4 rounded-xl border text-center ${
+          className={`mt-3 sm:mt-4 p-3 sm:p-4 rounded-xl border text-center ${
             isDark ? 'bg-white/8 border-white/10' : 'bg-white/70 border-gray-200/40'
           } backdrop-blur-sm`}
         >
@@ -989,9 +993,9 @@ const ContactSection = ({ isDark }) => {
 // ----- الفوتر -----
 const FooterSection = ({ isDark }) => {
   return (
-    <footer className={`${isDark ? 'bg-[#030812]/90 border-white/5' : 'bg-white/90 border-gray-200/40'} border-t py-4 sm:py-6 px-3 sm:px-4 backdrop-blur`}>
+    <footer className={`${isDark ? 'bg-[#030812]/90 border-white/5' : 'bg-white/90 border-gray-200/40'} border-t py-3 sm:py-4 px-3 sm:px-4 backdrop-blur`}>
       <div className="container mx-auto max-w-6xl">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <div className="md:col-span-2">
             <div className="flex items-center gap-2 mb-1">
               <div className="h-6 w-6 sm:h-7 sm:w-7 rounded-full overflow-hidden shadow-lg shadow-blue-400/20">
@@ -1022,7 +1026,7 @@ const FooterSection = ({ isDark }) => {
           </div>
         </div>
 
-        <div className={`flex justify-center mt-4 pt-3 border-t ${isDark ? 'border-white/5' : 'border-gray-200/40'}`}>
+        <div className={`flex justify-center mt-3 pt-2 border-t ${isDark ? 'border-white/5' : 'border-gray-200/40'}`}>
           <Link
             href="/assistant-login"
             className={`inline-flex items-center gap-1.5 px-3 py-1 sm:px-4 sm:py-1.5 rounded-full border-2 transition-all duration-300 hover:scale-105 text-[7px] sm:text-[9px] font-bold ${
@@ -1036,7 +1040,7 @@ const FooterSection = ({ isDark }) => {
           </Link>
         </div>
 
-        <div className={`border-t ${isDark ? 'border-white/5' : 'border-gray-200/40'} mt-3 pt-3`}>
+        <div className={`border-t ${isDark ? 'border-white/5' : 'border-gray-200/40'} mt-2 pt-2`}>
           <motion.div
             initial={{ opacity: 0.6 }}
             animate={{ opacity: 1 }}
@@ -1183,7 +1187,7 @@ export default function Home() {
             {[
               { label: 'الكورسات', href: '#courses' },
               { label: 'المميزات', href: '#features' },
-              { label: '⏳ الامتحانات', href: '#countdown' },
+              { label: '⏳المتبقي على امتحانات الثانوية العامة', href: '#countdown' },
               { label: 'تواصل', href: '#contact' },
             ].map((item, i) => (
               <a
