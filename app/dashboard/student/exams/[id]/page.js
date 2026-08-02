@@ -25,6 +25,7 @@
 // 1. تقليص الأحجام والهوامش بشكل معقول مع الحفاظ على الوضوح.
 // 2. إصلاح زر تبديل الثيم باستخدام useTheme و toggleTheme.
 // 3. معالجة خصم المحاولات عند إعادة التحميل (F5) مع منع الخصم المزدوج.
+// 4. الحفاظ على جميع ميزات الأمان والوظائف.
 // ================================================================
 
 'use client';
@@ -129,11 +130,13 @@ const getGrade = (percentage) => {
 };
 
 // ================================================================
-// 1.5 دالة تصدير الأسئلة إلى PDF (نفس الكود السابق)
+// 1.5 دالة تصدير الأسئلة إلى PDF (نسخة محسّنة مع جلب الأسئلة تلقائياً وعلامة مائية ونموذج إجابة)
 // ================================================================
 const generateQuestionsPDF = async (questions, language, examId, supabaseClient, examTitle) => {
   try {
     let finalQuestions = questions;
+
+    // إذا كانت الأسئلة فارغة، نجلبها من قاعدة البيانات
     if (!finalQuestions || finalQuestions.length === 0) {
       if (!examId) {
         toast.error(language === 'ar' ? 'معرف الامتحان غير موجود' : 'Exam ID not found');
@@ -145,6 +148,7 @@ const generateQuestionsPDF = async (questions, language, examId, supabaseClient,
         .eq('exam_id', examId)
         .neq('type', 'passage')
         .order('order_index', { ascending: true });
+
       if (error) throw new Error(error.message);
       if (!data || data.length === 0) {
         toast.error(language === 'ar' ? 'لا توجد أسئلة لهذا الامتحان' : 'No questions found for this exam');
@@ -153,6 +157,7 @@ const generateQuestionsPDF = async (questions, language, examId, supabaseClient,
       finalQuestions = data;
     }
 
+    // جلب بيانات الطالب الحالية
     const { data: { user } } = await supabaseClient.auth.getUser();
     const { data: profile } = await supabaseClient
       .from('profiles')
@@ -169,6 +174,7 @@ const generateQuestionsPDF = async (questions, language, examId, supabaseClient,
 
     const watermarkText = `${studentName} | ${studentEmail} | ${studentPhone} | ${studentSchool} | ${studentGrade} | ${studentGovernorate} | ${examTitle || ''}`;
 
+    // إنشاء العنصر المؤقت
     const element = document.createElement('div');
     element.style.cssText = `
       padding: 30px 25px;
@@ -182,6 +188,7 @@ const generateQuestionsPDF = async (questions, language, examId, supabaseClient,
       margin: 0 auto;
     `;
 
+    // --- العلامة المائية (طبقة شفافة) ---
     const watermarkDiv = document.createElement('div');
     watermarkDiv.style.cssText = `
       position: absolute;
@@ -208,10 +215,12 @@ const generateQuestionsPDF = async (questions, language, examId, supabaseClient,
       letter-spacing: 1px;
       word-break: break-word;
     `;
+    // تكرار النص بشكل كافٍ لملء المساحة
     const watermarkTextRepeated = (watermarkText + ' ').repeat(30);
     watermarkDiv.textContent = watermarkTextRepeated;
     element.appendChild(watermarkDiv);
 
+    // --- المحتوى (فوق العلامة المائية) ---
     const content = document.createElement('div');
     content.style.cssText = `
       position: relative;
@@ -219,6 +228,7 @@ const generateQuestionsPDF = async (questions, language, examId, supabaseClient,
       background: transparent;
     `;
 
+    // عنوان الامتحان
     const title = document.createElement('h1');
     title.style.cssText = `
       text-align: center;
@@ -242,6 +252,7 @@ const generateQuestionsPDF = async (questions, language, examId, supabaseClient,
     subtitle.textContent = language === 'ar' ? 'أسئلة الامتحان' : 'Exam Questions';
     content.appendChild(subtitle);
 
+    // الأسئلة
     const questionsList = finalQuestions.filter(q => q.type !== 'passage');
     questionsList.forEach((q, idx) => {
       const block = document.createElement('div');
@@ -275,6 +286,7 @@ const generateQuestionsPDF = async (questions, language, examId, supabaseClient,
       textDiv.textContent = q.question_text;
       block.appendChild(textDiv);
 
+      // MCQ
       if (q.type === 'multiple_choice' && Array.isArray(q.options)) {
         const optionsDiv = document.createElement('div');
         optionsDiv.style.cssText = 'margin-right: 20px; font-size: 15px; color: #374151;';
@@ -288,6 +300,7 @@ const generateQuestionsPDF = async (questions, language, examId, supabaseClient,
         block.appendChild(optionsDiv);
       }
 
+      // Fill from words
       if (q.type === 'fill_from_words' && Array.isArray(q.options)) {
         const bankDiv = document.createElement('div');
         bankDiv.style.cssText = 'margin-top: 10px;';
@@ -307,6 +320,7 @@ const generateQuestionsPDF = async (questions, language, examId, supabaseClient,
         block.appendChild(bankDiv);
       }
 
+      // Sentence reorder
       if (q.type === 'sentence_reorder' && Array.isArray(q.options)) {
         const bankDiv = document.createElement('div');
         bankDiv.style.cssText = 'margin-top: 10px;';
@@ -326,6 +340,7 @@ const generateQuestionsPDF = async (questions, language, examId, supabaseClient,
         block.appendChild(bankDiv);
       }
 
+      // الدرجة
       const marksDiv = document.createElement('div');
       marksDiv.style.cssText = 'font-size:13px;color:#6b7280;margin-top:10px;';
       marksDiv.textContent = `${language === 'ar' ? 'الدرجة:' : 'Marks:'} ${q.marks}`;
@@ -334,6 +349,7 @@ const generateQuestionsPDF = async (questions, language, examId, supabaseClient,
       content.appendChild(block);
     });
 
+    // --- نموذج الإجابة (صفحة جديدة) ---
     const answerKeyTitle = document.createElement('h2');
     answerKeyTitle.style.cssText = `
       text-align: center;
@@ -371,6 +387,7 @@ const generateQuestionsPDF = async (questions, language, examId, supabaseClient,
       const answerDiv = document.createElement('div');
       answerDiv.style.cssText = 'font-size: 14px; color: #1f2937;';
 
+      // عرض الإجابة الصحيحة حسب النوع
       if (q.type === 'multiple_choice' && Array.isArray(q.options)) {
         const correctOpt = q.options.find(opt => opt.isCorrect === true);
         if (correctOpt) {
@@ -393,6 +410,7 @@ const generateQuestionsPDF = async (questions, language, examId, supabaseClient,
         answerDiv.innerHTML = `<span style="font-weight:600;">${language === 'ar' ? 'الإجابة الصحيحة:' : 'Correct answer:'}</span> ${correctAns}`;
       }
 
+      // إضافة الشرح إن وجد
       if (q.explanation) {
         const explDiv = document.createElement('div');
         explDiv.style.cssText = 'margin-top: 6px; font-size: 13px; color: #4b5563; background: #fef3c7; padding: 6px 10px; border-radius: 6px;';
@@ -404,6 +422,7 @@ const generateQuestionsPDF = async (questions, language, examId, supabaseClient,
       content.appendChild(block);
     });
 
+    // تذييل الصفحة
     const footer = document.createElement('div');
     footer.style.cssText = `
       text-align: center;
@@ -419,6 +438,7 @@ const generateQuestionsPDF = async (questions, language, examId, supabaseClient,
     element.appendChild(content);
     document.body.appendChild(element);
 
+    // استخدام html2canvas لالتقاط الصورة
     const canvas = await html2canvas(element, {
       scale: 2,
       useCORS: true,
@@ -431,12 +451,14 @@ const generateQuestionsPDF = async (questions, language, examId, supabaseClient,
 
     document.body.removeChild(element);
 
+    // إنشاء PDF
     const pdf = new jsPDF('p', 'mm', 'a4');
     const imgData = canvas.toDataURL('image/png');
     const imgProps = pdf.getImageProperties(imgData);
     const pdfWidth = pdf.internal.pageSize.getWidth();
     const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
 
+    // تقسيم إلى صفحات
     const pageHeight = pdf.internal.pageSize.getHeight();
     let heightLeft = pdfHeight;
     let position = 0;
@@ -479,7 +501,7 @@ const ExamCountdownScreen = ({ exam, styles, language, isDark }) => {
       setRemaining(prev => {
         if (prev <= 1000) {
           clearInterval(timer);
-          window.location.reload();
+          window.location.reload(); // بمجرد انتهاء العد التنازلي، إعادة تحميل الصفحة للدخول للامتحان
           return 0;
         }
         return prev - 1000;
@@ -493,7 +515,6 @@ const ExamCountdownScreen = ({ exam, styles, language, isDark }) => {
   const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
   const seconds = Math.floor((remaining % (1000 * 60)) / 1000);
 
-  // ✅ تقليص الهوامش والأحجام
   return (
     <div className={`min-h-screen flex items-center justify-center p-3 ${styles.bg} relative overflow-hidden`}>
       <div className="absolute inset-0 bg-gradient-to-br from-yellow-400/20 via-transparent to-cyan-400/20 animate-pulse" />
@@ -573,13 +594,14 @@ const ExamCountdownScreen = ({ exam, styles, language, isDark }) => {
 };
 
 // ================================================================
-// 3. مكونات الأسئلة (مع تباين عالٍ) – تم تقليص الهوامش والأحجام قليلاً
+// 3. مكونات الأسئلة (مع تباين عالٍ)
 // ================================================================
 
-// 3.1 MCQ
+// 3.1 MCQ – مع إزالة الخلط (ترتيب ثابت حسب قاعدة البيانات)
 const MCQQuestion = ({ question, selectedAnswer, onSelect, styles, language, isDark }) => {
   const rawOptions = Array.isArray(question.options) ? question.options : [];
   const labels = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+
   const options = rawOptions.map((opt, idx) => {
     if (typeof opt === 'object' && opt !== null) {
       return { text: opt.text || opt.label || JSON.stringify(opt), isCorrect: opt.isCorrect || false };
@@ -662,7 +684,7 @@ const TrueFalseQuestion = ({ selectedAnswer, onSelect, styles, language }) => {
   );
 };
 
-// 3.3 Matching
+// 3.3 توصيل (Matching)
 const MatchingQuestion = ({ question, selectedAnswer, onSelect, styles, language }) => {
   const pairs = Array.isArray(question.options) ? question.options : [];
   const [leftItems] = useState(() => pairs.map(p => p.left).sort(() => Math.random() - 0.5));
@@ -748,7 +770,7 @@ const MatchingQuestion = ({ question, selectedAnswer, onSelect, styles, language
   );
 };
 
-// 3.4 Ordering
+// 3.4 ترتيب (Ordering)
 const OrderingQuestion = ({ question, selectedAnswer, onSelect, styles, language }) => {
   const items = Array.isArray(question.options) ? question.options : [];
   const [ordered, setOrdered] = useState(selectedAnswer || [...items].sort(() => Math.random() - 0.5));
@@ -789,7 +811,7 @@ const OrderingQuestion = ({ question, selectedAnswer, onSelect, styles, language
   );
 };
 
-// 3.5 Fill Blank
+// 3.5 ملء الفراغ (Fill Blank)
 const FillBlankQuestion = ({ question, selectedAnswer, onSelect, styles, language, isDark }) => {
   const answer = selectedAnswer || '';
   return (
@@ -813,7 +835,7 @@ const FillBlankQuestion = ({ question, selectedAnswer, onSelect, styles, languag
   );
 };
 
-// 3.6 Essay
+// 3.6 مقالي (Essay)
 const EssayQuestion = ({ question, selectedAnswer, onSelect, styles, language, isDark }) => {
   const answer = selectedAnswer || '';
   const wordLimit = question.word_limit || question.max_words || 0;
@@ -858,7 +880,7 @@ const EssayQuestion = ({ question, selectedAnswer, onSelect, styles, language, i
   );
 };
 
-// 3.7 Fill From Words
+// 3.7 إكمال من كلمات معطاة
 const FillFromWordsQuestion = ({ question, selectedAnswer, onSelect, styles, language, isDark }) => {
   const rawWords = Array.isArray(question.options) ? question.options : [];
   const wordBank = rawWords.map(w =>
@@ -899,7 +921,7 @@ const FillFromWordsQuestion = ({ question, selectedAnswer, onSelect, styles, lan
           <span className={`text-base ${styles.text}`}>{text}</span>
         </div>
         <p className={`text-xs text-red-400`}>
-          ⚠️ {language === 'ar' ? 'لم يتم اكتشاف فراغات في النص.' : 'No blanks detected.'}
+          ⚠️ {language === 'ar' ? 'لم يتم اكتشاف فراغات في النص. قد يكون السؤال غير مكتمل.' : 'No blanks detected. Question may be incomplete.'}
         </p>
       </div>
     );
@@ -920,7 +942,7 @@ const FillFromWordsQuestion = ({ question, selectedAnswer, onSelect, styles, lan
           <span className={`text-base ${styles.text}`}>{text}</span>
         </div>
         <p className={`text-xs text-red-400`}>
-          ⚠️ {language === 'ar' ? 'لا توجد كلمات في صندوق الكلمات' : 'No words in word bank'}
+          ⚠️ {language === 'ar' ? 'لا توجد كلمات في صندوق الكلمات لهذا السؤال' : 'No words in word bank'}
         </p>
       </div>
     );
@@ -972,7 +994,7 @@ const FillFromWordsQuestion = ({ question, selectedAnswer, onSelect, styles, lan
   );
 };
 
-// 3.8 Sentence Reorder
+// 3.8 ترتيب الجملة (Sentence Reorder)
 const SentenceReorderQuestion = ({ question, selectedAnswer, onSelect, styles, language, isDark }) => {
   const allWords = Array.isArray(question.options) ? [...question.options] : [];
   const currentAnswer = Array.isArray(selectedAnswer) ? selectedAnswer : [];
@@ -995,6 +1017,11 @@ const SentenceReorderQuestion = ({ question, selectedAnswer, onSelect, styles, l
     const newAnswer = [...currentAnswer];
     [newAnswer[index], newAnswer[newIndex]] = [newAnswer[newIndex], newAnswer[index]];
     onSelect(newAnswer);
+  };
+
+  const handleDragStart = (e, word) => {
+    e.dataTransfer.setData('text/plain', word);
+    e.dataTransfer.effectAllowed = 'move';
   };
 
   const arrowButtonStyle = (disabled) => ({
@@ -1163,7 +1190,7 @@ const SentenceReorderQuestion = ({ question, selectedAnswer, onSelect, styles, l
             <span
               key={idx}
               draggable
-              onDragStart={(e) => e.dataTransfer.setData('text/plain', word)}
+              onDragStart={(e) => handleDragStart(e, word)}
               onClick={() => addWord(word)}
               className="px-2.5 py-1 rounded-lg border cursor-grab active:cursor-grabbing transition"
               style={{
@@ -1181,7 +1208,7 @@ const SentenceReorderQuestion = ({ question, selectedAnswer, onSelect, styles, l
   );
 };
 
-// 3.9 Passage
+// 3.9 مكون القطعة (Passage) مع أداة التلوين وتكبير النص المستقل
 const PassageDisplay = ({ passageId, originalText, examId, styles, isDark, passageFontSize, onFontSizeChange }) => {
   const [highlights, setHighlights] = useState([]);
   const [selectedColor, setSelectedColor] = useState('#FFEB3B');
@@ -1403,7 +1430,7 @@ const PassageDisplay = ({ passageId, originalText, examId, styles, isDark, passa
 };
 
 // ================================================================
-// 4. شاشة التفاصيل قبل البدء (النسخة الفخمة – كوكبية) – تم تقليص الأحجام
+// 4. شاشة التفاصيل قبل البدء (النسخة الفخمة – كوكبية)
 // ================================================================
 const ExamIntroScreen = ({ exam, startExam, loading, styles, language, isDark }) => {
   const [isPulsing, setIsPulsing] = useState(true);
@@ -1677,7 +1704,7 @@ const QuestionSidebar = ({
   questions, 
   answers, 
   markedQuestions, 
-  reviewMarkedQuestions, 
+  reviewMarkedQuestions,
   currentIndex, 
   currentQuestion,
   goToQuestion, 
@@ -2155,7 +2182,7 @@ const ExamSettingsPanel = ({
 };
 
 // ================================================================
-// 12. نافذة تأكيد التسليم – مخصصة وأنيقة (مضغوطة)
+// 12. نافذة تأكيد التسليم – مخصصة وأنيقة
 // ================================================================
 const SubmitConfirmationModal = ({
   isOpen,
@@ -2247,7 +2274,7 @@ const SubmitConfirmationModal = ({
 };
 
 // ================================================================
-// 13. الصفحة الرئيسية – النسخة النهائية مع التعديلات المطلوبة
+// 13. الصفحة الرئيسية – النسخة النهائية مع نظام المراجعة وتأكيد التسليم المتقدم
 // ================================================================
 export default function StudentExamPage() {
   const router = useRouter();
@@ -2269,7 +2296,7 @@ export default function StudentExamPage() {
   const [questions, setQuestions] = useState([]);
   const [passages, setPassages] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [examStatus, setExamStatus] = useState('intro'); // intro, waiting, started, submitted
+  const [examStatus, setExamStatus] = useState('intro');
   const [error, setError] = useState('');
 
   const [student, setStudent] = useState(null);
@@ -2331,11 +2358,11 @@ export default function StudentExamPage() {
   const [accessReason, setAccessReason] = useState('');
   const [isCheckingAccess, setIsCheckingAccess] = useState(false);
 
-  // ✅ مراجع للإجابات والمخالفات
+  // مراجع الإجابات والمخالفات
   useEffect(() => { answersRef.current = answers; }, [answers]);
   useEffect(() => { violationsRef.current = violations; }, [violations]);
 
-  // ✅ دالة التحقق من وجود محاولة ناجحة
+  // دالة التحقق من وجود محاولة ناجحة
   const checkIfPassed = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -2353,9 +2380,7 @@ export default function StudentExamPage() {
         setPassedAttempt(data);
         setShowPassedScreen(true);
       }
-    } catch (err) {
-      // لا يوجد محاولة ناجحة
-    }
+    } catch (err) {}
   }, [examId]);
 
   useEffect(() => {
@@ -2364,7 +2389,7 @@ export default function StudentExamPage() {
     }
   }, [examId, checkIfPassed]);
 
-  // ✅ دالة طلب ملء الشاشة
+  // دالة طلب ملء الشاشة
   const requestFullscreen = useCallback(() => {
     const el = document.documentElement;
     try {
@@ -2380,7 +2405,7 @@ export default function StudentExamPage() {
     } catch (e) {}
   }, []);
 
-  // ✅ دالة الإغلاق القسري (مع دعم سبب reload)
+  // دالة الإغلاق القسري (مع دعم سبب reload)
   const forceCloseExam = useCallback(async (reason = 'security_violation') => {
     if (examStatus === 'submitted' || isExamForcedClosed) return;
     setIsExamForcedClosed(true);
@@ -2409,7 +2434,7 @@ export default function StudentExamPage() {
           .eq('id', attemptId);
       }
 
-      // ✅ تحديث المحاولات المتبقية من قاعدة البيانات
+      // تحديث المحاولات المتبقية من قاعدة البيانات
       try {
         const { data: { user } } = await supabase.auth.getUser();
         const { data: allAttempts } = await supabase
@@ -2424,7 +2449,6 @@ export default function StudentExamPage() {
         sessionStorage.setItem(`exam_${examId}_attempts_left`, remaining.toString());
         setAttemptsLeft(remaining);
       } catch (e) {
-        // احتياطي: نخصم 1
         const remaining = Math.max(0, attemptsLeft - 1);
         sessionStorage.setItem(`exam_${examId}_attempts_left`, remaining.toString());
         setAttemptsLeft(remaining);
@@ -2442,7 +2466,7 @@ export default function StudentExamPage() {
     }
   }, [examStatus, isExamForcedClosed, examId, attemptId, attemptsLeft, language, router, fullscreenExitCount, exam]);
 
-  // ✅ معالج الخروج من ملء الشاشة
+  // معالج الخروج من ملء الشاشة
   const handleFullscreenChange = useCallback(() => {
     if (examStatus !== 'started' || isExamForcedClosed) return;
 
@@ -2483,9 +2507,9 @@ export default function StudentExamPage() {
       }, FULLSCREEN_GRACE_PERIOD);
       setFullscreenExitTimer(timer);
     }
-  }, [examStatus, isExamForcedClosed, requestFullscreen, forceCloseExam, maxViolations, language, fullscreenExitTimer, FULLSCREEN_GRACE_PERIOD, MAX_FULLSCREEN_EXITS]);
+  }, [examStatus, isExamForcedClosed, requestFullscreen, forceCloseExam, language, fullscreenExitTimer, FULLSCREEN_GRACE_PERIOD, MAX_FULLSCREEN_EXITS]);
 
-  // ✅ معالج تغيير التبويب (طرد فوري)
+  // معالج تغيير التبويب (طرد فوري)
   const handleVisibilityChange = useCallback(() => {
     if (examStatus !== 'started' || isExamForcedClosed) return;
 
@@ -2502,7 +2526,7 @@ export default function StudentExamPage() {
     }
   }, [examStatus, isExamForcedClosed, forceCloseExam, language]);
 
-  // ✅ معالج إعادة التحميل (F5) مع منع الخصم المزدوج
+  // معالج إعادة التحميل (F5) مع منع الخصم المزدوج
   useEffect(() => {
     if (examStatus !== 'started') return;
 
@@ -2513,12 +2537,10 @@ export default function StudentExamPage() {
           sessionStorage.setItem(penaltyKey, 'true');
           e.preventDefault();
           e.returnValue = language === 'ar' ? '⚠️ سيتم خصم محاولة عند إعادة التحميل. هل تريد المتابعة؟' : '⚠️ One attempt will be deducted on reload. Continue?';
-          // نستخدم setTimeout لضمان تنفيذ الإغلاق بعد مغادرة الصفحة
           setTimeout(() => {
             forceCloseExam('reload');
           }, 100);
         } else {
-          // تم خصم المحاولة مسبقاً، نمنع الإغلاق الإضافي
           e.preventDefault();
           e.returnValue = language === 'ar' ? '⚠️ تم خصم محاولة بالفعل، هل تريد المتابعة؟' : '⚠️ Attempt already deducted, continue?';
         }
@@ -2534,7 +2556,7 @@ export default function StudentExamPage() {
     };
   }, [examStatus, isExamForcedClosed, examId, forceCloseExam, language]);
 
-  // ✅ دالة تفعيل قفل الأمان (نفسها بدون تغيير كبير)
+  // دالة تفعيل قفل الأمان
   const enableSecurityLockdown = useCallback(() => {
     const handleContextMenu = (e) => e.preventDefault();
     const handleCopyPasteCut = (e) => e.preventDefault();
@@ -2714,7 +2736,7 @@ export default function StudentExamPage() {
     };
   }, [maxViolations, forceCloseExam, examStatus, language, requestFullscreen]);
 
-  // ✅ فحص ملء الشاشة الدوري
+  // فحص ملء الشاشة الدوري
   useEffect(() => {
     if (examStatus !== 'started') return;
     
@@ -2735,7 +2757,7 @@ export default function StudentExamPage() {
     return () => clearInterval(fullscreenCheck);
   }, [examStatus, requestFullscreen, isExamForcedClosed, language]);
 
-  // ✅ دالة التحقق من صلاحية الوصول
+  // دالة التحقق من صلاحية الوصول
   const verifyExamAccess = useCallback(async (courseId) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -2770,7 +2792,7 @@ export default function StudentExamPage() {
     }
   }, [router]);
 
-  // ✅ جلب بيانات الامتحان
+  // جلب بيانات الامتحان
   const fetchExamData = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -2978,7 +3000,7 @@ export default function StudentExamPage() {
     fetchExamData();
   }, [fetchExamData]);
 
-  // ✅ تقديم الامتحان (submitExam)
+  // تقديم الامتحان (submitExam)
   const submitExam = useCallback(async (isAuto = false) => {
     if (examStatus === 'submitted') return;
     setExamStatus('submitted');
@@ -3137,7 +3159,7 @@ export default function StudentExamPage() {
 
       sessionStorage.removeItem(`exam_${examId}_answers`);
       sessionStorage.removeItem(`exam_${examId}_highlights`);
-      sessionStorage.removeItem(`exam_${examId}_reload_penalty_applied`); // ✅ مسح علامة الخصم
+      sessionStorage.removeItem(`exam_${examId}_reload_penalty_applied`);
 
       setIsSubmitting(false);
 
@@ -3151,7 +3173,7 @@ export default function StudentExamPage() {
     }
   }, [examStatus, questions, attemptId, examId, router, language, attemptsLeft, exam]);
 
-  // ✅ بدء الامتحان (startExam)
+  // بدء الامتحان (startExam)
   const startExam = useCallback(async () => {
     if (examStatus === 'started') return;
 
@@ -3219,7 +3241,7 @@ export default function StudentExamPage() {
     }, 1000);
   }, [examStatus, examId, exam, examStartedAt, language, requestFullscreen, enableSecurityLockdown, verifyExamAccess, submitExam]);
 
-  // ✅ مراقبة الأمان
+  // مراقبة الأمان
   useEffect(() => {
     if (examStatus !== 'started') return;
 
@@ -3241,7 +3263,7 @@ export default function StudentExamPage() {
     };
   }, [examStatus, handleFullscreenChange, handleVisibilityChange, enableSecurityLockdown]);
 
-  // ✅ دوال التنقل والتفاعل (مضغوطة)
+  // دوال التنقل والتفاعل
   const openSubmitModal = useCallback(() => {
     const realQuestions = questions.filter(q => q.type !== 'passage');
     const answered = realQuestions.filter(q => {
@@ -3475,7 +3497,7 @@ export default function StudentExamPage() {
     );
   }, [answers, handleAnswer, styles, language, passages, isDark, fontSize, isBold, isItalic, highlightedQuestions, examId, passageFontSize, questions, toggleReviewMark, reviewMarkedQuestions]);
 
-  // ===== حالات التحميل والخطأ والوصول =====
+  // حالات التحميل والخطأ والوصول
   if (loading || isCheckingAccess) {
     return (
       <div className={`min-h-screen w-full flex items-center justify-center ${isDark ? 'bg-[#0b0e1a]' : 'bg-gray-50'}`}>
@@ -3582,8 +3604,6 @@ export default function StudentExamPage() {
           transition={{ duration: 0.6, type: 'spring' }}
           className={`max-w-3xl w-full p-6 rounded-3xl ${styles.card} border ${styles.border} shadow-2xl`}
         >
-          {/* ... (نفس الكود السابق مع تقليص بسيط) ... */}
-          {/* اختصاراً، سيتم وضع نفس المحتوى ولكن مع تقليص الهوامش */}
           <div className="text-center mb-4">
             <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ duration: 2, repeat: Infinity }} className="inline-flex p-3 rounded-full bg-emerald-500/20 border-4 border-emerald-400">
               <Icons.Trophy className="h-16 w-16 text-emerald-400" />
@@ -3594,7 +3614,6 @@ export default function StudentExamPage() {
           </div>
 
           <div className={`relative p-5 rounded-2xl border-2 border-yellow-400/40 bg-gradient-to-br from-amber-50/50 via-white to-yellow-50/50 dark:from-yellow-900/10 dark:via-gray-900/10 dark:to-yellow-900/10 backdrop-blur-sm overflow-hidden shadow-inner`}>
-            {/* ... شهادة التقدير ... */}
             <div className="relative z-10 text-center">
               <div className="flex justify-center mb-2">
                 <div className="p-2 rounded-xl bg-gradient-to-br from-yellow-400/20 to-yellow-600/20 border-2 border-yellow-400/40 shadow-lg">
@@ -3672,7 +3691,7 @@ export default function StudentExamPage() {
     );
   }
 
-  // ===== واجهة الامتحان الرئيسية =====
+  // واجهة الامتحان الرئيسية
   return (
     <div id="exam-container" className={`h-dvh w-screen overflow-hidden ${isDark ? 'bg-[#0b0e1a]' : 'bg-gray-50'} ${styles.text} relative flex flex-col`}>
       <SecureWatermark user={student} examTitle={exam?.title} isDark={isDark} />
@@ -3742,7 +3761,7 @@ export default function StudentExamPage() {
         />
 
         <div className="flex-1 flex flex-col overflow-hidden">
-          {/* ===== الشريط العلوي المحسّن (مضغوط) ===== */}
+          {/* الشريط العلوي المحسّن (مضغوط) */}
           <div className={`flex-shrink-0 px-3 py-2 border-b ${isDark ? 'border-white/10 bg-[#0b0e1a]/90' : 'border-gray-200 bg-gray-50/90'} backdrop-blur-lg`}>
             <div className="flex flex-wrap items-center justify-between gap-1.5 max-w-6xl mx-auto">
               <div className="flex items-center gap-2">
@@ -3779,14 +3798,12 @@ export default function StudentExamPage() {
               </div>
             </div>
 
-            {/* شريط التقدم */}
             <div className="max-w-6xl mx-auto mt-0.5">
               <div className="flex items-center gap-1.5">
                 <ProgressBar answered={answeredCount} total={questions.length} isDark={isDark} timeRemaining={timeRemaining} />
               </div>
             </div>
 
-            {/* أزرار التحكم العلوية */}
             <div className="flex justify-between items-center mt-1 max-w-6xl mx-auto">
               <div className="flex gap-0.5">
                 <button onClick={() => goToQuestion(currentIndex - 1)} disabled={currentIndex === 0 || !exam?.allow_backward} style={{ touchAction: 'manipulation' }} className={`p-1 rounded-lg transition disabled:opacity-30 ${isDark ? 'bg-white/5 hover:bg-white/10 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-800'}`}>
@@ -3798,7 +3815,6 @@ export default function StudentExamPage() {
                 </button>
               </div>
               <div className="flex gap-0.5 items-center">
-                {/* ✅ زر تبديل الوضع (فاتح/داكن) – باستخدام useTheme */}
                 <button
                   onClick={() => {
                     toggleTheme();
@@ -3857,7 +3873,6 @@ export default function StudentExamPage() {
               </div>
             </div>
 
-            {/* نقاط التنقل السريع للهواتف */}
             <div className="flex gap-0.5 mt-1 max-w-6xl mx-auto overflow-x-auto pb-0.5 sm:hidden">
               {questions.map((q, idx) => {
                 const ans = answers[q.id];
@@ -3873,7 +3888,7 @@ export default function StudentExamPage() {
             </div>
           </div>
 
-          {/* ===== منطقة عرض السؤال المحسّنة ===== */}
+          {/* منطقة عرض السؤال المحسّنة */}
           <div className="flex-1 overflow-y-auto bg-gradient-to-br from-transparent via-yellow-400/5 to-blue-500/5">
             <div className="max-w-3xl mx-auto px-4 py-4">
               <AnimatePresence mode="wait">
@@ -3893,7 +3908,7 @@ export default function StudentExamPage() {
             </div>
           </div>
 
-          {/* ===== الشريط السفلي المحسّن ===== */}
+          {/* الشريط السفلي المحسّن */}
           <div className={`flex-shrink-0 px-3 py-2 border-t ${isDark ? 'border-white/10 bg-[#0b0e1a]/90' : 'border-gray-200 bg-gray-50/90'} backdrop-blur-lg`}>
             <div className="flex items-center justify-between max-w-3xl mx-auto gap-2">
               <button
