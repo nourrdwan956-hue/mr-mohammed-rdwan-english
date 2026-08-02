@@ -1,6 +1,8 @@
 // app/dashboard/student/courses/[id]/page.js
 // ================================================================
-// 🏛️ صفحة تفاصيل الكورس – متجاوبة بالكامل
+// 🏛️ صفحة تفاصيل الكورس – متجاوبة بالكامل ومضغوطة
+// ✅ تصغير الأحجام والهوامش والأيقونات
+// ✅ الحفاظ على جميع الوظائف (التحقق من الوصول، الاشتراك، التبويبات، إلخ)
 // ================================================================
 
 'use client';
@@ -21,7 +23,7 @@ import { checkCourseAccess, checkSubscriptionOnly } from '@/lib/course-access';
 import { getDeviceFingerprint } from '@/lib/device-fingerprint';
 
 // ================================================================
-// ألوان البطاقات المتغيرة (نفس نظام الرئيسية)
+// ألوان البطاقات المتغيرة (مضغوطة)
 // ================================================================
 const CARD_COLORS = [
   { name: 'blue', text: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-500/10 dark:bg-blue-400/10', border: 'border-blue-400/30 dark:border-blue-400/20' },
@@ -39,7 +41,7 @@ const getRandomColor = (exclude = []) => {
 };
 
 // ================================================================
-// 🌊 مكون الحدود الموجية (Wave Border)
+// 🌊 مكون الحدود الموجية (Wave Border) – مضغوط
 // ================================================================
 const WaveBorderCard = ({ children, className = '', initialColor = 'blue', onColorChange }) => {
   const [color, setColor] = useState(CARD_COLORS.find(c => c.name === initialColor) || CARD_COLORS[0]);
@@ -82,16 +84,16 @@ const WaveBorderCard = ({ children, className = '', initialColor = 'blue', onCol
   const gradientStyle = {
     background: `conic-gradient(from ${rotation}deg, ${waveColors.join(', ')})`,
     borderRadius: '1.5rem',
-    padding: '3px',
+    padding: '2px', // ✅ تصغير padding الحواف
     WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
     WebkitMaskComposite: 'xor',
     maskComposite: 'exclude',
   };
 
   return (
-    <div className={`relative rounded-2xl sm:rounded-3xl overflow-hidden group ${className}`}>
-      <div className="absolute inset-0 rounded-2xl sm:rounded-3xl" style={gradientStyle} />
-      <div className="relative z-10 h-full w-full rounded-2xl sm:rounded-3xl backdrop-blur-sm bg-[var(--bg-card)] border border-[var(--border-color)]">
+    <div className={`relative rounded-2xl overflow-hidden group ${className}`}>
+      <div className="absolute inset-0 rounded-2xl" style={gradientStyle} />
+      <div className="relative z-10 h-full w-full rounded-2xl backdrop-blur-sm bg-[var(--bg-card)] border border-[var(--border-color)]">
         {children}
       </div>
     </div>
@@ -105,8 +107,8 @@ const formatDuration = (totalSeconds, language) => {
   if (!totalSeconds || totalSeconds === 0) return language === 'ar' ? 'غير محدد' : 'N/A';
   const hours = Math.floor(totalSeconds / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
-  if (hours > 0) return language === 'ar' ? `${hours} ساعة ${minutes} دقيقة` : `${hours}h ${minutes}m`;
-  return language === 'ar' ? `${minutes} دقيقة` : `${minutes}m`;
+  if (hours > 0) return language === 'ar' ? `${hours} س ${minutes} د` : `${hours}h ${minutes}m`;
+  return language === 'ar' ? `${minutes} د` : `${minutes}m`;
 };
 
 const formatDate = (dateString, language) => {
@@ -116,31 +118,30 @@ const formatDate = (dateString, language) => {
 };
 
 // ================================================================
-// مكونات فرعية مكبرة وواضحة – متجاوبة
+// مكونات فرعية مضغوطة
 // ================================================================
 
 const TabButton = ({ active, onClick, icon: Icon, label, count, styles }) => (
   <button
     onClick={onClick}
-    className={`flex items-center gap-2 sm:gap-3 px-3 sm:px-4 md:px-6 py-2.5 sm:py-3 md:py-4 rounded-xl text-sm sm:text-base md:text-lg font-bold transition-all duration-300 whitespace-nowrap ${
+    className={`flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-lg text-[10px] sm:text-xs font-bold transition-all duration-300 whitespace-nowrap ${
       active ? 'bg-blue-500/20 text-blue-600 dark:text-blue-400 shadow-lg shadow-blue-500/10 scale-105' : `${styles.subtext} hover:bg-gray-100 dark:hover:bg-white/5`
     }`}
   >
-    <Icon className="h-4 w-4 sm:h-5 sm:w-5 md:h-6 md:w-6" />
+    <Icon className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
     <span>{label}</span>
     {count !== undefined && (
-      <span className={`text-[10px] sm:text-sm rounded-full px-2 py-0.5 sm:px-3 sm:py-0.5 ${active ? 'bg-blue-500/30 text-blue-700 dark:text-blue-300' : 'bg-gray-200 dark:bg-white/10'}`}>{count}</span>
+      <span className={`text-[8px] sm:text-[10px] rounded-full px-1.5 py-0.5 sm:px-2 sm:py-0.5 ${active ? 'bg-blue-500/30 text-blue-700 dark:text-blue-300' : 'bg-gray-200 dark:bg-white/10'}`}>{count}</span>
     )}
   </button>
 );
 
 // ================================================================
-// مكون دائرة التقدم – متجاوب
+// مكون دائرة التقدم – مضغوطة
 // ================================================================
-const CircularProgress = ({ percentage, size = 80, strokeWidth = 6, label, styles }) => {
-  // حجم متجاوب
+const CircularProgress = ({ percentage, size = 60, strokeWidth = 5, label, styles }) => {
   const responsiveSize = typeof window !== 'undefined' 
-    ? window.innerWidth < 640 ? 60 : window.innerWidth < 768 ? 70 : size
+    ? window.innerWidth < 640 ? 50 : window.innerWidth < 768 ? 55 : size
     : size;
 
   return (
@@ -151,22 +152,22 @@ const CircularProgress = ({ percentage, size = 80, strokeWidth = 6, label, style
           strokeDasharray={(responsiveSize/2 - strokeWidth/2) * 2 * Math.PI}
           initial={{ strokeDashoffset: (responsiveSize/2 - strokeWidth/2) * 2 * Math.PI }}
           animate={{ strokeDashoffset: (responsiveSize/2 - strokeWidth/2) * 2 * Math.PI * (1 - percentage/100) }}
-          transition={{ duration: 1.5, ease: 'easeOut' }}
+          transition={{ duration: 1.2, ease: 'easeOut' }}
         />
         <defs>
           <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stopColor="#FACC15"/><stop offset="100%" stopColor="#D97706"/></linearGradient>
         </defs>
       </svg>
       <div className="absolute flex flex-col items-center">
-        <span className={`text-base sm:text-xl font-extrabold ${styles.text}`}>{Math.round(percentage)}%</span>
-        {label && <span className={`text-[8px] sm:text-sm ${styles.subtext} -mt-0.5`}>{label}</span>}
+        <span className={`text-xs sm:text-sm font-extrabold ${styles.text}`}>{Math.round(percentage)}%</span>
+        {label && <span className={`text-[6px] sm:text-[8px] ${styles.subtext} -mt-0.5`}>{label}</span>}
       </div>
     </div>
   );
 };
 
 // ================================================================
-// مكونات عناصر المحتوى – متجاوبة
+// مكونات عناصر المحتوى – مضغوطة
 // ================================================================
 
 const VideoItem = ({ video, bookmarked, onToggleBookmark, styles, language, watched }) => {
@@ -175,30 +176,30 @@ const VideoItem = ({ video, bookmarked, onToggleBookmark, styles, language, watc
 
   return (
     <WaveBorderCard initialColor={color.name} onColorChange={handleColorChange}>
-      <div className={`p-3 sm:p-4 md:p-5 flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-5 hover:border-${color.name}-400/50 transition group relative min-h-[70px] sm:min-h-[80px]`}>
+      <div className={`p-2 sm:p-3 flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3 hover:border-${color.name}-400/50 transition group relative min-h-[56px] sm:min-h-[64px]`}>
         {watched && (
-          <div className="absolute top-2 right-2 sm:top-3 sm:right-3 bg-green-500/20 text-green-400 rounded-full p-1 sm:p-1.5">
-            <Icons.CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 fill-current" />
+          <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 bg-green-500/20 text-green-400 rounded-full p-0.5 sm:p-1">
+            <Icons.CheckCircle className="h-3 w-3 sm:h-3.5 sm:w-3.5 fill-current" />
           </div>
         )}
         <div className="relative flex-shrink-0">
-          <div className={`w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 rounded-xl ${watched ? 'bg-green-400/10' : 'bg-blue-400/10'} flex items-center justify-center`}>
-            <Icons.Play className={`h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8 ${watched ? 'text-green-500' : `text-${color.name}-500`}`} />
+          <div className={`w-10 h-10 sm:w-11 sm:h-11 rounded-lg ${watched ? 'bg-green-400/10' : 'bg-blue-400/10'} flex items-center justify-center`}>
+            <Icons.Play className={`h-4 w-4 sm:h-5 sm:w-5 ${watched ? 'text-green-500' : `text-${color.name}-500`}`} />
           </div>
           {video.duration && (
-            <span className="absolute -bottom-1 -right-1 bg-black/80 text-white text-[8px] sm:text-xs px-1.5 py-0.5 rounded-md font-mono">
+            <span className="absolute -bottom-0.5 -right-0.5 bg-black/80 text-white text-[6px] sm:text-[8px] px-1 py-0.5 rounded font-mono">
               {video.duration}
             </span>
           )}
         </div>
         <div className="flex-1 min-w-0">
-          <Link href={`/watch/${video.id}`} className={`text-sm sm:text-base md:text-lg font-bold ${styles.text} hover:text-${color.name}-500 transition line-clamp-1`}>
+          <Link href={`/watch/${video.id}`} className={`text-xs sm:text-sm font-bold ${styles.text} hover:text-${color.name}-500 transition line-clamp-1`}>
             {video.title}
           </Link>
-          {video.description && <p className={`text-xs sm:text-sm ${styles.subtext} line-clamp-2 mt-0.5 sm:mt-1`}>{video.description}</p>}
+          {video.description && <p className={`text-[9px] sm:text-[10px] ${styles.subtext} line-clamp-1 mt-0.5`}>{video.description}</p>}
         </div>
-        <button onClick={() => onToggleBookmark(video.id)} className={`p-2 sm:p-3 rounded-xl transition ${bookmarked ? `text-${color.name}-500 bg-${color.name}-400/10` : 'text-gray-400 hover:text-yellow-500 hover:bg-yellow-400/5'}`}>
-          <Icons.Bookmark className={`h-4 w-4 sm:h-5 sm:w-5 md:h-6 md:w-6 ${bookmarked ? 'fill-current' : ''}`} />
+        <button onClick={() => onToggleBookmark(video.id)} className={`p-1.5 sm:p-2 rounded-lg transition ${bookmarked ? `text-${color.name}-500 bg-${color.name}-400/10` : 'text-gray-400 hover:text-yellow-500 hover:bg-yellow-400/5'}`}>
+          <Icons.Bookmark className={`h-3.5 w-3.5 sm:h-4 sm:w-4 ${bookmarked ? 'fill-current' : ''}`} />
         </button>
       </div>
     </WaveBorderCard>
@@ -211,16 +212,16 @@ const ExamItem = ({ exam, styles, language, attempted, score }) => {
 
   return (
     <WaveBorderCard initialColor={color.name} onColorChange={handleColorChange}>
-      <div className={`p-3 sm:p-4 md:p-5 flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-5 hover:border-${color.name}-400/50 transition min-h-[70px] sm:min-h-[80px]`}>
-        <div className={`w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 rounded-xl ${attempted ? 'bg-blue-400/10' : 'bg-emerald-400/10'} flex items-center justify-center flex-shrink-0`}>
-          <Icons.FileText className={`h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8 ${attempted ? 'text-blue-500' : 'text-emerald-500'}`} />
+      <div className={`p-2 sm:p-3 flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3 hover:border-${color.name}-400/50 transition min-h-[56px] sm:min-h-[64px]`}>
+        <div className={`w-10 h-10 sm:w-11 sm:h-11 rounded-lg ${attempted ? 'bg-blue-400/10' : 'bg-emerald-400/10'} flex items-center justify-center flex-shrink-0`}>
+          <Icons.FileText className={`h-4 w-4 sm:h-5 sm:w-5 ${attempted ? 'text-blue-500' : 'text-emerald-500'}`} />
         </div>
         <div className="flex-1">
-          <Link href={`/dashboard/student/exams/${exam.id}`} className={`text-sm sm:text-base md:text-lg font-bold ${styles.text} hover:text-${color.name}-500 transition`}>{exam.title}</Link>
-          {exam.duration_minutes && <p className={`text-xs sm:text-sm ${styles.subtext}`}>{exam.duration_minutes} {language==='ar'?'دقيقة':'min'}</p>}
+          <Link href={`/dashboard/student/exams/${exam.id}`} className={`text-xs sm:text-sm font-bold ${styles.text} hover:text-${color.name}-500 transition`}>{exam.title}</Link>
+          {exam.duration_minutes && <p className={`text-[9px] sm:text-[10px] ${styles.subtext}`}>{exam.duration_minutes} {language==='ar'?'دقيقة':'min'}</p>}
           {attempted && score !== undefined && (
-            <div className="flex items-center gap-2 sm:gap-3 mt-0.5 sm:mt-1">
-              <span className={`text-xs sm:text-sm md:text-base font-bold ${score >= (exam.passing_marks || 50) ? 'text-green-400' : 'text-red-400'}`}>
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <span className={`text-[9px] sm:text-[10px] font-bold ${score >= (exam.passing_marks || 50) ? 'text-green-400' : 'text-red-400'}`}>
                 {score}% • {score >= (exam.passing_marks || 50) ? (language === 'ar' ? 'ناجح' : 'Passed') : (language === 'ar' ? 'راسب' : 'Failed')}
               </span>
             </div>
@@ -237,12 +238,12 @@ const BookItem = ({ book, styles, language }) => {
 
   return (
     <WaveBorderCard initialColor={color.name} onColorChange={handleColorChange}>
-      <div className={`p-3 sm:p-4 md:p-5 flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-5 hover:border-${color.name}-400/50 transition min-h-[70px] sm:min-h-[80px]`}>
-        <div className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 rounded-xl bg-purple-400/10 flex items-center justify-center flex-shrink-0">
-          <Icons.BookOpen className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8 text-purple-500" />
+      <div className={`p-2 sm:p-3 flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3 hover:border-${color.name}-400/50 transition min-h-[56px] sm:min-h-[64px]`}>
+        <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-lg bg-purple-400/10 flex items-center justify-center flex-shrink-0">
+          <Icons.BookOpen className="h-4 w-4 sm:h-5 sm:w-5 text-purple-500" />
         </div>
         <div className="flex-1">
-          <Link href={`/dashboard/student/books/${book.id}`} className={`text-sm sm:text-base md:text-lg font-bold ${styles.text} hover:text-${color.name}-500 transition`}>{book.title}</Link>
+          <Link href={`/dashboard/student/books/${book.id}`} className={`text-xs sm:text-sm font-bold ${styles.text} hover:text-${color.name}-500 transition`}>{book.title}</Link>
         </div>
       </div>
     </WaveBorderCard>
@@ -250,7 +251,7 @@ const BookItem = ({ book, styles, language }) => {
 };
 
 // ================================================================
-// صفحة تفاصيل الكورس – نسخة متجاوبة بالكامل
+// صفحة تفاصيل الكورس – نسخة مضغوطة بالكامل
 // ================================================================
 export default function StudentCourseDetailsPage() {
   const params = useParams();
@@ -277,7 +278,7 @@ export default function StudentCourseDetailsPage() {
   const [userProfile, setUserProfile] = useState(null);
   const fetchedRef = useRef(false);
 
-  // ===== حالات جديدة للتحكم في الوصول (الكورسات المدفوعة) =====
+  // ===== حالات جديدة للتحكم في الوصول =====
   const [accessDenied, setAccessDenied] = useState(false);
   const [accessReason, setAccessReason] = useState('');
   const [isCheckingAccess, setIsCheckingAccess] = useState(false);
@@ -368,9 +369,7 @@ export default function StudentCourseDetailsPage() {
       setCourse(courseData);
       setTeacher(courseData.teacher);
 
-      // ================================================================
-      // ✅ التحقق من صلاحية الوصول للكورس المدفوع
-      // ================================================================
+      // ===== التحقق من صلاحية الوصول للكورس المدفوع =====
       if (courseData && !courseData.is_free && courseData.price > 0) {
         setIsCheckingAccess(true);
         try {
@@ -396,9 +395,7 @@ export default function StudentCourseDetailsPage() {
       const { data: enrollData } = await supabase.from('enrollments').select('*').eq('student_id', user.id).eq('course_id', id).maybeSingle();
       setEnrollment(enrollData);
 
-      // ================================================================
-      // 🆕 إنشاء enrollment تلقائياً إذا كان هناك اشتراك نشط ولم يكن مسجلاً
-      // ================================================================
+      // إنشاء enrollment تلقائياً إذا كان هناك اشتراك نشط ولم يكن مسجلاً
       const { data: subscription } = await supabase
         .from('course_subscriptions')
         .select('*')
@@ -433,16 +430,14 @@ export default function StudentCourseDetailsPage() {
 
   useEffect(() => { if (fetchedRef.current) return; fetchedRef.current = true; fetchCourseData(); }, [fetchCourseData]);
 
-  // ================================================================
-  // 🎯 دالة الاشتراك (مع التحقق من الاشتراك الحالي)
-  // ================================================================
+  // ===== دالة الاشتراك =====
   const handleEnroll = async () => {
     setEnrolling(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { toast.error(language==='ar'?'سجل الدخول':'Login'); return; }
 
-      // ✅ التحقق من وجود اشتراك نشط أولاً
+      // التحقق من وجود اشتراك نشط أولاً
       const { data: existingSub } = await supabase
         .from('course_subscriptions')
         .select('*')
@@ -523,9 +518,9 @@ export default function StudentCourseDetailsPage() {
   if (loading || isCheckingAccess) {
     return (
       <div className={`min-h-screen flex items-center justify-center ${styles.bg}`}>
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-12 h-12 sm:w-16 sm:h-16 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin" />
-          <p className={`text-xs sm:text-sm ${styles.subtext}`}>
+        <div className="flex flex-col items-center gap-2">
+          <div className="w-8 h-8 sm:w-10 sm:h-10 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin" />
+          <p className={`text-[10px] sm:text-xs ${styles.subtext}`}>
             {isCheckingAccess
               ? (language === 'ar' ? 'جاري التحقق من الصلاحية...' : 'Verifying access...')
               : (language === 'ar' ? 'جاري التحميل...' : 'Loading...')
@@ -536,9 +531,7 @@ export default function StudentCourseDetailsPage() {
     );
   }
 
-  // ================================================================
-  // 🚫 شاشة رفض الوصول (الكورسات المدفوعة)
-  // ================================================================
+  // ===== شاشة رفض الوصول =====
   if (accessDenied) {
     const messages = {
       no_subscription: language === 'ar'
@@ -558,26 +551,26 @@ export default function StudentCourseDetailsPage() {
     const message = messages[accessReason] || messages.default;
 
     return (
-      <div className={`min-h-screen flex items-center justify-center ${styles.bg} p-4`}>
-        <div className={`max-w-md w-full p-6 sm:p-8 rounded-2xl sm:rounded-3xl ${styles.card} border ${styles.border} text-center shadow-2xl`}>
-          <div className="inline-flex p-3 sm:p-4 rounded-full bg-red-500/20 border-2 border-red-500/30">
-            <Icons.Lock className="h-12 w-12 sm:h-16 sm:w-16 text-red-400" />
+      <div className={`min-h-screen flex items-center justify-center ${styles.bg} p-3`}>
+        <div className={`max-w-sm w-full p-4 sm:p-6 rounded-2xl ${styles.card} border ${styles.border} text-center shadow-2xl`}>
+          <div className="inline-flex p-2.5 sm:p-3 rounded-full bg-red-500/20 border-2 border-red-500/30">
+            <Icons.Lock className="h-8 w-8 sm:h-10 sm:w-10 text-red-400" />
           </div>
-          <h2 className={`text-xl sm:text-2xl font-extrabold ${styles.text} mt-4`}>
+          <h2 className={`text-base sm:text-lg font-extrabold ${styles.text} mt-3`}>
             {language === 'ar' ? '🚫 وصول ممنوع' : '🚫 Access Denied'}
           </h2>
-          <p className={`text-sm sm:text-base ${styles.subtext} mt-2 leading-relaxed`}>{message}</p>
-          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 justify-center mt-6">
+          <p className={`text-xs sm:text-sm ${styles.subtext} mt-1.5 leading-relaxed`}>{message}</p>
+          <div className="flex flex-col sm:flex-row gap-1.5 sm:gap-2 justify-center mt-4">
             <button
               onClick={() => router.back()}
-              className="px-4 py-2.5 sm:px-6 sm:py-2.5 bg-yellow-400 text-black font-bold rounded-xl hover:bg-yellow-500 transition shadow-lg shadow-yellow-400/20 text-sm sm:text-base"
+              className="px-3 py-1.5 sm:px-4 sm:py-2 bg-yellow-400 text-black font-bold rounded-lg hover:bg-yellow-500 transition shadow-lg shadow-yellow-400/20 text-[10px] sm:text-xs"
             >
               {language === 'ar' ? 'العودة' : 'Go Back'}
             </button>
             {accessReason === 'no_subscription' && (
               <button
                 onClick={() => router.push(`/dashboard/student/courses/${id}/payment`)}
-                className="px-4 py-2.5 sm:px-6 sm:py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-bold rounded-xl hover:scale-105 transition shadow-lg shadow-blue-500/30 text-sm sm:text-base"
+                className="px-3 py-1.5 sm:px-4 sm:py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-bold rounded-lg hover:scale-105 transition shadow-lg shadow-blue-500/30 text-[10px] sm:text-xs"
               >
                 {language === 'ar' ? 'الاشتراك الآن' : 'Subscribe Now'}
               </button>
@@ -598,14 +591,14 @@ export default function StudentCourseDetailsPage() {
 
   return (
     <div className={`w-full min-h-screen ${styles.bg}`}>
-      <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8 space-y-6 sm:space-y-8 md:space-y-10">
-        {/* ===== هيدر الكورس مع Wave Border – متجاوب ===== */}
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 py-3 sm:py-4 space-y-4 sm:space-y-5">
+        {/* ===== هيدر الكورس مع Wave Border – مضغوط ===== */}
         <WaveBorderCard initialColor={headerColor.name} onColorChange={setHeaderColor}>
-          <div className="p-4 sm:p-5 md:p-6">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 sm:gap-6 md:gap-8">
+          <div className="p-3 sm:p-4">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4">
               {/* صورة الكورس */}
               <div className="lg:col-span-1">
-                <div className="aspect-video rounded-xl sm:rounded-2xl overflow-hidden bg-gradient-to-br from-gray-800/50 to-gray-900/50 border border-[var(--border-color)] relative shadow-2xl">
+                <div className="aspect-video rounded-lg overflow-hidden bg-gradient-to-br from-gray-800/50 to-gray-900/50 border border-[var(--border-color)] relative shadow-xl">
                   {course.cover_image ? (
                     <img
                       src={course.cover_image}
@@ -614,12 +607,12 @@ export default function StudentCourseDetailsPage() {
                     />
                   ) : (
                     <div className="flex items-center justify-center w-full h-full">
-                      <Icons.BookOpen className="h-14 w-14 sm:h-20 sm:w-20 text-gray-600" />
+                      <Icons.BookOpen className="h-10 w-10 sm:h-14 sm:w-14 text-gray-600" />
                     </div>
                   )}
                   {enrolled && (
-                    <div className="absolute bottom-2 left-2 sm:bottom-3 sm:left-3 bg-black/60 backdrop-blur-md rounded-lg px-2 py-1 sm:px-3 sm:py-1.5 text-[10px] sm:text-sm font-bold text-white flex items-center gap-2">
-                      <div className={`w-2 h-2 sm:w-3 sm:h-3 rounded-full ${progress === 100 ? 'bg-green-400' : 'bg-yellow-400 animate-pulse'}`} />
+                    <div className="absolute bottom-1.5 left-1.5 sm:bottom-2 sm:left-2 bg-black/60 backdrop-blur-md rounded-lg px-1.5 py-0.5 sm:px-2 sm:py-1 text-[8px] sm:text-[10px] font-bold text-white flex items-center gap-1.5">
+                      <div className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full ${progress === 100 ? 'bg-green-400' : 'bg-yellow-400 animate-pulse'}`} />
                       {progress === 100 ? (language === 'ar' ? 'مكتمل' : 'Completed') : `${Math.round(progress)}%`}
                     </div>
                   )}
@@ -627,92 +620,92 @@ export default function StudentCourseDetailsPage() {
               </div>
 
               {/* معلومات الكورس */}
-              <div className="lg:col-span-2 space-y-4 sm:space-y-5 md:space-y-6">
-                <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-                  <span className={`px-3 py-1.5 sm:px-4 sm:py-2 rounded-full text-[10px] sm:text-sm font-bold ${course.is_free||course.price===0?'bg-green-500/20 text-green-400':'bg-blue-500/20 text-blue-400'} backdrop-blur-sm border border-current/20`}>
-                    {course.is_free||course.price===0? (language==='ar'?'مجاني':'Free') : `${course.price} جنيه`}
+              <div className="lg:col-span-2 space-y-3 sm:space-y-4">
+                <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                  <span className={`px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full text-[8px] sm:text-[10px] font-bold ${course.is_free||course.price===0?'bg-green-500/20 text-green-400':'bg-blue-500/20 text-blue-400'} backdrop-blur-sm border border-current/20`}>
+                    {course.is_free||course.price===0? (language==='ar'?'مجاني':'Free') : `${course.price} ج.م`}
                   </span>
-                  <span className="px-3 py-1.5 sm:px-4 sm:py-2 rounded-full text-[10px] sm:text-sm font-bold bg-purple-500/10 text-purple-400 border border-purple-400/20">
+                  <span className="px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full text-[8px] sm:text-[10px] font-bold bg-purple-500/10 text-purple-400 border border-purple-400/20">
                     {course.grade_stage==='primary'? (language==='ar'?'ابتدائي':'Primary') : course.grade_stage==='middle'? (language==='ar'?'إعدادي':'Middle') : (language==='ar'?'ثانوي':'High')}
-                    {course.grade_level && ` ${language==='ar'?'الصف':'Grade'} ${course.grade_level}`}
+                    {course.grade_level && ` ${language==='ar'?'صف':'G'} ${course.grade_level}`}
                   </span>
                 </div>
 
-                <h1 className={`text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-extrabold ${styles.text} leading-tight`}>{course.title}</h1>
+                <h1 className={`text-xl sm:text-2xl md:text-3xl font-extrabold ${styles.text} leading-tight`}>{course.title}</h1>
 
                 {teacher && (
-                  <div className="flex items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-xl bg-gradient-to-r from-blue-500/5 to-transparent border border-blue-400/10">
-                    <div className="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-bold text-base sm:text-lg md:text-xl shadow-lg">
+                  <div className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 rounded-lg bg-gradient-to-r from-blue-500/5 to-transparent border border-blue-400/10">
+                    <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-bold text-sm sm:text-base shadow-lg">
                       {teacher.full_name?.charAt(0).toUpperCase()}
                     </div>
                     <div>
-                      <p className={`text-base sm:text-lg md:text-xl font-bold ${styles.text}`}>{teacher.full_name}</p>
-                      <p className={`text-xs sm:text-sm ${styles.subtext}`}>{language==='ar'?'المعلم':'Teacher'}{teacher.email ? ` • ${teacher.email}` : ''}</p>
+                      <p className={`text-sm sm:text-base font-bold ${styles.text}`}>{teacher.full_name}</p>
+                      <p className={`text-[9px] sm:text-[10px] ${styles.subtext}`}>{language==='ar'?'المعلم':'Teacher'}{teacher.email ? ` • ${teacher.email}` : ''}</p>
                     </div>
                   </div>
                 )}
 
                 {course.description && (
-                  <div className={`p-4 sm:p-5 rounded-xl ${styles.card} border ${styles.border}`}>
-                    <h4 className={`text-sm sm:text-base md:text-lg font-bold ${styles.text} mb-2 sm:mb-3`}>{language==='ar'?'وصف الكورس':'Description'}</h4>
-                    <p className={`text-xs sm:text-sm md:text-base ${styles.subtext} leading-relaxed`}>{course.description}</p>
+                  <div className={`p-2.5 sm:p-3 rounded-lg ${styles.card} border ${styles.border}`}>
+                    <h4 className={`text-xs sm:text-sm font-bold ${styles.text} mb-1`}>{language==='ar'?'وصف الكورس':'Description'}</h4>
+                    <p className={`text-[10px] sm:text-xs ${styles.subtext} leading-relaxed`}>{course.description}</p>
                   </div>
                 )}
 
                 {totalDuration > 0 && (
-                  <div className="flex items-center gap-2 sm:gap-3 text-xs sm:text-sm md:text-base">
-                    <Icons.Clock className="h-4 w-4 sm:h-5 sm:w-5 md:h-6 md:w-6 text-blue-500" />
+                  <div className="flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-xs">
+                    <Icons.Clock className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-blue-500" />
                     <span className={styles.subtext}>{formatDuration(totalDuration, language)} {language==='ar'?'محتوى':'content'}</span>
                   </div>
                 )}
 
-                {/* لوحة تحكم مصغرة – متجاوبة */}
+                {/* لوحة تحكم مصغرة – مضغوطة جداً */}
                 {enrolled && (
-                  <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
-                    <div className={`p-3 sm:p-4 md:p-5 rounded-xl ${styles.card} border ${styles.border} text-center`}>
-                      <CircularProgress percentage={videosProgress} size={80} strokeWidth={6} styles={styles} />
-                      <p className={`text-[10px] sm:text-sm mt-2 sm:mt-3 ${styles.subtext}`}>{language==='ar'?'الفيديوهات':'Videos'} ({completedVideos}/{totalVideos})</p>
+                  <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3">
+                    <div className={`p-2 sm:p-3 rounded-lg ${styles.card} border ${styles.border} text-center`}>
+                      <CircularProgress percentage={videosProgress} size={50} strokeWidth={4} styles={styles} />
+                      <p className={`text-[8px] sm:text-[10px] mt-1 ${styles.subtext}`}>{language==='ar'?'فيديوهات':'Videos'} ({completedVideos}/{totalVideos})</p>
                     </div>
-                    <div className={`p-3 sm:p-4 md:p-5 rounded-xl ${styles.card} border ${styles.border} text-center`}>
-                      <CircularProgress percentage={examsProgress} size={80} strokeWidth={6} styles={styles} />
-                      <p className={`text-[10px] sm:text-sm mt-2 sm:mt-3 ${styles.subtext}`}>{language==='ar'?'الامتحانات':'Exams'} ({attemptedExams}/{totalExams})</p>
+                    <div className={`p-2 sm:p-3 rounded-lg ${styles.card} border ${styles.border} text-center`}>
+                      <CircularProgress percentage={examsProgress} size={50} strokeWidth={4} styles={styles} />
+                      <p className={`text-[8px] sm:text-[10px] mt-1 ${styles.subtext}`}>{language==='ar'?'امتحانات':'Exams'} ({attemptedExams}/{totalExams})</p>
                     </div>
-                    <div className={`p-3 sm:p-4 md:p-5 rounded-xl ${styles.card} border ${styles.border} text-center`}>
-                      <CircularProgress percentage={progress} size={80} strokeWidth={6} styles={styles} />
-                      <p className={`text-[10px] sm:text-sm mt-2 sm:mt-3 ${styles.subtext}`}>{language==='ar'?'التقدم العام':'Overall'}</p>
+                    <div className={`p-2 sm:p-3 rounded-lg ${styles.card} border ${styles.border} text-center`}>
+                      <CircularProgress percentage={progress} size={50} strokeWidth={4} styles={styles} />
+                      <p className={`text-[8px] sm:text-[10px] mt-1 ${styles.subtext}`}>{language==='ar'?'التقدم':'Overall'}</p>
                     </div>
                     {lastWatched && (
-                      <div className={`p-3 sm:p-4 md:p-5 rounded-xl ${styles.card} border ${styles.border} flex flex-col justify-center`}>
-                        <p className={`text-[10px] sm:text-sm ${styles.subtext}`}>{language==='ar'?'آخر مشاهدة':'Last Watched'}</p>
-                        <Link href={`/watch/${lastWatched.video_id}`} className={`text-xs sm:text-sm md:text-base font-bold text-blue-500 hover:underline line-clamp-2 mt-1 sm:mt-2`}>{lastWatched.video?.title || 'فيديو'}</Link>
+                      <div className={`p-2 sm:p-3 rounded-lg ${styles.card} border ${styles.border} flex flex-col justify-center`}>
+                        <p className={`text-[8px] sm:text-[10px] ${styles.subtext}`}>{language==='ar'?'آخر مشاهدة':'Last'}</p>
+                        <Link href={`/watch/${lastWatched.video_id}`} className={`text-[9px] sm:text-[10px] font-bold text-blue-500 hover:underline line-clamp-1 mt-0.5`}>{lastWatched.video?.title || 'فيديو'}</Link>
                       </div>
                     )}
                   </div>
                 )}
 
-                <div className="flex flex-wrap gap-3 sm:gap-4 pt-2 sm:pt-3">
+                <div className="flex flex-wrap gap-2 sm:gap-3 pt-1.5">
                   {enrolled ? (
                     <>
-                      <Link href={`/dashboard/student/courses/${id}/progress`} className="px-5 py-3 sm:px-6 sm:py-3.5 md:px-8 md:py-4 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 text-white font-bold text-sm sm:text-base md:text-lg hover:scale-105 transition shadow-2xl shadow-blue-500/30 flex items-center gap-2">
-                        <Icons.ArrowLeft className="h-4 w-4 sm:h-5 sm:w-5" />
-                        {language==='ar'?'متابعة التعلم':'Continue Learning'}
+                      <Link href={`/dashboard/student/courses/${id}/progress`} className="px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg bg-gradient-to-r from-blue-500 to-blue-600 text-white font-bold text-[10px] sm:text-xs hover:scale-105 transition shadow-lg shadow-blue-500/30 flex items-center gap-1.5">
+                        <Icons.ArrowLeft className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                        {language==='ar'?'متابعة التعلم':'Continue'}
                       </Link>
                     </>
                   ) : (
-                    // ===== قسم الكورس غير المشترك (مع دعم الكورسات المدفوعة) =====
-                    <div className="w-full text-center py-5 sm:py-6 md:py-8">
-                      <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center">
+                    // ===== قسم الكورس غير المشترك (مضغوط) =====
+                    <div className="w-full text-center py-3 sm:py-4">
+                      <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 justify-center">
                         {course.is_free || course.price === 0 ? (
-                          <button onClick={handleEnroll} disabled={enrolling} className="px-6 py-3 sm:px-8 sm:py-3.5 md:px-10 md:py-4 bg-gradient-to-r from-green-500 to-green-600 text-white font-bold rounded-xl sm:rounded-2xl hover:scale-105 transition shadow-2xl shadow-green-500/30 text-base sm:text-lg md:text-xl">
+                          <button onClick={handleEnroll} disabled={enrolling} className="px-4 py-1.5 sm:px-5 sm:py-2 bg-gradient-to-r from-green-500 to-green-600 text-white font-bold rounded-lg hover:scale-105 transition shadow-lg shadow-green-500/30 text-[10px] sm:text-xs">
                             {enrolling ? (language==='ar'?'جاري...':'Loading...') : (language==='ar'?'ابدأ الآن 🚀':'Start Now 🚀')}
                           </button>
                         ) : (
                           <>
-                            <button onClick={() => router.push(`/dashboard/student/courses/${id}/payment`)} className="px-6 py-3 sm:px-8 sm:py-3.5 md:px-10 md:py-4 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-bold rounded-xl sm:rounded-2xl hover:scale-105 transition shadow-2xl shadow-blue-500/30 text-base sm:text-lg md:text-xl">
-                              {language==='ar'?'💳 الاشتراك الآن':'💳 Subscribe Now'}
+                            <button onClick={() => router.push(`/dashboard/student/courses/${id}/payment`)} className="px-4 py-1.5 sm:px-5 sm:py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-bold rounded-lg hover:scale-105 transition shadow-lg shadow-blue-500/30 text-[10px] sm:text-xs">
+                              {language==='ar'?'💳 اشتراك':'💳 Subscribe'}
                             </button>
-                            <button onClick={handleEnroll} disabled={enrolling} className="px-4 py-3 sm:px-5 sm:py-3.5 md:px-6 md:py-4 bg-gradient-to-r from-gray-500/20 to-gray-600/20 text-gray-400 font-bold rounded-xl sm:rounded-2xl hover:scale-105 transition border border-gray-500/30 text-sm sm:text-base md:text-lg">
-                              {enrolling ? (language==='ar'?'جاري...':'Loading...') : (language==='ar'?'🔑 لدي كود شحن':'🔑 I have a code')}
+                            <button onClick={handleEnroll} disabled={enrolling} className="px-3 py-1.5 sm:px-4 sm:py-2 bg-gradient-to-r from-gray-500/20 to-gray-600/20 text-gray-400 font-bold rounded-lg hover:scale-105 transition border border-gray-500/30 text-[10px] sm:text-xs">
+                              {enrolling ? (language==='ar'?'جاري...':'Loading...') : (language==='ar'?'🔑 كود':'🔑 Code')}
                             </button>
                           </>
                         )}
@@ -728,46 +721,44 @@ export default function StudentCourseDetailsPage() {
         {/* ===== المحتوى ===== */}
         {enrolled && (
           <>
-            <div className="flex gap-1.5 sm:gap-2 border-b-2 border-gray-200 dark:border-white/10 pb-2 sm:pb-3 overflow-x-auto no-scrollbar">
-              <TabButton active={activeTab==='videos'} onClick={()=>setActiveTab('videos')} icon={Icons.Video} label={language==='ar'?'الفيديوهات':'Videos'} count={totalVideos} styles={styles}/>
-              <TabButton active={activeTab==='exams'} onClick={()=>setActiveTab('exams')} icon={Icons.FileQuestion} label={language==='ar'?'الامتحانات':'Exams'} count={totalExams} styles={styles}/>
-              <TabButton active={activeTab==='books'} onClick={()=>setActiveTab('books')} icon={Icons.Book} label={language==='ar'?'الكتب':'Books'} count={books.length} styles={styles}/>
-              
-              {/* ✅ تبويب جديد: إرسال سؤال أكاديمي (بدلاً من المراجعات) */}
+            <div className="flex gap-1 border-b-2 border-gray-200 dark:border-white/10 pb-1.5 overflow-x-auto no-scrollbar">
+              <TabButton active={activeTab==='videos'} onClick={()=>setActiveTab('videos')} icon={Icons.Video} label={language==='ar'?'فيديوهات':'Videos'} count={totalVideos} styles={styles}/>
+              <TabButton active={activeTab==='exams'} onClick={()=>setActiveTab('exams')} icon={Icons.FileQuestion} label={language==='ar'?'امتحانات':'Exams'} count={totalExams} styles={styles}/>
+              <TabButton active={activeTab==='books'} onClick={()=>setActiveTab('books')} icon={Icons.Book} label={language==='ar'?'كتب':'Books'} count={books.length} styles={styles}/>
               <TabButton 
                 active={activeTab==='academic'} 
                 onClick={() => {
                   router.push(`/dashboard/student/support/academic?course=${id}`);
                 }} 
                 icon={Icons.MessageCircle} 
-                label={language==='ar'?'سؤال أكاديمي':'Academic Q'} 
+                label={language==='ar'?'سؤال':'Q'} 
                 styles={styles}
               />
             </div>
-            <motion.div initial={{opacity:0,y:10}} animate={{opacity:1,y:0}} className="space-y-3 sm:space-y-4">
+            <motion.div initial={{opacity:0,y:6}} animate={{opacity:1,y:0}} className="space-y-2 sm:space-y-3">
               {contentLoading ? (
-                <div className="flex justify-center py-12 sm:py-20"><div className="w-12 h-12 sm:w-16 sm:h-16 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin"/></div>
+                <div className="flex justify-center py-8 sm:py-12"><div className="w-8 h-8 sm:w-10 sm:h-10 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin"/></div>
               ) : (
                 <>
                   {activeTab==='videos' && (
-                    <div className="space-y-3 sm:space-y-4">
+                    <div className="space-y-2 sm:space-y-3">
                       {videos.length>0 ? videos.map(v=>(
                         <VideoItem key={v.id} video={v} bookmarked={!!bookmarks[v.id]} onToggleBookmark={toggleBookmark} styles={styles} language={language} watched={!!watchedVideos[v.id]}/>
-                      )) : <p className={`text-base sm:text-lg ${styles.subtext}`}>{language==='ar'?'لا توجد فيديوهات':'No videos yet'}</p>}
+                      )) : <p className={`text-xs sm:text-sm ${styles.subtext}`}>{language==='ar'?'لا توجد فيديوهات':'No videos yet'}</p>}
                     </div>
                   )}
                   {activeTab==='exams' && (
-                    <div className="space-y-3 sm:space-y-4">
+                    <div className="space-y-2 sm:space-y-3">
                       {exams.length>0 ? exams.map(e=>(
                         <ExamItem key={e.id} exam={e} styles={styles} language={language} attempted={!!examAttempts[e.id]?.attempted} score={examAttempts[e.id]?.score}/>
-                      )) : <p className={`text-base sm:text-lg ${styles.subtext}`}>{language==='ar'?'لا توجد امتحانات':'No exams yet'}</p>}
+                      )) : <p className={`text-xs sm:text-sm ${styles.subtext}`}>{language==='ar'?'لا توجد امتحانات':'No exams yet'}</p>}
                     </div>
                   )}
                   {activeTab==='books' && (
-                    <div className="space-y-3 sm:space-y-4">
+                    <div className="space-y-2 sm:space-y-3">
                       {books.length>0 ? books.map(b=>(
                         <BookItem key={b.id} book={b} styles={styles} language={language}/>
-                      )) : <p className={`text-base sm:text-lg ${styles.subtext}`}>{language==='ar'?'لا توجد كتب':'No books yet'}</p>}
+                      )) : <p className={`text-xs sm:text-sm ${styles.subtext}`}>{language==='ar'?'لا توجد كتب':'No books yet'}</p>}
                     </div>
                   )}
                 </>
@@ -777,53 +768,53 @@ export default function StudentCourseDetailsPage() {
         )}
 
         {!enrolled && (
-          // ===== عرض القفل للكورسات غير المشترك فيها =====
-          <div className="text-center py-16 sm:py-20 md:py-28 border-2 border-dashed border-gray-300 dark:border-white/10 rounded-2xl sm:rounded-3xl">
-            <Icons.Lock className="h-16 w-16 sm:h-20 sm:w-20 md:h-24 md:w-24 text-gray-400 mx-auto mb-3 sm:mb-4 md:mb-5"/>
-            <h3 className={`text-xl sm:text-2xl md:text-3xl font-bold ${styles.text} mb-2 sm:mb-3 md:mb-4`}>
+          // ===== عرض القفل للكورسات غير المشترك فيها (مضغوط) =====
+          <div className="text-center py-8 sm:py-12 border-2 border-dashed border-gray-300 dark:border-white/10 rounded-2xl">
+            <Icons.Lock className="h-10 w-10 sm:h-12 sm:w-12 text-gray-400 mx-auto mb-2"/>
+            <h3 className={`text-base sm:text-lg font-bold ${styles.text} mb-1`}>
               {course.is_free ? (language==='ar'?'ابدأ التعلم مجاناً':'Start learning for free') : (language==='ar'?'اشترك للوصول للمحتوى':'Enroll to access content')}
             </h3>
-            <p className={`text-sm sm:text-base md:text-lg ${styles.subtext} max-w-lg mx-auto px-4`}>
+            <p className={`text-[10px] sm:text-xs ${styles.subtext} max-w-lg mx-auto px-3`}>
               {course.is_free
                 ? (language==='ar' ? 'هذا الكورس مجاني! يمكنك البدء فوراً.' : 'This course is free! You can start right away.')
                 : (language==='ar'
-                    ? 'بعد الاشتراك ستتمكن من مشاهدة الفيديوهات وحل الامتحانات وتحميل الكتب ومتابعة تقدمك'
-                    : 'After enrolling you can watch videos, take exams, download books and track your progress.')
+                    ? 'بعد الاشتراك ستتمكن من مشاهدة الفيديوهات وحل الامتحانات وتحميل الكتب'
+                    : 'After enrolling you can watch videos, take exams, download books')
               }
             </p>
             {course.is_free ? (
-              <button onClick={handleEnroll} disabled={enrolling} className="mt-4 sm:mt-5 md:mt-6 px-6 py-3 sm:px-8 sm:py-3.5 md:px-10 md:py-4 bg-gradient-to-r from-green-500 to-green-600 text-white font-bold rounded-xl sm:rounded-2xl hover:scale-105 transition shadow-2xl shadow-green-500/30 text-base sm:text-lg md:text-xl">
+              <button onClick={handleEnroll} disabled={enrolling} className="mt-3 px-4 py-1.5 sm:px-5 sm:py-2 bg-gradient-to-r from-green-500 to-green-600 text-white font-bold rounded-lg hover:scale-105 transition shadow-lg shadow-green-500/30 text-[10px] sm:text-xs">
                 {enrolling ? (language==='ar'?'جاري...':'Loading...') : (language==='ar'?'ابدأ الآن 🚀':'Start Now 🚀')}
               </button>
             ) : (
-              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center mt-4 sm:mt-5 md:mt-6">
-                <button onClick={() => router.push(`/dashboard/student/courses/${id}/payment`)} className="px-6 py-3 sm:px-8 sm:py-3.5 md:px-10 md:py-4 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-bold rounded-xl sm:rounded-2xl hover:scale-105 transition shadow-2xl shadow-blue-500/30 text-base sm:text-lg md:text-xl">
-                  {language==='ar'?'💳 الاشتراك الآن':'💳 Subscribe Now'}
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 justify-center mt-3">
+                <button onClick={() => router.push(`/dashboard/student/courses/${id}/payment`)} className="px-4 py-1.5 sm:px-5 sm:py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-bold rounded-lg hover:scale-105 transition shadow-lg shadow-blue-500/30 text-[10px] sm:text-xs">
+                  {language==='ar'?'💳 اشتراك':'💳 Subscribe'}
                 </button>
-                <button onClick={handleEnroll} disabled={enrolling} className="px-4 py-3 sm:px-5 sm:py-3.5 md:px-6 md:py-4 bg-gradient-to-r from-gray-500/20 to-gray-600/20 text-gray-400 font-bold rounded-xl sm:rounded-2xl hover:scale-105 transition border border-gray-500/30 text-sm sm:text-base md:text-lg">
-                  {enrolling ? (language==='ar'?'جاري...':'Loading...') : (language==='ar'?'🔑 لدي كود شحن':'🔑 I have a code')}
+                <button onClick={handleEnroll} disabled={enrolling} className="px-3 py-1.5 sm:px-4 sm:py-2 bg-gradient-to-r from-gray-500/20 to-gray-600/20 text-gray-400 font-bold rounded-lg hover:scale-105 transition border border-gray-500/30 text-[10px] sm:text-xs">
+                  {enrolling ? (language==='ar'?'جاري...':'Loading...') : (language==='ar'?'🔑 كود':'🔑 Code')}
                 </button>
               </div>
             )}
           </div>
         )}
 
-        {/* ===== كورسات ذات صلة ===== */}
+        {/* ===== كورسات ذات صلة (مضغوطة) ===== */}
         {relatedCourses.length>0 && (
           <div>
-            <h2 className={`text-xl sm:text-2xl font-bold ${styles.text} mb-3 sm:mb-4 md:mb-5 flex items-center gap-2 sm:gap-3`}>
-              <Icons.Grid3X3 className="h-5 w-5 sm:h-6 sm:w-6 md:h-7 md:w-7 text-blue-500"/> {language==='ar'?'كورسات ذات صلة':'Related Courses'}
+            <h2 className={`text-sm sm:text-base font-bold ${styles.text} mb-2 flex items-center gap-1.5`}>
+              <Icons.Grid3X3 className="h-4 w-4 sm:h-5 sm:w-5 text-blue-500"/> {language==='ar'?'كورسات ذات صلة':'Related Courses'}
             </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
               {relatedCourses.map(rc=>(
-                <Link key={rc.id} href={`/dashboard/student/courses/${rc.id}`} className={`p-4 sm:p-5 md:p-6 rounded-xl border ${styles.border} ${styles.card} hover:border-blue-400/50 transition group`}>
-                  <div className="flex items-center gap-3 sm:gap-4 mb-2 sm:mb-3">
-                    <div className="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 rounded-xl bg-blue-500/10 flex items-center justify-center">
-                      <Icons.BookOpen className="h-5 w-5 sm:h-6 sm:w-6 md:h-7 md:w-7 text-blue-500 group-hover:scale-110 transition"/>
+                <Link key={rc.id} href={`/dashboard/student/courses/${rc.id}`} className={`p-2.5 sm:p-3 rounded-lg border ${styles.border} ${styles.card} hover:border-blue-400/50 transition group`}>
+                  <div className="flex items-center gap-2 sm:gap-3 mb-1">
+                    <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-blue-500/10 flex items-center justify-center">
+                      <Icons.BookOpen className="h-4 w-4 sm:h-5 sm:w-5 text-blue-500 group-hover:scale-110 transition"/>
                     </div>
-                    <span className={`text-sm sm:text-base md:text-lg font-bold ${styles.text} line-clamp-1`}>{rc.title}</span>
+                    <span className={`text-xs sm:text-sm font-bold ${styles.text} line-clamp-1`}>{rc.title}</span>
                   </div>
-                  {rc.teacher && <p className={`text-xs sm:text-sm ${styles.subtext}`}>{rc.teacher.full_name}</p>}
+                  {rc.teacher && <p className={`text-[9px] sm:text-[10px] ${styles.subtext}`}>{rc.teacher.full_name}</p>}
                 </Link>
               ))}
             </div>
@@ -831,15 +822,9 @@ export default function StudentCourseDetailsPage() {
         )}
       </div>
 
-      {/* إضافة CSS لإخفاء شريط التمرير للتبويبات */}
       <style jsx>{`
-        .no-scrollbar::-webkit-scrollbar {
-          display: none;
-        }
-        .no-scrollbar {
-          -ms-overflow-style: none;
-          scrollbar-width: none;
-        }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
       `}</style>
     </div>
   );
