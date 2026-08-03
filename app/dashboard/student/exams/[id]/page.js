@@ -7,6 +7,8 @@
 // ✅ تحسين الرؤية على جميع الأجهزة باستخدام وحدات مرنة (clamp, rem, %)
 // ✅ منع الطباعة (Ctrl+P) ومفاتيح الاختصار
 // ✅ دعم محاذاة النص (يسار/وسط/يمين) من بيانات السؤال
+// ✅ عرض عنوان الامتحان الحقيقي في شهادة التكريم
+// ✅ منع ظهور الشهادة للراسبين (حتى لو استنفذوا المحاولات)
 // ================================================================
 
 'use client';
@@ -3736,8 +3738,8 @@ export default function StudentExamPage() {
     return <ExamCountdownScreen exam={exam} styles={styles} language={language} isDark={isDark} />;
   }
 
-  // ===== شاشة "تم الاجتياز" (ناجح سابقاً) =====
-  if (showPassedScreen && passedAttempt) {
+  // ===== شاشة "تم الاجتياز" (ناجح سابقاً) – تظهر فقط للناجحين =====
+  if (showPassedScreen && passedAttempt && passedAttempt.passed === true) {
     const totalMarks = (passedAttempt.total_marks > 0) 
       ? passedAttempt.total_marks 
       : (exam?.total_marks > 0) 
@@ -3803,8 +3805,9 @@ export default function StudentExamPage() {
                 {student?.full_name || 'طالب'}
               </p>
               
+              {/* ✅ تعديل: عرض عنوان الامتحان الحقيقي */}
               <p className={`text-sm sm:text-base ${styles.subtext}`}>
-                {language === 'ar' ? 'لاجتيازه امتحان' : 'for successfully passing the exam'}
+                {language === 'ar' ? `لاجتيازه امتحان "${examTitle}"` : `for successfully passing the exam "${examTitle}"`}
               </p>
               
               <p className={`text-xl sm:text-2xl font-bold ${styles.text} my-2 px-4 py-1 bg-yellow-400/10 rounded-xl inline-block border border-yellow-400/20`}>
