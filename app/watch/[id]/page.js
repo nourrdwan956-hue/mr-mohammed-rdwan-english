@@ -1,28 +1,12 @@
 // app/watch/[id]/page.js
 // ================================================================
 // 📁 المسار: app/watch/[id]/page.js
-// ✅ إصلاح: إخفاء زر التشغيل المركزي مع باقي عناصر التحكم
-// ✅ مع الحفاظ على ظهوره عند تحريك الماوس (عندما تظهر عناصر التحكم)
-// ✅ جميع الميزات السابقة محفوظة (تايمر، ألوان متدرجة، حماية، إلخ)
-// ✅ مؤشر الصوت يتغير لونه تدريجياً (أحمر ← أصفر ← أخضر)
-// ✅ مؤشر التقدم يتغير لونه تدريجياً حسب الثلث (أحمر ← أصفر ← أخضر)
-// ✅ زر التشغيل المركزي يعمل كـ toggle دائماً
-// ✅ إضافة التحكم في الترجمة (Captions) مع حالة ودالة وزر مخصص
-// ✅ نظام التتبع الذكي للمشاهدة (Smart Watch Tracking)
-//    - تتبع الفترات الفعلية للمشاهدة ودمجها
-//    - حساب الوقت الفريد المشاهد
-//    - حفظ دوري كل 30 ثانية مع إرسال التوكن
-//    - حفظ عند الخروج باستخدام fetch مع keepalive وإرسال التوكن
-//    - استئناف الفترات المحفوظة مسبقاً
-// ✅ تعديل التحقق من الوصول: جلب max_devices من الكورس وعرض رسائل محددة
-// ✅ إزالة export const dynamic و export const revalidate (لا تستخدم في Client Components)
-// ✅ تحسين التوافق مع الموبايل: زر تشغيل أصغر، شريط تحكم أقل ارتفاعاً،
-//    أزرار مصغرة، وترتيب مرن للمساحات الضيقة
-// ✅ زيادة المسافة بين زر التشغيل المركزي وشريط التحكم السفلي على الأجهزة الصغيرة
-// ✅ زر الترجمة يعمل كـ toggle (تشغيل/إيقاف) مع إظهار رسالة "✅ تم إيقاف الترجمة" عند الإيقاف
-//    ورسالة "✅ تم إظهار الترجمة" عند التشغيل
-// ✅ إصلاح وظيفة الترجمة لتعمل بشكل صحيح كما كانت سابقاً
-// ✅ إزالة زر تكرار الفيديو (Loop) نهائياً مع كل توابعه
+// ✅ تحسينات متقدمة للتوافق مع جميع الشاشات
+//    - تقليص أحجام الأزرار والمسافات على الموبايل
+//    - وضوح مثالي على الشاشات الكبيرة
+// ✅ إزالة زر التكرار (Loop) نهائياً مع جميع توابعه
+// ✅ زر الترجمة يعمل كـ toggle مع رسائل واضحة
+// ✅ جميع الميزات السابقة محفوظة (تتبع ذكي، حماية، Wave Border، إلخ)
 // ================================================================
 
 'use client';
@@ -269,7 +253,7 @@ const InteractiveTimer = ({ currentTime, duration, progress }) => {
         {getIcon()}
       </motion.span>
       <motion.span
-        className="text-xs font-mono font-bold text-white/90 hover:text-yellow-400 transition-colors"
+        className="text-[10px] sm:text-xs font-mono font-bold text-white/90 hover:text-yellow-400 transition-colors"
         animate={{ color: isHovered ? '#FACC15' : 'rgba(255,255,255,0.9)' }}
       >
         {getDisplayText()}
@@ -1182,7 +1166,7 @@ export default function WatchPage() {
   const thumbnailUrl = youtubeId ? `https://img.youtube.com/vi/${youtubeId}/maxresdefault.jpg` : null;
 
   // ================================================================
-  // 17. التصميم النهائي (مع تحسينات الموبايل وزيادة المسافة، بدون Loop)
+  // 17. التصميم النهائي (مع تحسينات متقدمة للشاشات الصغيرة والكبيرة، بدون Loop)
   // ================================================================
   return (
     <div className={`min-h-screen text-white transition-all duration-500 relative ${focusMode ? 'fixed inset-0 z-50 p-0 flex items-center justify-center bg-black' : ''}`}>
@@ -1253,7 +1237,7 @@ export default function WatchPage() {
                     )}
                   </AnimatePresence>
 
-                  {/* زر التشغيل المركزي - مع زيادة المسافة عن الشريط على الموبايل */}
+                  {/* زر التشغيل المركزي - حجم متجاوب مع شاشات صغيرة وكبيرة */}
                   {playerReady && controlsVisible && (
                     <div
                       className="absolute inset-0 z-30 flex items-center justify-center cursor-pointer pb-8 sm:pb-0"
@@ -1267,11 +1251,11 @@ export default function WatchPage() {
                         className="relative"
                       >
                         <div className="absolute inset-0 bg-yellow-400/20 rounded-full blur-xl scale-150 group-hover:scale-200 transition-transform duration-300" />
-                        <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-yellow-400/90 flex items-center justify-center shadow-2xl shadow-yellow-400/40 group-hover:shadow-yellow-400/60 transition-shadow">
+                        <div className="relative w-14 h-14 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-full bg-yellow-400/90 flex items-center justify-center shadow-2xl shadow-yellow-400/40 group-hover:shadow-yellow-400/60 transition-shadow">
                           {isPlaying ? (
-                            <Icons.Pause className="h-8 w-8 sm:h-10 sm:w-10 text-black" />
+                            <Icons.Pause className="h-6 w-6 sm:h-10 sm:w-10 md:h-12 md:w-12 text-black" />
                           ) : (
-                            <Icons.Play className="h-8 w-8 sm:h-10 sm:w-10 text-black ml-1" />
+                            <Icons.Play className="h-6 w-6 sm:h-10 sm:w-10 md:h-12 md:w-12 text-black ml-1" />
                           )}
                         </div>
                       </motion.div>
@@ -1282,14 +1266,14 @@ export default function WatchPage() {
                     {isPlaying && controlsVisible && playerReady && (
                       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 z-30 pointer-events-none">
                         <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-auto opacity-0 group-hover:opacity-100 transition-all duration-300" onClick={skipBackward}>
-                          <div className="w-12 h-12 rounded-full bg-black/70 backdrop-blur-sm flex items-center justify-center hover:bg-black/90 border border-white/10 shadow-lg group">
-                            <Icons.RotateCcw className="h-6 w-6 text-white group-hover:text-yellow-400 transition-colors" />
+                          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-black/70 backdrop-blur-sm flex items-center justify-center hover:bg-black/90 border border-white/10 shadow-lg group">
+                            <Icons.RotateCcw className="h-5 w-5 sm:h-6 sm:w-6 text-white group-hover:text-yellow-400 transition-colors" />
                             <span className="absolute text-[8px] -bottom-4 text-white/70 group-hover:text-yellow-400">10s</span>
                           </div>
                         </div>
                         <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-auto opacity-0 group-hover:opacity-100 transition-all duration-300" onClick={skipForward}>
-                          <div className="w-12 h-12 rounded-full bg-black/70 backdrop-blur-sm flex items-center justify-center hover:bg-black/90 border border-white/10 shadow-lg group">
-                            <Icons.RotateCw className="h-6 w-6 text-white group-hover:text-yellow-400 transition-colors" />
+                          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-black/70 backdrop-blur-sm flex items-center justify-center hover:bg-black/90 border border-white/10 shadow-lg group">
+                            <Icons.RotateCw className="h-5 w-5 sm:h-6 sm:w-6 text-white group-hover:text-yellow-400 transition-colors" />
                             <span className="absolute text-[8px] -bottom-4 text-white/70 group-hover:text-yellow-400">10s</span>
                           </div>
                         </div>
@@ -1297,19 +1281,19 @@ export default function WatchPage() {
                     )}
                   </AnimatePresence>
 
-                  {/* شريط التحكم السفلي - محسّن للموبايل مع مسافة إضافية، بدون Loop */}
+                  {/* شريط التحكم السفلي - محسّن جداً للموبايل والكبيرة */}
                   {playerReady && (
                     <div
-                      className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent p-3 sm:p-4 flex flex-col gap-1 sm:gap-2 pointer-events-auto z-40 transition-opacity duration-300 ${controlsVisible ? 'opacity-100' : 'opacity-0'}`}
+                      className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent p-2 sm:p-4 flex flex-col gap-1 sm:gap-2 pointer-events-auto z-40 transition-opacity duration-300 ${controlsVisible ? 'opacity-100' : 'opacity-0'}`}
                       onMouseEnter={() => {
                         setControlsVisible(true);
                         clearTimeout(controlsTimerRef.current);
                       }}
                     >
-                      {/* شريط التقدم - أقل ارتفاعاً على الموبايل */}
+                      {/* شريط التقدم - مناسب للجميع */}
                       <div
                         ref={progressRef}
-                        className="relative w-full h-2 sm:h-2.5 bg-white/15 rounded-full cursor-pointer group/progress"
+                        className="relative w-full h-1.5 sm:h-2.5 bg-white/15 rounded-full cursor-pointer group/progress"
                         onClick={handleProgressClick}
                       >
                         <div className="absolute top-0 left-0 h-full bg-white/20 rounded-full" style={{ width: `${bufferProgress}%` }} />
@@ -1321,30 +1305,30 @@ export default function WatchPage() {
                           }}
                         />
                         <div
-                          className="absolute top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 bg-white rounded-full shadow-2xl opacity-0 group-hover/progress:opacity-100 transition-all duration-200"
-                          style={{ left: `${progress}%`, marginLeft: '-8px' }}
+                          className="absolute top-1/2 -translate-y-1/2 w-3 h-3 sm:w-5 sm:h-5 bg-white rounded-full shadow-2xl opacity-0 group-hover/progress:opacity-100 transition-all duration-200"
+                          style={{ left: `${progress}%`, marginLeft: '-6px' }}
                         >
                           <div className="absolute inset-1 bg-yellow-400 rounded-full scale-0 group-hover/progress:scale-100 transition-transform duration-200" />
                         </div>
                       </div>
 
-                      {/* صف الأزرار مع flex-wrap وأحجام أصغر للموبايل - بدون Loop */}
-                      <div className="flex items-center gap-1 sm:gap-2 text-white flex-wrap">
-                        <button onClick={togglePlay} className="p-1.5 rounded-full hover:bg-white/10 transition-colors">
-                          {isPlaying ? <Icons.Pause className="h-5 w-5 sm:h-6 sm:w-6" /> : <Icons.Play className="h-5 w-5 sm:h-6 sm:w-6" />}
+                      {/* صف الأزرار - مرن ومناسب لكل الأحجام */}
+                      <div className="flex items-center gap-0.5 sm:gap-2 text-white flex-wrap">
+                        <button onClick={togglePlay} className="p-1 sm:p-1.5 rounded-full hover:bg-white/10 transition-colors">
+                          {isPlaying ? <Icons.Pause className="h-4 w-4 sm:h-6 sm:w-6" /> : <Icons.Play className="h-4 w-4 sm:h-6 sm:w-6" />}
                         </button>
-                        <button onClick={skipBackward} className="p-1.5 rounded-full hover:bg-white/10 transition-colors">
-                          <Icons.SkipBack className="h-4 w-4 sm:h-5 sm:w-5" />
+                        <button onClick={skipBackward} className="p-1 sm:p-1.5 rounded-full hover:bg-white/10 transition-colors">
+                          <Icons.SkipBack className="h-3 w-3 sm:h-5 sm:w-5" />
                         </button>
-                        <button onClick={skipForward} className="p-1.5 rounded-full hover:bg-white/10 transition-colors">
-                          <Icons.SkipForward className="h-4 w-4 sm:h-5 sm:w-5" />
+                        <button onClick={skipForward} className="p-1 sm:p-1.5 rounded-full hover:bg-white/10 transition-colors">
+                          <Icons.SkipForward className="h-3 w-3 sm:h-5 sm:w-5" />
                         </button>
-                        <span className="text-[10px] sm:text-xs text-gray-300 font-mono min-w-[60px] sm:min-w-[80px]">
+                        <span className="text-[8px] sm:text-xs text-gray-300 font-mono min-w-[40px] sm:min-w-[80px]">
                           {formatTime(currentTime)} / {formatTime(duration)}
                         </span>
 
-                        <button onClick={toggleMute} className="p-1.5 rounded-full hover:bg-white/10 transition-colors">
-                          {muted ? <Icons.VolumeX className="h-4 w-4 sm:h-5 sm:w-5" /> : <Icons.Volume2 className="h-4 w-4 sm:h-5 sm:w-5" />}
+                        <button onClick={toggleMute} className="p-1 sm:p-1.5 rounded-full hover:bg-white/10 transition-colors">
+                          {muted ? <Icons.VolumeX className="h-3 w-3 sm:h-5 sm:w-5" /> : <Icons.Volume2 className="h-3 w-3 sm:h-5 sm:w-5" />}
                         </button>
                         <input
                           type="range"
@@ -1353,30 +1337,30 @@ export default function WatchPage() {
                           step="0.01"
                           value={muted ? 0 : volume}
                           onChange={handleVolumeChange}
-                          className="w-16 sm:w-20 h-1 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 sm:[&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-3 sm:[&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-yellow-400 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-lg"
+                          className="w-12 sm:w-20 h-0.5 sm:h-1 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-2 sm:[&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-2 sm:[&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-yellow-400 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-lg"
                           style={{
                             backgroundImage: `linear-gradient(to right, ${getGradientColor(muted ? 0 : volume)}, ${getGradientColor(muted ? 0 : volume)})`,
                             backgroundColor: muted ? '#4a4a4a' : undefined,
                           }}
                         />
 
-                        {/* زر الترجمة - يعمل كـ toggle مع رسائل واضحة */}
+                        {/* زر الترجمة - حجم متجاوب */}
                         <button
                           onClick={toggleCaptions}
-                          className={`p-1.5 rounded-full hover:bg-white/10 transition-colors ${captionsEnabled ? 'text-yellow-400' : ''}`}
+                          className={`p-1 sm:p-1.5 rounded-full hover:bg-white/10 transition-colors ${captionsEnabled ? 'text-yellow-400' : ''}`}
                           title={captionsEnabled ? (language === 'ar' ? 'إخفاء الترجمة' : 'Hide Captions') : (language === 'ar' ? 'إظهار الترجمة' : 'Show Captions')}
                         >
-                          <Icons.ClosedCaption className="h-4 w-4 sm:h-5 sm:w-5" />
+                          <Icons.ClosedCaption className="h-3 w-3 sm:h-5 sm:w-5" />
                         </button>
 
                         <div className="relative">
-                          <button onClick={() => { setShowSpeedMenu(!showSpeedMenu); setShowQualityMenu(false); }} className="px-1.5 sm:px-2 py-0.5 rounded-lg hover:bg-white/10 transition-colors text-[10px] sm:text-xs font-bold">
+                          <button onClick={() => { setShowSpeedMenu(!showSpeedMenu); setShowQualityMenu(false); }} className="px-1 sm:px-2 py-0.5 rounded-lg hover:bg-white/10 transition-colors text-[8px] sm:text-xs font-bold">
                             {playbackRate}x
                           </button>
                           {showSpeedMenu && (
-                            <div className="absolute bottom-full mb-2 left-0 bg-gray-900/95 backdrop-blur-sm border border-white/10 rounded-xl py-1 shadow-2xl z-50 w-20">
+                            <div className="absolute bottom-full mb-2 left-0 bg-gray-900/95 backdrop-blur-sm border border-white/10 rounded-xl py-1 shadow-2xl z-50 w-16 sm:w-20">
                               {[0.5, 0.75, 1, 1.25, 1.5, 2].map(rate => (
-                                <button key={rate} onClick={() => changePlaybackRate(rate)} className={`block w-full text-left px-3 py-1 text-xs hover:bg-white/10 transition-colors ${rate === playbackRate ? 'text-yellow-400' : 'text-white'}`}>
+                                <button key={rate} onClick={() => changePlaybackRate(rate)} className={`block w-full text-left px-2 sm:px-3 py-1 text-[8px] sm:text-xs hover:bg-white/10 transition-colors ${rate === playbackRate ? 'text-yellow-400' : 'text-white'}`}>
                                   {rate}x
                                 </button>
                               ))}
@@ -1386,25 +1370,25 @@ export default function WatchPage() {
 
                         {qualities.length > 0 && (
                           <div className="relative">
-                            <button onClick={() => { setShowQualityMenu(!showQualityMenu); setShowSpeedMenu(false); }} className="p-1.5 rounded-full hover:bg-white/10 transition-colors">
-                              <Icons.Settings className="h-4 w-4 sm:h-5 sm:w-5" />
+                            <button onClick={() => { setShowQualityMenu(!showQualityMenu); setShowSpeedMenu(false); }} className="p-1 sm:p-1.5 rounded-full hover:bg-white/10 transition-colors">
+                              <Icons.Settings className="h-3 w-3 sm:h-5 sm:w-5" />
                             </button>
                             {showQualityMenu && (
-                              <div className="absolute bottom-full mb-2 left-0 bg-gray-900/95 backdrop-blur-sm border border-white/10 rounded-xl py-1 shadow-2xl z-50 w-24">
-                                <button onClick={() => changeQuality('auto')} className={`block w-full text-left px-3 py-1 text-xs hover:bg-white/10 transition-colors ${currentQuality === 'auto' ? 'text-yellow-400' : 'text-white'}`}>تلقائي</button>
+                              <div className="absolute bottom-full mb-2 left-0 bg-gray-900/95 backdrop-blur-sm border border-white/10 rounded-xl py-1 shadow-2xl z-50 w-20 sm:w-24">
+                                <button onClick={() => changeQuality('auto')} className={`block w-full text-left px-2 sm:px-3 py-1 text-[8px] sm:text-xs hover:bg-white/10 transition-colors ${currentQuality === 'auto' ? 'text-yellow-400' : 'text-white'}`}>تلقائي</button>
                                 {qualities.map(q => (
-                                  <button key={q} onClick={() => changeQuality(q)} className={`block w-full text-left px-3 py-1 text-xs hover:bg-white/10 transition-colors ${currentQuality === q ? 'text-yellow-400' : 'text-white'}`}>{q}</button>
+                                  <button key={q} onClick={() => changeQuality(q)} className={`block w-full text-left px-2 sm:px-3 py-1 text-[8px] sm:text-xs hover:bg-white/10 transition-colors ${currentQuality === q ? 'text-yellow-400' : 'text-white'}`}>{q}</button>
                                 ))}
                               </div>
                             )}
                           </div>
                         )}
 
-                        <button onClick={toggleFocusMode} className={`p-1.5 rounded-full hover:bg-white/10 transition-colors ${focusMode ? 'text-yellow-400' : ''}`} title="وضع التركيز (Z)">
-                          <Icons.Eye className="h-4 w-4 sm:h-5 sm:w-5" />
+                        <button onClick={toggleFocusMode} className={`p-1 sm:p-1.5 rounded-full hover:bg-white/10 transition-colors ${focusMode ? 'text-yellow-400' : ''}`} title="وضع التركيز (Z)">
+                          <Icons.Eye className="h-3 w-3 sm:h-5 sm:w-5" />
                         </button>
-                        <button onClick={toggleFullscreen} className="p-1.5 rounded-full hover:bg-white/10 transition-colors ml-auto">
-                          <Icons.Maximize className="h-4 w-4 sm:h-5 sm:w-5" />
+                        <button onClick={toggleFullscreen} className="p-1 sm:p-1.5 rounded-full hover:bg-white/10 transition-colors ml-auto">
+                          <Icons.Maximize className="h-3 w-3 sm:h-5 sm:w-5" />
                         </button>
                       </div>
                     </div>
@@ -1461,7 +1445,6 @@ export default function WatchPage() {
                   يمكنك التحكم بالفيديو باستخدام الأزرار أو اختصارات لوحة المفاتيح.
                   <span className="block text-yellow-400/60 mt-1">⏱ اضغط على التايمر لتغيير العرض (متبقي / نسبة / مشاهدة)</span>
                   <span className="block text-yellow-400/60 mt-0.5">🔤 اضغط C لتشغيل/إيقاف الترجمة</span>
-                  <span className="block text-yellow-400/60 mt-0.5">👆 زر الترجمة يعمل كـ toggle (تشغيل/إيقاف)</span>
                 </p>
               </div>
             </div>
