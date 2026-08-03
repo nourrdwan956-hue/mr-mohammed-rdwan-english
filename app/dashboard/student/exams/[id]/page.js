@@ -6,6 +6,7 @@
 // ✅ شريط سفلي مع أزرار تنقل وشريط نقاط
 // ✅ تحسين الرؤية على جميع الأجهزة باستخدام وحدات مرنة (clamp, rem, %)
 // ✅ منع الطباعة (Ctrl+P) ومفاتيح الاختصار
+// ✅ دعم محاذاة النص (يسار/وسط/يمين) من بيانات السؤال
 // ================================================================
 
 'use client';
@@ -3621,7 +3622,11 @@ export default function StudentExamPage() {
             onFontSizeChange={setPassageFontSize}
           />
         )}
-        <p className={`${fontSize} ${isBold ? 'font-bold' : 'font-medium'} ${isItalic ? 'italic' : ''} ${styles.text} leading-relaxed`}>
+        {/* ✅ هنا التعديل: إضافة text_align */}
+        <p
+          className={`${fontSize} ${isBold ? 'font-bold' : 'font-medium'} ${isItalic ? 'italic' : ''} ${styles.text} leading-relaxed`}
+          style={{ textAlign: q.text_align || 'left' }}
+        >
           {q.question_text}
         </p>
         {questionComponent}

@@ -24,6 +24,7 @@
 // ✅ تحديث total_marks في جدول exams تلقائياً بعد كل تغيير في الأسئلة (إضافة، تعديل، حذف، تحديث جماعي)
 // ✅ إضافة عرض الدرجة الكلية ودرجة النجاح مع إمكانية تعديلها مباشرة في الواجهة
 // ✅ تخزين correct_answer كمصفوفة من المصفوفات (نماذج) لـ sentence_reorder
+// ✅ إضافة خيار محاذاة النص (text_align) للأسئلة
 // ============================================================
 
 import { TeacherLayout } from '@/components/TeacherLayout';
@@ -367,6 +368,7 @@ const useQuestions = (examId) => {
           partial_marking: questionData.partial_marking || false,
           word_limit: questionData.word_limit || 0,
           bank_question_id: questionData.bank_question_id || null,
+          text_align: questionData.text_align || 'left', // ✅ تضمين text_align
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         })
@@ -424,6 +426,7 @@ const useQuestions = (examId) => {
           ignore_extra_spaces: updates.ignore_extra_spaces !== undefined ? updates.ignore_extra_spaces : true,
           partial_marking: updates.partial_marking || false,
           word_limit: updates.word_limit || 0,
+          text_align: updates.text_align || 'left', // ✅ تضمين text_align
           updated_at: new Date().toISOString(),
         })
         .eq('id', id)
@@ -745,6 +748,7 @@ const QuestionFormModal = ({
     word_limit: 0,
     word_bank: [],
     correct_answers: [],
+    text_align: 'left', // ✅ التعديل الأول
   });
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
@@ -819,6 +823,7 @@ const QuestionFormModal = ({
         word_limit: question.word_limit || 0,
         word_bank: wordBank,
         correct_answers: correctAnswers,
+        text_align: question.text_align || 'left', // ✅ التعديل الثالث
       });
       prevQuestionTextRef.current = question.question_text || '';
     } else {
@@ -843,6 +848,7 @@ const QuestionFormModal = ({
         word_limit: 0,
         word_bank: ['', ''],
         correct_answers: [''],
+        text_align: 'left',
       });
       prevQuestionTextRef.current = '';
     }
@@ -1068,6 +1074,7 @@ const QuestionFormModal = ({
         delete dataToSubmit.passage_text;
         delete dataToSubmit.word_bank;
         delete dataToSubmit.correct_answers;
+        dataToSubmit.text_align = formData.text_align || 'left'; // ✅ التعديل الرابع
         await onSubmit(dataToSubmit);
         onClose();
         return;
@@ -1135,6 +1142,9 @@ const QuestionFormModal = ({
         delete dataToSubmit.word_bank;
         delete dataToSubmit.correct_answers;
       }
+
+      // ✅ التعديل الرابع: إضافة text_align إلى البيانات المُرسلة
+      dataToSubmit.text_align = formData.text_align || 'left';
 
       if (!dataToSubmit.passage_id) dataToSubmit.passage_id = null;
       delete dataToSubmit.passage_text;
@@ -1334,6 +1344,42 @@ const QuestionFormModal = ({
                 }`}
               />
               {errors.question_text && <p className="text-red-400 text-xs mt-1">{errors.question_text}</p>}
+              
+              {/* ✅ التعديل الثاني: أزرار المحاذاة */}
+              {!isPassage && (
+                <div className="flex items-center gap-2 mt-2">
+                  <span className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                    <Icons.AlignLeft className="inline h-4 w-4 mr-1" />
+                    المحاذاة:
+                  </span>
+                  {[
+                    { value: 'left', icon: Icons.AlignLeft, label: 'يسار' },
+                    { value: 'center', icon: Icons.AlignCenter, label: 'وسط' },
+                    { value: 'right', icon: Icons.AlignRight, label: 'يمين' },
+                  ].map(({ value, icon: Icon, label }) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setFormData(prev => ({ ...prev, text_align: value }))}
+                      className={`p-2 rounded-lg transition-all duration-200 ${
+                        formData.text_align === value
+                          ? 'bg-yellow-500/30 border-2 border-yellow-400 shadow-lg shadow-yellow-500/20'
+                          : isDark
+                          ? 'bg-white/5 border border-white/10 hover:bg-white/10'
+                          : 'bg-gray-100 border border-gray-200 hover:bg-gray-200'
+                      }`}
+                      title={label}
+                    >
+                      <Icon className={`h-5 w-5 ${
+                        formData.text_align === value ? 'text-yellow-400' : isDark ? 'text-gray-400' : 'text-gray-600'
+                      }`} />
+                    </button>
+                  ))}
+                  <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'} mr-2`}>
+                    (اختر اتجاه النص)
+                  </span>
+                </div>
+              )}
             </div>
           )}
 
