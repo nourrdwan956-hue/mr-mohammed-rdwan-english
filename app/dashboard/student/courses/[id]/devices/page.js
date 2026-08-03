@@ -1,6 +1,7 @@
 // app/dashboard/student/courses/[id]/devices/page.js
 // ================================================================
-// 📱 أجهزة الكورس – عرض وإدارة الأجهزة المسجلة لكورس معين (نسخة متجاوبة)
+// 📱 أجهزة الكورس – عرض وإدارة الأجهزة المسجلة لكورس معين
+// ✅ نسخة متجاوبة بالكامل مع تقليص الأحجام للشاشات الصغيرة
 // ================================================================
 
 'use client';
@@ -77,16 +78,16 @@ const WaveBorderCard = ({ children, className = '', initialColor = 'blue', onCol
   const gradientStyle = {
     background: `conic-gradient(from ${rotation}deg, ${waveColors.join(', ')})`,
     borderRadius: '1.5rem',
-    padding: '3px',
+    padding: '2px',
     WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
     WebkitMaskComposite: 'xor',
     maskComposite: 'exclude',
   };
 
   return (
-    <div className={`relative rounded-2xl sm:rounded-3xl overflow-hidden group ${className}`}>
-      <div className="absolute inset-0 rounded-2xl sm:rounded-3xl" style={gradientStyle} />
-      <div className="relative z-10 h-full w-full rounded-2xl sm:rounded-3xl backdrop-blur-sm bg-[var(--bg-card)] border border-[var(--border-color)]">
+    <div className={`relative rounded-2xl overflow-hidden group ${className}`}>
+      <div className="absolute inset-0 rounded-2xl" style={gradientStyle} />
+      <div className="relative z-10 h-full w-full rounded-2xl backdrop-blur-sm bg-[var(--bg-card)] border border-[var(--border-color)]">
         {children}
       </div>
     </div>
@@ -94,7 +95,7 @@ const WaveBorderCard = ({ children, className = '', initialColor = 'blue', onCol
 };
 
 // ================================================================
-// مكون بطاقة الجهاز – متجاوب
+// مكون بطاقة الجهاز – مضغوط ومتجاوب
 // ================================================================
 const DeviceCard = ({ device, isCurrentDevice, onDelete, styles, language, isDark }) => {
   const [color, setColor] = useState(CARD_COLORS[Math.floor(Math.random() * CARD_COLORS.length)]);
@@ -103,72 +104,72 @@ const DeviceCard = ({ device, isCurrentDevice, onDelete, styles, language, isDar
 
   const deviceName = device.device_name || (language === 'ar' ? 'جهاز غير معروف' : 'Unknown device');
   const firstUsed = new Date(device.first_used_at).toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US', {
-    year: 'numeric', month: 'long', day: 'numeric',
+    year: 'numeric', month: 'short', day: 'numeric',
   });
   const lastUsed = new Date(device.last_used_at).toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US', {
-    year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit',
+    year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
   });
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 15 }}
       animate={{ opacity: 1, y: 0 }}
-      whileHover={{ y: -3 }}
+      whileHover={{ y: -2 }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
       <WaveBorderCard initialColor={color.name} onColorChange={handleColorChange}>
-        <div className="p-4 sm:p-5 flex flex-col sm:flex-row items-start gap-3 sm:gap-4">
-          <div className={`p-2.5 sm:p-3 rounded-xl ${color.bg} flex-shrink-0`}>
-            <Icons.Laptop className={`h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8 ${color.text}`} />
+        <div className="p-3 sm:p-3.5 flex flex-col sm:flex-row items-start gap-2.5 sm:gap-3">
+          <div className={`p-2 rounded-lg ${color.bg} flex-shrink-0`}>
+            <Icons.Laptop className={`h-5 w-5 sm:h-6 sm:w-6 ${color.text}`} />
           </div>
-          <div className="flex-1 min-w-0 w-full sm:w-auto">
-            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-              <h3 className={`text-sm sm:text-base font-bold ${styles.text} truncate`}>{deviceName}</h3>
+          <div className="flex-1 min-w-0 w-full">
+            <div className="flex flex-wrap items-center gap-1">
+              <h3 className={`text-xs sm:text-sm font-bold ${styles.text} truncate`}>{deviceName}</h3>
               {device.is_primary && (
-                <span className="text-[8px] sm:text-xs px-1.5 py-0.5 sm:px-2 sm:py-0.5 rounded-full bg-yellow-400/20 text-yellow-400 border border-yellow-400/30 whitespace-nowrap">
+                <span className="text-[7px] sm:text-[9px] px-1.5 py-0.5 rounded-full bg-yellow-400/20 text-yellow-400 border border-yellow-400/30 whitespace-nowrap">
                   {language === 'ar' ? 'أساسي' : 'Primary'}
                 </span>
               )}
               {isCurrentDevice && (
-                <span className="text-[8px] sm:text-xs px-1.5 py-0.5 sm:px-2 sm:py-0.5 rounded-full bg-emerald-400/20 text-emerald-400 border border-emerald-400/30 whitespace-nowrap">
-                  {language === 'ar' ? '✓ هذا الجهاز' : '✓ This device'}
+                <span className="text-[7px] sm:text-[9px] px-1.5 py-0.5 rounded-full bg-emerald-400/20 text-emerald-400 border border-emerald-400/30 whitespace-nowrap">
+                  ✓ {language === 'ar' ? 'هذا الجهاز' : 'This device'}
                 </span>
               )}
               {!device.is_active && (
-                <span className="text-[8px] sm:text-xs px-1.5 py-0.5 sm:px-2 sm:py-0.5 rounded-full bg-red-400/20 text-red-400 border border-red-400/30 whitespace-nowrap">
+                <span className="text-[7px] sm:text-[9px] px-1.5 py-0.5 rounded-full bg-red-400/20 text-red-400 border border-red-400/30 whitespace-nowrap">
                   {language === 'ar' ? 'معطل' : 'Inactive'}
                 </span>
               )}
             </div>
-            <div className={`flex flex-wrap gap-x-3 sm:gap-x-4 gap-y-1 mt-1.5 sm:mt-2 text-[10px] sm:text-xs ${styles.subtext}`}>
-              <span className="flex items-center gap-1 whitespace-nowrap">
-                <Icons.Calendar className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-                {language === 'ar' ? 'أول استخدام' : 'First'}: {firstUsed}
+            <div className={`flex flex-wrap gap-x-2 gap-y-0.5 mt-1 text-[8px] sm:text-[10px] ${styles.subtext}`}>
+              <span className="flex items-center gap-0.5 whitespace-nowrap">
+                <Icons.Calendar className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+                {language === 'ar' ? 'أول' : 'First'}: {firstUsed}
               </span>
-              <span className="flex items-center gap-1 whitespace-nowrap">
-                <Icons.Clock className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-                {language === 'ar' ? 'آخر استخدام' : 'Last'}: {lastUsed}
+              <span className="flex items-center gap-0.5 whitespace-nowrap">
+                <Icons.Clock className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+                {language === 'ar' ? 'آخر' : 'Last'}: {lastUsed}
               </span>
-              <span className="flex items-center gap-1 whitespace-nowrap">
-                <Icons.Fingerprint className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-                ID: {device.device_fingerprint.substring(0, 8)}...
+              <span className="flex items-center gap-0.5 whitespace-nowrap hidden xs:inline-flex">
+                <Icons.Fingerprint className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+                {device.device_fingerprint.substring(0, 6)}...
               </span>
             </div>
           </div>
-          <div className="flex flex-row sm:flex-col gap-2 flex-shrink-0 self-start sm:self-center">
+          <div className="flex flex-row sm:flex-col gap-1.5 flex-shrink-0 self-start sm:self-center">
             {device.is_active && !isCurrentDevice && (
               <button
                 onClick={() => onDelete(device.id)}
-                className={`p-1.5 sm:p-2 rounded-lg transition ${isDark ? 'hover:bg-red-500/20 text-red-400' : 'hover:bg-red-100 text-red-600'}`}
+                className={`p-1.5 rounded-lg transition ${isDark ? 'hover:bg-red-500/20 text-red-400' : 'hover:bg-red-100 text-red-600'}`}
                 title={language === 'ar' ? 'إزالة الجهاز' : 'Remove device'}
               >
-                <Icons.Trash2 className="h-4 w-4 sm:h-5 sm:w-5" />
+                <Icons.Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               </button>
             )}
             {isCurrentDevice && (
-              <div className="p-1.5 sm:p-2 rounded-lg bg-emerald-500/10 text-emerald-400">
-                <Icons.Check className="h-4 w-4 sm:h-5 sm:w-5" />
+              <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400">
+                <Icons.Check className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               </div>
             )}
           </div>
@@ -196,10 +197,8 @@ export default function CourseDevicesPage() {
   const [currentFingerprint, setCurrentFingerprint] = useState('');
   const [deleting, setDeleting] = useState(null);
 
-  // ألوان متغيرة للرأس
   const [headerColor, setHeaderColor] = useState(CARD_COLORS[0]);
 
-  // ===== جلب البيانات =====
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
@@ -209,7 +208,6 @@ export default function CourseDevicesPage() {
         return;
       }
 
-      // 1. جلب بيانات الكورس
       const { data: courseData, error: courseError } = await supabase
         .from('courses')
         .select('title, is_free, price, max_devices, subscription_duration_days, teacher_id')
@@ -223,7 +221,6 @@ export default function CourseDevicesPage() {
       }
       setCourse(courseData);
 
-      // 2. جلب الاشتراك الحالي للطالب في هذا الكورس
       const { data: subData, error: subError } = await supabase
         .from('course_subscriptions')
         .select('*')
@@ -235,11 +232,9 @@ export default function CourseDevicesPage() {
       if (subError) throw subError;
       setSubscription(subData || null);
 
-      // 3. جلب بصمة الجهاز الحالي
       const fingerprint = await getDeviceFingerprint();
       setCurrentFingerprint(fingerprint);
 
-      // 4. جلب الأجهزة المسجلة لهذا الكورس
       const { data: devicesData, error: devicesError } = await supabase
         .from('course_devices')
         .select('*')
@@ -264,7 +259,6 @@ export default function CourseDevicesPage() {
     fetchData();
   }, [fetchData]);
 
-  // ===== حذف جهاز =====
   const deleteDevice = async (deviceId) => {
     if (deleting) return;
     setDeleting(deviceId);
@@ -287,7 +281,6 @@ export default function CourseDevicesPage() {
     }
   };
 
-  // ===== حساب الإحصائيات =====
   const stats = useMemo(() => {
     const total = devices.length;
     const maxDevices = subscription?.max_devices || course?.max_devices || 2;
@@ -298,9 +291,9 @@ export default function CourseDevicesPage() {
   if (loading) {
     return (
       <div className={`min-h-screen flex items-center justify-center ${styles.bg}`}>
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-12 h-12 sm:w-16 sm:h-16 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin" />
-          <p className={`text-xs sm:text-sm ${styles.subtext}`}>
+        <div className="flex flex-col items-center gap-2.5">
+          <div className="w-10 h-10 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin" />
+          <p className={`text-xs ${styles.subtext}`}>
             {language === 'ar' ? 'جاري تحميل الأجهزة...' : 'Loading devices...'}
           </p>
         </div>
@@ -310,18 +303,18 @@ export default function CourseDevicesPage() {
 
   if (error) {
     return (
-      <div className={`min-h-screen flex items-center justify-center p-4 ${styles.bg}`}>
-        <div className={`max-w-md w-full p-6 sm:p-8 rounded-2xl sm:rounded-3xl ${styles.card} border ${styles.border} text-center shadow-2xl`}>
-          <div className="inline-flex p-3 sm:p-4 rounded-full bg-red-500/20 border-2 border-red-500/30">
-            <Icons.XCircle className="h-10 w-10 sm:h-12 sm:w-12 text-red-400" />
+      <div className={`min-h-screen flex items-center justify-center p-3 ${styles.bg}`}>
+        <div className={`max-w-sm w-full p-5 rounded-2xl ${styles.card} border ${styles.border} text-center shadow-xl`}>
+          <div className="inline-flex p-3 rounded-full bg-red-500/20 border-2 border-red-500/30">
+            <Icons.XCircle className="h-10 w-10 text-red-400" />
           </div>
-          <h2 className={`text-lg sm:text-xl font-bold ${styles.text} mt-3 sm:mt-4`}>
+          <h2 className={`text-lg font-bold ${styles.text} mt-3`}>
             {language === 'ar' ? 'حدث خطأ' : 'Error'}
           </h2>
-          <p className={`text-sm sm:text-base ${styles.subtext} mt-1 sm:mt-2`}>{error}</p>
+          <p className={`text-sm ${styles.subtext} mt-1`}>{error}</p>
           <button
             onClick={fetchData}
-            className="mt-4 sm:mt-6 px-5 py-2.5 sm:px-6 sm:py-3 bg-blue-500 text-white font-bold rounded-xl hover:bg-blue-600 transition text-sm sm:text-base"
+            className="mt-4 px-5 py-2 bg-blue-500 text-white font-bold rounded-lg hover:bg-blue-600 transition text-sm"
           >
             {language === 'ar' ? 'إعادة المحاولة' : 'Retry'}
           </button>
@@ -332,95 +325,95 @@ export default function CourseDevicesPage() {
 
   return (
     <div className={`min-h-screen ${styles.bg} transition-colors duration-300 relative overflow-hidden`}>
-      {/* خلفية متحركة */}
       <motion.div
         animate={{ x: ['-5%', '5%', '-5%'], y: ['-5%', '5%', '-5%'] }}
         transition={{ duration: 30, repeat: Infinity, ease: 'linear' }}
-        className="fixed -top-60 -right-60 w-[600px] sm:w-[800px] h-[600px] sm:h-[800px] bg-blue-500/5 dark:bg-blue-400/5 rounded-full blur-3xl pointer-events-none"
+        className="fixed -top-60 -right-60 w-[500px] h-[500px] bg-blue-500/5 dark:bg-blue-400/5 rounded-full blur-3xl pointer-events-none"
       />
       <motion.div
         animate={{ x: ['5%', '-5%', '5%'], y: ['5%', '-5%', '5%'] }}
         transition={{ duration: 35, repeat: Infinity, ease: 'linear' }}
-        className="fixed -bottom-60 -left-60 w-[700px] sm:w-[900px] h-[700px] sm:h-[900px] bg-purple-500/5 dark:bg-purple-400/5 rounded-full blur-3xl pointer-events-none"
+        className="fixed -bottom-60 -left-60 w-[500px] h-[500px] bg-purple-500/5 dark:bg-purple-400/5 rounded-full blur-3xl pointer-events-none"
       />
 
-      <div className="relative z-10 max-w-6xl mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8 space-y-5 sm:space-y-6 md:space-y-8">
-        {/* ===== رأس الصفحة – متجاوب ===== */}
+      <div className="relative z-10 max-w-5xl mx-auto px-3 py-4 space-y-4">
+
+        {/* ===== رأس الصفحة – مضغوط ===== */}
         <WaveBorderCard initialColor={headerColor.name} onColorChange={setHeaderColor}>
-          <div className="p-4 sm:p-5 md:p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
-            <div>
-              <h1 className={`text-2xl sm:text-3xl md:text-4xl font-black ${styles.text}`}>
+          <div className="p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <div className="min-w-0">
+              <h1 className={`text-xl sm:text-2xl font-black ${styles.text}`}>
                 {language === 'ar' ? '📱 أجهزة الكورس' : '📱 Course Devices'}
               </h1>
-              <p className={`text-xs sm:text-sm md:text-base ${styles.subtext} mt-0.5 sm:mt-1 truncate max-w-[200px] sm:max-w-none`}>
+              <p className={`text-xs ${styles.subtext} truncate max-w-[160px] sm:max-w-none`}>
                 {course?.title || (language === 'ar' ? 'الكورس' : 'Course')}
               </p>
             </div>
-            <div className="flex items-center gap-2 sm:gap-3">
+            <div className="flex items-center gap-2">
               <button
                 onClick={fetchData}
-                className={`p-1.5 sm:p-2 rounded-xl ${styles.card} border ${styles.border} hover:border-blue-400/50 transition`}
+                className={`p-1.5 rounded-lg ${styles.card} border ${styles.border} hover:border-blue-400/50 transition`}
                 title={language === 'ar' ? 'تحديث' : 'Refresh'}
               >
-                <Icons.RefreshCw className="h-4 w-4 sm:h-5 sm:w-5 text-blue-400" />
+                <Icons.RefreshCw className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-blue-400" />
               </button>
               <button
                 onClick={() => router.push(`/dashboard/student/courses/${courseId}`)}
-                className={`px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl ${styles.card} border ${styles.border} hover:border-blue-400/50 transition text-[10px] sm:text-sm font-bold ${styles.text}`}
+                className={`px-2.5 py-1.5 rounded-lg ${styles.card} border ${styles.border} hover:border-blue-400/50 transition text-[10px] sm:text-xs font-bold ${styles.text}`}
               >
-                <Icons.ArrowLeft className="h-3 w-3 sm:h-4 sm:w-4 inline mr-1" />
-                {language === 'ar' ? 'العودة للكورس' : 'Back to Course'}
+                <Icons.ArrowLeft className="h-3 w-3 sm:h-3.5 sm:w-3.5 inline mr-1" />
+                {language === 'ar' ? 'العودة' : 'Back'}
               </button>
             </div>
           </div>
         </WaveBorderCard>
 
-        {/* ===== إحصائيات سريعة – متجاوبة ===== */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-          <div className={`p-4 sm:p-5 rounded-2xl ${styles.card} border ${styles.border} text-center`}>
-            <Icons.Monitor className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8 text-blue-500 mx-auto mb-1 sm:mb-2" />
-            <p className={`text-2xl sm:text-3xl font-bold ${styles.text}`}>{stats.total}</p>
-            <p className={`text-[10px] sm:text-sm ${styles.subtext}`}>{language === 'ar' ? 'الأجهزة المسجلة' : 'Registered Devices'}</p>
+        {/* ===== إحصائيات سريعة – مضغوطة ===== */}
+        <div className="grid grid-cols-3 gap-2 sm:gap-3">
+          <div className={`p-3 rounded-xl ${styles.card} border ${styles.border} text-center`}>
+            <Icons.Monitor className="h-5 w-5 sm:h-6 sm:w-6 text-blue-500 mx-auto mb-0.5" />
+            <p className={`text-xl sm:text-2xl font-bold ${styles.text}`}>{stats.total}</p>
+            <p className={`text-[8px] sm:text-[10px] ${styles.subtext}`}>{language === 'ar' ? 'المسجلة' : 'Registered'}</p>
           </div>
-          <div className={`p-4 sm:p-5 rounded-2xl ${styles.card} border ${styles.border} text-center`}>
-            <Icons.CheckCircle className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8 text-emerald-500 mx-auto mb-1 sm:mb-2" />
-            <p className={`text-2xl sm:text-3xl font-bold ${styles.text}`}>{stats.maxDevices}</p>
-            <p className={`text-[10px] sm:text-sm ${styles.subtext}`}>{language === 'ar' ? 'الحد الأقصى' : 'Maximum Devices'}</p>
+          <div className={`p-3 rounded-xl ${styles.card} border ${styles.border} text-center`}>
+            <Icons.CheckCircle className="h-5 w-5 sm:h-6 sm:w-6 text-emerald-500 mx-auto mb-0.5" />
+            <p className={`text-xl sm:text-2xl font-bold ${styles.text}`}>{stats.maxDevices}</p>
+            <p className={`text-[8px] sm:text-[10px] ${styles.subtext}`}>{language === 'ar' ? 'الحد الأقصى' : 'Maximum'}</p>
           </div>
-          <div className={`p-4 sm:p-5 rounded-2xl ${styles.card} border ${styles.border} text-center`}>
-            <Icons.AlertCircle className={`h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8 ${stats.isFull ? 'text-red-500' : 'text-yellow-500'} mx-auto mb-1 sm:mb-2`} />
-            <p className={`text-2xl sm:text-3xl font-bold ${stats.isFull ? 'text-red-400' : 'text-yellow-400'}`}>
-              {stats.isFull ? (language === 'ar' ? 'مكتمل' : 'Full') : (language === 'ar' ? 'متاح' : 'Available')}
+          <div className={`p-3 rounded-xl ${styles.card} border ${styles.border} text-center`}>
+            <Icons.AlertCircle className={`h-5 w-5 sm:h-6 sm:w-6 ${stats.isFull ? 'text-red-500' : 'text-yellow-500'} mx-auto mb-0.5`} />
+            <p className={`text-xl sm:text-2xl font-bold ${stats.isFull ? 'text-red-400' : 'text-yellow-400'}`}>
+              {stats.isFull ? (language === 'ar' ? 'مكتمل' : 'Full') : (language === 'ar' ? 'متاح' : 'Avail.')}
             </p>
-            <p className={`text-[10px] sm:text-sm ${styles.subtext}`}>
+            <p className={`text-[8px] sm:text-[10px] ${styles.subtext}`}>
               {stats.isFull
-                ? (language === 'ar' ? 'الحد الأقصى للأجهزة' : 'Maximum reached')
-                : (language === 'ar' ? `${stats.maxDevices - stats.total} جهاز متاح` : `${stats.maxDevices - stats.total} devices available`)}
+                ? (language === 'ar' ? 'ممتلئ' : 'Full')
+                : (language === 'ar' ? `${stats.maxDevices - stats.total} متاح` : `${stats.maxDevices - stats.total} left`)}
             </p>
           </div>
         </div>
 
         {/* ===== قائمة الأجهزة ===== */}
         {devices.length === 0 ? (
-          <div className={`text-center py-16 sm:py-20 ${styles.card} border ${styles.border} rounded-2xl sm:rounded-3xl`}>
-            <Icons.Monitor className="h-14 w-14 sm:h-16 sm:w-16 md:h-20 md:w-20 text-gray-500 mx-auto mb-3 sm:mb-4" />
-            <h3 className={`text-xl sm:text-2xl font-bold ${styles.text}`}>
-              {language === 'ar' ? 'لا توجد أجهزة مسجلة' : 'No devices registered'}
+          <div className={`text-center py-10 ${styles.card} border ${styles.border} rounded-2xl`}>
+            <Icons.Monitor className="h-12 w-12 sm:h-14 sm:w-14 text-gray-500 mx-auto mb-2" />
+            <h3 className={`text-lg sm:text-xl font-bold ${styles.text}`}>
+              {language === 'ar' ? 'لا توجد أجهزة' : 'No devices'}
             </h3>
-            <p className={`text-sm sm:text-base ${styles.subtext} mt-1 sm:mt-2 max-w-md mx-auto`}>
+            <p className={`text-xs sm:text-sm ${styles.subtext} mt-1 max-w-sm mx-auto`}>
               {language === 'ar'
-                ? 'قم بمشاهدة فيديو من هذا الكورس لتسجيل جهازك تلقائياً.'
-                : 'Watch a video from this course to register your device automatically.'}
+                ? 'شاهد فيديو من هذا الكورس لتسجيل جهازك.'
+                : 'Watch a video from this course to register your device.'}
             </p>
             <button
               onClick={() => router.push(`/dashboard/student/courses/${courseId}`)}
-              className="mt-4 sm:mt-6 px-6 py-2.5 sm:px-8 sm:py-3 bg-gradient-to-r from-yellow-400 to-yellow-600 text-black font-bold rounded-xl hover:scale-105 transition shadow-2xl shadow-yellow-400/30 text-sm sm:text-base"
+              className="mt-3 px-5 py-2 bg-gradient-to-r from-yellow-400 to-yellow-600 text-black font-bold rounded-lg hover:scale-105 transition shadow-lg shadow-yellow-400/20 text-sm"
             >
-              {language === 'ar' ? 'الذهاب إلى الكورس' : 'Go to Course'}
+              {language === 'ar' ? 'الذهاب للكورس' : 'Go to Course'}
             </button>
           </div>
         ) : (
-          <div className="space-y-2.5 sm:space-y-3">
+          <div className="space-y-2">
             {devices.map((device) => {
               const isCurrent = device.device_fingerprint === currentFingerprint;
               return (
@@ -438,59 +431,59 @@ export default function CourseDevicesPage() {
           </div>
         )}
 
-        {/* ===== معلومات إضافية – متجاوبة ===== */}
+        {/* ===== معلومات إضافية – مضغوطة ===== */}
         <WaveBorderCard initialColor={CARD_COLORS[4].name}>
-          <div className="p-4 sm:p-5 md:p-6">
-            <h3 className={`text-sm sm:text-base font-bold ${styles.text} mb-2 sm:mb-3 flex items-center gap-2`}>
-              <Icons.Info className="h-4 w-4 sm:h-5 sm:w-5 text-blue-400" />
-              {language === 'ar' ? '📌 معلومات الأجهزة' : '📌 Device Information'}
+          <div className="p-3 sm:p-4">
+            <h3 className={`text-xs sm:text-sm font-bold ${styles.text} mb-1.5 flex items-center gap-1.5`}>
+              <Icons.Info className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-blue-400" />
+              {language === 'ar' ? '📌 معلومات' : '📌 Info'}
             </h3>
-            <ul className={`text-xs sm:text-sm ${styles.subtext} space-y-1.5 sm:space-y-2`}>
-              <li className="flex items-start gap-2">
-                <Icons.Check className="h-3 w-3 sm:h-4 sm:w-4 text-emerald-400 flex-shrink-0 mt-0.5" />
+            <ul className={`text-[9px] sm:text-xs ${styles.subtext} space-y-1`}>
+              <li className="flex items-start gap-1.5">
+                <Icons.Check className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-emerald-400 flex-shrink-0 mt-0.5" />
                 {language === 'ar'
-                  ? 'يتم تسجيل جهازك تلقائياً عند مشاهدة أي فيديو من هذا الكورس.'
-                  : 'Your device is automatically registered when you watch any video from this course.'}
+                  ? 'يسجل الجهاز تلقائياً عند مشاهدة فيديو.'
+                  : 'Device is auto-registered when watching a video.'}
               </li>
-              <li className="flex items-start gap-2">
-                <Icons.Check className="h-3 w-3 sm:h-4 sm:w-4 text-emerald-400 flex-shrink-0 mt-0.5" />
+              <li className="flex items-start gap-1.5">
+                <Icons.Check className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-emerald-400 flex-shrink-0 mt-0.5" />
                 {language === 'ar'
-                  ? `الحد الأقصى للأجهزة هو ${stats.maxDevices} لهذا الكورس.`
-                  : `The maximum number of devices is ${stats.maxDevices} for this course.`}
+                  ? `الحد الأقصى: ${stats.maxDevices} جهاز لهذا الكورس.`
+                  : `Max devices: ${stats.maxDevices} for this course.`}
               </li>
-              <li className="flex items-start gap-2">
-                <Icons.Check className="h-3 w-3 sm:h-4 sm:w-4 text-emerald-400 flex-shrink-0 mt-0.5" />
+              <li className="flex items-start gap-1.5">
+                <Icons.Check className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-emerald-400 flex-shrink-0 mt-0.5" />
                 {language === 'ar'
-                  ? 'يمكنك حذف جهاز قديم لتسجيل جهاز جديد بدلاً منه.'
-                  : 'You can remove an old device to register a new one instead.'}
+                  ? 'يمكنك حذف جهاز قديم لتسجيل جهاز جديد.'
+                  : 'Remove an old device to register a new one.'}
               </li>
-              <li className="flex items-start gap-2">
-                <Icons.Check className="h-3 w-3 sm:h-4 sm:w-4 text-emerald-400 flex-shrink-0 mt-0.5" />
+              <li className="flex items-start gap-1.5">
+                <Icons.Check className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-emerald-400 flex-shrink-0 mt-0.5" />
                 {language === 'ar'
-                  ? 'الجهاز الذي تستخدمه حالياً مميز بعلامة ✓ ولا يمكن حذفه.'
-                  : 'The device you are currently using is marked with ✓ and cannot be removed.'}
+                  ? 'الجهاز الحالي مميز بـ ✓ ولا يمكن حذفه.'
+                  : 'Current device marked with ✓ and cannot be removed.'}
               </li>
             </ul>
           </div>
         </WaveBorderCard>
 
-        {/* ===== روابط سريعة – متجاوبة ===== */}
-        <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 sm:gap-3">
+        {/* ===== روابط سريعة – مضغوطة ===== */}
+        <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5 sm:gap-2">
           {[
             { href: `/dashboard/student/courses/${courseId}`, icon: Icons.Book, label: language === 'ar' ? 'الكورس' : 'Course' },
             { href: '/dashboard/student/courses', icon: Icons.Search, label: language === 'ar' ? 'كورسات' : 'Courses' },
             { href: '/dashboard/student/devices', icon: Icons.Monitor, label: language === 'ar' ? 'كل الأجهزة' : 'All Devices' },
-            { href: '/dashboard/student/subscriptions', icon: Icons.Receipt, label: language === 'ar' ? 'اشتراكاتي' : 'Subscriptions' },
+            { href: '/dashboard/student/subscriptions', icon: Icons.Receipt, label: language === 'ar' ? 'اشتراكاتي' : 'Subs' },
             { href: '/dashboard/student/profile', icon: Icons.User, label: language === 'ar' ? 'حسابي' : 'Profile' },
             { href: '/dashboard/student/support', icon: Icons.Headphones, label: language === 'ar' ? 'الدعم' : 'Support' },
           ].map((item) => (
             <button
               key={item.href}
               onClick={() => router.push(item.href)}
-              className={`flex flex-col items-center gap-0.5 sm:gap-1 p-2 sm:p-2.5 md:p-3 rounded-xl ${styles.card} border ${styles.border} hover:border-blue-400/50 transition group`}
+              className={`flex flex-col items-center gap-0.5 p-2 rounded-lg ${styles.card} border ${styles.border} hover:border-blue-400/50 transition group`}
             >
-              <item.icon className="h-4 w-4 sm:h-5 sm:w-5 text-blue-500 group-hover:scale-110 transition" />
-              <span className={`text-[8px] sm:text-[10px] md:text-xs font-bold ${styles.text}`}>{item.label}</span>
+              <item.icon className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-blue-500 group-hover:scale-110 transition" />
+              <span className={`text-[7px] sm:text-[9px] font-bold ${styles.text}`}>{item.label}</span>
             </button>
           ))}
         </div>
