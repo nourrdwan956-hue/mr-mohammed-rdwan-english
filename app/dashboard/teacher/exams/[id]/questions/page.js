@@ -25,6 +25,8 @@
 // ✅ إضافة عرض الدرجة الكلية ودرجة النجاح مع إمكانية تعديلها مباشرة في الواجهة
 // ✅ تخزين correct_answer كمصفوفة من المصفوفات (نماذج) لـ sentence_reorder
 // ✅ إضافة أزرار محاذاة حقيقية (يسار/وسط/يمين) وتخزين text_align في قاعدة البيانات
+// ✅ جعل نص القطعة (passage) من اليسار لليمين (LTR) في الإدخال والعرض
+// ✅ إصلاح الأخطاء النحوية في JSX (closing tags)
 // ============================================================
 
 import { TeacherLayout } from '@/components/TeacherLayout';
@@ -633,7 +635,13 @@ const QuestionPreview = ({ question }) => {
       {type === 'passage' ? (
         <div className={`p-3 rounded-lg ${isDark ? 'bg-black/30 border border-white/10' : 'bg-gray-100 border border-gray-200'} text-sm`}>
           <p className="font-bold text-white">📄 القطعة:</p>
-          <p className={`whitespace-pre-wrap ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>{question.question_text || 'لا يوجد نص'}</p>
+          <p
+            className={`whitespace-pre-wrap ${isDark ? 'text-gray-200' : 'text-gray-800'}`}
+            dir="ltr"
+            style={{ textAlign: 'left' }}
+          >
+            {question.question_text || 'لا يوجد نص'}
+          </p>
         </div>
       ) : (
         <>
@@ -1348,6 +1356,8 @@ const QuestionFormModal = ({
                 value={formData.passage_text}
                 onChange={handleChange}
                 rows="6"
+                dir="ltr"
+                style={{ textAlign: 'left' }}
                 placeholder="أدخل النص الطويل للقطعة هنا..."
                 className={`w-full p-3 rounded-xl focus:ring-2 focus:ring-yellow-500 outline-none transition resize-none ${
                   isDark ? 'bg-[#0b0e1a] border border-white/20 text-white' : 'bg-white border border-gray-300 text-gray-900'
@@ -1778,7 +1788,7 @@ const QuestionFormModal = ({
                 </button>
               </div>
               <div className={`p-4 rounded-xl ${isDark ? 'bg-black/30 border border-white/10' : 'bg-gray-100 border border-gray-200'}`}>
-                <p className={`whitespace-pre-wrap text-sm ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>
+                <p className={`whitespace-pre-wrap text-sm ${isDark ? 'text-gray-200' : 'text-gray-800'}`} dir="ltr" style={{ textAlign: 'left' }}>
                   {getSelectedPassageText() || 'لا يوجد نص'}
                 </p>
               </div>
@@ -1877,7 +1887,11 @@ const QuestionItem = ({
                 <span className="text-sm font-bold text-indigo-400">📄 قطعة نصية</span>
                 <span className="text-xs text-gray-400">(بدون درجة)</span>
               </div>
-              <p className={`text-sm mt-1 line-clamp-2 ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>
+              <p
+                className={`text-sm mt-1 line-clamp-2 ${isDark ? 'text-gray-200' : 'text-gray-800'}`}
+                dir="ltr"
+                style={{ textAlign: 'left' }}
+              >
                 {question.question_text || 'لا يوجد نص'}
               </p>
               <button
