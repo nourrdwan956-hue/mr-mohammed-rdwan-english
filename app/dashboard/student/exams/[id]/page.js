@@ -3747,6 +3747,8 @@ export default function StudentExamPage() {
         : (questions.length > 0 ? questions.filter(q => q.type !== 'passage').reduce((sum, q) => sum + (q.marks || 0), 0) : 0);
     const percentage = totalMarks > 0 ? Math.round((passedAttempt.score / totalMarks) * 100) : 0;
     const grade = getGrade(percentage);
+    
+    // ✅ استخدام exam.title مباشرة مع التحقق من وجوده
     const examTitle = exam?.title || (language === 'ar' ? 'الامتحان' : 'Exam');
 
     return (
@@ -3805,7 +3807,7 @@ export default function StudentExamPage() {
                 {student?.full_name || 'طالب'}
               </p>
               
-              {/* ✅ تعديل: عرض عنوان الامتحان الحقيقي */}
+              {/* ✅ هنا التعديل الرئيسي: استخدام examTitle الحقيقي */}
               <p className={`text-sm sm:text-base ${styles.subtext}`}>
                 {language === 'ar' ? `لاجتيازه امتحان "${examTitle}"` : `for successfully passing the exam "${examTitle}"`}
               </p>
