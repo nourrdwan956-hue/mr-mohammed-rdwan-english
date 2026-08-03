@@ -19,7 +19,9 @@
 // ✅ تحسين التوافق مع الموبايل: زر تشغيل أصغر، شريط تحكم أقل ارتفاعاً،
 //    أزرار مصغرة، وترتيب مرن للمساحات الضيقة
 // ✅ زيادة المسافة بين زر التشغيل المركزي وشريط التحكم السفلي على الأجهزة الصغيرة
-// ✅ زر الترجمة أصبح يوقف الترجمة فقط (وليس تبديل) مع رسالة "تم إيقاف الترجمة"
+// ✅ زر الترجمة يعمل كـ toggle (تشغيل/إيقاف) مع إظهار رسالة "✅ تم إيقاف الترجمة" عند الإيقاف
+//    ورسالة "✅ تم إظهار الترجمة" عند التشغيل
+// ✅ إصلاح وظيفة الترجمة لتعمل بشكل صحيح كما كانت سابقاً
 // ================================================================
 
 'use client';
@@ -348,7 +350,7 @@ export default function WatchPage() {
   const [bufferProgress, setBufferProgress] = useState(0);
   const [loop, setLoop] = useState(false);
   const [focusMode, setFocusMode] = useState(false);
-  // حالة الترجمة: نحتاجها لتحديد ما إذا كانت مفعلة أم لا، ولكن زر الترجمة سيوقفها فقط
+  // حالة الترجمة: تتبع ما إذا كانت الترجمة مفعلة أم لا
   const [captionsEnabled, setCaptionsEnabled] = useState(false);
 
   // ===== نظام التتبع الذكي =====
@@ -805,20 +807,41 @@ export default function WatchPage() {
     });
   }, []);
 
-  // زر الترجمة: إيقاف الترجمة فقط (إخفاءها) مع رسالة ثابتة
-  const disableCaptions = useCallback(() => {
-    if (!playerRef.current || !playerReady) return;
+  // ================================================================
+  // زر الترجمة: يعمل كـ toggle (تشغيل/إيقاف) مع رسائل واضحة
+  // ================================================================
+  const toggleCaptions = useCallback(() => {
+    if (!playerRef.current || !playerReady) {
+      toast.error(language === 'ar' ? 'المشغل غير جاهز' : 'Player not ready');
+      return;
+    }
     try {
       const player = playerRef.current;
-      // إيقاف الترجمة (إخفاءها)
-      player.setOption('captions', 'track', { languageCode: '' });
-      setCaptionsEnabled(false);
-      toast.success(language === 'ar' ? '✅ تم إيقاف الترجمة' : '✅ Captions disabled');
+      if (captionsEnabled) {
+        // إيقاف الترجمة (إخفاءها)
+        player.setOption('captions', 'track', { languageCode: '' });
+        setCaptionsEnabled(false);
+        // الرسالة الأولى: تم إيقاف الترجمة
+        toast.success(language === 'ar' ? '✅ تم إيقاف الترجمة' : '✅ Captions disabled');
+      } else {
+        // تشغيل الترجمة (إظهارها)
+        player.loadModule('captions');
+        setTimeout(() => {
+          try {
+            player.setOption('captions', 'track', {});
+            setCaptionsEnabled(true);
+            toast.success(language === 'ar' ? '✅ تم إظهار الترجمة' : '✅ Captions enabled');
+          } catch (innerErr) {
+            console.error('Failed to show captions:', innerErr);
+            toast.error(language === 'ar' ? 'تعذر إظهار الترجمة' : 'Could not show captions');
+          }
+        }, 300);
+      }
     } catch (e) {
-      toast.error(language === 'ar' ? 'فشل إيقاف الترجمة' : 'Failed to disable captions');
-      console.error('Captions disable error:', e);
+      toast.error(language === 'ar' ? 'فشل التحكم بالترجمة' : 'Failed to toggle captions');
+      console.error('Captions toggle error:', e);
     }
-  }, [playerReady, language]);
+  }, [playerReady, captionsEnabled, language]);
 
   // ================================================================
   // 12. تأثير إخفاء الأزرار تلقائياً
@@ -902,7 +925,7 @@ export default function WatchPage() {
   }, [isYoutubeOnly]);
 
   // ================================================================
-  // 14. اختصارات لوحة المفاتيح (تعديل: زر C يوقف الترجمة فقط)
+  // 14. اختصارات لوحة المفاتيح
   // ================================================================
   useEffect(() => {
     if (isYoutubeOnly) return;
@@ -918,13 +941,13 @@ export default function WatchPage() {
         case 'f': case 'F': toggleFullscreen(); break;
         case 'l': case 'L': toggleLoop(); break;
         case 'z': case 'Z': toggleFocusMode(); break;
-        case 'c': case 'C': e.preventDefault(); disableCaptions(); break;
+        case 'c': case 'C': e.preventDefault(); toggleCaptions(); break;
         default: break;
       }
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, [playerReady, togglePlay, skipForward, skipBackward, toggleMute, toggleFullscreen, toggleLoop, toggleFocusMode, disableCaptions, isYoutubeOnly]);
+  }, [playerReady, togglePlay, skipForward, skipBackward, toggleMute, toggleFullscreen, toggleLoop, toggleFocusMode, toggleCaptions, isYoutubeOnly]);
 
   // ================================================================
   // 15. نظام التتبع الذكي للمشاهدة
@@ -1347,11 +1370,11 @@ export default function WatchPage() {
                           }}
                         />
 
-                        {/* زر الترجمة - أصبح يوقف الترجمة فقط */}
+                        {/* زر الترجمة - يعمل كـ toggle مع رسائل واضحة */}
                         <button
-                          onClick={disableCaptions}
+                          onClick={toggleCaptions}
                           className={`p-1.5 rounded-full hover:bg-white/10 transition-colors ${captionsEnabled ? 'text-yellow-400' : ''}`}
-                          title={language === 'ar' ? 'إيقاف الترجمة' : 'Disable Captions'}
+                          title={captionsEnabled ? (language === 'ar' ? 'إخفاء الترجمة' : 'Hide Captions') : (language === 'ar' ? 'إظهار الترجمة' : 'Show Captions')}
                         >
                           <Icons.ClosedCaption className="h-4 w-4 sm:h-5 sm:w-5" />
                         </button>
@@ -1450,7 +1473,8 @@ export default function WatchPage() {
                 <p className="text-[10px] text-gray-400 leading-relaxed">
                   يمكنك التحكم بالفيديو باستخدام الأزرار أو اختصارات لوحة المفاتيح.
                   <span className="block text-yellow-400/60 mt-1">⏱ اضغط على التايمر لتغيير العرض (متبقي / نسبة / مشاهدة)</span>
-                  <span className="block text-yellow-400/60 mt-0.5">🔤 اضغط C لإيقاف الترجمة فقط</span>
+                  <span className="block text-yellow-400/60 mt-0.5">🔤 اضغط C لتشغيل/إيقاف الترجمة</span>
+                  <span className="block text-yellow-400/60 mt-0.5">👆 زر الترجمة يعمل كـ toggle (تشغيل/إيقاف)</span>
                 </p>
               </div>
             </div>
