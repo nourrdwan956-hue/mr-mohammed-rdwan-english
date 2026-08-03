@@ -1,9 +1,9 @@
 // app/dashboard/student/courses/[id]/page.js
 // ================================================================
-// 🏛️ صفحة تفاصيل الكورس – متجاوبة بالكامل ومضغوطة (نسخة محسّنة)
-// ✅ تصغير الأحجام والهوامش والأيقونات بشكل ديناميكي
+// 🏛️ صفحة تفاصيل الكورس – متجاوبة بالكامل ومضغوطة
+// ✅ تصغير الأحجام والهوامش والأيقونات
+// ✅ ترتيب المحتوى من الأحدث إلى الأقدم (videos, exams, books, related)
 // ✅ الحفاظ على جميع الوظائف (التحقق من الوصول، الاشتراك، التبويبات، إلخ)
-// ✅ منع أي تجاوز أو تقطيع على جميع الشاشات
 // ================================================================
 
 'use client';
@@ -85,7 +85,7 @@ const WaveBorderCard = ({ children, className = '', initialColor = 'blue', onCol
   const gradientStyle = {
     background: `conic-gradient(from ${rotation}deg, ${waveColors.join(', ')})`,
     borderRadius: '1.5rem',
-    padding: '2px', // ✅ تصغير padding الحواف
+    padding: '2px',
     WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
     WebkitMaskComposite: 'xor',
     maskComposite: 'exclude',
@@ -141,7 +141,6 @@ const TabButton = ({ active, onClick, icon: Icon, label, count, styles }) => (
 // مكون دائرة التقدم – مضغوطة ومتجاوبة
 // ================================================================
 const CircularProgress = ({ percentage, size = 60, strokeWidth = 5, label, styles }) => {
-  // تحديد الحجم بناءً على عرض الشاشة
   const [responsiveSize, setResponsiveSize] = useState(size);
   useEffect(() => {
     const updateSize = () => {
@@ -323,15 +322,18 @@ export default function StudentCourseDetailsPage() {
     return true;
   }, []);
 
+  // ================================================================
+  // ✅ جلب المحتوى – مع ترتيب تنازلي (الأحدث أولاً)
+  // ================================================================
   const fetchContent = useCallback(async () => {
     if (!id) return;
     setContentLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       const [vidRes, exRes, bkRes] = await Promise.all([
-        supabase.from('videos').select('*').eq('course_id', id).order('created_at', { ascending: true }),
-        supabase.from('exams').select('*').eq('course_id', id).order('created_at', { ascending: true }),
-        supabase.from('books').select('*').eq('course_id', id).order('created_at', { ascending: true }),
+        supabase.from('videos').select('*').eq('course_id', id).order('created_at', { ascending: false }),
+        supabase.from('exams').select('*').eq('course_id', id).order('created_at', { ascending: false }),
+        supabase.from('books').select('*').eq('course_id', id).order('created_at', { ascending: false }),
       ]);
       setVideos(vidRes.data || []);
       setExams(exRes.data || []);
@@ -372,6 +374,9 @@ export default function StudentCourseDetailsPage() {
     finally { setContentLoading(false); }
   }, [id, enrollment]);
 
+  // ================================================================
+  // ✅ جلب بيانات الكورس – مع ترتيب الكورسات ذات الصلة (الأحدث أولاً)
+  // ================================================================
   const fetchCourseData = useCallback(async () => {
     if (!id) return;
     try {
@@ -436,8 +441,16 @@ export default function StudentCourseDetailsPage() {
 
       if (enrollData) await fetchContent();
 
+      // ===== جلب الكورسات ذات الصلة – مرتبة تنازلياً (الأحدث أولاً) =====
       if (courseData.grade_stage && courseData.grade_level) {
-        const { data: related } = await supabase.from('courses').select('*, teacher:teacher_id(full_name)').eq('grade_stage', courseData.grade_stage).eq('grade_level', courseData.grade_level).neq('id', id).limit(3);
+        const { data: related } = await supabase
+          .from('courses')
+          .select('*, teacher:teacher_id(full_name)')
+          .eq('grade_stage', courseData.grade_stage)
+          .eq('grade_level', courseData.grade_level)
+          .neq('id', id)
+          .order('created_at', { ascending: false }) // ✅ الأحدث أولاً
+          .limit(3);
         setRelatedCourses(related || []);
       }
 
@@ -711,7 +724,6 @@ export default function StudentCourseDetailsPage() {
                       </Link>
                     </>
                   ) : (
-                    // ===== قسم الكورس غير المشترك (مضغوط) =====
                     <div className="w-full text-center py-2 sm:py-4">
                       <div className="flex flex-col sm:flex-row gap-1.5 sm:gap-3 justify-center">
                         {course.is_free || course.price === 0 ? (
@@ -787,7 +799,6 @@ export default function StudentCourseDetailsPage() {
         )}
 
         {!enrolled && (
-          // ===== عرض القفل للكورسات غير المشترك فيها (مضغوط) =====
           <div className="text-center py-6 sm:py-12 border-2 border-dashed border-gray-300 dark:border-white/10 rounded-2xl">
             <Icons.Lock className="h-8 w-8 sm:h-12 sm:w-12 text-gray-400 mx-auto mb-1.5"/>
             <h3 className={`text-sm sm:text-lg font-bold ${styles.text} mb-0.5`}>
@@ -818,7 +829,7 @@ export default function StudentCourseDetailsPage() {
           </div>
         )}
 
-        {/* ===== كورسات ذات صلة (مضغوطة) ===== */}
+        {/* ===== كورسات ذات صلة – مرتبة من الأحدث للأقدم ===== */}
         {relatedCourses.length>0 && (
           <div>
             <h2 className={`text-sm sm:text-base font-bold ${styles.text} mb-2 flex items-center gap-1.5`}>
