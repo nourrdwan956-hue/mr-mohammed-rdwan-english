@@ -16,6 +16,8 @@
 //    - استئناف الفترات المحفوظة مسبقاً
 // ✅ تعديل التحقق من الوصول: جلب max_devices من الكورس وعرض رسائل محددة
 // ✅ إزالة export const dynamic و export const revalidate (لا تستخدم في Client Components)
+// ✅ تحسين التوافق مع الموبايل: زر تشغيل أصغر، شريط تحكم أقل ارتفاعاً،
+//    أزرار مصغرة، وترتيب مرن للمساحات الضيقة
 // ================================================================
 
 'use client';
@@ -1176,7 +1178,7 @@ export default function WatchPage() {
   const thumbnailUrl = youtubeId ? `https://img.youtube.com/vi/${youtubeId}/maxresdefault.jpg` : null;
 
   // ================================================================
-  // 17. التصميم النهائي
+  // 17. التصميم النهائي (مع تحسينات الموبايل)
   // ================================================================
   return (
     <div className={`min-h-screen text-white transition-all duration-500 relative ${focusMode ? 'fixed inset-0 z-50 p-0 flex items-center justify-center bg-black' : ''}`}>
@@ -1247,6 +1249,7 @@ export default function WatchPage() {
                     )}
                   </AnimatePresence>
 
+                  {/* زر التشغيل المركزي - متجاوب مع الموبايل */}
                   {playerReady && controlsVisible && (
                     <div
                       className="absolute inset-0 z-30 flex items-center justify-center cursor-pointer"
@@ -1260,11 +1263,11 @@ export default function WatchPage() {
                         className="relative"
                       >
                         <div className="absolute inset-0 bg-yellow-400/20 rounded-full blur-xl scale-150 group-hover:scale-200 transition-transform duration-300" />
-                        <div className="relative w-20 h-20 rounded-full bg-yellow-400/90 flex items-center justify-center shadow-2xl shadow-yellow-400/40 group-hover:shadow-yellow-400/60 transition-shadow">
+                        <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-yellow-400/90 flex items-center justify-center shadow-2xl shadow-yellow-400/40 group-hover:shadow-yellow-400/60 transition-shadow">
                           {isPlaying ? (
-                            <Icons.Pause className="h-10 w-10 text-black" />
+                            <Icons.Pause className="h-8 w-8 sm:h-10 sm:w-10 text-black" />
                           ) : (
-                            <Icons.Play className="h-10 w-10 text-black ml-1" />
+                            <Icons.Play className="h-8 w-8 sm:h-10 sm:w-10 text-black ml-1" />
                           )}
                         </div>
                       </motion.div>
@@ -1290,17 +1293,19 @@ export default function WatchPage() {
                     )}
                   </AnimatePresence>
 
+                  {/* شريط التحكم السفلي - محسّن للموبايل */}
                   {playerReady && (
                     <div
-                      className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent p-4 flex flex-col gap-2 pointer-events-auto z-40 transition-opacity duration-300 ${controlsVisible ? 'opacity-100' : 'opacity-0'}`}
+                      className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent p-3 sm:p-4 flex flex-col gap-1 sm:gap-2 pointer-events-auto z-40 transition-opacity duration-300 ${controlsVisible ? 'opacity-100' : 'opacity-0'}`}
                       onMouseEnter={() => {
                         setControlsVisible(true);
                         clearTimeout(controlsTimerRef.current);
                       }}
                     >
+                      {/* شريط التقدم - أقل ارتفاعاً على الموبايل */}
                       <div
                         ref={progressRef}
-                        className="relative w-full h-2.5 bg-white/15 rounded-full cursor-pointer group/progress"
+                        className="relative w-full h-2 sm:h-2.5 bg-white/15 rounded-full cursor-pointer group/progress"
                         onClick={handleProgressClick}
                       >
                         <div className="absolute top-0 left-0 h-full bg-white/20 rounded-full" style={{ width: `${bufferProgress}%` }} />
@@ -1312,23 +1317,30 @@ export default function WatchPage() {
                           }}
                         />
                         <div
-                          className="absolute top-1/2 -translate-y-1/2 w-5 h-5 bg-white rounded-full shadow-2xl opacity-0 group-hover/progress:opacity-100 transition-all duration-200"
-                          style={{ left: `${progress}%`, marginLeft: '-10px' }}
+                          className="absolute top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 bg-white rounded-full shadow-2xl opacity-0 group-hover/progress:opacity-100 transition-all duration-200"
+                          style={{ left: `${progress}%`, marginLeft: '-8px' }}
                         >
                           <div className="absolute inset-1 bg-yellow-400 rounded-full scale-0 group-hover/progress:scale-100 transition-transform duration-200" />
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2 text-white flex-wrap">
+                      {/* صف الأزرار مع flex-wrap وأحجام أصغر للموبايل */}
+                      <div className="flex items-center gap-1 sm:gap-2 text-white flex-wrap">
                         <button onClick={togglePlay} className="p-1.5 rounded-full hover:bg-white/10 transition-colors">
-                          {isPlaying ? <Icons.Pause className="h-6 w-6" /> : <Icons.Play className="h-6 w-6" />}
+                          {isPlaying ? <Icons.Pause className="h-5 w-5 sm:h-6 sm:w-6" /> : <Icons.Play className="h-5 w-5 sm:h-6 sm:w-6" />}
                         </button>
-                        <button onClick={skipBackward} className="p-1.5 rounded-full hover:bg-white/10 transition-colors"><Icons.SkipBack className="h-5 w-5" /></button>
-                        <button onClick={skipForward} className="p-1.5 rounded-full hover:bg-white/10 transition-colors"><Icons.SkipForward className="h-5 w-5" /></button>
-                        <span className="text-xs text-gray-300 font-mono min-w-[80px]">{formatTime(currentTime)} / {formatTime(duration)}</span>
+                        <button onClick={skipBackward} className="p-1.5 rounded-full hover:bg-white/10 transition-colors">
+                          <Icons.SkipBack className="h-4 w-4 sm:h-5 sm:w-5" />
+                        </button>
+                        <button onClick={skipForward} className="p-1.5 rounded-full hover:bg-white/10 transition-colors">
+                          <Icons.SkipForward className="h-4 w-4 sm:h-5 sm:w-5" />
+                        </button>
+                        <span className="text-[10px] sm:text-xs text-gray-300 font-mono min-w-[60px] sm:min-w-[80px]">
+                          {formatTime(currentTime)} / {formatTime(duration)}
+                        </span>
 
                         <button onClick={toggleMute} className="p-1.5 rounded-full hover:bg-white/10 transition-colors">
-                          {muted ? <Icons.VolumeX className="h-5 w-5" /> : <Icons.Volume2 className="h-5 w-5" />}
+                          {muted ? <Icons.VolumeX className="h-4 w-4 sm:h-5 sm:w-5" /> : <Icons.Volume2 className="h-4 w-4 sm:h-5 sm:w-5" />}
                         </button>
                         <input
                           type="range"
@@ -1337,7 +1349,7 @@ export default function WatchPage() {
                           step="0.01"
                           value={muted ? 0 : volume}
                           onChange={handleVolumeChange}
-                          className="w-20 h-1.5 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-yellow-400 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-lg"
+                          className="w-16 sm:w-20 h-1 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 sm:[&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-3 sm:[&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-yellow-400 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-lg"
                           style={{
                             backgroundImage: `linear-gradient(to right, ${getGradientColor(muted ? 0 : volume)}, ${getGradientColor(muted ? 0 : volume)})`,
                             backgroundColor: muted ? '#4a4a4a' : undefined,
@@ -1349,11 +1361,11 @@ export default function WatchPage() {
                           className={`p-1.5 rounded-full hover:bg-white/10 transition-colors ${captionsEnabled ? 'text-yellow-400' : ''}`}
                           title={captionsEnabled ? (language === 'ar' ? 'إخفاء الترجمة' : 'Hide Captions') : (language === 'ar' ? 'إظهار الترجمة' : 'Show Captions')}
                         >
-                          <Icons.ClosedCaption className="h-5 w-5" />
+                          <Icons.ClosedCaption className="h-4 w-4 sm:h-5 sm:w-5" />
                         </button>
 
                         <div className="relative">
-                          <button onClick={() => { setShowSpeedMenu(!showSpeedMenu); setShowQualityMenu(false); }} className="px-2 py-1 rounded-lg hover:bg-white/10 transition-colors text-xs font-bold">
+                          <button onClick={() => { setShowSpeedMenu(!showSpeedMenu); setShowQualityMenu(false); }} className="px-1.5 sm:px-2 py-0.5 rounded-lg hover:bg-white/10 transition-colors text-[10px] sm:text-xs font-bold">
                             {playbackRate}x
                           </button>
                           {showSpeedMenu && (
@@ -1370,7 +1382,7 @@ export default function WatchPage() {
                         {qualities.length > 0 && (
                           <div className="relative">
                             <button onClick={() => { setShowQualityMenu(!showQualityMenu); setShowSpeedMenu(false); }} className="p-1.5 rounded-full hover:bg-white/10 transition-colors">
-                              <Icons.Settings className="h-5 w-5" />
+                              <Icons.Settings className="h-4 w-4 sm:h-5 sm:w-5" />
                             </button>
                             {showQualityMenu && (
                               <div className="absolute bottom-full mb-2 left-0 bg-gray-900/95 backdrop-blur-sm border border-white/10 rounded-xl py-1 shadow-2xl z-50 w-24">
@@ -1384,13 +1396,13 @@ export default function WatchPage() {
                         )}
 
                         <button onClick={toggleLoop} className={`p-1.5 rounded-full hover:bg-white/10 transition-colors ${loop ? 'text-yellow-400' : ''}`} title="تكرار">
-                          <Icons.Repeat className="h-5 w-5" />
+                          <Icons.Repeat className="h-4 w-4 sm:h-5 sm:w-5" />
                         </button>
                         <button onClick={toggleFocusMode} className={`p-1.5 rounded-full hover:bg-white/10 transition-colors ${focusMode ? 'text-yellow-400' : ''}`} title="وضع التركيز (Z)">
-                          <Icons.Eye className="h-5 w-5" />
+                          <Icons.Eye className="h-4 w-4 sm:h-5 sm:w-5" />
                         </button>
                         <button onClick={toggleFullscreen} className="p-1.5 rounded-full hover:bg-white/10 transition-colors ml-auto">
-                          <Icons.Maximize className="h-5 w-5" />
+                          <Icons.Maximize className="h-4 w-4 sm:h-5 sm:w-5" />
                         </button>
                       </div>
                     </div>
