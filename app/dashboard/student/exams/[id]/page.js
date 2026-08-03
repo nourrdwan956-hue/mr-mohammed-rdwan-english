@@ -11,6 +11,7 @@
 // ✅ منع ظهور الشهادة للراسبين (حتى لو استنفذوا المحاولات)
 // ✅ نظام مخالفات متطور: مهلة 5 ثوانٍ للعودة لملء الشاشة، حد أقصى 5 مخالفات
 // ✅ لا تحسب الحركات الطبيعية كمخالفات
+// ✅ إيقاف جميع المؤقتات والمراقبات والتحذيرات فور انتهاء الامتحان
 // ================================================================
 
 'use client';
@@ -2375,6 +2376,9 @@ export default function StudentExamPage() {
   const [accessReason, setAccessReason] = useState('');
   const [isCheckingAccess, setIsCheckingAccess] = useState(false);
 
+  // ===== التحقق من أن الامتحان لم ينتهِ (لإيقاف التحذيرات) =====
+  const isExamEnded = useMemo(() => examStatus === 'submitted' || isExamForcedClosed, [examStatus, isExamForcedClosed]);
+
   // ===== دوال التحقق من إمكانية التمرير الأفقي =====
   // تم إزالتها لأننا نعتمد على التمرير الطبيعي للصفحة
 
@@ -2446,6 +2450,7 @@ export default function StudentExamPage() {
 
   // ===== دالة الإغلاق القسري =====
   const forceCloseExam = useCallback(async (reason = 'security_violation') => {
+    // ✅ منع التنفيذ المتكرر
     if (examStatus === 'submitted' || isExamForcedClosed) return;
     setIsExamForcedClosed(true);
     setExamStatus('submitted');
@@ -2508,6 +2513,7 @@ export default function StudentExamPage() {
 
   // ===== معالج الخروج من ملء الشاشة – مع مهلة 5 ثوانٍ وزر عائم =====
   const handleFullscreenChange = useCallback(() => {
+    // ✅ إذا انتهى الامتحان، لا تفعل شيئاً
     if (examStatus !== 'started' || isExamForcedClosed) return;
 
     const isFullscreen = !!document.fullscreenElement;
@@ -2562,6 +2568,7 @@ export default function StudentExamPage() {
 
   // ===== مراقبة تغيير التبويب (Visibility Change) – تسجيل مخالفة فورية =====
   const handleVisibilityChange = useCallback(() => {
+    // ✅ إذا انتهى الامتحان، لا تفعل شيئاً
     if (examStatus !== 'started' || isExamForcedClosed) return;
 
     const isVisible = document.visibilityState === 'visible';
@@ -2622,6 +2629,9 @@ export default function StudentExamPage() {
 
   // ===== دالة تفعيل قفل الأمان الشامل (موسعة وقوية) =====
   const enableSecurityLockdown = useCallback(() => {
+    // ✅ إذا انتهى الامتحان، لا نفعّل أي شيء
+    if (examStatus !== 'started' || isExamForcedClosed) return;
+
     // --- منع أحداث الفأرة ---
     const handleContextMenu = (e) => e.preventDefault();
 
@@ -2630,6 +2640,9 @@ export default function StudentExamPage() {
 
     // --- منع جميع اختصارات لوحة المفاتيح الخطيرة (قائمة موسعة) ---
     const handleKeyDown = (e) => {
+      // ✅ إذا انتهى الامتحان، نخرج فوراً
+      if (examStatus !== 'started' || isExamForcedClosed) return;
+
       // منع F11 و ESC بشكل قهري
       if (e.key === 'F11' || e.key === 'Escape') {
         e.preventDefault();
@@ -2684,6 +2697,8 @@ export default function StudentExamPage() {
         e.stopPropagation();
         // ✅ تأخير toast لتجنب تحديث الحالة أثناء التصيير
         setTimeout(() => {
+          // ✅ لا نعرض تحذيراً بعد انتهاء الامتحان
+          if (examStatus !== 'started' || isExamForcedClosed) return;
           toast.error(
             language === 'ar'
               ? '⚠️ هذا الإجراء غير مسموح به أثناء الامتحان'
@@ -2709,6 +2724,7 @@ export default function StudentExamPage() {
     const handleBeforePrint = (e) => {
       e.preventDefault();
       setTimeout(() => {
+        if (examStatus !== 'started' || isExamForcedClosed) return;
         setViolations(prev => Math.min(prev + 1, maxViolations));
         toast.error(language === 'ar' ? '🖨️ الطباعة معطلة أثناء الامتحان' : '🖨️ Printing is disabled during the exam');
       }, 0);
@@ -2717,21 +2733,22 @@ export default function StudentExamPage() {
 
     // --- مراقبة فقدان التركيز (للأجهزة الجوالة) ---
     const handleBlur = () => {
-      if (examStatus === 'started') {
-        // ✅ تأخير تحديث الحالة إلى ما بعد التصيير
-        setTimeout(() => {
-          setViolations(prev => {
-            const newV = prev + 1;
-            if (newV >= maxViolations) forceCloseExam('security_violation');
-            toast.error(language === 'ar' ? '⚠️ تم رصد فقدان تركيز التطبيق' : '⚠️ App focus lost detected', { duration: 1500 });
-            return Math.min(newV, maxViolations);
-          });
-        }, 0);
-      }
+      if (examStatus !== 'started' || isExamForcedClosed) return;
+      // ✅ تأخير تحديث الحالة إلى ما بعد التصيير
+      setTimeout(() => {
+        if (examStatus !== 'started' || isExamForcedClosed) return;
+        setViolations(prev => {
+          const newV = prev + 1;
+          if (newV >= maxViolations) forceCloseExam('security_violation');
+          toast.error(language === 'ar' ? '⚠️ تم رصد فقدان تركيز التطبيق' : '⚠️ App focus lost detected', { duration: 1500 });
+          return Math.min(newV, maxViolations);
+        });
+      }, 0);
     };
 
     // --- منع إيماءات السحب من الحواف (للموبايل) ---
     const handleTouchMove = (e) => {
+      if (examStatus !== 'started' || isExamForcedClosed) return;
       if (e.touches && e.touches.length === 1) {
         const touch = e.touches[0];
         // منع السحب من الحواف اليمنى أو اليسرى (قد يفتح قائمة النظام)
@@ -2745,12 +2762,14 @@ export default function StudentExamPage() {
 
     // --- منع زر العودة على Android ---
     const handlePopState = () => {
+      if (examStatus !== 'started' || isExamForcedClosed) return;
       // منع الرجوع للخلف في التاريخ
       history.pushState(null, '', window.location.href);
     };
 
     // --- مراقبة DOM بحساسية أقل ---
     const observer = new MutationObserver((mutations) => {
+      if (examStatus !== 'started' || isExamForcedClosed) return;
       // نراقب فقط التغييرات التي قد تشير إلى محاولة اختراق حقيقية
       for (const mutation of mutations) {
         // 1. إذا تم إزالة عناصر مهمة (مثل طبقات الحماية)
@@ -2760,6 +2779,7 @@ export default function StudentExamPage() {
             if (node.id && (node.id === 'exam-container' || node.id === 'security-layer' || node.className?.includes('watermark'))) {
               console.warn('⚠️ Critical security element removed!');
               setTimeout(() => {
+                if (examStatus !== 'started' || isExamForcedClosed) return;
                 setViolations(prev => Math.min(prev + 1, maxViolations));
               }, 0);
               break;
@@ -2775,6 +2795,7 @@ export default function StudentExamPage() {
                target.style.position === 'static')) {
             console.warn('⚠️ Suspicious style change detected!');
             setTimeout(() => {
+              if (examStatus !== 'started' || isExamForcedClosed) return;
               setViolations(prev => Math.min(prev + 1, maxViolations));
             }, 0);
           }
@@ -2789,6 +2810,7 @@ export default function StudentExamPage() {
                className.includes('display-none'))) {
             console.warn('⚠️ Suspicious class change detected!');
             setTimeout(() => {
+              if (examStatus !== 'started' || isExamForcedClosed) return;
               setViolations(prev => Math.min(prev + 1, maxViolations));
             }, 0);
           }
@@ -2834,18 +2856,25 @@ export default function StudentExamPage() {
       window.removeEventListener('popstate', handlePopState);
       observer.disconnect();
     };
-  }, [maxViolations, forceCloseExam, examStatus, language, requestFullscreen]);
+  }, [maxViolations, forceCloseExam, examStatus, isExamForcedClosed, language, requestFullscreen]);
 
   // ===== فحص ملء الشاشة الدوري (كل 2 ثانية مع تحذير فقط) =====
   useEffect(() => {
     if (examStatus !== 'started') return;
     
     const fullscreenCheck = setInterval(() => {
-      if (!document.fullscreenElement && !isExamForcedClosed) {
+      // ✅ إذا انتهى الامتحان، نوقف الفحص وننظف المؤقت
+      if (examStatus !== 'started' || isExamForcedClosed) {
+        clearInterval(fullscreenCheck);
+        return;
+      }
+      if (!document.fullscreenElement) {
         requestFullscreen();
         
         // ✅ نعرض تحذيراً فقط وليس مخالفة فورية
         setTimeout(() => {
+          // ✅ نتأكد مرة أخرى من عدم انتهاء الامتحان
+          if (examStatus !== 'started' || isExamForcedClosed) return;
           toast(
             language === 'ar' 
               ? '🔄 يرجى العودة إلى وضع ملء الشاشة'
@@ -2854,7 +2883,7 @@ export default function StudentExamPage() {
           );
         }, 0);
       }
-    }, 2000); // كل 2 ثانية بدلاً من 150ms
+    }, 2000);
 
     return () => clearInterval(fullscreenCheck);
   }, [examStatus, requestFullscreen, isExamForcedClosed, language]);
@@ -3370,7 +3399,7 @@ export default function StudentExamPage() {
     }, 1000);
   }, [examStatus, examId, exam, examStartedAt, language, requestFullscreen, enableSecurityLockdown, verifyExamAccess, submitExam]);
 
-  // ===== useEffect لتفعيل مراقبة الأمان =====
+  // ===== useEffect لتفعيل مراقبة الأمان مع تنظيف تام عند انتهاء الامتحان =====
   useEffect(() => {
     if (examStatus !== 'started') return;
 
@@ -3383,14 +3412,17 @@ export default function StudentExamPage() {
     // تفعيل قفل الأمان (يتم استدعاؤه مرة أخرى للتأكيد)
     const cleanupSecurity = enableSecurityLockdown();
 
-    return () => {
+    // ✅ دالة التنظيف: إزالة المستمعين عند انتهاء الامتحان
+    const removeListeners = () => {
       document.removeEventListener('fullscreenchange', handleFullscreenChange);
       document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
       document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
       document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-      if (cleanupSecurity) cleanupSecurity;
+      if (cleanupSecurity) cleanupSecurity();
     };
+
+    return removeListeners;
   }, [examStatus, handleFullscreenChange, handleVisibilityChange, enableSecurityLockdown]);
 
   // ===== دالة فتح نافذة تأكيد التسليم =====
@@ -3972,8 +4004,8 @@ export default function StudentExamPage() {
     >
       <SecureWatermark user={student} examTitle={exam?.title} isDark={isDark} />
 
-      {/* زر عائم للعودة إلى ملء الشاشة */}
-      {showFullscreenButton && (
+      {/* زر عائم للعودة إلى ملء الشاشة (يظهر فقط أثناء الامتحان) */}
+      {showFullscreenButton && examStatus === 'started' && !isExamForcedClosed && (
         <motion.button
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
