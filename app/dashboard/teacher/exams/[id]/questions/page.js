@@ -368,7 +368,7 @@ const useQuestions = (examId) => {
           partial_marking: questionData.partial_marking || false,
           word_limit: questionData.word_limit || 0,
           bank_question_id: questionData.bank_question_id || null,
-          text_align: questionData.text_align || 'left', // ✅ إضافة المحاذاة
+          text_align: questionData.text_align || 'left',
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         })
@@ -426,7 +426,7 @@ const useQuestions = (examId) => {
           ignore_extra_spaces: updates.ignore_extra_spaces !== undefined ? updates.ignore_extra_spaces : true,
           partial_marking: updates.partial_marking || false,
           word_limit: updates.word_limit || 0,
-          text_align: updates.text_align || 'left', // ✅ إضافة المحاذاة
+          text_align: updates.text_align || 'left',
           updated_at: new Date().toISOString(),
         })
         .eq('id', id)
@@ -637,7 +637,13 @@ const QuestionPreview = ({ question }) => {
         </div>
       ) : (
         <>
-          <p className={`text-sm mb-2 font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>{question.question_text}</p>
+          <p
+            className={`text-sm mb-2 font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}
+            dir="ltr"
+            style={{ textAlign: 'left' }}
+          >
+            {question.question_text}
+          </p>
           {type === 'fill_from_words' && (
             <div className="space-y-2">
               <div className={`p-3 rounded-lg ${isDark ? 'bg-black/30 border border-white/10' : 'bg-gray-100 border border-gray-200'}`}>
@@ -748,7 +754,7 @@ const QuestionFormModal = ({
     word_limit: 0,
     word_bank: [],
     correct_answers: [],
-    text_align: 'left', // ✅ إضافة المحاذاة الافتراضية
+    text_align: 'left',
   });
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
@@ -822,7 +828,7 @@ const QuestionFormModal = ({
         word_limit: question.word_limit || 0,
         word_bank: wordBank,
         correct_answers: correctAnswers,
-        text_align: question.text_align || 'left', // ✅ قراءة المحاذاة
+        text_align: question.text_align || 'left',
       });
       prevQuestionTextRef.current = question.question_text || '';
     } else {
@@ -847,7 +853,7 @@ const QuestionFormModal = ({
         word_limit: 0,
         word_bank: ['', ''],
         correct_answers: [''],
-        text_align: 'left', // ✅ افتراضي
+        text_align: 'left',
       });
       prevQuestionTextRef.current = '';
     }
@@ -1068,7 +1074,7 @@ const QuestionFormModal = ({
         delete dataToSubmit.passage_text;
         delete dataToSubmit.word_bank;
         delete dataToSubmit.correct_answers;
-        dataToSubmit.text_align = 'left'; // لا نحتاجها للقطع
+        dataToSubmit.text_align = 'left';
         await onSubmit(dataToSubmit);
         onClose();
         return;
@@ -1236,7 +1242,7 @@ const QuestionFormModal = ({
                       word_bank: key === 'fill_from_words' ? ['', ''] : (key === 'sentence_reorder' ? [] : []),
                       correct_answers: key === 'fill_from_words' ? [''] : (key === 'sentence_reorder' ? [[]] : []),
                       question_text: key === 'fill_from_words' ? '' : (key === 'passage' ? '' : ''),
-                      text_align: 'left', // ✅ إعادة تعيين المحاذاة
+                      text_align: 'left',
                     }));
                     prevQuestionTextRef.current = '';
                   }}
@@ -1364,6 +1370,8 @@ const QuestionFormModal = ({
                 value={formData.question_text}
                 onChange={handleChange}
                 rows="3"
+                dir="ltr"
+                style={{ textAlign: 'left' }}
                 placeholder={formData.type === 'fill_from_words' ? 'مثال: Learning a new language ... {1} __________.' : 'اكتب نص السؤال هنا...'}
                 className={`w-full p-3 rounded-xl focus:ring-2 focus:ring-yellow-500 outline-none transition resize-none ${
                   isDark ? 'bg-[#0b0e1a] border border-white/20 text-white' : 'bg-white border border-gray-300 text-gray-900'
@@ -1880,7 +1888,11 @@ const QuestionItem = ({
               </button>
             </div>
           ) : (
-            <p className={`text-sm mt-1 line-clamp-2 font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+            <p
+              className={`text-sm mt-1 line-clamp-2 font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}
+              dir="ltr"
+              style={{ textAlign: 'left' }}
+            >
               {question.question_text}
             </p>
           )}
