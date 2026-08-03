@@ -31,6 +31,8 @@
 // ✅ عرض الدرجات بأرقام عشرية (toFixed(1)) في جميع بطاقات النتائج
 // ✅ تقليص الأحجام والهوامش لتناسب جميع الأجهزة
 // ✅ تحسين التجاوب مع الشاشات الصغيرة دون الحاجة للتقليص
+// ✅ إضافة دعم LTR للنصوص الإنجليزية (dir="ltr", textAlign: 'left') لجميع العناصر النصية
+// ✅ إضافة dir="auto" لعنوان الامتحان واسم الطالب
 
 'use client';
 
@@ -174,10 +176,10 @@ const ResultSummaryCard = ({ exam, result, student, styles, isDark, securityInde
         </motion.div>
 
         <div className="flex-1 text-center sm:text-right min-w-0">
-          <h1 className={`text-lg sm:text-xl font-extrabold ${styles.text} truncate`}>
+          <h1 className={`text-lg sm:text-xl font-extrabold ${styles.text} truncate`} dir="auto">
             {exam?.title || 'الامتحان'}
           </h1>
-          <p className={`text-xs sm:text-sm ${styles.subtext} mt-0.5 truncate`}>
+          <p className={`text-xs sm:text-sm ${styles.subtext} mt-0.5 truncate`} dir="auto">
             {student?.full_name || 'طالب'} • {student?.school || ''}
           </p>
           <div className="flex flex-wrap justify-center sm:justify-start gap-1.5 mt-1.5">
@@ -254,7 +256,7 @@ const ResultSummaryCard = ({ exam, result, student, styles, isDark, securityInde
   );
 };
 
-// 3.2 تحليل السؤال الفردي – مضغوط ومتجاوب
+// 3.2 تحليل السؤال الفردي – مضغوط ومتجاوب مع دعم LTR
 const QuestionReviewItem = ({ question, userAnswer, isCorrect, score, time, index, styles, isDark, language }) => {
   const type = question.type || '';
   const typeLabels = {
@@ -294,21 +296,23 @@ const QuestionReviewItem = ({ question, userAnswer, isCorrect, score, time, inde
               <span className={`text-[10px] sm:text-xs ${styles.subtext}`}>⏱️ {time}s</span>
             )}
           </div>
-          <p className={`text-xs sm:text-sm ${styles.text} mb-1.5 break-words`}>{question.question_text}</p>
+          <p className={`text-xs sm:text-sm ${styles.text} mb-1.5 break-words`} dir="ltr" style={{ textAlign: 'left' }}>
+            {question.question_text}
+          </p>
 
           {userAnswer !== undefined && userAnswer !== null && userAnswer !== '' ? (
             <div className={`text-[10px] sm:text-xs ${styles.subtext} mb-1`}>
               <span className="font-semibold">إجابتك: </span>
-              <span className={isCorrect ? 'text-green-400' : 'text-red-400'}>
+              <span className={isCorrect ? 'text-green-400' : 'text-red-400'} dir="ltr" style={{ textAlign: 'left' }}>
                 {typeof userAnswer === 'object' ? JSON.stringify(userAnswer) : userAnswer}
               </span>
             </div>
           ) : (
-            <div className="text-[10px] sm:text-xs text-red-400 mb-1">لم تُجب</div>
+            <div className="text-[10px] sm:text-xs text-red-400 mb-1" dir="ltr" style={{ textAlign: 'left' }}>لم تُجب</div>
           )}
 
           {type === 'multiple_choice' && (
-            <div className="mt-1 text-[10px] sm:text-xs text-green-400 break-words">
+            <div className="mt-1 text-[10px] sm:text-xs text-green-400 break-words" dir="ltr" style={{ textAlign: 'left' }}>
               <span className="font-semibold">الصحيح: </span>
               {Array.isArray(question.options) && question.options.map((opt, idx) => {
                 if (opt.isCorrect) {
@@ -321,14 +325,14 @@ const QuestionReviewItem = ({ question, userAnswer, isCorrect, score, time, inde
 
           {type === 'fill_from_words' && (
             <div className="mt-1.5 space-y-0.5">
-              <p className={`text-[10px] sm:text-xs font-semibold ${styles.subtext}`}>تفاصيل الفراغات:</p>
+              <p className={`text-[10px] sm:text-xs font-semibold ${styles.subtext}`} dir="ltr" style={{ textAlign: 'left' }}>تفاصيل الفراغات:</p>
               {Array.isArray(question.correct_answer) && Array.isArray(userAnswer) ? (
                 question.correct_answer.map((correct, idx) => {
                   const userAns = (userAnswer && userAnswer[idx] !== undefined) ? userAnswer[idx] : '—';
                   const isBlankCorrect = cleanText(String(userAns)).toLowerCase() === cleanText(String(correct)).toLowerCase();
                   const blankScore = question.marks / question.correct_answer.length;
                   return (
-                    <div key={idx} className={`flex flex-wrap items-center gap-1 text-[10px] sm:text-xs ${isBlankCorrect ? 'text-green-400' : 'text-red-400'}`}>
+                    <div key={idx} className={`flex flex-wrap items-center gap-1 text-[10px] sm:text-xs ${isBlankCorrect ? 'text-green-400' : 'text-red-400'}`} dir="ltr" style={{ textAlign: 'left' }}>
                       <span className="w-10">#{idx+1}:</span>
                       <span>أنت: <span className="font-bold">{userAns}</span></span>
                       <span>الصح: <span className="font-bold text-green-400">{correct}</span></span>
@@ -338,7 +342,7 @@ const QuestionReviewItem = ({ question, userAnswer, isCorrect, score, time, inde
                   );
                 })
               ) : (
-                <p className="text-[10px] sm:text-xs text-gray-400">
+                <p className="text-[10px] sm:text-xs text-gray-400" dir="ltr" style={{ textAlign: 'left' }}>
                   {language === 'ar' ? '⚠️ لا توجد بيانات كافية' : '⚠️ Insufficient data'}
                 </p>
               )}
@@ -347,13 +351,13 @@ const QuestionReviewItem = ({ question, userAnswer, isCorrect, score, time, inde
 
           {type === 'sentence_reorder' && (
             <div className="mt-1.5 space-y-0.5">
-              <p className={`text-[10px] sm:text-xs font-semibold ${styles.subtext}`}>تفاصيل الترتيب:</p>
+              <p className={`text-[10px] sm:text-xs font-semibold ${styles.subtext}`} dir="ltr" style={{ textAlign: 'left' }}>تفاصيل الترتيب:</p>
               {Array.isArray(userAnswer) && userAnswer.length > 0 && (
                 <div>
-                  <p className={`text-[10px] sm:text-xs ${styles.subtext}`}>ترتيبك:</p>
-                  <div className="flex flex-wrap gap-0.5 mt-0.5">
+                  <p className={`text-[10px] sm:text-xs ${styles.subtext}`} dir="ltr" style={{ textAlign: 'left' }}>ترتيبك:</p>
+                  <div className="flex flex-wrap gap-0.5 mt-0.5" dir="ltr">
                     {userAnswer.map((word, idx) => (
-                      <span key={idx} className="text-[9px] sm:text-[10px] px-1.5 py-0.5 rounded-full bg-blue-600/30 text-blue-300 border border-blue-600">
+                      <span key={idx} className="text-[9px] sm:text-[10px] px-1.5 py-0.5 rounded-full bg-blue-600/30 text-blue-300 border border-blue-600" dir="ltr">
                         {idx+1}. {word}
                       </span>
                     ))}
@@ -362,8 +366,8 @@ const QuestionReviewItem = ({ question, userAnswer, isCorrect, score, time, inde
               )}
               {Array.isArray(question.correct_answer) && question.correct_answer.length > 0 && (
                 <div>
-                  <p className={`text-[10px] sm:text-xs ${styles.subtext}`}>الترتيب الصحيح:</p>
-                  <div className="flex flex-wrap gap-0.5 mt-0.5">
+                  <p className={`text-[10px] sm:text-xs ${styles.subtext}`} dir="ltr" style={{ textAlign: 'left' }}>الترتيب الصحيح:</p>
+                  <div className="flex flex-wrap gap-0.5 mt-0.5" dir="ltr">
                     {(() => {
                       let correctWords = question.correct_answer;
                       if (correctWords.length === 1 && Array.isArray(correctWords[0])) {
@@ -371,7 +375,7 @@ const QuestionReviewItem = ({ question, userAnswer, isCorrect, score, time, inde
                       }
                       if (Array.isArray(correctWords)) {
                         return correctWords.map((word, idx) => (
-                          <span key={idx} className="text-[9px] sm:text-[10px] px-1.5 py-0.5 rounded-full bg-green-600/30 text-green-300 border border-green-600">
+                          <span key={idx} className="text-[9px] sm:text-[10px] px-1.5 py-0.5 rounded-full bg-green-600/30 text-green-300 border border-green-600" dir="ltr">
                             {idx+1}. {word}
                           </span>
                         ));
@@ -385,7 +389,7 @@ const QuestionReviewItem = ({ question, userAnswer, isCorrect, score, time, inde
           )}
 
           {!isCorrect && correctAnswers.length > 0 && type !== 'multiple_choice' && type !== 'sentence_reorder' && (
-            <div className="text-[10px] sm:text-xs text-green-400 break-words">
+            <div className="text-[10px] sm:text-xs text-green-400 break-words" dir="ltr" style={{ textAlign: 'left' }}>
               <span className="font-semibold">الصحيح: </span>
               {correctAnswers.map((ans, i) => (
                 <span key={i} className="ml-0.5">
@@ -397,7 +401,7 @@ const QuestionReviewItem = ({ question, userAnswer, isCorrect, score, time, inde
           )}
 
           {question.explanation && (
-            <div className={`mt-1.5 p-2 rounded-lg ${isDark ? 'bg-white/5 border border-white/10' : 'bg-gray-50 border border-gray-200'} text-[10px] sm:text-xs ${styles.subtext}`}>
+            <div className={`mt-1.5 p-2 rounded-lg ${isDark ? 'bg-white/5 border border-white/10' : 'bg-gray-50 border border-gray-200'} text-[10px] sm:text-xs ${styles.subtext}`} dir="ltr" style={{ textAlign: 'left' }}>
               <span className="font-semibold text-yellow-400">📘 شرح: </span>
               {question.explanation}
             </div>
