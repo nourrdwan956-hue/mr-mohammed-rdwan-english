@@ -582,7 +582,7 @@ const ExamCountdownScreen = ({ exam, styles, language, isDark }) => {
 // 3. مكونات الأسئلة (مع تباين عالٍ)
 // ================================================================
 
-// 3.1 MCQ – مع إزالة الخلط (ترتيب ثابت حسب قاعدة البيانات)
+// 3.1 MCQ – مع إزالة الخلط (ترتيب ثابت حسب قاعدة البيانات) + تعديل LTR
 const MCQQuestion = ({ question, selectedAnswer, onSelect, styles, language, isDark }) => {
   const rawOptions = Array.isArray(question.options) ? question.options : [];
   const labels = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
@@ -596,7 +596,7 @@ const MCQQuestion = ({ question, selectedAnswer, onSelect, styles, language, isD
   });
 
   return (
-    <div className="space-y-2 sm:space-y-2.5">
+    <div className="space-y-2 sm:space-y-2.5" dir="ltr">
       {options.map((opt, idx) => {
         const label = labels[idx];
         const isSelected = selectedAnswer === label;
@@ -606,7 +606,7 @@ const MCQQuestion = ({ question, selectedAnswer, onSelect, styles, language, isD
             whileTap={{ scale: 0.98 }}
             onClick={() => onSelect(label)}
             style={{ touchAction: 'manipulation' }}
-            className={`w-full text-right p-3 sm:p-4 rounded-xl border-4 border-solid transition-all duration-200 flex items-center gap-2 sm:gap-3 backdrop-blur-sm text-sm sm:text-base ${
+            className={`w-full text-left p-3 sm:p-4 rounded-xl border-4 border-solid transition-all duration-200 flex items-center gap-2 sm:gap-3 backdrop-blur-sm text-sm sm:text-base ${
               isSelected
                 ? 'border-yellow-400 bg-yellow-400/20 shadow-lg shadow-yellow-400/30'
                 : `${isDark ? 'border-white/10 hover:border-yellow-400/40' : 'border-gray-600 hover:border-yellow-400/70'} ${styles.card} bg-opacity-50 hover:bg-white/20`
@@ -670,7 +670,7 @@ const TrueFalseQuestion = ({ selectedAnswer, onSelect, styles, language }) => {
   );
 };
 
-// 3.3 توصيل (Matching)
+// 3.3 توصيل (Matching) – إضافة dir="ltr"
 const MatchingQuestion = ({ question, selectedAnswer, onSelect, styles, language }) => {
   const pairs = Array.isArray(question.options) ? question.options : [];
   const [leftItems] = useState(() => pairs.map(p => p.left).sort(() => Math.random() - 0.5));
@@ -702,7 +702,7 @@ const MatchingQuestion = ({ question, selectedAnswer, onSelect, styles, language
   };
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3" dir="ltr">
       <div className="grid grid-cols-2 gap-3 sm:gap-4 text-xs sm:text-sm">
         <div className="space-y-2">
           <p className={`text-[10px] sm:text-xs ${styles.subtext} font-semibold`}>{language === 'ar' ? 'العناصر' : 'Items'}</p>
@@ -756,7 +756,7 @@ const MatchingQuestion = ({ question, selectedAnswer, onSelect, styles, language
   );
 };
 
-// 3.4 ترتيب (Ordering)
+// 3.4 ترتيب (Ordering) – إضافة dir="ltr" و textAlign left
 const OrderingQuestion = ({ question, selectedAnswer, onSelect, styles, language }) => {
   const items = Array.isArray(question.options) ? question.options : [];
   const [ordered, setOrdered] = useState(selectedAnswer || [...items].sort(() => Math.random() - 0.5));
@@ -771,7 +771,7 @@ const OrderingQuestion = ({ question, selectedAnswer, onSelect, styles, language
   };
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2" dir="ltr">
       {ordered.map((item, idx) => (
         <div key={idx} className={`flex items-center gap-2 sm:gap-3 p-2 sm:p-3 rounded-xl border-2 ${styles.border} ${styles.card} bg-opacity-50 backdrop-blur-sm text-sm sm:text-base`}>
           <div className="flex flex-col gap-0.5">
@@ -790,18 +790,20 @@ const OrderingQuestion = ({ question, selectedAnswer, onSelect, styles, language
               <Icons.ChevronDown className="h-3 w-3 sm:h-4 sm:w-4" />
             </button>
           </div>
-          <span className={`flex-1 text-xs sm:text-sm ${styles.text}`}>{idx + 1}. {item}</span>
+          <span className={`flex-1 text-xs sm:text-sm ${styles.text}`} style={{ textAlign: 'left' }}>
+            {idx + 1}. {item}
+          </span>
         </div>
       ))}
     </div>
   );
 };
 
-// 3.5 ملء الفراغ (Fill Blank)
+// 3.5 ملء الفراغ (Fill Blank) – إضافة dir="ltr" و textAlign left
 const FillBlankQuestion = ({ question, selectedAnswer, onSelect, styles, language, isDark }) => {
   const answer = selectedAnswer || '';
   return (
-    <div className="space-y-2">
+    <div className="space-y-2" dir="ltr">
       <div className={`w-full rounded-xl border-4 ${answer ? 'border-yellow-400' : isDark ? 'border-white/50' : 'border-gray-600'} transition-all duration-300 focus-within:ring-4 focus-within:ring-yellow-400/60 focus-within:border-yellow-400 ${styles.card} bg-opacity-${isDark ? '80' : '100'} shadow-inner shadow-lg`}>
         <input
           type="text"
@@ -809,7 +811,7 @@ const FillBlankQuestion = ({ question, selectedAnswer, onSelect, styles, languag
           onChange={(e) => onSelect(e.target.value)}
           placeholder={language === 'ar' ? 'أدخل الإجابة...' : 'Enter answer...'}
           className={`w-full p-3 sm:p-4 bg-transparent ${styles.text} placeholder-${styles.subtext} text-sm sm:text-base focus:outline-none`}
-          style={{ background: 'transparent' }}
+          style={{ background: 'transparent', textAlign: 'left' }}
         />
       </div>
       {answer.length > 0 && (
@@ -821,7 +823,7 @@ const FillBlankQuestion = ({ question, selectedAnswer, onSelect, styles, languag
   );
 };
 
-// 3.6 مقالي (Essay)
+// 3.6 مقالي (Essay) – إضافة dir="ltr" و textAlign left
 const EssayQuestion = ({ question, selectedAnswer, onSelect, styles, language, isDark }) => {
   const answer = selectedAnswer || '';
   const wordLimit = question.word_limit || question.max_words || 0;
@@ -835,7 +837,7 @@ const EssayQuestion = ({ question, selectedAnswer, onSelect, styles, language, i
   };
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3" dir="ltr">
       <div className={`w-full rounded-xl border-4 ${answer ? 'border-yellow-400' : isDark ? 'border-white/50' : 'border-gray-600'} transition-all duration-300 focus-within:ring-4 focus-within:ring-yellow-400/60 focus-within:border-yellow-400 ${styles.card} bg-opacity-${isDark ? '80' : '100'} shadow-inner shadow-lg`}>
         <textarea
           value={answer}
@@ -843,7 +845,7 @@ const EssayQuestion = ({ question, selectedAnswer, onSelect, styles, language, i
           rows={6}
           placeholder={language === 'ar' ? 'اكتب إجابتك بالتفصيل هنا...' : 'Write your detailed answer here...'}
           className={`w-full p-3 sm:p-4 bg-transparent ${styles.text} placeholder-${styles.subtext} text-sm sm:text-base resize-y focus:outline-none`}
-          style={{ background: 'transparent' }}
+          style={{ background: 'transparent', textAlign: 'left' }}
         />
       </div>
       <div className="flex justify-between items-center text-xs">
@@ -983,7 +985,7 @@ const FillFromWordsQuestion = ({ question, selectedAnswer, onSelect, styles, lan
 };
 
 // ================================================================
-// 3.8 ترتيب الجملة (Sentence Reorder)
+// 3.8 ترتيب الجملة (Sentence Reorder) – إضافة textAlign left للكلمات
 // ================================================================
 const SentenceReorderQuestion = ({ question, selectedAnswer, onSelect, styles, language, isDark }) => {
   const allWords = Array.isArray(question.options) ? [...question.options] : [];
@@ -1041,7 +1043,7 @@ const SentenceReorderQuestion = ({ question, selectedAnswer, onSelect, styles, l
     backgroundColor: isDark ? 'rgba(251,191,36,0.20)' : '#ffffff',
     color: isDark ? '#fbbf24' : '#0f172a',
     fontWeight: '600',
-    textAlign: 'center',
+    textAlign: 'left',
     cursor: 'pointer',
     transition: 'all 0.2s',
     whiteSpace: 'nowrap',
@@ -1188,6 +1190,7 @@ const SentenceReorderQuestion = ({ question, selectedAnswer, onSelect, styles, l
                 borderColor: isDark ? 'rgba(255,255,255,0.15)' : '#d1d5db',
                 backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#ffffff',
                 color: isDark ? '#e5e7eb' : '#374151',
+                textAlign: 'left',
               }}
             >
               {word}
@@ -3611,10 +3614,10 @@ export default function StudentExamPage() {
             onFontSizeChange={setPassageFontSize}
           />
         )}
-        {/* ✅ هنا التعديل: إضافة text_align */}
+        {/* ✅ هنا التعديل: إضافة direction: 'ltr' و textAlign: 'left' */}
         <p
           className={`${fontSize} ${isBold ? 'font-bold' : 'font-medium'} ${isItalic ? 'italic' : ''} ${styles.text} leading-relaxed`}
-          style={{ textAlign: q.text_align || 'left' }}
+          style={{ textAlign: q.text_align || 'left', direction: 'ltr' }}
         >
           {q.question_text}
         </p>
