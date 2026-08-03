@@ -7,7 +7,7 @@
 // ✅ تحسين الرؤية على جميع الأجهزة باستخدام وحدات مرنة (clamp, rem, %)
 // ✅ منع الطباعة (Ctrl+P) ومفاتيح الاختصار
 // ✅ دعم محاذاة النص (يسار/وسط/يمين) من بيانات السؤال
-// ✅ عرض عنوان الامتحان الحقيقي في شهادة التكريم
+// ✅ عرض عنوان الامتحان الحقيقي في شهادة التكريم (استخدام exam.title مباشرة)
 // ✅ منع ظهور الشهادة للراسبين (حتى لو استنفذوا المحاولات)
 // ================================================================
 
@@ -2884,9 +2884,15 @@ export default function StudentExamPage() {
 
   // ===== جلب بيانات الامتحان =====
   const fetchExamData = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { router.push('/login'); return; }
+      if (!user) { 
+        router.push('/login'); 
+        return; 
+      }
 
       const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single();
       setStudent(profile);
@@ -3096,7 +3102,6 @@ export default function StudentExamPage() {
 
       // ✅ بعد معالجة المحاولات المفتوحة، نضبط التايمر على المدة الكاملة
       setTimeRemaining(duration);
-
       setLoading(false);
     } catch (err) {
       console.error('Fetch error:', err);
@@ -3740,6 +3745,19 @@ export default function StudentExamPage() {
 
   // ===== شاشة "تم الاجتياز" (ناجح سابقاً) – تظهر فقط للناجحين =====
   if (showPassedScreen && passedAttempt && passedAttempt.passed === true) {
+    // ✅ التأكد من وجود exam قبل عرض الشهادة
+    if (!exam) {
+      // إذا لم يتم تحميل exam بعد، نعرض رسالة تحميل مؤقتة
+      return (
+        <div className={`min-h-screen w-full flex items-center justify-center ${isDark ? 'bg-[#0b0e1a]' : 'bg-gray-50'}`}>
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-8 h-8 border-4 border-yellow-400/30 border-t-yellow-400 rounded-full animate-spin" />
+            <p className={`text-sm ${styles.subtext}`}>جاري تحميل بيانات الامتحان...</p>
+          </div>
+        </div>
+      );
+    }
+
     const totalMarks = (passedAttempt.total_marks > 0) 
       ? passedAttempt.total_marks 
       : (exam?.total_marks > 0) 
@@ -3748,8 +3766,8 @@ export default function StudentExamPage() {
     const percentage = totalMarks > 0 ? Math.round((passedAttempt.score / totalMarks) * 100) : 0;
     const grade = getGrade(percentage);
     
-    // ✅ تعريف examTitle هنا (التعديل الأول)
-    const examTitle = exam?.title || (language === 'ar' ? 'الامتحان' : 'Exam');
+    // ✅ استخدام exam.title الحقيقي
+    const examTitle = exam.title || (language === 'ar' ? 'الامتحان' : 'Exam');
 
     return (
       <div className={`min-h-screen w-full ${isDark ? 'bg-[#0b0e1a]' : 'bg-gray-50'} flex items-center justify-center p-4`}>
@@ -3807,7 +3825,7 @@ export default function StudentExamPage() {
                 {student?.full_name || 'طالب'}
               </p>
               
-              {/* ✅ السطر المعدل – يعرض عنوان الامتحان مع الاقتباس */}
+              {/* ✅ السطر المعدل – يعرض عنوان الامتحان الحقيقي */}
               <p className={`text-sm sm:text-base ${styles.subtext}`}>
                 {language === 'ar' ? `لاجتيازه امتحان "${examTitle}"` : `for successfully passing the exam "${examTitle}"`}
               </p>
