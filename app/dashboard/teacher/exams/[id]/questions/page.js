@@ -24,7 +24,7 @@
 // ✅ تحديث total_marks في جدول exams تلقائياً بعد كل تغيير في الأسئلة (إضافة، تعديل، حذف، تحديث جماعي)
 // ✅ إضافة عرض الدرجة الكلية ودرجة النجاح مع إمكانية تعديلها مباشرة في الواجهة
 // ✅ تخزين correct_answer كمصفوفة من المصفوفات (نماذج) لـ sentence_reorder
-// ✅ إضافة خيار محاذاة النص (text_align) للأسئلة
+// ✅ إضافة أزرار محاذاة حقيقية (يسار/وسط/يمين) وتخزين text_align في قاعدة البيانات
 // ============================================================
 
 import { TeacherLayout } from '@/components/TeacherLayout';
@@ -341,7 +341,7 @@ const useQuestions = (examId) => {
           .single();
         if (error) throw error;
         await fetchQuestions();
-        await updateTotalMarks(); // تحديث total_marks
+        await updateTotalMarks();
         toast.success('✅ تم إضافة القطعة بنجاح');
         return data;
       }
@@ -368,7 +368,7 @@ const useQuestions = (examId) => {
           partial_marking: questionData.partial_marking || false,
           word_limit: questionData.word_limit || 0,
           bank_question_id: questionData.bank_question_id || null,
-          text_align: questionData.text_align || 'left', // ✅ تضمين text_align
+          text_align: questionData.text_align || 'left', // ✅ إضافة المحاذاة
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         })
@@ -376,7 +376,7 @@ const useQuestions = (examId) => {
         .single();
       if (error) throw error;
       await fetchQuestions();
-      await updateTotalMarks(); // تحديث total_marks
+      await updateTotalMarks();
       toast.success('✅ تم إضافة السؤال بنجاح');
       return data;
     } catch (err) {
@@ -402,7 +402,7 @@ const useQuestions = (examId) => {
           .single();
         if (error) throw error;
         await fetchQuestions();
-        await updateTotalMarks(); // تحديث total_marks
+        await updateTotalMarks();
         toast.success('✅ تم تحديث القطعة');
         return data;
       }
@@ -426,7 +426,7 @@ const useQuestions = (examId) => {
           ignore_extra_spaces: updates.ignore_extra_spaces !== undefined ? updates.ignore_extra_spaces : true,
           partial_marking: updates.partial_marking || false,
           word_limit: updates.word_limit || 0,
-          text_align: updates.text_align || 'left', // ✅ تضمين text_align
+          text_align: updates.text_align || 'left', // ✅ إضافة المحاذاة
           updated_at: new Date().toISOString(),
         })
         .eq('id', id)
@@ -434,7 +434,7 @@ const useQuestions = (examId) => {
         .single();
       if (error) throw error;
       await fetchQuestions();
-      await updateTotalMarks(); // تحديث total_marks
+      await updateTotalMarks();
       toast.success('✅ تم تحديث السؤال');
       return data;
     } catch (err) {
@@ -454,7 +454,7 @@ const useQuestions = (examId) => {
       const { error } = await supabase.from('exam_questions').delete().eq('id', id);
       if (error) throw error;
       await fetchQuestions();
-      await updateTotalMarks(); // تحديث total_marks
+      await updateTotalMarks();
       toast.success('✅ تم حذف السؤال');
     } catch (err) {
       toast.error('فشل حذف السؤال');
@@ -486,7 +486,7 @@ const useQuestions = (examId) => {
   const duplicateQuestion = async (question) => {
     const { id, ...rest } = question;
     const newQuestion = { ...rest, order_index: questions.length };
-    return await addQuestion(newQuestion); // addQuestion يقوم بتحديث total_marks
+    return await addQuestion(newQuestion);
   };
 
   // ترتيب عشوائي (لا يؤثر على total_marks)
@@ -517,7 +517,7 @@ const useQuestions = (examId) => {
       const { error } = await supabase.from('exam_questions').update(updates).in('id', ids);
       if (error) throw error;
       await fetchQuestions();
-      await updateTotalMarks(); // تحديث total_marks
+      await updateTotalMarks();
       toast.success(`✅ تم تحديث ${ids.length} سؤال`);
     } catch (err) {
       toast.error('فشل التحديث الجماعي');
@@ -748,7 +748,7 @@ const QuestionFormModal = ({
     word_limit: 0,
     word_bank: [],
     correct_answers: [],
-    text_align: 'left', // ✅ التعديل الأول
+    text_align: 'left', // ✅ إضافة المحاذاة الافتراضية
   });
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
@@ -797,10 +797,9 @@ const QuestionFormModal = ({
       } else if (type === 'sentence_reorder') {
         wordBank = Array.isArray(question.options) ? question.options : [];
         let rawCorrect = Array.isArray(correct) ? correct : (correct ? [correct] : []);
-        // تأكد من أن كل عنصر في rawCorrect هو مصفوفة (نماذج)
         correctAnswers = rawCorrect.map(model => Array.isArray(model) ? model : [model]);
         if (correctAnswers.length === 0) {
-          correctAnswers = [[]]; // نموذج افتراضي فارغ
+          correctAnswers = [[]];
         }
       }
       setFormData({
@@ -823,7 +822,7 @@ const QuestionFormModal = ({
         word_limit: question.word_limit || 0,
         word_bank: wordBank,
         correct_answers: correctAnswers,
-        text_align: question.text_align || 'left', // ✅ التعديل الثالث
+        text_align: question.text_align || 'left', // ✅ قراءة المحاذاة
       });
       prevQuestionTextRef.current = question.question_text || '';
     } else {
@@ -848,7 +847,7 @@ const QuestionFormModal = ({
         word_limit: 0,
         word_bank: ['', ''],
         correct_answers: [''],
-        text_align: 'left',
+        text_align: 'left', // ✅ افتراضي
       });
       prevQuestionTextRef.current = '';
     }
@@ -1011,26 +1010,21 @@ const QuestionFormModal = ({
       if (formData.correct_answers.some(a => !a.trim())) newErrors.correct_answers = 'جميع الإجابات مطلوبة';
     }
 
-    // ✅ التحقق الخاص بـ sentence_reorder (محسّن)
+    // التحقق الخاص بـ sentence_reorder (محسّن)
     if (type === 'sentence_reorder') {
-      // 1. التحقق من وجود word_bank
       if (!formData.word_bank || formData.word_bank.length < 2) {
         newErrors.word_bank = 'أضف جزئين على الأقل';
       }
-      // 2. التحقق من عدم وجود كلمات فارغة في word_bank
       if (formData.word_bank.some(w => !w.trim())) {
         newErrors.word_bank = 'جميع الأجزاء مطلوبة';
       }
-      // 3. التحقق من وجود correct_answers
       if (!formData.correct_answers || formData.correct_answers.length === 0) {
         newErrors.correct_answers = 'أضف نموذج إجابة واحداً على الأقل';
       } else {
-        // 4. التأكد من أن كل نموذج ليس فارغاً
         const hasEmptyModel = formData.correct_answers.some(model => !model || model.length === 0);
         if (hasEmptyModel) {
           newErrors.correct_answers = 'لا تترك نموذجاً فارغاً';
         } else {
-          // 5. التأكد من أن كل كلمة في النماذج موجودة في word_bank
           const allWords = formData.word_bank.filter(w => w.trim() !== '');
           for (const model of formData.correct_answers) {
             for (const word of model) {
@@ -1074,7 +1068,7 @@ const QuestionFormModal = ({
         delete dataToSubmit.passage_text;
         delete dataToSubmit.word_bank;
         delete dataToSubmit.correct_answers;
-        dataToSubmit.text_align = formData.text_align || 'left'; // ✅ التعديل الرابع
+        dataToSubmit.text_align = 'left'; // لا نحتاجها للقطع
         await onSubmit(dataToSubmit);
         onClose();
         return;
@@ -1102,12 +1096,8 @@ const QuestionFormModal = ({
         delete dataToSubmit.word_bank;
         delete dataToSubmit.correct_answers;
       } else if (dataToSubmit.type === 'sentence_reorder') {
-        // ✅ معالجة محسّنة لـ sentence_reorder مع تحقق إضافي
-        // 1. التأكد من أن word_bank مصفوفة من النصوص
         let wordBank = Array.isArray(dataToSubmit.word_bank) ? dataToSubmit.word_bank : [];
-        // 2. التأكد من أن correct_answers مصفوفة من المصفوفات (نماذج)
         let correctAnswers = Array.isArray(dataToSubmit.correct_answers) ? dataToSubmit.correct_answers : [];
-        // 3. تحويل أي نموذج من سلسلة إلى مصفوفة كلمات (إذا كان سلسلة)
         correctAnswers = correctAnswers.map(model => {
           if (typeof model === 'string') {
             return model.split(/\s+/).filter(w => w.trim() !== '');
@@ -1117,14 +1107,12 @@ const QuestionFormModal = ({
           }
           return [model];
         });
-        // 4. إزالة النماذج الفارغة
         correctAnswers = correctAnswers.filter(model => model.length > 0);
         if (correctAnswers.length === 0) {
           toast.error('⚠️ يجب أن يحتوي كل نموذج على كلمة واحدة على الأقل');
           setSubmitting(false);
           return;
         }
-        // 5. تعيين القيم
         dataToSubmit.options = wordBank;
         dataToSubmit.correct_answer = correctAnswers;
         delete dataToSubmit.word_bank;
@@ -1143,11 +1131,12 @@ const QuestionFormModal = ({
         delete dataToSubmit.correct_answers;
       }
 
-      // ✅ التعديل الرابع: إضافة text_align إلى البيانات المُرسلة
-      dataToSubmit.text_align = formData.text_align || 'left';
-
       if (!dataToSubmit.passage_id) dataToSubmit.passage_id = null;
       delete dataToSubmit.passage_text;
+      
+      // ✅ إرسال المحاذاة (إن لم تكن موجودة نضع left)
+      dataToSubmit.text_align = formData.text_align || 'left';
+      
       await onSubmit(dataToSubmit);
       onClose();
     } catch (err) {
@@ -1247,6 +1236,7 @@ const QuestionFormModal = ({
                       word_bank: key === 'fill_from_words' ? ['', ''] : (key === 'sentence_reorder' ? [] : []),
                       correct_answers: key === 'fill_from_words' ? [''] : (key === 'sentence_reorder' ? [[]] : []),
                       question_text: key === 'fill_from_words' ? '' : (key === 'passage' ? '' : ''),
+                      text_align: 'left', // ✅ إعادة تعيين المحاذاة
                     }));
                     prevQuestionTextRef.current = '';
                   }}
@@ -1307,6 +1297,42 @@ const QuestionFormModal = ({
             </div>
           )}
 
+          {/* ✅ أزرار المحاذاة – تعمل فعلاً */}
+          {!isPassage && (
+            <div className="flex items-center gap-2 mt-2">
+              <span className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                <Icons.AlignLeft className="inline h-4 w-4 mr-1" />
+                المحاذاة:
+              </span>
+              {[
+                { value: 'left', icon: Icons.AlignLeft, label: 'يسار' },
+                { value: 'center', icon: Icons.AlignCenter, label: 'وسط' },
+                { value: 'right', icon: Icons.AlignRight, label: 'يمين' },
+              ].map(({ value, icon: Icon, label }) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setFormData(prev => ({ ...prev, text_align: value }))}
+                  className={`p-2 rounded-lg transition-all duration-200 ${
+                    formData.text_align === value
+                      ? 'bg-yellow-500/30 border-2 border-yellow-400 shadow-lg shadow-yellow-500/20'
+                      : isDark
+                      ? 'bg-white/5 border border-white/10 hover:bg-white/10'
+                      : 'bg-gray-100 border border-gray-200 hover:bg-gray-200'
+                  }`}
+                  title={label}
+                >
+                  <Icon className={`h-5 w-5 ${
+                    formData.text_align === value ? 'text-yellow-400' : isDark ? 'text-gray-400' : 'text-gray-600'
+                  }`} />
+                </button>
+              ))}
+              <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'} mr-2`}>
+                (اختر اتجاه النص)
+              </span>
+            </div>
+          )}
+
           {/* نص السؤال أو القطعة */}
           {isPassage ? (
             <div>
@@ -1344,42 +1370,6 @@ const QuestionFormModal = ({
                 }`}
               />
               {errors.question_text && <p className="text-red-400 text-xs mt-1">{errors.question_text}</p>}
-              
-              {/* ✅ التعديل الثاني: أزرار المحاذاة */}
-              {!isPassage && (
-                <div className="flex items-center gap-2 mt-2">
-                  <span className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                    <Icons.AlignLeft className="inline h-4 w-4 mr-1" />
-                    المحاذاة:
-                  </span>
-                  {[
-                    { value: 'left', icon: Icons.AlignLeft, label: 'يسار' },
-                    { value: 'center', icon: Icons.AlignCenter, label: 'وسط' },
-                    { value: 'right', icon: Icons.AlignRight, label: 'يمين' },
-                  ].map(({ value, icon: Icon, label }) => (
-                    <button
-                      key={value}
-                      type="button"
-                      onClick={() => setFormData(prev => ({ ...prev, text_align: value }))}
-                      className={`p-2 rounded-lg transition-all duration-200 ${
-                        formData.text_align === value
-                          ? 'bg-yellow-500/30 border-2 border-yellow-400 shadow-lg shadow-yellow-500/20'
-                          : isDark
-                          ? 'bg-white/5 border border-white/10 hover:bg-white/10'
-                          : 'bg-gray-100 border border-gray-200 hover:bg-gray-200'
-                      }`}
-                      title={label}
-                    >
-                      <Icon className={`h-5 w-5 ${
-                        formData.text_align === value ? 'text-yellow-400' : isDark ? 'text-gray-400' : 'text-gray-600'
-                      }`} />
-                    </button>
-                  ))}
-                  <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'} mr-2`}>
-                    (اختر اتجاه النص)
-                  </span>
-                </div>
-              )}
             </div>
           )}
 
