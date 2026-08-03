@@ -3,6 +3,7 @@
 // 🏛️ صفحة تفاصيل الكورس – متجاوبة بالكامل ومضغوطة
 // ✅ تصغير الأحجام والهوامش والأيقونات
 // ✅ ترتيب المحتوى من الأحدث إلى الأقدم (videos, exams, books, related)
+// ✅ إضافة فلتر ترتيب (أحدث/أقدم) لكل من الفيديوهات والامتحانات والكتب
 // ✅ الحفاظ على جميع الوظائف (التحقق من الوصول، الاشتراك، التبويبات، إلخ)
 // ================================================================
 
@@ -269,6 +270,30 @@ const BookItem = ({ book, styles, language }) => {
 };
 
 // ================================================================
+// مكون زر الترتيب – واضح في كل الثيمات ويعمل بشكل صحيح
+// ================================================================
+const OrderToggleButton = ({ order, onToggle, label, styles, language }) => {
+  const isDesc = order === 'desc';
+  const icon = isDesc ? <Icons.ArrowDown className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> : <Icons.ArrowUp className="h-3.5 w-3.5 sm:h-4 sm:w-4" />;
+  const labelText = isDesc ? (language === 'ar' ? 'الأحدث' : 'Newest') : (language === 'ar' ? 'الأقدم' : 'Oldest');
+
+  return (
+    <button
+      onClick={onToggle}
+      className={`flex items-center gap-1 px-2 py-1 sm:px-2.5 sm:py-1.5 rounded-lg text-[9px] sm:text-[10px] font-semibold transition-all duration-200 border-2 ${
+        isDesc
+          ? 'border-yellow-400/60 bg-yellow-400/20 text-yellow-400 shadow-sm shadow-yellow-400/20'
+          : 'border-blue-400/50 bg-blue-400/10 text-blue-400 dark:text-blue-300 hover:bg-blue-400/20'
+      }`}
+      title={language === 'ar' ? 'تبديل ترتيب العرض' : 'Toggle order'}
+    >
+      {icon}
+      <span className="hidden xs:inline">{labelText}</span>
+    </button>
+  );
+};
+
+// ================================================================
 // صفحة تفاصيل الكورس – نسخة مضغوطة بالكامل ومتجاوبة
 // ================================================================
 export default function StudentCourseDetailsPage() {
@@ -295,6 +320,11 @@ export default function StudentCourseDetailsPage() {
   const [totalDuration, setTotalDuration] = useState(0);
   const [userProfile, setUserProfile] = useState(null);
   const fetchedRef = useRef(false);
+
+  // ===== حالات الترتيب (default: الأحدث أولاً = desc) =====
+  const [videoOrder, setVideoOrder] = useState('desc');
+  const [examOrder, setExamOrder] = useState('desc');
+  const [bookOrder, setBookOrder] = useState('desc');
 
   // ===== حالات جديدة للتحكم في الوصول =====
   const [accessDenied, setAccessDenied] = useState(false);
@@ -323,7 +353,7 @@ export default function StudentCourseDetailsPage() {
   }, []);
 
   // ================================================================
-  // ✅ جلب المحتوى – مع ترتيب تنازلي (الأحدث أولاً)
+  // ✅ جلب المحتوى – مع ترتيب حسب الحالة الحالية لكل نوع
   // ================================================================
   const fetchContent = useCallback(async () => {
     if (!id) return;
@@ -331,9 +361,9 @@ export default function StudentCourseDetailsPage() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       const [vidRes, exRes, bkRes] = await Promise.all([
-        supabase.from('videos').select('*').eq('course_id', id).order('created_at', { ascending: false }),
-        supabase.from('exams').select('*').eq('course_id', id).order('created_at', { ascending: false }),
-        supabase.from('books').select('*').eq('course_id', id).order('created_at', { ascending: false }),
+        supabase.from('videos').select('*').eq('course_id', id).order('created_at', { ascending: videoOrder === 'asc' }),
+        supabase.from('exams').select('*').eq('course_id', id).order('created_at', { ascending: examOrder === 'asc' }),
+        supabase.from('books').select('*').eq('course_id', id).order('created_at', { ascending: bookOrder === 'asc' }),
       ]);
       setVideos(vidRes.data || []);
       setExams(exRes.data || []);
@@ -372,7 +402,7 @@ export default function StudentCourseDetailsPage() {
       }
     } catch (err) { console.error('Error fetching content:', err); }
     finally { setContentLoading(false); }
-  }, [id, enrollment]);
+  }, [id, enrollment, videoOrder, examOrder, bookOrder]);
 
   // ================================================================
   // ✅ جلب بيانات الكورس – مع ترتيب الكورسات ذات الصلة (الأحدث أولاً)
@@ -449,7 +479,7 @@ export default function StudentCourseDetailsPage() {
           .eq('grade_stage', courseData.grade_stage)
           .eq('grade_level', courseData.grade_level)
           .neq('id', id)
-          .order('created_at', { ascending: false }) // ✅ الأحدث أولاً
+          .order('created_at', { ascending: false })
           .limit(3);
         setRelatedCourses(related || []);
       }
@@ -545,6 +575,24 @@ export default function StudentCourseDetailsPage() {
   const attemptedExams = Object.keys(examAttempts).length;
   const totalExams = exams.length;
   const examsProgress = totalExams > 0 ? (attemptedExams / totalExams) * 100 : 0;
+
+  // ===== دوال تبديل الترتيب =====
+  const toggleVideoOrder = () => {
+    setVideoOrder(prev => prev === 'desc' ? 'asc' : 'desc');
+  };
+  const toggleExamOrder = () => {
+    setExamOrder(prev => prev === 'desc' ? 'asc' : 'desc');
+  };
+  const toggleBookOrder = () => {
+    setBookOrder(prev => prev === 'desc' ? 'asc' : 'desc');
+  };
+
+  // ===== إعادة جلب المحتوى عند تغيير أي ترتيب =====
+  useEffect(() => {
+    if (enrolled && id) {
+      fetchContent();
+    }
+  }, [videoOrder, examOrder, bookOrder]);
 
   // ===== شاشة تحميل أو التحقق من الصلاحية =====
   if (loading || isCheckingAccess) {
@@ -772,24 +820,69 @@ export default function StudentCourseDetailsPage() {
               ) : (
                 <>
                   {activeTab==='videos' && (
-                    <div className="space-y-2 sm:space-y-3">
-                      {videos.length>0 ? videos.map(v=>(
-                        <VideoItem key={v.id} video={v} bookmarked={!!bookmarks[v.id]} onToggleBookmark={toggleBookmark} styles={styles} language={language} watched={!!watchedVideos[v.id]}/>
-                      )) : <p className={`text-xs sm:text-sm ${styles.subtext}`}>{language==='ar'?'لا توجد فيديوهات':'No videos yet'}</p>}
+                    <div>
+                      {/* رأس التبويب مع زر الترتيب */}
+                      <div className="flex items-center justify-between mb-2 sm:mb-3">
+                        <span className={`text-xs sm:text-sm font-bold ${styles.subtext}`}>
+                          {language === 'ar' ? `${totalVideos} فيديو` : `${totalVideos} videos`}
+                        </span>
+                        <OrderToggleButton
+                          order={videoOrder}
+                          onToggle={toggleVideoOrder}
+                          label={language === 'ar' ? 'ترتيب الفيديوهات' : 'Sort videos'}
+                          styles={styles}
+                          language={language}
+                        />
+                      </div>
+                      <div className="space-y-2 sm:space-y-3">
+                        {videos.length>0 ? videos.map(v=>(
+                          <VideoItem key={v.id} video={v} bookmarked={!!bookmarks[v.id]} onToggleBookmark={toggleBookmark} styles={styles} language={language} watched={!!watchedVideos[v.id]}/>
+                        )) : <p className={`text-xs sm:text-sm ${styles.subtext}`}>{language==='ar'?'لا توجد فيديوهات':'No videos yet'}</p>}
+                      </div>
                     </div>
                   )}
                   {activeTab==='exams' && (
-                    <div className="space-y-2 sm:space-y-3">
-                      {exams.length>0 ? exams.map(e=>(
-                        <ExamItem key={e.id} exam={e} styles={styles} language={language} attempted={!!examAttempts[e.id]?.attempted} score={examAttempts[e.id]?.score}/>
-                      )) : <p className={`text-xs sm:text-sm ${styles.subtext}`}>{language==='ar'?'لا توجد امتحانات':'No exams yet'}</p>}
+                    <div>
+                      {/* رأس التبويب مع زر الترتيب */}
+                      <div className="flex items-center justify-between mb-2 sm:mb-3">
+                        <span className={`text-xs sm:text-sm font-bold ${styles.subtext}`}>
+                          {language === 'ar' ? `${totalExams} امتحان` : `${totalExams} exams`}
+                        </span>
+                        <OrderToggleButton
+                          order={examOrder}
+                          onToggle={toggleExamOrder}
+                          label={language === 'ar' ? 'ترتيب الامتحانات' : 'Sort exams'}
+                          styles={styles}
+                          language={language}
+                        />
+                      </div>
+                      <div className="space-y-2 sm:space-y-3">
+                        {exams.length>0 ? exams.map(e=>(
+                          <ExamItem key={e.id} exam={e} styles={styles} language={language} attempted={!!examAttempts[e.id]?.attempted} score={examAttempts[e.id]?.score}/>
+                        )) : <p className={`text-xs sm:text-sm ${styles.subtext}`}>{language==='ar'?'لا توجد امتحانات':'No exams yet'}</p>}
+                      </div>
                     </div>
                   )}
                   {activeTab==='books' && (
-                    <div className="space-y-2 sm:space-y-3">
-                      {books.length>0 ? books.map(b=>(
-                        <BookItem key={b.id} book={b} styles={styles} language={language}/>
-                      )) : <p className={`text-xs sm:text-sm ${styles.subtext}`}>{language==='ar'?'لا توجد كتب':'No books yet'}</p>}
+                    <div>
+                      {/* رأس التبويب مع زر الترتيب */}
+                      <div className="flex items-center justify-between mb-2 sm:mb-3">
+                        <span className={`text-xs sm:text-sm font-bold ${styles.subtext}`}>
+                          {language === 'ar' ? `${books.length} كتاب` : `${books.length} books`}
+                        </span>
+                        <OrderToggleButton
+                          order={bookOrder}
+                          onToggle={toggleBookOrder}
+                          label={language === 'ar' ? 'ترتيب الكتب' : 'Sort books'}
+                          styles={styles}
+                          language={language}
+                        />
+                      </div>
+                      <div className="space-y-2 sm:space-y-3">
+                        {books.length>0 ? books.map(b=>(
+                          <BookItem key={b.id} book={b} styles={styles} language={language}/>
+                        )) : <p className={`text-xs sm:text-sm ${styles.subtext}`}>{language==='ar'?'لا توجد كتب':'No books yet'}</p>}
+                      </div>
                     </div>
                   )}
                 </>
