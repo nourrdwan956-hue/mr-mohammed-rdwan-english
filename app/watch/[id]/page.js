@@ -22,6 +22,7 @@
 // ✅ زر الترجمة يعمل كـ toggle (تشغيل/إيقاف) مع إظهار رسالة "✅ تم إيقاف الترجمة" عند الإيقاف
 //    ورسالة "✅ تم إظهار الترجمة" عند التشغيل
 // ✅ إصلاح وظيفة الترجمة لتعمل بشكل صحيح كما كانت سابقاً
+// ✅ إزالة زر تكرار الفيديو (Loop) نهائياً مع كل توابعه
 // ================================================================
 
 'use client';
@@ -348,7 +349,6 @@ export default function WatchPage() {
   const [qualities, setQualities] = useState([]);
   const [currentQuality, setCurrentQuality] = useState('auto');
   const [bufferProgress, setBufferProgress] = useState(0);
-  const [loop, setLoop] = useState(false);
   const [focusMode, setFocusMode] = useState(false);
   // حالة الترجمة: تتبع ما إذا كانت الترجمة مفعلة أم لا
   const [captionsEnabled, setCaptionsEnabled] = useState(false);
@@ -580,10 +580,7 @@ export default function WatchPage() {
               } else if (e.data === 0) {
                 setIsPlaying(false);
                 setBuffering(false);
-                if (loop && playerInstance) {
-                  playerInstance.seekTo(0);
-                  playerInstance.playVideo();
-                }
+                // تم إزالة التكرار (loop) نهائياً
               }
             },
             onError: (e) => {
@@ -669,7 +666,7 @@ export default function WatchPage() {
       }
       playerRef.current = null;
     };
-  }, [isYoutubeOnly, isValidYoutube, youtubeId, video, id, loop, showIntro, playerReady]);
+  }, [isYoutubeOnly, isValidYoutube, youtubeId, video, id, showIntro, playerReady]);
 
   // ================================================================
   // 11. دوال التحكم
@@ -794,11 +791,6 @@ export default function WatchPage() {
     } catch (e) {}
   }, [isYoutubeOnly]);
 
-  const toggleLoop = useCallback(() => {
-    setLoop(prev => !prev);
-    toast.success(!loop ? 'تكرار مفعل' : 'تكرار معطل');
-  }, [loop]);
-
   const toggleFocusMode = useCallback(() => {
     setFocusMode(prev => {
       const newState = !prev;
@@ -821,7 +813,6 @@ export default function WatchPage() {
         // إيقاف الترجمة (إخفاءها)
         player.setOption('captions', 'track', { languageCode: '' });
         setCaptionsEnabled(false);
-        // الرسالة الأولى: تم إيقاف الترجمة
         toast.success(language === 'ar' ? '✅ تم إيقاف الترجمة' : '✅ Captions disabled');
       } else {
         // تشغيل الترجمة (إظهارها)
@@ -925,7 +916,7 @@ export default function WatchPage() {
   }, [isYoutubeOnly]);
 
   // ================================================================
-  // 14. اختصارات لوحة المفاتيح
+  // 14. اختصارات لوحة المفاتيح (تم إزالة Loop)
   // ================================================================
   useEffect(() => {
     if (isYoutubeOnly) return;
@@ -939,7 +930,6 @@ export default function WatchPage() {
         case 'ArrowLeft': e.preventDefault(); skipBackward(); break;
         case 'm': case 'M': toggleMute(); break;
         case 'f': case 'F': toggleFullscreen(); break;
-        case 'l': case 'L': toggleLoop(); break;
         case 'z': case 'Z': toggleFocusMode(); break;
         case 'c': case 'C': e.preventDefault(); toggleCaptions(); break;
         default: break;
@@ -947,7 +937,7 @@ export default function WatchPage() {
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, [playerReady, togglePlay, skipForward, skipBackward, toggleMute, toggleFullscreen, toggleLoop, toggleFocusMode, toggleCaptions, isYoutubeOnly]);
+  }, [playerReady, togglePlay, skipForward, skipBackward, toggleMute, toggleFullscreen, toggleFocusMode, toggleCaptions, isYoutubeOnly]);
 
   // ================================================================
   // 15. نظام التتبع الذكي للمشاهدة
@@ -1192,7 +1182,7 @@ export default function WatchPage() {
   const thumbnailUrl = youtubeId ? `https://img.youtube.com/vi/${youtubeId}/maxresdefault.jpg` : null;
 
   // ================================================================
-  // 17. التصميم النهائي (مع تحسينات الموبايل وزيادة المسافة)
+  // 17. التصميم النهائي (مع تحسينات الموبايل وزيادة المسافة، بدون Loop)
   // ================================================================
   return (
     <div className={`min-h-screen text-white transition-all duration-500 relative ${focusMode ? 'fixed inset-0 z-50 p-0 flex items-center justify-center bg-black' : ''}`}>
@@ -1307,7 +1297,7 @@ export default function WatchPage() {
                     )}
                   </AnimatePresence>
 
-                  {/* شريط التحكم السفلي - محسّن للموبايل مع مسافة إضافية */}
+                  {/* شريط التحكم السفلي - محسّن للموبايل مع مسافة إضافية، بدون Loop */}
                   {playerReady && (
                     <div
                       className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent p-3 sm:p-4 flex flex-col gap-1 sm:gap-2 pointer-events-auto z-40 transition-opacity duration-300 ${controlsVisible ? 'opacity-100' : 'opacity-0'}`}
@@ -1338,7 +1328,7 @@ export default function WatchPage() {
                         </div>
                       </div>
 
-                      {/* صف الأزرار مع flex-wrap وأحجام أصغر للموبايل */}
+                      {/* صف الأزرار مع flex-wrap وأحجام أصغر للموبايل - بدون Loop */}
                       <div className="flex items-center gap-1 sm:gap-2 text-white flex-wrap">
                         <button onClick={togglePlay} className="p-1.5 rounded-full hover:bg-white/10 transition-colors">
                           {isPlaying ? <Icons.Pause className="h-5 w-5 sm:h-6 sm:w-6" /> : <Icons.Play className="h-5 w-5 sm:h-6 sm:w-6" />}
@@ -1410,9 +1400,6 @@ export default function WatchPage() {
                           </div>
                         )}
 
-                        <button onClick={toggleLoop} className={`p-1.5 rounded-full hover:bg-white/10 transition-colors ${loop ? 'text-yellow-400' : ''}`} title="تكرار">
-                          <Icons.Repeat className="h-4 w-4 sm:h-5 sm:w-5" />
-                        </button>
                         <button onClick={toggleFocusMode} className={`p-1.5 rounded-full hover:bg-white/10 transition-colors ${focusMode ? 'text-yellow-400' : ''}`} title="وضع التركيز (Z)">
                           <Icons.Eye className="h-4 w-4 sm:h-5 sm:w-5" />
                         </button>
