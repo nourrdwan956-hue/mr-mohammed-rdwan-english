@@ -18,6 +18,8 @@
 // ✅ إزالة export const dynamic و export const revalidate (لا تستخدم في Client Components)
 // ✅ تحسين التوافق مع الموبايل: زر تشغيل أصغر، شريط تحكم أقل ارتفاعاً،
 //    أزرار مصغرة، وترتيب مرن للمساحات الضيقة
+// ✅ زيادة المسافة بين زر التشغيل المركزي وشريط التحكم السفلي على الأجهزة الصغيرة
+// ✅ زر الترجمة أصبح يوقف الترجمة فقط (وليس تبديل) مع رسالة "تم إيقاف الترجمة"
 // ================================================================
 
 'use client';
@@ -346,6 +348,7 @@ export default function WatchPage() {
   const [bufferProgress, setBufferProgress] = useState(0);
   const [loop, setLoop] = useState(false);
   const [focusMode, setFocusMode] = useState(false);
+  // حالة الترجمة: نحتاجها لتحديد ما إذا كانت مفعلة أم لا، ولكن زر الترجمة سيوقفها فقط
   const [captionsEnabled, setCaptionsEnabled] = useState(false);
 
   // ===== نظام التتبع الذكي =====
@@ -802,32 +805,20 @@ export default function WatchPage() {
     });
   }, []);
 
-  const toggleCaptions = useCallback(() => {
+  // زر الترجمة: إيقاف الترجمة فقط (إخفاءها) مع رسالة ثابتة
+  const disableCaptions = useCallback(() => {
     if (!playerRef.current || !playerReady) return;
     try {
       const player = playerRef.current;
-      if (captionsEnabled) {
-        player.setOption('captions', 'track', { languageCode: '' });
-        setCaptionsEnabled(false);
-        toast.success(language === 'ar' ? 'تم إخفاء الترجمة' : 'Captions hidden');
-      } else {
-        player.loadModule('captions');
-        setTimeout(() => {
-          try {
-            player.setOption('captions', 'track', {});
-            setCaptionsEnabled(true);
-            toast.success(language === 'ar' ? 'تم إظهار الترجمة' : 'Captions shown');
-          } catch (innerErr) {
-            console.error('Failed to show captions:', innerErr);
-            toast.error(language === 'ar' ? 'تعذر إظهار الترجمة' : 'Could not show captions');
-          }
-        }, 300);
-      }
+      // إيقاف الترجمة (إخفاءها)
+      player.setOption('captions', 'track', { languageCode: '' });
+      setCaptionsEnabled(false);
+      toast.success(language === 'ar' ? '✅ تم إيقاف الترجمة' : '✅ Captions disabled');
     } catch (e) {
-      toast.error(language === 'ar' ? 'فشل التحكم بالترجمة' : 'Failed to toggle captions');
-      console.error('Captions toggle error:', e);
+      toast.error(language === 'ar' ? 'فشل إيقاف الترجمة' : 'Failed to disable captions');
+      console.error('Captions disable error:', e);
     }
-  }, [playerReady, captionsEnabled, language]);
+  }, [playerReady, language]);
 
   // ================================================================
   // 12. تأثير إخفاء الأزرار تلقائياً
@@ -911,7 +902,7 @@ export default function WatchPage() {
   }, [isYoutubeOnly]);
 
   // ================================================================
-  // 14. اختصارات لوحة المفاتيح
+  // 14. اختصارات لوحة المفاتيح (تعديل: زر C يوقف الترجمة فقط)
   // ================================================================
   useEffect(() => {
     if (isYoutubeOnly) return;
@@ -927,13 +918,13 @@ export default function WatchPage() {
         case 'f': case 'F': toggleFullscreen(); break;
         case 'l': case 'L': toggleLoop(); break;
         case 'z': case 'Z': toggleFocusMode(); break;
-        case 'c': case 'C': toggleCaptions(); break;
+        case 'c': case 'C': e.preventDefault(); disableCaptions(); break;
         default: break;
       }
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, [playerReady, togglePlay, skipForward, skipBackward, toggleMute, toggleFullscreen, toggleLoop, toggleFocusMode, toggleCaptions, isYoutubeOnly]);
+  }, [playerReady, togglePlay, skipForward, skipBackward, toggleMute, toggleFullscreen, toggleLoop, toggleFocusMode, disableCaptions, isYoutubeOnly]);
 
   // ================================================================
   // 15. نظام التتبع الذكي للمشاهدة
@@ -1178,7 +1169,7 @@ export default function WatchPage() {
   const thumbnailUrl = youtubeId ? `https://img.youtube.com/vi/${youtubeId}/maxresdefault.jpg` : null;
 
   // ================================================================
-  // 17. التصميم النهائي (مع تحسينات الموبايل)
+  // 17. التصميم النهائي (مع تحسينات الموبايل وزيادة المسافة)
   // ================================================================
   return (
     <div className={`min-h-screen text-white transition-all duration-500 relative ${focusMode ? 'fixed inset-0 z-50 p-0 flex items-center justify-center bg-black' : ''}`}>
@@ -1249,10 +1240,10 @@ export default function WatchPage() {
                     )}
                   </AnimatePresence>
 
-                  {/* زر التشغيل المركزي - متجاوب مع الموبايل */}
+                  {/* زر التشغيل المركزي - مع زيادة المسافة عن الشريط على الموبايل */}
                   {playerReady && controlsVisible && (
                     <div
-                      className="absolute inset-0 z-30 flex items-center justify-center cursor-pointer"
+                      className="absolute inset-0 z-30 flex items-center justify-center cursor-pointer pb-8 sm:pb-0"
                       onClick={togglePlay}
                     >
                       <motion.div
@@ -1293,7 +1284,7 @@ export default function WatchPage() {
                     )}
                   </AnimatePresence>
 
-                  {/* شريط التحكم السفلي - محسّن للموبايل */}
+                  {/* شريط التحكم السفلي - محسّن للموبايل مع مسافة إضافية */}
                   {playerReady && (
                     <div
                       className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent p-3 sm:p-4 flex flex-col gap-1 sm:gap-2 pointer-events-auto z-40 transition-opacity duration-300 ${controlsVisible ? 'opacity-100' : 'opacity-0'}`}
@@ -1356,10 +1347,11 @@ export default function WatchPage() {
                           }}
                         />
 
+                        {/* زر الترجمة - أصبح يوقف الترجمة فقط */}
                         <button
-                          onClick={toggleCaptions}
+                          onClick={disableCaptions}
                           className={`p-1.5 rounded-full hover:bg-white/10 transition-colors ${captionsEnabled ? 'text-yellow-400' : ''}`}
-                          title={captionsEnabled ? (language === 'ar' ? 'إخفاء الترجمة' : 'Hide Captions') : (language === 'ar' ? 'إظهار الترجمة' : 'Show Captions')}
+                          title={language === 'ar' ? 'إيقاف الترجمة' : 'Disable Captions'}
                         >
                           <Icons.ClosedCaption className="h-4 w-4 sm:h-5 sm:w-5" />
                         </button>
@@ -1458,7 +1450,7 @@ export default function WatchPage() {
                 <p className="text-[10px] text-gray-400 leading-relaxed">
                   يمكنك التحكم بالفيديو باستخدام الأزرار أو اختصارات لوحة المفاتيح.
                   <span className="block text-yellow-400/60 mt-1">⏱ اضغط على التايمر لتغيير العرض (متبقي / نسبة / مشاهدة)</span>
-                  <span className="block text-yellow-400/60 mt-0.5">🔤 اضغط C لإظهار/إخفاء الترجمة</span>
+                  <span className="block text-yellow-400/60 mt-0.5">🔤 اضغط C لإيقاف الترجمة فقط</span>
                 </p>
               </div>
             </div>
