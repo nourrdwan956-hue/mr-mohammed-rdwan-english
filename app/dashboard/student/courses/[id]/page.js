@@ -1,8 +1,9 @@
 // app/dashboard/student/courses/[id]/page.js
 // ================================================================
-// 🏛️ صفحة تفاصيل الكورس – متجاوبة بالكامل ومضغوطة
-// ✅ تصغير الأحجام والهوامش والأيقونات
+// 🏛️ صفحة تفاصيل الكورس – متجاوبة بالكامل ومضغوطة (نسخة محسّنة)
+// ✅ تصغير الأحجام والهوامش والأيقونات بشكل ديناميكي
 // ✅ الحفاظ على جميع الوظائف (التحقق من الوصول، الاشتراك، التبويبات، إلخ)
+// ✅ منع أي تجاوز أو تقطيع على جميع الشاشات
 // ================================================================
 
 'use client';
@@ -41,7 +42,7 @@ const getRandomColor = (exclude = []) => {
 };
 
 // ================================================================
-// 🌊 مكون الحدود الموجية (Wave Border) – مضغوط
+// 🌊 مكون الحدود الموجية (Wave Border) – مضغوط ومتجاوب
 // ================================================================
 const WaveBorderCard = ({ children, className = '', initialColor = 'blue', onColorChange }) => {
   const [color, setColor] = useState(CARD_COLORS.find(c => c.name === initialColor) || CARD_COLORS[0]);
@@ -124,34 +125,48 @@ const formatDate = (dateString, language) => {
 const TabButton = ({ active, onClick, icon: Icon, label, count, styles }) => (
   <button
     onClick={onClick}
-    className={`flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-lg text-[10px] sm:text-xs font-bold transition-all duration-300 whitespace-nowrap ${
+    className={`flex items-center gap-1 px-2 py-1.5 sm:px-2.5 sm:py-2 rounded-lg text-[9px] sm:text-xs font-bold transition-all duration-300 whitespace-nowrap ${
       active ? 'bg-blue-500/20 text-blue-600 dark:text-blue-400 shadow-lg shadow-blue-500/10 scale-105' : `${styles.subtext} hover:bg-gray-100 dark:hover:bg-white/5`
     }`}
   >
     <Icon className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-    <span>{label}</span>
+    <span className="hidden xs:inline">{label}</span>
     {count !== undefined && (
-      <span className={`text-[8px] sm:text-[10px] rounded-full px-1.5 py-0.5 sm:px-2 sm:py-0.5 ${active ? 'bg-blue-500/30 text-blue-700 dark:text-blue-300' : 'bg-gray-200 dark:bg-white/10'}`}>{count}</span>
+      <span className={`text-[8px] rounded-full px-1.5 py-0.5 sm:px-2 sm:py-0.5 ${active ? 'bg-blue-500/30 text-blue-700 dark:text-blue-300' : 'bg-gray-200 dark:bg-white/10'}`}>{count}</span>
     )}
   </button>
 );
 
 // ================================================================
-// مكون دائرة التقدم – مضغوطة
+// مكون دائرة التقدم – مضغوطة ومتجاوبة
 // ================================================================
 const CircularProgress = ({ percentage, size = 60, strokeWidth = 5, label, styles }) => {
-  const responsiveSize = typeof window !== 'undefined' 
-    ? window.innerWidth < 640 ? 50 : window.innerWidth < 768 ? 55 : size
-    : size;
+  // تحديد الحجم بناءً على عرض الشاشة
+  const [responsiveSize, setResponsiveSize] = useState(size);
+  useEffect(() => {
+    const updateSize = () => {
+      const w = window.innerWidth;
+      if (w < 480) setResponsiveSize(44);
+      else if (w < 640) setResponsiveSize(48);
+      else if (w < 768) setResponsiveSize(52);
+      else setResponsiveSize(size);
+    };
+    updateSize();
+    window.addEventListener('resize', updateSize);
+    return () => window.removeEventListener('resize', updateSize);
+  }, [size]);
+
+  const s = responsiveSize;
+  const sw = Math.max(3, strokeWidth * (s / 60));
 
   return (
     <div className="relative inline-flex items-center justify-center">
-      <svg width={responsiveSize} height={responsiveSize} className="transform -rotate-90">
-        <circle cx={responsiveSize/2} cy={responsiveSize/2} r={responsiveSize/2 - strokeWidth/2} className="stroke-current text-gray-200 dark:text-white/10" strokeWidth={strokeWidth} fill="none" />
-        <motion.circle cx={responsiveSize/2} cy={responsiveSize/2} r={responsiveSize/2 - strokeWidth/2} stroke="url(#grad)" strokeWidth={strokeWidth} fill="none" strokeLinecap="round"
-          strokeDasharray={(responsiveSize/2 - strokeWidth/2) * 2 * Math.PI}
-          initial={{ strokeDashoffset: (responsiveSize/2 - strokeWidth/2) * 2 * Math.PI }}
-          animate={{ strokeDashoffset: (responsiveSize/2 - strokeWidth/2) * 2 * Math.PI * (1 - percentage/100) }}
+      <svg width={s} height={s} className="transform -rotate-90">
+        <circle cx={s/2} cy={s/2} r={s/2 - sw/2} className="stroke-current text-gray-200 dark:text-white/10" strokeWidth={sw} fill="none" />
+        <motion.circle cx={s/2} cy={s/2} r={s/2 - sw/2} stroke="url(#grad)" strokeWidth={sw} fill="none" strokeLinecap="round"
+          strokeDasharray={(s/2 - sw/2) * 2 * Math.PI}
+          initial={{ strokeDashoffset: (s/2 - sw/2) * 2 * Math.PI }}
+          animate={{ strokeDashoffset: (s/2 - sw/2) * 2 * Math.PI * (1 - percentage/100) }}
           transition={{ duration: 1.2, ease: 'easeOut' }}
         />
         <defs>
@@ -159,15 +174,15 @@ const CircularProgress = ({ percentage, size = 60, strokeWidth = 5, label, style
         </defs>
       </svg>
       <div className="absolute flex flex-col items-center">
-        <span className={`text-xs sm:text-sm font-extrabold ${styles.text}`}>{Math.round(percentage)}%</span>
-        {label && <span className={`text-[6px] sm:text-[8px] ${styles.subtext} -mt-0.5`}>{label}</span>}
+        <span className={`text-[8px] sm:text-[10px] md:text-xs font-extrabold ${styles.text}`}>{Math.round(percentage)}%</span>
+        {label && <span className={`text-[6px] sm:text-[7px] ${styles.subtext} -mt-0.5`}>{label}</span>}
       </div>
     </div>
   );
 };
 
 // ================================================================
-// مكونات عناصر المحتوى – مضغوطة
+// مكونات عناصر المحتوى – مضغوطة ومتجاوبة
 // ================================================================
 
 const VideoItem = ({ video, bookmarked, onToggleBookmark, styles, language, watched }) => {
@@ -176,30 +191,30 @@ const VideoItem = ({ video, bookmarked, onToggleBookmark, styles, language, watc
 
   return (
     <WaveBorderCard initialColor={color.name} onColorChange={handleColorChange}>
-      <div className={`p-2 sm:p-3 flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3 hover:border-${color.name}-400/50 transition group relative min-h-[56px] sm:min-h-[64px]`}>
+      <div className={`p-2 sm:p-2.5 flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3 hover:border-${color.name}-400/50 transition group relative min-h-[50px] sm:min-h-[56px]`}>
         {watched && (
-          <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 bg-green-500/20 text-green-400 rounded-full p-0.5 sm:p-1">
-            <Icons.CheckCircle className="h-3 w-3 sm:h-3.5 sm:w-3.5 fill-current" />
+          <div className="absolute top-1 right-1 sm:top-1.5 sm:right-1.5 bg-green-500/20 text-green-400 rounded-full p-0.5">
+            <Icons.CheckCircle className="h-2.5 w-2.5 sm:h-3 sm:w-3 fill-current" />
           </div>
         )}
         <div className="relative flex-shrink-0">
-          <div className={`w-10 h-10 sm:w-11 sm:h-11 rounded-lg ${watched ? 'bg-green-400/10' : 'bg-blue-400/10'} flex items-center justify-center`}>
-            <Icons.Play className={`h-4 w-4 sm:h-5 sm:w-5 ${watched ? 'text-green-500' : `text-${color.name}-500`}`} />
+          <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-lg ${watched ? 'bg-green-400/10' : 'bg-blue-400/10'} flex items-center justify-center`}>
+            <Icons.Play className={`h-3.5 w-3.5 sm:h-4 sm:w-4 ${watched ? 'text-green-500' : `text-${color.name}-500`}`} />
           </div>
           {video.duration && (
-            <span className="absolute -bottom-0.5 -right-0.5 bg-black/80 text-white text-[6px] sm:text-[8px] px-1 py-0.5 rounded font-mono">
+            <span className="absolute -bottom-0.5 -right-0.5 bg-black/80 text-white text-[6px] px-1 py-0.5 rounded font-mono">
               {video.duration}
             </span>
           )}
         </div>
         <div className="flex-1 min-w-0">
-          <Link href={`/watch/${video.id}`} className={`text-xs sm:text-sm font-bold ${styles.text} hover:text-${color.name}-500 transition line-clamp-1`}>
+          <Link href={`/watch/${video.id}`} className={`text-[10px] sm:text-sm font-bold ${styles.text} hover:text-${color.name}-500 transition line-clamp-1`}>
             {video.title}
           </Link>
-          {video.description && <p className={`text-[9px] sm:text-[10px] ${styles.subtext} line-clamp-1 mt-0.5`}>{video.description}</p>}
+          {video.description && <p className={`text-[8px] sm:text-[10px] ${styles.subtext} line-clamp-1 mt-0.5`}>{video.description}</p>}
         </div>
-        <button onClick={() => onToggleBookmark(video.id)} className={`p-1.5 sm:p-2 rounded-lg transition ${bookmarked ? `text-${color.name}-500 bg-${color.name}-400/10` : 'text-gray-400 hover:text-yellow-500 hover:bg-yellow-400/5'}`}>
-          <Icons.Bookmark className={`h-3.5 w-3.5 sm:h-4 sm:w-4 ${bookmarked ? 'fill-current' : ''}`} />
+        <button onClick={() => onToggleBookmark(video.id)} className={`p-1.5 rounded-lg transition ${bookmarked ? `text-${color.name}-500 bg-${color.name}-400/10` : 'text-gray-400 hover:text-yellow-500 hover:bg-yellow-400/5'}`}>
+          <Icons.Bookmark className={`h-3 w-3 sm:h-3.5 sm:w-3.5 ${bookmarked ? 'fill-current' : ''}`} />
         </button>
       </div>
     </WaveBorderCard>
@@ -212,16 +227,18 @@ const ExamItem = ({ exam, styles, language, attempted, score }) => {
 
   return (
     <WaveBorderCard initialColor={color.name} onColorChange={handleColorChange}>
-      <div className={`p-2 sm:p-3 flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3 hover:border-${color.name}-400/50 transition min-h-[56px] sm:min-h-[64px]`}>
-        <div className={`w-10 h-10 sm:w-11 sm:h-11 rounded-lg ${attempted ? 'bg-blue-400/10' : 'bg-emerald-400/10'} flex items-center justify-center flex-shrink-0`}>
-          <Icons.FileText className={`h-4 w-4 sm:h-5 sm:w-5 ${attempted ? 'text-blue-500' : 'text-emerald-500'}`} />
+      <div className={`p-2 sm:p-2.5 flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3 hover:border-${color.name}-400/50 transition min-h-[50px] sm:min-h-[56px]`}>
+        <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-lg ${attempted ? 'bg-blue-400/10' : 'bg-emerald-400/10'} flex items-center justify-center flex-shrink-0`}>
+          <Icons.FileText className={`h-3.5 w-3.5 sm:h-4 sm:w-4 ${attempted ? 'text-blue-500' : 'text-emerald-500'}`} />
         </div>
-        <div className="flex-1">
-          <Link href={`/dashboard/student/exams/${exam.id}`} className={`text-xs sm:text-sm font-bold ${styles.text} hover:text-${color.name}-500 transition`}>{exam.title}</Link>
-          {exam.duration_minutes && <p className={`text-[9px] sm:text-[10px] ${styles.subtext}`}>{exam.duration_minutes} {language==='ar'?'دقيقة':'min'}</p>}
+        <div className="flex-1 min-w-0">
+          <Link href={`/dashboard/student/exams/${exam.id}`} className={`text-[10px] sm:text-sm font-bold ${styles.text} hover:text-${color.name}-500 transition line-clamp-1`}>
+            {exam.title}
+          </Link>
+          {exam.duration_minutes && <p className={`text-[8px] sm:text-[10px] ${styles.subtext}`}>{exam.duration_minutes} {language==='ar'?'دقيقة':'min'}</p>}
           {attempted && score !== undefined && (
             <div className="flex items-center gap-1.5 mt-0.5">
-              <span className={`text-[9px] sm:text-[10px] font-bold ${score >= (exam.passing_marks || 50) ? 'text-green-400' : 'text-red-400'}`}>
+              <span className={`text-[8px] sm:text-[10px] font-bold ${score >= (exam.passing_marks || 50) ? 'text-green-400' : 'text-red-400'}`}>
                 {score}% • {score >= (exam.passing_marks || 50) ? (language === 'ar' ? 'ناجح' : 'Passed') : (language === 'ar' ? 'راسب' : 'Failed')}
               </span>
             </div>
@@ -238,12 +255,14 @@ const BookItem = ({ book, styles, language }) => {
 
   return (
     <WaveBorderCard initialColor={color.name} onColorChange={handleColorChange}>
-      <div className={`p-2 sm:p-3 flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3 hover:border-${color.name}-400/50 transition min-h-[56px] sm:min-h-[64px]`}>
-        <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-lg bg-purple-400/10 flex items-center justify-center flex-shrink-0">
-          <Icons.BookOpen className="h-4 w-4 sm:h-5 sm:w-5 text-purple-500" />
+      <div className={`p-2 sm:p-2.5 flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3 hover:border-${color.name}-400/50 transition min-h-[50px] sm:min-h-[56px]`}>
+        <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-purple-400/10 flex items-center justify-center flex-shrink-0">
+          <Icons.BookOpen className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-purple-500" />
         </div>
-        <div className="flex-1">
-          <Link href={`/dashboard/student/books/${book.id}`} className={`text-xs sm:text-sm font-bold ${styles.text} hover:text-${color.name}-500 transition`}>{book.title}</Link>
+        <div className="flex-1 min-w-0">
+          <Link href={`/dashboard/student/books/${book.id}`} className={`text-[10px] sm:text-sm font-bold ${styles.text} hover:text-${color.name}-500 transition line-clamp-1`}>
+            {book.title}
+          </Link>
         </div>
       </div>
     </WaveBorderCard>
@@ -251,7 +270,7 @@ const BookItem = ({ book, styles, language }) => {
 };
 
 // ================================================================
-// صفحة تفاصيل الكورس – نسخة مضغوطة بالكامل
+// صفحة تفاصيل الكورس – نسخة مضغوطة بالكامل ومتجاوبة
 // ================================================================
 export default function StudentCourseDetailsPage() {
   const params = useParams();
@@ -590,11 +609,11 @@ export default function StudentCourseDetailsPage() {
   }
 
   return (
-    <div className={`w-full min-h-screen ${styles.bg}`}>
-      <div className="max-w-7xl mx-auto px-3 sm:px-4 py-3 sm:py-4 space-y-4 sm:space-y-5">
-        {/* ===== هيدر الكورس مع Wave Border – مضغوط ===== */}
+    <div className={`w-full min-h-screen ${styles.bg} overflow-x-hidden`}>
+      <div className="max-w-7xl mx-auto px-2 sm:px-4 py-2 sm:py-4 space-y-3 sm:space-y-5">
+        {/* ===== هيدر الكورس مع Wave Border – مضغوط ومتجاوب ===== */}
         <WaveBorderCard initialColor={headerColor.name} onColorChange={setHeaderColor}>
-          <div className="p-3 sm:p-4">
+          <div className="p-2 sm:p-4">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4">
               {/* صورة الكورس */}
               <div className="lg:col-span-1">
@@ -611,7 +630,7 @@ export default function StudentCourseDetailsPage() {
                     </div>
                   )}
                   {enrolled && (
-                    <div className="absolute bottom-1.5 left-1.5 sm:bottom-2 sm:left-2 bg-black/60 backdrop-blur-md rounded-lg px-1.5 py-0.5 sm:px-2 sm:py-1 text-[8px] sm:text-[10px] font-bold text-white flex items-center gap-1.5">
+                    <div className="absolute bottom-1 left-1 sm:bottom-2 sm:left-2 bg-black/60 backdrop-blur-md rounded-lg px-1 py-0.5 sm:px-2 sm:py-1 text-[8px] sm:text-[10px] font-bold text-white flex items-center gap-1">
                       <div className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full ${progress === 100 ? 'bg-green-400' : 'bg-yellow-400 animate-pulse'}`} />
                       {progress === 100 ? (language === 'ar' ? 'مكتمل' : 'Completed') : `${Math.round(progress)}%`}
                     </div>
@@ -620,40 +639,40 @@ export default function StudentCourseDetailsPage() {
               </div>
 
               {/* معلومات الكورس */}
-              <div className="lg:col-span-2 space-y-3 sm:space-y-4">
-                <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-                  <span className={`px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full text-[8px] sm:text-[10px] font-bold ${course.is_free||course.price===0?'bg-green-500/20 text-green-400':'bg-blue-500/20 text-blue-400'} backdrop-blur-sm border border-current/20`}>
+              <div className="lg:col-span-2 space-y-2 sm:space-y-3">
+                <div className="flex flex-wrap items-center gap-1 sm:gap-2">
+                  <span className={`px-1.5 py-0.5 sm:px-2.5 sm:py-1 rounded-full text-[8px] sm:text-[10px] font-bold ${course.is_free||course.price===0?'bg-green-500/20 text-green-400':'bg-blue-500/20 text-blue-400'} backdrop-blur-sm border border-current/20`}>
                     {course.is_free||course.price===0? (language==='ar'?'مجاني':'Free') : `${course.price} ج.م`}
                   </span>
-                  <span className="px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full text-[8px] sm:text-[10px] font-bold bg-purple-500/10 text-purple-400 border border-purple-400/20">
+                  <span className="px-1.5 py-0.5 sm:px-2.5 sm:py-1 rounded-full text-[8px] sm:text-[10px] font-bold bg-purple-500/10 text-purple-400 border border-purple-400/20">
                     {course.grade_stage==='primary'? (language==='ar'?'ابتدائي':'Primary') : course.grade_stage==='middle'? (language==='ar'?'إعدادي':'Middle') : (language==='ar'?'ثانوي':'High')}
                     {course.grade_level && ` ${language==='ar'?'صف':'G'} ${course.grade_level}`}
                   </span>
                 </div>
 
-                <h1 className={`text-xl sm:text-2xl md:text-3xl font-extrabold ${styles.text} leading-tight`}>{course.title}</h1>
+                <h1 className={`text-lg sm:text-2xl md:text-3xl font-extrabold ${styles.text} leading-tight break-words`}>{course.title}</h1>
 
                 {teacher && (
                   <div className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 rounded-lg bg-gradient-to-r from-blue-500/5 to-transparent border border-blue-400/10">
-                    <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-bold text-sm sm:text-base shadow-lg">
+                    <div className="w-7 h-7 sm:w-9 sm:h-9 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-bold text-xs sm:text-base shadow-lg">
                       {teacher.full_name?.charAt(0).toUpperCase()}
                     </div>
                     <div>
-                      <p className={`text-sm sm:text-base font-bold ${styles.text}`}>{teacher.full_name}</p>
-                      <p className={`text-[9px] sm:text-[10px] ${styles.subtext}`}>{language==='ar'?'المعلم':'Teacher'}{teacher.email ? ` • ${teacher.email}` : ''}</p>
+                      <p className={`text-xs sm:text-base font-bold ${styles.text}`}>{teacher.full_name}</p>
+                      <p className={`text-[8px] sm:text-[10px] ${styles.subtext}`}>{language==='ar'?'المعلم':'Teacher'}{teacher.email ? ` • ${teacher.email}` : ''}</p>
                     </div>
                   </div>
                 )}
 
                 {course.description && (
-                  <div className={`p-2.5 sm:p-3 rounded-lg ${styles.card} border ${styles.border}`}>
-                    <h4 className={`text-xs sm:text-sm font-bold ${styles.text} mb-1`}>{language==='ar'?'وصف الكورس':'Description'}</h4>
-                    <p className={`text-[10px] sm:text-xs ${styles.subtext} leading-relaxed`}>{course.description}</p>
+                  <div className={`p-2 sm:p-3 rounded-lg ${styles.card} border ${styles.border}`}>
+                    <h4 className={`text-[10px] sm:text-sm font-bold ${styles.text} mb-0.5`}>{language==='ar'?'وصف الكورس':'Description'}</h4>
+                    <p className={`text-[9px] sm:text-xs ${styles.subtext} leading-relaxed line-clamp-3`}>{course.description}</p>
                   </div>
                 )}
 
                 {totalDuration > 0 && (
-                  <div className="flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-xs">
+                  <div className="flex items-center gap-1 sm:gap-2 text-[9px] sm:text-xs">
                     <Icons.Clock className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-blue-500" />
                     <span className={styles.subtext}>{formatDuration(totalDuration, language)} {language==='ar'?'محتوى':'content'}</span>
                   </div>
@@ -661,50 +680,50 @@ export default function StudentCourseDetailsPage() {
 
                 {/* لوحة تحكم مصغرة – مضغوطة جداً */}
                 {enrolled && (
-                  <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3">
-                    <div className={`p-2 sm:p-3 rounded-lg ${styles.card} border ${styles.border} text-center`}>
+                  <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-1.5 sm:gap-3">
+                    <div className={`p-1.5 sm:p-3 rounded-lg ${styles.card} border ${styles.border} text-center`}>
                       <CircularProgress percentage={videosProgress} size={50} strokeWidth={4} styles={styles} />
-                      <p className={`text-[8px] sm:text-[10px] mt-1 ${styles.subtext}`}>{language==='ar'?'فيديوهات':'Videos'} ({completedVideos}/{totalVideos})</p>
+                      <p className={`text-[7px] sm:text-[10px] mt-0.5 ${styles.subtext}`}>{language==='ar'?'فيديوهات':'Videos'} ({completedVideos}/{totalVideos})</p>
                     </div>
-                    <div className={`p-2 sm:p-3 rounded-lg ${styles.card} border ${styles.border} text-center`}>
+                    <div className={`p-1.5 sm:p-3 rounded-lg ${styles.card} border ${styles.border} text-center`}>
                       <CircularProgress percentage={examsProgress} size={50} strokeWidth={4} styles={styles} />
-                      <p className={`text-[8px] sm:text-[10px] mt-1 ${styles.subtext}`}>{language==='ar'?'امتحانات':'Exams'} ({attemptedExams}/{totalExams})</p>
+                      <p className={`text-[7px] sm:text-[10px] mt-0.5 ${styles.subtext}`}>{language==='ar'?'امتحانات':'Exams'} ({attemptedExams}/{totalExams})</p>
                     </div>
-                    <div className={`p-2 sm:p-3 rounded-lg ${styles.card} border ${styles.border} text-center`}>
+                    <div className={`p-1.5 sm:p-3 rounded-lg ${styles.card} border ${styles.border} text-center`}>
                       <CircularProgress percentage={progress} size={50} strokeWidth={4} styles={styles} />
-                      <p className={`text-[8px] sm:text-[10px] mt-1 ${styles.subtext}`}>{language==='ar'?'التقدم':'Overall'}</p>
+                      <p className={`text-[7px] sm:text-[10px] mt-0.5 ${styles.subtext}`}>{language==='ar'?'التقدم':'Overall'}</p>
                     </div>
                     {lastWatched && (
-                      <div className={`p-2 sm:p-3 rounded-lg ${styles.card} border ${styles.border} flex flex-col justify-center`}>
-                        <p className={`text-[8px] sm:text-[10px] ${styles.subtext}`}>{language==='ar'?'آخر مشاهدة':'Last'}</p>
-                        <Link href={`/watch/${lastWatched.video_id}`} className={`text-[9px] sm:text-[10px] font-bold text-blue-500 hover:underline line-clamp-1 mt-0.5`}>{lastWatched.video?.title || 'فيديو'}</Link>
+                      <div className={`p-1.5 sm:p-3 rounded-lg ${styles.card} border ${styles.border} flex flex-col justify-center`}>
+                        <p className={`text-[7px] sm:text-[10px] ${styles.subtext}`}>{language==='ar'?'آخر مشاهدة':'Last'}</p>
+                        <Link href={`/watch/${lastWatched.video_id}`} className={`text-[8px] sm:text-[10px] font-bold text-blue-500 hover:underline line-clamp-1 mt-0.5`}>{lastWatched.video?.title || 'فيديو'}</Link>
                       </div>
                     )}
                   </div>
                 )}
 
-                <div className="flex flex-wrap gap-2 sm:gap-3 pt-1.5">
+                <div className="flex flex-wrap gap-1.5 sm:gap-3 pt-1">
                   {enrolled ? (
                     <>
-                      <Link href={`/dashboard/student/courses/${id}/progress`} className="px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg bg-gradient-to-r from-blue-500 to-blue-600 text-white font-bold text-[10px] sm:text-xs hover:scale-105 transition shadow-lg shadow-blue-500/30 flex items-center gap-1.5">
-                        <Icons.ArrowLeft className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                      <Link href={`/dashboard/student/courses/${id}/progress`} className="px-2.5 py-1.5 sm:px-4 sm:py-2 rounded-lg bg-gradient-to-r from-blue-500 to-blue-600 text-white font-bold text-[9px] sm:text-xs hover:scale-105 transition shadow-lg shadow-blue-500/30 flex items-center gap-1">
+                        <Icons.ArrowLeft className="h-2.5 w-2.5 sm:h-3.5 sm:w-3.5" />
                         {language==='ar'?'متابعة التعلم':'Continue'}
                       </Link>
                     </>
                   ) : (
                     // ===== قسم الكورس غير المشترك (مضغوط) =====
-                    <div className="w-full text-center py-3 sm:py-4">
-                      <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 justify-center">
+                    <div className="w-full text-center py-2 sm:py-4">
+                      <div className="flex flex-col sm:flex-row gap-1.5 sm:gap-3 justify-center">
                         {course.is_free || course.price === 0 ? (
-                          <button onClick={handleEnroll} disabled={enrolling} className="px-4 py-1.5 sm:px-5 sm:py-2 bg-gradient-to-r from-green-500 to-green-600 text-white font-bold rounded-lg hover:scale-105 transition shadow-lg shadow-green-500/30 text-[10px] sm:text-xs">
+                          <button onClick={handleEnroll} disabled={enrolling} className="px-3 py-1.5 sm:px-5 sm:py-2 bg-gradient-to-r from-green-500 to-green-600 text-white font-bold rounded-lg hover:scale-105 transition shadow-lg shadow-green-500/30 text-[9px] sm:text-xs">
                             {enrolling ? (language==='ar'?'جاري...':'Loading...') : (language==='ar'?'ابدأ الآن 🚀':'Start Now 🚀')}
                           </button>
                         ) : (
                           <>
-                            <button onClick={() => router.push(`/dashboard/student/courses/${id}/payment`)} className="px-4 py-1.5 sm:px-5 sm:py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-bold rounded-lg hover:scale-105 transition shadow-lg shadow-blue-500/30 text-[10px] sm:text-xs">
+                            <button onClick={() => router.push(`/dashboard/student/courses/${id}/payment`)} className="px-3 py-1.5 sm:px-5 sm:py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-bold rounded-lg hover:scale-105 transition shadow-lg shadow-blue-500/30 text-[9px] sm:text-xs">
                               {language==='ar'?'💳 اشتراك':'💳 Subscribe'}
                             </button>
-                            <button onClick={handleEnroll} disabled={enrolling} className="px-3 py-1.5 sm:px-4 sm:py-2 bg-gradient-to-r from-gray-500/20 to-gray-600/20 text-gray-400 font-bold rounded-lg hover:scale-105 transition border border-gray-500/30 text-[10px] sm:text-xs">
+                            <button onClick={handleEnroll} disabled={enrolling} className="px-2.5 py-1.5 sm:px-4 sm:py-2 bg-gradient-to-r from-gray-500/20 to-gray-600/20 text-gray-400 font-bold rounded-lg hover:scale-105 transition border border-gray-500/30 text-[9px] sm:text-xs">
                               {enrolling ? (language==='ar'?'جاري...':'Loading...') : (language==='ar'?'🔑 كود':'🔑 Code')}
                             </button>
                           </>
@@ -721,7 +740,7 @@ export default function StudentCourseDetailsPage() {
         {/* ===== المحتوى ===== */}
         {enrolled && (
           <>
-            <div className="flex gap-1 border-b-2 border-gray-200 dark:border-white/10 pb-1.5 overflow-x-auto no-scrollbar">
+            <div className="flex gap-1 border-b-2 border-gray-200 dark:border-white/10 pb-1 overflow-x-auto no-scrollbar">
               <TabButton active={activeTab==='videos'} onClick={()=>setActiveTab('videos')} icon={Icons.Video} label={language==='ar'?'فيديوهات':'Videos'} count={totalVideos} styles={styles}/>
               <TabButton active={activeTab==='exams'} onClick={()=>setActiveTab('exams')} icon={Icons.FileQuestion} label={language==='ar'?'امتحانات':'Exams'} count={totalExams} styles={styles}/>
               <TabButton active={activeTab==='books'} onClick={()=>setActiveTab('books')} icon={Icons.Book} label={language==='ar'?'كتب':'Books'} count={books.length} styles={styles}/>
@@ -769,12 +788,12 @@ export default function StudentCourseDetailsPage() {
 
         {!enrolled && (
           // ===== عرض القفل للكورسات غير المشترك فيها (مضغوط) =====
-          <div className="text-center py-8 sm:py-12 border-2 border-dashed border-gray-300 dark:border-white/10 rounded-2xl">
-            <Icons.Lock className="h-10 w-10 sm:h-12 sm:w-12 text-gray-400 mx-auto mb-2"/>
-            <h3 className={`text-base sm:text-lg font-bold ${styles.text} mb-1`}>
+          <div className="text-center py-6 sm:py-12 border-2 border-dashed border-gray-300 dark:border-white/10 rounded-2xl">
+            <Icons.Lock className="h-8 w-8 sm:h-12 sm:w-12 text-gray-400 mx-auto mb-1.5"/>
+            <h3 className={`text-sm sm:text-lg font-bold ${styles.text} mb-0.5`}>
               {course.is_free ? (language==='ar'?'ابدأ التعلم مجاناً':'Start learning for free') : (language==='ar'?'اشترك للوصول للمحتوى':'Enroll to access content')}
             </h3>
-            <p className={`text-[10px] sm:text-xs ${styles.subtext} max-w-lg mx-auto px-3`}>
+            <p className={`text-[9px] sm:text-xs ${styles.subtext} max-w-lg mx-auto px-3`}>
               {course.is_free
                 ? (language==='ar' ? 'هذا الكورس مجاني! يمكنك البدء فوراً.' : 'This course is free! You can start right away.')
                 : (language==='ar'
@@ -783,15 +802,15 @@ export default function StudentCourseDetailsPage() {
               }
             </p>
             {course.is_free ? (
-              <button onClick={handleEnroll} disabled={enrolling} className="mt-3 px-4 py-1.5 sm:px-5 sm:py-2 bg-gradient-to-r from-green-500 to-green-600 text-white font-bold rounded-lg hover:scale-105 transition shadow-lg shadow-green-500/30 text-[10px] sm:text-xs">
+              <button onClick={handleEnroll} disabled={enrolling} className="mt-2 px-4 py-1.5 sm:px-5 sm:py-2 bg-gradient-to-r from-green-500 to-green-600 text-white font-bold rounded-lg hover:scale-105 transition shadow-lg shadow-green-500/30 text-[9px] sm:text-xs">
                 {enrolling ? (language==='ar'?'جاري...':'Loading...') : (language==='ar'?'ابدأ الآن 🚀':'Start Now 🚀')}
               </button>
             ) : (
-              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 justify-center mt-3">
-                <button onClick={() => router.push(`/dashboard/student/courses/${id}/payment`)} className="px-4 py-1.5 sm:px-5 sm:py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-bold rounded-lg hover:scale-105 transition shadow-lg shadow-blue-500/30 text-[10px] sm:text-xs">
+              <div className="flex flex-col sm:flex-row gap-1.5 sm:gap-3 justify-center mt-2">
+                <button onClick={() => router.push(`/dashboard/student/courses/${id}/payment`)} className="px-3 py-1.5 sm:px-5 sm:py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-bold rounded-lg hover:scale-105 transition shadow-lg shadow-blue-500/30 text-[9px] sm:text-xs">
                   {language==='ar'?'💳 اشتراك':'💳 Subscribe'}
                 </button>
-                <button onClick={handleEnroll} disabled={enrolling} className="px-3 py-1.5 sm:px-4 sm:py-2 bg-gradient-to-r from-gray-500/20 to-gray-600/20 text-gray-400 font-bold rounded-lg hover:scale-105 transition border border-gray-500/30 text-[10px] sm:text-xs">
+                <button onClick={handleEnroll} disabled={enrolling} className="px-2.5 py-1.5 sm:px-4 sm:py-2 bg-gradient-to-r from-gray-500/20 to-gray-600/20 text-gray-400 font-bold rounded-lg hover:scale-105 transition border border-gray-500/30 text-[9px] sm:text-xs">
                   {enrolling ? (language==='ar'?'جاري...':'Loading...') : (language==='ar'?'🔑 كود':'🔑 Code')}
                 </button>
               </div>
@@ -807,14 +826,14 @@ export default function StudentCourseDetailsPage() {
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
               {relatedCourses.map(rc=>(
-                <Link key={rc.id} href={`/dashboard/student/courses/${rc.id}`} className={`p-2.5 sm:p-3 rounded-lg border ${styles.border} ${styles.card} hover:border-blue-400/50 transition group`}>
+                <Link key={rc.id} href={`/dashboard/student/courses/${rc.id}`} className={`p-2 sm:p-3 rounded-lg border ${styles.border} ${styles.card} hover:border-blue-400/50 transition group`}>
                   <div className="flex items-center gap-2 sm:gap-3 mb-1">
-                    <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-blue-500/10 flex items-center justify-center">
-                      <Icons.BookOpen className="h-4 w-4 sm:h-5 sm:w-5 text-blue-500 group-hover:scale-110 transition"/>
+                    <div className="w-7 h-7 sm:w-9 sm:h-9 rounded-lg bg-blue-500/10 flex items-center justify-center">
+                      <Icons.BookOpen className="h-3.5 w-3.5 sm:h-5 sm:w-5 text-blue-500 group-hover:scale-110 transition"/>
                     </div>
-                    <span className={`text-xs sm:text-sm font-bold ${styles.text} line-clamp-1`}>{rc.title}</span>
+                    <span className={`text-[10px] sm:text-sm font-bold ${styles.text} line-clamp-1`}>{rc.title}</span>
                   </div>
-                  {rc.teacher && <p className={`text-[9px] sm:text-[10px] ${styles.subtext}`}>{rc.teacher.full_name}</p>}
+                  {rc.teacher && <p className={`text-[8px] sm:text-[10px] ${styles.subtext}`}>{rc.teacher.full_name}</p>}
                 </Link>
               ))}
             </div>
@@ -825,6 +844,9 @@ export default function StudentCourseDetailsPage() {
       <style jsx>{`
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        @media (max-width: 480px) {
+          .xs\\:inline { display: inline; }
+        }
       `}</style>
     </div>
   );
