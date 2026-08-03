@@ -3748,7 +3748,7 @@ export default function StudentExamPage() {
     const percentage = totalMarks > 0 ? Math.round((passedAttempt.score / totalMarks) * 100) : 0;
     const grade = getGrade(percentage);
     
-    // ✅ استخدام exam.title مباشرة مع التحقق من وجوده
+    // ✅ تعريف examTitle هنا (التعديل الأول)
     const examTitle = exam?.title || (language === 'ar' ? 'الامتحان' : 'Exam');
 
     return (
@@ -3807,7 +3807,7 @@ export default function StudentExamPage() {
                 {student?.full_name || 'طالب'}
               </p>
               
-              {/* ✅ هنا التعديل الرئيسي: استخدام examTitle الحقيقي */}
+              {/* ✅ السطر المعدل – يعرض عنوان الامتحان مع الاقتباس */}
               <p className={`text-sm sm:text-base ${styles.subtext}`}>
                 {language === 'ar' ? `لاجتيازه امتحان "${examTitle}"` : `for successfully passing the exam "${examTitle}"`}
               </p>
