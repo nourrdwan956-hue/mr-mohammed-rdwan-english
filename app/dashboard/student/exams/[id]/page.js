@@ -2884,25 +2884,14 @@ export default function StudentExamPage() {
 
   // ===== جلب بيانات الامتحان =====
   const fetchExamData = useCallback(async () => {
-    setLoading(true);
-    setError('');
-    
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { 
-        router.push('/login'); 
-        return; 
-      }
+      if (!user) { router.push('/login'); return; }
 
       const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single();
       setStudent(profile);
 
-      // ✅ التحقق المبكر: إذا كان الطالب ناجحاً سابقاً، لا نكمل تحميل البيانات
-      if (passedAttempt || showPassedScreen) {
-        setLoading(false);
-        return;
-      }
-
+      // ✅ الخطوة 1: جلب بيانات الامتحان أولاً (حتى لو كان الطالب ناجحاً سابقاً)
       const { data: examData, error: examError } = await supabase
         .from('exams')
         .select('*')
@@ -2926,6 +2915,42 @@ export default function StudentExamPage() {
         if (teacher?.full_name) teacherName = teacher.full_name;
       }
 
+      // ✅ الخطوة 2: الآن نقوم بتعيين exam (بما فيه title)
+      // سيتم استخدام هذا الكائن في شاشة النجاح
+      const examObject = {
+        ...examData,
+        teacher_name: teacherName,
+        course_name: courseName || '',
+        maxViolations: examData.max_violations || 5,
+        maxFullscreenExits: examData.max_fullscreen_exits || 3,
+        shuffle_options: examData.shuffle_options || false,
+        allow_backward: examData.allow_backward !== undefined ? examData.allow_backward : true,
+      };
+      setExam(examObject);
+
+      // ✅ الخطوة 3: التحقق من وجود محاولة ناجحة سابقة
+      const { data: attempts } = await supabase
+        .from('exam_attempts')
+        .select('id, status, score, passed, total_marks, answers, submitted_at')
+        .eq('exam_id', examId)
+        .eq('student_id', user.id);
+
+      const hasPassed = attempts?.some(a => a.passed === true);
+      if (hasPassed) {
+        const passedData = attempts.find(a => a.passed === true);
+        if (passedData) {
+          // ✅ نضبط المحاولة الناجحة مع التأكد من وجود total_marks
+          // إذا كانت total_marks غير موجودة، نستخدم examData.total_marks
+          if (!passedData.total_marks || passedData.total_marks === 0) {
+            passedData.total_marks = examData.total_marks || 0;
+          }
+          setPassedAttempt(passedData);
+          setShowPassedScreen(true);
+          setLoading(false);
+          return; // ننهي التحميل، لأننا سنعرض شاشة النجاح
+        }
+      }
+
       // ✅ التحقق من صلاحية الوصول (الكورسات المدفوعة)
       // نمرر course_id من examData
       setIsCheckingAccess(true);
@@ -2941,12 +2966,8 @@ export default function StudentExamPage() {
       const end = examData.end_date ? toLocalDate(examData.end_date) : null;
 
       // ===== التحقق من وجود محاولات سابقة =====
-      const { data: attempts } = await supabase
-        .from('exam_attempts')
-        .select('id, status, score, passed')
-        .eq('exam_id', examId)
-        .eq('student_id', user.id);
-      
+      // تم جلبها بالفعل (attempts)
+
       // ✅ حساب المحاولات المتبقية من قاعدة البيانات (المصدر الوحيد)
       const attemptsAllowed = examData.attempts_allowed || 1;
       const completedCount = attempts?.filter(
@@ -2957,35 +2978,7 @@ export default function StudentExamPage() {
       // نخزنه في sessionStorage كمرجع سريع
       sessionStorage.setItem(`exam_${examId}_attempts_left`, attemptsLeftVal.toString());
 
-      // ===== التحقق من وجود محاولة ناجحة =====
-      const hasPassed = attempts?.some(a => a.passed === true);
-      if (hasPassed) {
-        const { data: passedData } = await supabase
-          .from('exam_attempts')
-          .select('*')
-          .eq('exam_id', examId)
-          .eq('student_id', user.id)
-          .eq('passed', true)
-          .order('submitted_at', { ascending: false })
-          .limit(1)
-          .single();
-        if (passedData) {
-          setPassedAttempt(passedData);
-          setShowPassedScreen(true);
-          setLoading(false);
-          return;
-        }
-      }
-
-      // تخزين المحاولات المتبقية في sessionStorage
-      const storedAttempts = sessionStorage.getItem(`exam_${examId}_attempts_left`);
-      if (storedAttempts !== null) {
-        const savedAttempts = parseInt(storedAttempts, 10);
-        if (!isNaN(savedAttempts) && savedAttempts < attemptsLeftVal) {
-          // نستخدم القيمة الأقل (الأكثر أماناً)
-          setAttemptsLeft(savedAttempts);
-        }
-      }
+      // ===== التحقق من وجود محاولة ناجحة (تم بالفعل) =====
 
       if (attemptsLeftVal <= 0 && !hasPassed) {
         setError(language === 'ar' ? 'لقد استنفدت الحد الأقصى من المحاولات' : 'You have exhausted all attempts');
@@ -3037,20 +3030,8 @@ export default function StudentExamPage() {
       setPassages(passagesList);
 
       const realQuestionsCount = finalQuestions.length;
-      setExam({ 
-        ...examData, 
-        questionCount: realQuestionsCount, 
-        attemptsLeft: attemptsLeftVal,
-        attemptsUsed: attemptsAllowed - attemptsLeftVal,
-        teacher_name: teacherName,
-        course_name: courseName || '',
-        maxViolations: examData.max_violations || 5,
-        maxFullscreenExits: examData.max_fullscreen_exits || 3,
-        shuffle_options: examData.shuffle_options || false,
-        allow_backward: examData.allow_backward !== undefined ? examData.allow_backward : true,
-        start_date: examData.start_date,
-        end_date: examData.end_date,
-      });
+      // نضيف attemptsLeft و questionCount إلى examObject (موجود بالفعل)
+      setExam(prev => ({ ...prev, questionCount: realQuestionsCount, attemptsLeft: attemptsLeftVal, attemptsUsed: attemptsAllowed - attemptsLeftVal }));
 
       // ✅ التحقق من وقت البدء
       if (start && now < start) {
@@ -3102,13 +3083,14 @@ export default function StudentExamPage() {
 
       // ✅ بعد معالجة المحاولات المفتوحة، نضبط التايمر على المدة الكاملة
       setTimeRemaining(duration);
+
       setLoading(false);
     } catch (err) {
       console.error('Fetch error:', err);
       setError(language === 'ar' ? 'حدث خطأ أثناء تحميل الامتحان' : 'Error loading exam');
       setLoading(false);
     }
-  }, [examId, router, language, verifyExamAccess, passedAttempt, showPassedScreen]);
+  }, [examId, router, language, verifyExamAccess]);
 
   useEffect(() => {
     fetchExamData();
@@ -3745,19 +3727,6 @@ export default function StudentExamPage() {
 
   // ===== شاشة "تم الاجتياز" (ناجح سابقاً) – تظهر فقط للناجحين =====
   if (showPassedScreen && passedAttempt && passedAttempt.passed === true) {
-    // ✅ التأكد من وجود exam قبل عرض الشهادة
-    if (!exam) {
-      // إذا لم يتم تحميل exam بعد، نعرض رسالة تحميل مؤقتة
-      return (
-        <div className={`min-h-screen w-full flex items-center justify-center ${isDark ? 'bg-[#0b0e1a]' : 'bg-gray-50'}`}>
-          <div className="flex flex-col items-center gap-3">
-            <div className="w-8 h-8 border-4 border-yellow-400/30 border-t-yellow-400 rounded-full animate-spin" />
-            <p className={`text-sm ${styles.subtext}`}>جاري تحميل بيانات الامتحان...</p>
-          </div>
-        </div>
-      );
-    }
-
     const totalMarks = (passedAttempt.total_marks > 0) 
       ? passedAttempt.total_marks 
       : (exam?.total_marks > 0) 
@@ -3766,8 +3735,8 @@ export default function StudentExamPage() {
     const percentage = totalMarks > 0 ? Math.round((passedAttempt.score / totalMarks) * 100) : 0;
     const grade = getGrade(percentage);
     
-    // ✅ استخدام exam.title الحقيقي
-    const examTitle = exam.title || (language === 'ar' ? 'الامتحان' : 'Exam');
+    // ✅ استخدام exam.title مباشرة مع fallback
+    const examTitle = exam?.title || (language === 'ar' ? 'الامتحان' : 'Exam');
 
     return (
       <div className={`min-h-screen w-full ${isDark ? 'bg-[#0b0e1a]' : 'bg-gray-50'} flex items-center justify-center p-4`}>
