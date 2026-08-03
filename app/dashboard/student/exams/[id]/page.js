@@ -9,6 +9,8 @@
 // ✅ دعم محاذاة النص (يسار/وسط/يمين) من بيانات السؤال
 // ✅ عرض عنوان الامتحان الحقيقي في شهادة التكريم (استخدام exam.title مباشرة)
 // ✅ منع ظهور الشهادة للراسبين (حتى لو استنفذوا المحاولات)
+// ✅ نظام مخالفات متطور: مهلة 5 ثوانٍ للعودة لملء الشاشة، حد أقصى 5 مخالفات
+// ✅ لا تحسب الحركات الطبيعية كمخالفات
 // ================================================================
 
 'use client';
@@ -1809,16 +1811,16 @@ const QuestionSidebar = ({
 };
 
 // ================================================================
-// 8. شاشة القفل (LockOverlay) – بدون صوت
+// 8. شاشة القفل (LockOverlay) – مع مهلة 5 ثوانٍ للعودة
 // ================================================================
 const LockOverlay = ({ violations, maxViolations, language, styles, onCancel, onCloseExam }) => {
-  const [countdown, setCountdown] = useState(5);
+  const [countdown, setCountdown] = useState(5); // ✅ 5 ثوانٍ بدلاً من 3
   const [isCancelled, setIsCancelled] = useState(false);
 
   useEffect(() => {
     if (isCancelled) return;
     if (countdown <= 0) {
-      onCloseExam();
+      onCloseExam(); // إغلاق الامتحان عند انتهاء المهلة دون عودة
       return;
     }
     const timer = setTimeout(() => setCountdown(c => c - 1), 1000);
@@ -1828,6 +1830,7 @@ const LockOverlay = ({ violations, maxViolations, language, styles, onCancel, on
   const handleCancel = () => {
     setIsCancelled(true);
     if (onCancel) onCancel();
+    // محاولة العودة لملء الشاشة فوراً
     const el = document.documentElement;
     if (el.requestFullscreen) el.requestFullscreen().catch(() => {});
     else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
@@ -1839,7 +1842,7 @@ const LockOverlay = ({ violations, maxViolations, language, styles, onCancel, on
         setIsCancelled(false);
         setCountdown(5);
       } else {
-        onCancel();
+        onCancel(); // إلغاء حالة القفل والعودة للامتحان
       }
     }, 1000);
   };
@@ -1866,7 +1869,7 @@ const LockOverlay = ({ violations, maxViolations, language, styles, onCancel, on
         <p className="text-white/70 sm:text-white/80 text-sm sm:text-base">
           {language === 'ar' 
             ? `تم اكتشاف خروجك من بيئة الامتحان (${violations} من ${maxViolations}). العودة فوراً إلى ملء الشاشة خلال ${countdown} ثوانٍ.`
-            : `Tab switch detected (${violations} of ${maxViolations}). Return to fullscreen within ${countdown} seconds.`}
+            : `You left the exam environment (${violations} of ${maxViolations}). Return to fullscreen within ${countdown} seconds.`}
         </p>
         <div className="flex flex-col gap-2">
           <button
@@ -1874,7 +1877,7 @@ const LockOverlay = ({ violations, maxViolations, language, styles, onCancel, on
             style={{ touchAction: 'manipulation' }}
             className="px-6 py-2.5 sm:px-8 sm:py-3 bg-yellow-500 hover:bg-yellow-600 text-black font-bold rounded-xl transition-colors shadow-xl text-sm sm:text-lg"
           >
-            {language === 'ar' ? '🔄 إلغاء الإغلاق والعودة الآن' : '🔄 Cancel closure and return now'}
+            {language === 'ar' ? '🔄 العودة الآن' : '🔄 Return now'}
           </button>
           <button
             onClick={() => {
@@ -2346,7 +2349,7 @@ export default function StudentExamPage() {
   // ===== متغيرات جديدة للتحكم في سلوك الخروج من ملء الشاشة (مهلة سماح) =====
   const [fullscreenExitTimer, setFullscreenExitTimer] = useState(null);
   const fullscreenExitAttemptsRef = useRef(0); // استخدام ref بدلاً من state
-  const FULLSCREEN_GRACE_PERIOD = 3000; // 3 ثواني مهلة للعودة
+  const FULLSCREEN_GRACE_PERIOD = 5000; // ✅ 5 ثواني مهلة للعودة
 
   // ===== حالة إظهار الزر العائم للعودة إلى ملء الشاشة =====
   const [showFullscreenButton, setShowFullscreenButton] = useState(false);
@@ -2503,7 +2506,7 @@ export default function StudentExamPage() {
     }
   }, [examStatus, isExamForcedClosed, examId, attemptId, attemptsLeft, language, router, fullscreenExitCount, exam]);
 
-  // ===== معالج الخروج من ملء الشاشة – مع زر عائم ومهلة سماح =====
+  // ===== معالج الخروج من ملء الشاشة – مع مهلة 5 ثوانٍ وزر عائم =====
   const handleFullscreenChange = useCallback(() => {
     if (examStatus !== 'started' || isExamForcedClosed) return;
 
@@ -2530,46 +2533,57 @@ export default function StudentExamPage() {
     // محاولة فورية للعودة (قد تنجح في بعض المتصفحات)
     requestFullscreen();
 
-    // بدء مهلة سماح (3 ثوانٍ) لتسجيل مخالفة إذا لم يعد المستخدم
+    // بدء مهلة سماح (5 ثوانٍ) لتسجيل مخالفة إذا لم يعد المستخدم
     if (!fullscreenExitTimer) {
       const timer = setTimeout(() => {
         if (!document.fullscreenElement) {
-          fullscreenExitAttemptsRef.current += 1;
-          if (fullscreenExitAttemptsRef.current >= MAX_FULLSCREEN_EXITS) {
-            forceCloseExam('fullscreen_exit');
-          } else {
-            toast.error(
-              language === 'ar'
-                ? '⚠️ لم تعد إلى ملء الشاشة في الوقت المحدد. تم تسجيل مخالفة.'
-                : '⚠️ You did not return to fullscreen in time. Violation recorded.',
-              { duration: 3000 }
-            );
-          }
+          // ✅ نزيد عداد المخالفات بواحد فقط
+          setViolations(prev => {
+            const newV = prev + 1;
+            // ✅ إذا وصلت المخالفات إلى الحد الأقصى، نغلق الامتحان
+            if (newV >= maxViolations) {
+              forceCloseExam('max_violations');
+            } else {
+              toast.error(
+                language === 'ar'
+                  ? `⚠️ لم تعد إلى ملء الشاشة في الوقت المحدد. المخالفة ${newV} من ${maxViolations}`
+                  : `⚠️ You did not return to fullscreen in time. Violation ${newV} of ${maxViolations}`,
+                { duration: 3000 }
+              );
+            }
+            return Math.min(newV, maxViolations);
+          });
         }
         setFullscreenExitTimer(null);
       }, FULLSCREEN_GRACE_PERIOD);
       setFullscreenExitTimer(timer);
     }
-  }, [examStatus, isExamForcedClosed, requestFullscreen, forceCloseExam, maxViolations, language, fullscreenExitTimer, FULLSCREEN_GRACE_PERIOD, MAX_FULLSCREEN_EXITS]);
+  }, [examStatus, isExamForcedClosed, requestFullscreen, forceCloseExam, maxViolations, language, fullscreenExitTimer, FULLSCREEN_GRACE_PERIOD]);
 
-  // ===== مراقبة تغيير التبويب (Visibility Change) – طرد فوري =====
+  // ===== مراقبة تغيير التبويب (Visibility Change) – تسجيل مخالفة فورية =====
   const handleVisibilityChange = useCallback(() => {
     if (examStatus !== 'started' || isExamForcedClosed) return;
 
     const isVisible = document.visibilityState === 'visible';
 
     if (!isVisible) {
-      // ✅ تغيير التبويب = طرد فوري (إغلاق الامتحان مباشرة)
-      toast.error(
-        language === 'ar'
-          ? '⚠️ تم رصد تغيير التبويب - سيتم إغلاق الامتحان فوراً'
-          : '⚠️ Tab switch detected - exam will be closed immediately',
-        { duration: 3000 }
-      );
-      // إغلاق فوري دون مهلة
-      forceCloseExam('tab_switch');
+      // ✅ تغيير التبويب = تسجيل مخالفة فورية
+      setViolations(prev => {
+        const newV = prev + 1;
+        if (newV >= maxViolations) {
+          forceCloseExam('tab_switch');
+        } else {
+          toast.error(
+            language === 'ar'
+              ? `⚠️ تم رصد تغيير التبويب - المخالفة ${newV} من ${maxViolations}`
+              : `⚠️ Tab switch detected - Violation ${newV} of ${maxViolations}`,
+            { duration: 3000 }
+          );
+        }
+        return Math.min(newV, maxViolations);
+      });
     }
-  }, [examStatus, isExamForcedClosed, forceCloseExam, language]);
+  }, [examStatus, isExamForcedClosed, forceCloseExam, language, maxViolations]);
 
   // ================================================================
   // ✅ معالج إعادة التحميل (F5) مع خصم المحاولة ومنع الخصم المزدوج
@@ -3375,7 +3389,7 @@ export default function StudentExamPage() {
       document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
       document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-      if (cleanupSecurity) cleanupSecurity();
+      if (cleanupSecurity) cleanupSecurity;
     };
   }, [examStatus, handleFullscreenChange, handleVisibilityChange, enableSecurityLockdown]);
 
