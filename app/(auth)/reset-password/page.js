@@ -22,15 +22,25 @@ export default function ResetPasswordPage() {
     }
     setLoading(true);
     try {
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
+      const redirectTo = `${appUrl}/update-password`;
+      
+      console.log('📧 إرسال رابط إعادة التعيين إلى:', email.trim());
+      console.log('🔗 رابط العودة:', redirectTo);
+
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(
         email.trim(),
-        { redirectTo: `${window.location.origin}/update-password` }
+        { redirectTo }
       );
+      
       if (resetError) throw resetError;
+      
       setSuccess(true);
-      toast.success('تم إرسال رابط الاستعادة');
+      toast.success('✅ تم إرسال رابط الاستعادة بنجاح');
     } catch (err) {
-      setError(err.message || 'فشل إرسال رابط الاستعادة');
+      console.error('❌ فشل إرسال رابط الاستعادة:', err);
+      setError(err.message || 'فشل إرسال رابط الاستعادة، تأكد من البريد الإلكتروني وحاول مرة أخرى');
+      toast.error('❌ فشل إرسال الرابط');
     } finally {
       setLoading(false);
     }
@@ -38,7 +48,6 @@ export default function ResetPasswordPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#0b0e1a] px-4 relative overflow-hidden">
-      {/* خلفيات متحركة */}
       <div className="absolute inset-0 -z-10">
         <div className="absolute top-0 -left-20 w-[600px] h-[600px] bg-yellow-400/10 rounded-full blur-3xl animate-pulse" />
         <div className="absolute bottom-0 -right-20 w-[700px] h-[700px] bg-blue-500/10 rounded-full blur-3xl animate-pulse delay-1000" />
@@ -51,7 +60,6 @@ export default function ResetPasswordPage() {
         className="w-full max-w-md"
       >
         <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl shadow-2xl p-8">
-          {/* أيقونة */}
           <div className="text-center mb-6">
             <motion.div
               animate={{ scale: [1, 1.05, 1] }}
