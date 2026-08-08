@@ -6,6 +6,8 @@
 // ✅ دعم صور الغلاف بمقاس 9:16 مع عرض ممتد
 // ✅ رقم الهاتف الصحيح: 01148553118
 // ✅ تصميم احترافي بلا أي بيانات وهمية
+// ✅ إصلاح اتجاه أزرار السهم (تتناسب مع RTL)
+// ✅ تحسين سطوع ووضوح صور الغلاف
 // ================================================================
 
 'use client';
@@ -135,7 +137,7 @@ const SOCIAL_LINKS = [
     color: 'bg-purple-500',
     textColor: 'text-purple-400',
     isPhone: true,
-    phoneNumbers: ['01552191172', '01148553118'], // ✅ الرقم الصحيح
+    phoneNumbers: ['01552191172', '01148553118'], // ✅ الرقم الصحيح (11 رقم)
   },
 ];
 
@@ -450,20 +452,23 @@ const CourseCard3D = ({ course, teacher, index, isActive }) => {
         {/* صورة الغلاف (مقاس 9:16 ولكن معروض بشكل أفقي عريض) */}
         <div className="relative w-full overflow-hidden" style={{ height: '220px' }}>
           {course?.cover_image ? (
-            <motion.img
-              src={course.cover_image}
-              alt={course.title}
-              className="w-full h-full object-cover"
-              animate={{ scale: isHovered ? 1.08 : 1 }}
-              transition={{ duration: 0.6 }}
-            />
+            <>
+              <motion.img
+                src={course.cover_image}
+                alt={course.title}
+                className="w-full h-full object-cover"
+                style={{ filter: 'brightness(1.05) contrast(1.05)' }} // تحسين السطوع والتباين
+                animate={{ scale: isHovered ? 1.08 : 1 }}
+                transition={{ duration: 0.6 }}
+              />
+              {/* طبقة شفافة خفيفة لتحسين القراءة */}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
+            </>
           ) : (
             <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-400/20 to-green-400/20">
               <Icons.BookOpen className="h-16 w-16 text-gray-400/30" />
             </div>
           )}
-          {/* تدرج شفاف للقراءة */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
 
           {/* شارات السعر والحالة */}
           <div className="absolute top-3 right-3 flex flex-col gap-1.5">
@@ -551,7 +556,7 @@ const CourseCard3D = ({ course, teacher, index, isActive }) => {
 };
 
 // ================================================================
-// 🎠 عرض الكورسات – Carousel أفقي 3D
+// 🎠 عرض الكورسات – Carousel أفقي 3D (مع إصلاح اتجاه الأزرار)
 // ================================================================
 
 const CoursesCarousel3D = ({ courses, teachers, isDark, loading }) => {
@@ -586,6 +591,23 @@ const CoursesCarousel3D = ({ courses, teachers, isDark, loading }) => {
 
   // تقسيم الكورسات إلى مجموعات لعرضها في صفوف
   const visibleCourses = courses.slice(0, 8);
+
+  // دوال التمرير مع اتجاهات صحيحة لـ RTL
+  const scrollForward = () => {
+    if (containerRef.current) {
+      const container = containerRef.current;
+      // في RTL، التمرير للأمام يعني تحريك المحتوى إلى اليسار (زيادة scrollLeft)
+      container.scrollBy({ left: 300, behavior: 'smooth' });
+    }
+  };
+
+  const scrollBackward = () => {
+    if (containerRef.current) {
+      const container = containerRef.current;
+      // في RTL، التمرير للخلف يعني تحريك المحتوى إلى اليمين (نقصان scrollLeft)
+      container.scrollBy({ left: -300, behavior: 'smooth' });
+    }
+  };
 
   return (
     <div className="relative w-full overflow-hidden">
@@ -627,24 +649,22 @@ const CoursesCarousel3D = ({ courses, teachers, isDark, loading }) => {
         ))}
       </div>
 
-      {/* أزرار التنقل */}
+      {/* أزرار التنقل (مع اتجاهات صحيحة) */}
       {visibleCourses.length > 3 && (
         <div className="flex justify-center gap-3 mt-4">
+          {/* السهم الأيمن (في RTL يعني التمرير للخلف، أي عرض الكورسات السابقة) */}
           <button
-            onClick={() => {
-              const container = containerRef.current;
-              container.scrollBy({ left: -300, behavior: 'smooth' });
-            }}
+            onClick={scrollBackward}
             className={`p-2 rounded-full ${isDark ? 'bg-white/10 hover:bg-white/20' : 'bg-gray-200 hover:bg-gray-300'} transition`}
+            aria-label="السابق"
           >
             <Icons.ChevronRight className="h-5 w-5" />
           </button>
+          {/* السهم الأيسر (في RTL يعني التمرير للأمام، أي عرض الكورسات التالية) */}
           <button
-            onClick={() => {
-              const container = containerRef.current;
-              container.scrollBy({ left: 300, behavior: 'smooth' });
-            }}
+            onClick={scrollForward}
             className={`p-2 rounded-full ${isDark ? 'bg-white/10 hover:bg-white/20' : 'bg-gray-200 hover:bg-gray-300'} transition`}
+            aria-label="التالي"
           >
             <Icons.ChevronLeft className="h-5 w-5" />
           </button>
