@@ -1,6 +1,4 @@
-
-
-
+// app/api/books/[id]/route.js
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { deleteFromGoogleDrive } from '@/lib/googleDrive';
@@ -10,7 +8,6 @@ import { deleteFromGoogleDrive } from '@/lib/googleDrive';
 // ============================================================
 export async function DELETE(request, { params }) {
   try {
-    // ✅ إصلاح: استخدام await مع params
     const { id } = await params;
     const userId = request.headers.get('x-user-id');
     const assistantId = request.headers.get('x-assistant-id');
@@ -19,9 +16,10 @@ export async function DELETE(request, { params }) {
       return NextResponse.json({ error: 'غير مصرح' }, { status: 401 });
     }
 
+    // ✅ استخدام SUPABASE_SERVICE_ROLE_KEY بدلاً من SUPABASE_SECRET_KEY
     const supabaseAdmin = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.SUPABASE_SECRET_KEY,
+      process.env.SUPABASE_SERVICE_ROLE_KEY,
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
 
@@ -60,7 +58,6 @@ export async function DELETE(request, { params }) {
           console.log(`✅ Deleted from Google Drive: ${fileId}`);
         } catch (driveError) {
           console.error('❌ Google Drive delete error:', driveError);
-          // نكمل حتى لو فشل الحذف من Drive
         }
       } else {
         try {
@@ -99,14 +96,14 @@ export async function DELETE(request, { params }) {
 // ============================================================
 export async function GET(request, { params }) {
   try {
-    // ✅ إصلاح: استخدام await مع params
     const { id } = await params;
     const userId = request.headers.get('x-user-id');
     const assistantId = request.headers.get('x-assistant-id');
 
+    // ✅ استخدام SUPABASE_SERVICE_ROLE_KEY بدلاً من SUPABASE_SECRET_KEY
     const supabaseAdmin = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.SUPABASE_SECRET_KEY,
+      process.env.SUPABASE_SERVICE_ROLE_KEY,
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
 
@@ -125,14 +122,13 @@ export async function GET(request, { params }) {
     let query = supabaseAdmin
       .from('books')
       .select('*')
-      .eq('id', id)
-      .single();
+      .eq('id', id);
 
     if (teacherId) {
       query = query.eq('teacher_id', teacherId);
     }
 
-    const { data: book, error } = await query;
+    const { data: book, error } = await query.single();
 
     if (error || !book) {
       return NextResponse.json({ error: 'الكتاب غير موجود' }, { status: 404 });
@@ -147,6 +143,7 @@ export async function GET(request, { params }) {
         file_type_display: book.file_name?.split('.').pop()?.toLowerCase() || 'unknown',
       },
     });
+
   } catch (error) {
     console.error('❌ GET book error:', error);
     return NextResponse.json({ error: 'فشل جلب الكتاب' }, { status: 500 });
