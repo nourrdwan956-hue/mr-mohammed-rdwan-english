@@ -11,8 +11,17 @@ export async function middleware(request) {
     return NextResponse.next();
   }
 
+  // ✅ استثناء مسار لوحة المساعدين من فحص الجلسة (لأنه يستخدم نظام مصادقة مختلف)
+  if (path.startsWith('/dashboard/assistant')) {
+    return NextResponse.next();
+  }
+
   // ✅ إنشاء استجابة مبدئية (سنعدل الكوكيز عليها)
-  let response = NextResponse.next();
+  let response = NextResponse.next({
+    request: {
+      headers: request.headers,
+    },
+  });
 
   // ✅ التحقق من الجلسة مع دعم تحديث الكوكيز
   const supabase = createServerClient(
@@ -20,11 +29,22 @@ export async function middleware(request) {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     {
       cookies: {
-        getAll: () => request.cookies.getAll(),
-        setAll: (cookiesToSet) => {
-          cookiesToSet.forEach(({ name, value, options }) =>
-            response.cookies.set(name, value, options)
-          );
+        get(name) {
+          return request.cookies.get(name)?.value;
+        },
+        set(name, value, options) {
+          response.cookies.set({
+            name,
+            value,
+            ...options,
+          });
+        },
+        remove(name, options) {
+          response.cookies.set({
+            name,
+            value: '',
+            ...options,
+          });
         },
       },
     }
@@ -32,14 +52,13 @@ export async function middleware(request) {
 
   const { data: { session } } = await supabase.auth.getSession();
 
-  // ❌ لو مش مسجل دخول → منع الوصول للمسارات المحمية
+  // ❌ لو مش مسجل دخول → منع الوصول للمسارات المحمية (ما عدا assistant)
   if (!session) {
     if (path.startsWith('/dashboard/') || path.startsWith('/watch/')) {
       const loginUrl = new URL('/login', request.url);
       loginUrl.searchParams.set('redirectedFrom', path);
       return NextResponse.redirect(loginUrl);
     }
-    // لو صفحة تانية (مش محمية) → نسمح
     return response;
   }
 
@@ -62,7 +81,7 @@ export async function middleware(request) {
     return NextResponse.redirect(new URL('/dashboard/assistant', request.url));
   }
 
-  // 4. منع غير المساعد من دخول صفحة المساعد
+  // 4. منع غير المساعد من دخول صفحة المساعد (لكننا استثنيناها أعلاه)
   if (path.startsWith('/dashboard/assistant') && role !== 'assistant') {
     const redirectPath = role === 'teacher' ? '/dashboard/teacher' : '/dashboard/student';
     return NextResponse.redirect(new URL(redirectPath, request.url));
@@ -75,7 +94,6 @@ export async function middleware(request) {
     return NextResponse.redirect(new URL(redirectPath, request.url));
   }
 
-  // ✅ السماح بمرور الطلبات مع تحديث الكوكيز (إن لزم)
   return response;
 }
 
