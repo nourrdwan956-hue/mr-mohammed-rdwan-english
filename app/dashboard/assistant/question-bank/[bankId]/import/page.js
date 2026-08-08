@@ -431,7 +431,7 @@ export default function AssistantImportQuestionsPage() {
       const formData = new FormData();
       formData.append('file', file);
 
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session } } = await sessionStorage.getSession();
       const token = session?.access_token;
 
       if (!token) {
@@ -494,7 +494,7 @@ export default function AssistantImportQuestionsPage() {
     }
     setLoading(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session } } = await sessionStorage.getSession();
       const response = await fetch('/api/extract-questions', {
         method: 'POST',
         headers: {
@@ -567,7 +567,7 @@ export default function AssistantImportQuestionsPage() {
     }
     setSaving(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await sessionStorage.getUser();
       if (!user) throw new Error('يجب تسجيل الدخول');
 
       let questionsToInsert = extractedQuestions.map(q => ({

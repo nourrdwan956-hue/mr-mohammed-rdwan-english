@@ -84,7 +84,7 @@ export default function AssistantAcademicQuestionsPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const { data: { user: u } } = await supabase.auth.getUser();
+      const { data: { user: u } } = await sessionStorage.getUser();
       if (!u) { router.push('/login'); return; }
       setUser(u);
 

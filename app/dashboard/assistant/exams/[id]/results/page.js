@@ -774,7 +774,7 @@ export default function AssistantExamResultsPage() {
   const fetchResults = useCallback(async () => {
     setLoading(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await sessionStorage.getUser();
       if (!user) {
         router.push('/login');
         return;
