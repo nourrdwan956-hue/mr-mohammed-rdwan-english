@@ -3,11 +3,11 @@
 // 🏛️ الصفحة الرئيسية – منصة مستر محمد رضوان (نسخة 3D فاخرة)
 // ================================================================
 // ✅ عرض الكورسات بشكل 3D أفقي عريض (Carousel متطور)
-// ✅ دعم صور الغلاف بمقاس 9:16 مع عرض ممتد
+// ✅ صور الغلاف بمقاس 9:16 مع عرض ممتد وحجم كبير
+// ✅ شريط متحرك ملون حول كل بطاقة كورس بشكل مستمر (Conic Gradient)
+// ✅ تحسين سطوع الصور بشكل كبير
 // ✅ رقم الهاتف الصحيح: 01148553118
-// ✅ تصميم احترافي بلا أي بيانات وهمية
-// ✅ إصلاح اتجاه أزرار السهم (تتناسب مع RTL)
-// ✅ تحسين سطوع ووضوح صور الغلاف
+// ✅ أزرار التنقل تعمل باتجاه صحيح (RTL)
 // ================================================================
 
 'use client';
@@ -19,7 +19,6 @@ import { motion, useScroll, useTransform, AnimatePresence } from 'framer-motion'
 import * as Icons from 'lucide-react';
 import { useTheme } from '@/lib/hooks/useTheme';
 import { supabase } from '@/lib/supabaseClient';
-import WaveBorderCard from '@/components/WaveBorderCard';
 
 // ================================================================
 // 📌 مميزات المنصة
@@ -137,7 +136,7 @@ const SOCIAL_LINKS = [
     color: 'bg-purple-500',
     textColor: 'text-purple-400',
     isPhone: true,
-    phoneNumbers: ['01552191172', '01148553118'], // ✅ الرقم الصحيح (11 رقم)
+    phoneNumbers: ['01552191172', '01148553118'],
   },
 ];
 
@@ -381,7 +380,7 @@ const ScrollToTopButton = ({ show, onClick }) => (
 );
 
 // ================================================================
-// 🃏 بطاقة الكورس – نسخة 3D فاخرة (عرض أفقي عريض)
+// 🃏 بطاقة الكورس – نسخة 3D فاخرة مع شريط متحرك حول الإطار
 // ================================================================
 
 const CourseCard3D = ({ course, teacher, index, isActive }) => {
@@ -410,6 +409,11 @@ const CourseCard3D = ({ course, teacher, index, isActive }) => {
     setIsHovered(false);
   };
 
+  // ألوان الشريط المتحرك (ذهبية مع تدرجات)
+  const borderColors = [
+    '#FFD700', '#FFA500', '#FF8C00', '#FFD700', '#FFC107', '#FFB300', '#FFA000', '#FFD700'
+  ];
+
   return (
     <motion.div
       ref={cardRef}
@@ -423,140 +427,169 @@ const CourseCard3D = ({ course, teacher, index, isActive }) => {
       className="group cursor-pointer perspective-1000"
       style={{ perspective: '1200px' }}
     >
-      <motion.div
-        className={`relative rounded-2xl overflow-hidden transition-all duration-400 ${
-          isDark
-            ? 'bg-white/8 border-white/12'
-            : 'bg-white/85 border-gray-200/50'
-        } border backdrop-blur-sm shadow-lg hover:shadow-2xl`}
-        style={{
-          transform: `rotateX(${rotation.x}deg) rotateY(${rotation.y}deg)`,
-          transformStyle: 'preserve-3d',
-          transition: 'transform 0.1s ease-out',
-          minHeight: '320px',
-          maxHeight: '420px',
-        }}
-        animate={{
-          scale: isHovered ? 1.03 : 1,
-        }}
-        transition={{ duration: 0.25 }}
-      >
-        {/* تأثير إضاءة 3D */}
-        <div
-          className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+      {/* الشريط المتحرك حول الإطار (Conic Gradient) */}
+      <div className="relative p-[3px] rounded-2xl overflow-visible">
+        {/* الشريط الدوار المستمر */}
+        <motion.div
+          className="absolute inset-0 rounded-2xl"
           style={{
-            background: `radial-gradient(circle at ${50 + rotation.y * 2}% ${50 + rotation.x * 2}%, rgba(255,255,255,0.15) 0%, transparent 80%)`,
+            background: `conic-gradient(from var(--angle, 0deg), #FFD700, #FFA500, #FF8C00, #FFD700, #FFC107, #FFB300, #FFA000, #FFD700)`,
+            padding: '3px',
+            WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
+            WebkitMaskComposite: 'xor',
+            maskComposite: 'exclude',
           }}
+          animate={{ rotate: 360 }}
+          transition={{ duration: 10, repeat: Infinity, ease: 'linear' }}
         />
 
-        {/* صورة الغلاف (مقاس 9:16 ولكن معروض بشكل أفقي عريض) */}
-        <div className="relative w-full overflow-hidden" style={{ height: '220px' }}>
-          {course?.cover_image ? (
-            <>
-              <motion.img
-                src={course.cover_image}
-                alt={course.title}
-                className="w-full h-full object-cover"
-                style={{ filter: 'brightness(1.05) contrast(1.05)' }} // تحسين السطوع والتباين
-                animate={{ scale: isHovered ? 1.08 : 1 }}
-                transition={{ duration: 0.6 }}
-              />
-              {/* طبقة شفافة خفيفة لتحسين القراءة */}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
-            </>
-          ) : (
-            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-400/20 to-green-400/20">
-              <Icons.BookOpen className="h-16 w-16 text-gray-400/30" />
-            </div>
-          )}
+        {/* محتوى البطاقة (فوق الشريط) */}
+        <motion.div
+          className={`relative rounded-2xl overflow-hidden transition-all duration-400 ${
+            isDark
+              ? 'bg-white/8 border-white/12'
+              : 'bg-white/85 border-gray-200/50'
+          } border backdrop-blur-sm shadow-lg hover:shadow-2xl`}
+          style={{
+            transform: `rotateX(${rotation.x}deg) rotateY(${rotation.y}deg)`,
+            transformStyle: 'preserve-3d',
+            transition: 'transform 0.1s ease-out',
+            minHeight: '360px',
+            maxHeight: '460px',
+          }}
+          animate={{
+            scale: isHovered ? 1.03 : 1,
+          }}
+          transition={{ duration: 0.25 }}
+        >
+          {/* تأثير إضاءة 3D */}
+          <div
+            className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+            style={{
+              background: `radial-gradient(circle at ${50 + rotation.y * 2}% ${50 + rotation.x * 2}%, rgba(255,255,255,0.15) 0%, transparent 80%)`,
+            }}
+          />
 
-          {/* شارات السعر والحالة */}
-          <div className="absolute top-3 right-3 flex flex-col gap-1.5">
-            <motion.span
-              className={`text-[8px] sm:text-[9px] px-2.5 py-0.5 rounded-full font-bold backdrop-blur border border-white/15 shadow-lg ${
-                course?.is_free
-                  ? 'bg-green-500 text-white'
-                  : 'bg-blue-500 text-white'
-              }`}
-              whileHover={{ scale: 1.05 }}
-            >
-              {course?.is_free ? 'مجاني' : `${course?.price} ج.م`}
-            </motion.span>
-            {course?.is_published && (
-              <span className="text-[8px] sm:text-[9px] px-2.5 py-0.5 rounded-full bg-blue-400/80 text-white font-bold backdrop-blur border border-white/15 shadow-lg">
-                متاح
-              </span>
+          {/* صورة الغلاف – بأعلى وضوح وسطوع */}
+          <div className="relative w-full overflow-hidden" style={{ height: '260px' }}>
+            {course?.cover_image ? (
+              <>
+                <motion.img
+                  src={course.cover_image}
+                  alt={course.title}
+                  className="w-full h-full object-cover object-center"
+                  style={{
+                    filter: 'brightness(1.1) contrast(1.1) saturate(1.05)',
+                    backgroundColor: '#f0f0f0',
+                  }}
+                  animate={{ scale: isHovered ? 1.08 : 1 }}
+                  transition={{ duration: 0.6 }}
+                  loading="lazy"
+                />
+                {/* طبقة شفافة خفيفة جداً لتحسين القراءة */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent" />
+              </>
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-400/20 to-green-400/20">
+                <Icons.BookOpen className="h-16 w-16 text-gray-400/30" />
+              </div>
             )}
-          </div>
 
-          {/* شارات المرحلة والصف */}
-          <div className="absolute bottom-3 right-3 flex gap-1.5">
-            <span className="text-[7px] sm:text-[8px] px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-sm text-white/90 border border-white/10 shadow-lg">
-              {course?.grade_stage === 'primary' ? 'ابتدائي' :
-               course?.grade_stage === 'middle' ? 'إعدادي' :
-               course?.grade_stage === 'secondary' ? 'ثانوي' : 'عام'}
-            </span>
-            {course?.grade_level && (
-              <span className="text-[7px] sm:text-[8px] px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-sm text-white/90 border border-white/10 shadow-lg">
-                صف {course.grade_level}
-              </span>
-            )}
-          </div>
-        </div>
-
-        {/* محتوى البطاقة */}
-        <div className="p-4 flex flex-col flex-1">
-          <div className="flex items-start justify-between gap-2">
-            <div className="flex-1 min-w-0">
-              <h3 className={`text-sm sm:text-base font-bold mb-0.5 line-clamp-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                {course?.title || 'كورس'}
-              </h3>
-              {teacher && (
-                <p className={`text-[9px] sm:text-[10px] ${isDark ? 'text-gray-400' : 'text-gray-500'} flex items-center gap-1`}>
-                  <Icons.User className="h-3 w-3 text-blue-400" />
-                  {teacher.full_name}
-                </p>
+            {/* شارات السعر والحالة */}
+            <div className="absolute top-3 right-3 flex flex-col gap-1.5 z-10">
+              <motion.span
+                className={`text-[8px] sm:text-[9px] px-2.5 py-0.5 rounded-full font-bold backdrop-blur-lg border border-white/15 shadow-lg ${
+                  course?.is_free
+                    ? 'bg-green-500 text-white'
+                    : 'bg-blue-500 text-white'
+                }`}
+                whileHover={{ scale: 1.05 }}
+              >
+                {course?.is_free ? 'مجاني' : `${course?.price} ج.م`}
+              </motion.span>
+              {course?.is_published && (
+                <span className="text-[8px] sm:text-[9px] px-2.5 py-0.5 rounded-full bg-blue-400/80 text-white font-bold backdrop-blur-lg border border-white/15 shadow-lg">
+                  متاح
+                </span>
               )}
             </div>
-            <div className="flex-shrink-0">
-              <span className="text-[10px] sm:text-xs font-extrabold text-yellow-400">
-                {course?.total_lessons || 0} درس
+
+            {/* شارات المرحلة والصف */}
+            <div className="absolute bottom-3 right-3 flex gap-1.5 z-10">
+              <span className="text-[7px] sm:text-[8px] px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-sm text-white/90 border border-white/10 shadow-lg">
+                {course?.grade_stage === 'primary' ? 'ابتدائي' :
+                 course?.grade_stage === 'middle' ? 'إعدادي' :
+                 course?.grade_stage === 'secondary' ? 'ثانوي' : 'عام'}
               </span>
+              {course?.grade_level && (
+                <span className="text-[7px] sm:text-[8px] px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-sm text-white/90 border border-white/10 shadow-lg">
+                  صف {course.grade_level}
+                </span>
+              )}
+            </div>
+
+            {/* أيقونة تشغيل عند Hover */}
+            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10">
+              <div className="p-4 rounded-full bg-black/40 backdrop-blur-md border border-white/20 shadow-2xl">
+                <Icons.Play className="h-8 w-8 text-white" />
+              </div>
             </div>
           </div>
 
-          <p className={`text-[9px] sm:text-[10px] ${isDark ? 'text-gray-400' : 'text-gray-500'} leading-relaxed line-clamp-2 mt-1 flex-1`}>
-            {course?.description || 'لا يوجد وصف'}
-          </p>
-
-          <div className="flex items-center justify-between mt-3 pt-2 border-t border-white/10">
-            <div className="flex items-center gap-2 text-[7px] sm:text-[8px] text-gray-400">
-              <span className="flex items-center gap-0.5">
-                <Icons.Clock className="h-3 w-3" />
-                {course?.subscription_duration_days || 30} يوم
-              </span>
-              <span className="flex items-center gap-0.5">
-                <Icons.Monitor className="h-3 w-3" />
-                {course?.max_devices || 2} جهاز
-              </span>
+          {/* محتوى البطاقة */}
+          <div className="p-4 flex flex-col flex-1">
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex-1 min-w-0">
+                <h3 className={`text-sm sm:text-base font-bold mb-0.5 line-clamp-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  {course?.title || 'كورس'}
+                </h3>
+                {teacher && (
+                  <p className={`text-[9px] sm:text-[10px] ${isDark ? 'text-gray-400' : 'text-gray-500'} flex items-center gap-1`}>
+                    <Icons.User className="h-3 w-3 text-blue-400" />
+                    {teacher.full_name}
+                  </p>
+                )}
+              </div>
+              <div className="flex-shrink-0">
+                <span className="text-[10px] sm:text-xs font-extrabold text-yellow-400 bg-yellow-400/10 px-2 py-0.5 rounded-full">
+                  {course?.total_lessons || 0} درس
+                </span>
+              </div>
             </div>
-            <motion.span
-              className={`text-[8px] sm:text-[9px] font-bold ${isDark ? 'text-blue-400' : 'text-blue-600'} flex items-center gap-0.5`}
-              whileHover={{ x: -3 }}
-              transition={{ duration: 0.2 }}
-            >
-              {course?.is_free ? 'ابدأ مجاناً' : 'اشترك'}
-              <Icons.ArrowLeft className="h-3 w-3" />
-            </motion.span>
+
+            <p className={`text-[9px] sm:text-[10px] ${isDark ? 'text-gray-400' : 'text-gray-500'} leading-relaxed line-clamp-2 mt-1 flex-1`}>
+              {course?.description || 'لا يوجد وصف'}
+            </p>
+
+            <div className="flex items-center justify-between mt-3 pt-2 border-t border-white/10">
+              <div className="flex items-center gap-2 text-[7px] sm:text-[8px] text-gray-400">
+                <span className="flex items-center gap-0.5">
+                  <Icons.Clock className="h-3 w-3" />
+                  {course?.subscription_duration_days || 30} يوم
+                </span>
+                <span className="flex items-center gap-0.5">
+                  <Icons.Monitor className="h-3 w-3" />
+                  {course?.max_devices || 2} جهاز
+                </span>
+              </div>
+              <motion.span
+                className={`text-[8px] sm:text-[9px] font-bold ${isDark ? 'text-blue-400' : 'text-blue-600'} flex items-center gap-0.5`}
+                whileHover={{ x: -3 }}
+                transition={{ duration: 0.2 }}
+              >
+                {course?.is_free ? 'ابدأ مجاناً' : 'اشترك'}
+                <Icons.ArrowLeft className="h-3 w-3" />
+              </motion.span>
+            </div>
           </div>
-        </div>
-      </motion.div>
+        </motion.div>
+      </div>
     </motion.div>
   );
 };
 
 // ================================================================
-// 🎠 عرض الكورسات – Carousel أفقي 3D (مع إصلاح اتجاه الأزرار)
+// 🎠 عرض الكورسات – Carousel أفقي 3D
 // ================================================================
 
 const CoursesCarousel3D = ({ courses, teachers, isDark, loading }) => {
@@ -565,6 +598,19 @@ const CoursesCarousel3D = ({ courses, teachers, isDark, loading }) => {
   const [startX, setStartX] = useState(0);
   const [scrollLeft, setScrollLeft] = useState(0);
   const containerRef = useRef(null);
+  const [cardWidth, setCardWidth] = useState(340);
+
+  useEffect(() => {
+    const updateWidth = () => {
+      const w = window.innerWidth;
+      if (w < 640) setCardWidth(280);
+      else if (w < 1024) setCardWidth(320);
+      else setCardWidth(360);
+    };
+    updateWidth();
+    window.addEventListener('resize', updateWidth);
+    return () => window.removeEventListener('resize', updateWidth);
+  }, []);
 
   if (loading) {
     return (
@@ -589,23 +635,17 @@ const CoursesCarousel3D = ({ courses, teachers, isDark, loading }) => {
     );
   }
 
-  // تقسيم الكورسات إلى مجموعات لعرضها في صفوف
   const visibleCourses = courses.slice(0, 8);
 
-  // دوال التمرير مع اتجاهات صحيحة لـ RTL
   const scrollForward = () => {
     if (containerRef.current) {
-      const container = containerRef.current;
-      // في RTL، التمرير للأمام يعني تحريك المحتوى إلى اليسار (زيادة scrollLeft)
-      container.scrollBy({ left: 300, behavior: 'smooth' });
+      containerRef.current.scrollBy({ left: cardWidth + 20, behavior: 'smooth' });
     }
   };
 
   const scrollBackward = () => {
     if (containerRef.current) {
-      const container = containerRef.current;
-      // في RTL، التمرير للخلف يعني تحريك المحتوى إلى اليمين (نقصان scrollLeft)
-      container.scrollBy({ left: -300, behavior: 'smooth' });
+      containerRef.current.scrollBy({ left: -(cardWidth + 20), behavior: 'smooth' });
     }
   };
 
@@ -613,7 +653,7 @@ const CoursesCarousel3D = ({ courses, teachers, isDark, loading }) => {
     <div className="relative w-full overflow-hidden">
       <div
         ref={containerRef}
-        className="flex gap-5 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-hide"
+        className="flex gap-5 overflow-x-auto pb-6 snap-x snap-mandatory scrollbar-hide"
         style={{
           scrollbarWidth: 'none',
           msOverflowStyle: 'none',
@@ -637,7 +677,7 @@ const CoursesCarousel3D = ({ courses, teachers, isDark, loading }) => {
           <div
             key={course.id}
             className="snap-center flex-shrink-0"
-            style={{ width: 'clamp(280px, 30vw, 380px)' }}
+            style={{ width: 'clamp(280px, 32vw, 400px)' }}
           >
             <CourseCard3D
               course={course}
@@ -649,21 +689,19 @@ const CoursesCarousel3D = ({ courses, teachers, isDark, loading }) => {
         ))}
       </div>
 
-      {/* أزرار التنقل (مع اتجاهات صحيحة) */}
+      {/* أزرار التنقل */}
       {visibleCourses.length > 3 && (
-        <div className="flex justify-center gap-3 mt-4">
-          {/* السهم الأيمن (في RTL يعني التمرير للخلف، أي عرض الكورسات السابقة) */}
+        <div className="flex justify-center gap-3 mt-6">
           <button
             onClick={scrollBackward}
-            className={`p-2 rounded-full ${isDark ? 'bg-white/10 hover:bg-white/20' : 'bg-gray-200 hover:bg-gray-300'} transition`}
+            className={`p-2.5 rounded-full ${isDark ? 'bg-white/15 hover:bg-white/25' : 'bg-gray-200 hover:bg-gray-300'} transition shadow-lg hover:shadow-xl`}
             aria-label="السابق"
           >
             <Icons.ChevronRight className="h-5 w-5" />
           </button>
-          {/* السهم الأيسر (في RTL يعني التمرير للأمام، أي عرض الكورسات التالية) */}
           <button
             onClick={scrollForward}
-            className={`p-2 rounded-full ${isDark ? 'bg-white/10 hover:bg-white/20' : 'bg-gray-200 hover:bg-gray-300'} transition`}
+            className={`p-2.5 rounded-full ${isDark ? 'bg-white/15 hover:bg-white/25' : 'bg-gray-200 hover:bg-gray-300'} transition shadow-lg hover:shadow-xl`}
             aria-label="التالي"
           >
             <Icons.ChevronLeft className="h-5 w-5" />
@@ -671,7 +709,6 @@ const CoursesCarousel3D = ({ courses, teachers, isDark, loading }) => {
         </div>
       )}
 
-      {/* رابط عرض كل الكورسات */}
       <div className="text-center mt-4">
         <Link
           href="/dashboard/student/courses"
@@ -755,7 +792,7 @@ const FeatureCard = ({ feature, index }) => {
 };
 
 // ================================================================
-// 🃏 بطاقة التواصل (مع تصحيح الرقم)
+// 🃏 بطاقة التواصل
 // ================================================================
 
 const SocialCard = ({ link, index }) => {
@@ -932,7 +969,6 @@ const HeroSection = ({ isDark }) => {
             </motion.a>
           </motion.div>
 
-          {/* العرض الترويجي */}
           <motion.div
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
@@ -1002,7 +1038,7 @@ const HeroSection = ({ isDark }) => {
 const CoursesSection = ({ isDark, courses, teachers, loading }) => {
   return (
     <section id="courses" className={`py-6 sm:py-8 px-3 sm:px-4 ${isDark ? 'bg-[#0a0e1a]' : 'bg-white'}`}>
-      <div className="container mx-auto max-w-6xl">
+      <div className="container mx-auto max-w-7xl">
         <motion.div
           initial={{ opacity: 0 }}
           whileInView={{ opacity: 1 }}
@@ -1103,7 +1139,6 @@ const ContactSection = ({ isDark }) => {
           ))}
         </div>
 
-        {/* حديث شريف */}
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -1313,7 +1348,6 @@ export default function Home() {
         style={{ scaleX: scrollProgress }}
       />
 
-      {/* ===== الهيدر ===== */}
       <header className={`fixed top-0 left-0 right-0 z-40 transition-all duration-400 ${headerBg}`}>
         <div className="container mx-auto px-3 sm:px-4 py-1.5 sm:py-2 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-1.5 sm:gap-2 group">
@@ -1384,7 +1418,6 @@ export default function Home() {
         </div>
       </header>
 
-      {/* ===== المحتوى الرئيسي ===== */}
       <HeroSection isDark={isDark} />
       <CoursesSection isDark={isDark} courses={courses} teachers={teachers} loading={loading} />
       <FeaturesSection isDark={isDark} />
