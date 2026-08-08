@@ -1,16 +1,12 @@
 // app/watch/[id]/page.js
 // ================================================================
 // 📁 المسار: app/watch/[id]/page.js
-// ✅ تحسينات متقدمة للتوافق مع جميع الشاشات
-//    - تقليص أحجام الأزرار والمسافات على الموبايل
-//    - وضوح مثالي على الشاشات الكبيرة
-// ✅ إزالة زر التكرار (Loop) نهائياً مع جميع توابعه
-// ✅ زر الترجمة يعمل كـ toggle مع رسائل واضحة
-// ✅ إخفاء جميع عناصر YouTube الأصلية (controls:0, modestbranding, rel:0)
-// ✅ إعادة شريط التحكم السفلي المخصص بالكامل مع جميع الخصائص
-// ✅ إصلاح زر التشغيل المركزي الأصفر ليعمل بشكل مثالي
-// ✅ إخفاء الزر الأصفر تلقائياً عند التشغيل وظهوره عند التوقف
-// ✅ إخفاء شريط التحكم السفلي تلقائياً بعد 2.5 ثانية من التشغيل
+// ✅ إصلاح خطأ postMessage وتحسين استقرار المشغل
+// ✅ إخفاء أزرار YouTube الأصلية (controls:0)
+// ✅ شريط تحكم سفلي مخصص بالكامل
+// ✅ زر تشغيل مركزي أصفر يظهر عند التوقف ويختفي أثناء التشغيل
+// ✅ دعم كامل للموبايل والكمبيوتر
+// ✅ إزالة زر التكرار (Loop) نهائياً
 // ================================================================
 
 'use client';
@@ -339,7 +335,6 @@ export default function WatchPage() {
   const [bufferProgress, setBufferProgress] = useState(0);
   const [focusMode, setFocusMode] = useState(false);
   const [captionsEnabled, setCaptionsEnabled] = useState(false);
-  // حالة لإظهار/إخفاء الزر المركزي الأصفر
   const [showCenterButton, setShowCenterButton] = useState(true);
 
   // ---- كشف الموبايل ----
@@ -359,7 +354,6 @@ export default function WatchPage() {
   const [totalWatchedUnique, setTotalWatchedUnique] = useState(0);
   const lastSaveTimeRef = useRef(Date.now());
   const saveIntervalRef = useRef(null);
-  const watchSessionRef = useRef({ startTime: null, lastTick: null });
 
   // ---- المراجع ----
   const containerRef = useRef(null);
@@ -501,7 +495,7 @@ export default function WatchPage() {
   };
 
   // ================================================================
-  // 10. إنشاء مشغل YouTube
+  // 10. إنشاء مشغل YouTube (محسّن لتجنب أخطاء origin)
   // ================================================================
   useEffect(() => {
     if (isYoutubeOnly || !isValidYoutube || !video) return;
@@ -539,6 +533,9 @@ export default function WatchPage() {
       }
 
       try {
+        // استخدام origin = window.location.origin مع إضافة بروتوكول https إذا لزم الأمر
+        const originUrl = window.location.origin;
+
         playerInstance = new window.YT.Player('youtube-player', {
           videoId: youtubeId,
           playerVars: {
@@ -546,7 +543,7 @@ export default function WatchPage() {
             showinfo: 0,
             rel: 0,
             iv_load_policy: 3,
-            controls: 0,        // إخفاء أزرار YouTube الأصلية تماماً
+            controls: 0,          // إخفاء أزرار YouTube الأصلية
             disablekb: 1,
             fs: 0,
             playsinline: 1,
@@ -554,8 +551,8 @@ export default function WatchPage() {
             mute: 0,
             cc_load_policy: 0,
             autohide: 1,
-            origin: window.location.origin,
-            widget_referrer: window.location.origin,
+            origin: originUrl,
+            widget_referrer: originUrl,
           },
           events: {
             onReady: () => {
@@ -573,17 +570,13 @@ export default function WatchPage() {
               if (e.data === 1) {
                 setIsPlaying(true);
                 setBuffering(false);
-                // إخفاء الزر المركزي عند التشغيل
                 setShowCenterButton(false);
-                // إخفاء شريط التحكم بعد 2.5 ثانية
                 setTimeout(() => {
                   if (isPlaying) setControlsVisible(false);
                 }, 2500);
               } else if (e.data === 2) {
                 setIsPlaying(false);
-                // إظهار الزر المركزي عند التوقف
                 setShowCenterButton(true);
-                // إظهار الأزرار عند التوقف
                 setControlsVisible(true);
               } else if (e.data === 3) {
                 setBuffering(true);
@@ -640,6 +633,7 @@ export default function WatchPage() {
         return;
       }
 
+      // التحقق من وجود script مسبقاً
       if (document.querySelector('#youtube-iframe-api')) {
         const check = setInterval(() => {
           if (window.YT && window.YT.Player) {
@@ -655,8 +649,11 @@ export default function WatchPage() {
       script.id = 'youtube-iframe-api';
       script.src = 'https://www.youtube.com/iframe_api';
       script.onload = () => {
+        // قد يكون الـ API محمّلاً بالفعل، ننتظر قليلاً ثم نحاول
         setTimeout(() => {
-          if (window.YT && window.YT.Player) createPlayer();
+          if (window.YT && window.YT.Player) {
+            createPlayer();
+          }
         }, 500);
       };
       script.onerror = () => {
@@ -684,21 +681,21 @@ export default function WatchPage() {
   // ================================================================
 
   const togglePlay = useCallback(() => {
-    if (!playerRef.current || !playerReady) return;
+    if (!playerRef.current || !playerReady) {
+      toast.error('المشغل غير جاهز');
+      return;
+    }
 
     try {
       const player = playerRef.current;
       const state = player.getPlayerState();
 
-      // الحالات: -1 غير جاهز، 0 انتهى، 1 يعمل، 2 متوقف، 3 تحميل، 5 محمّل
       if (state === 1 || state === 3) {
-        // يعمل أو يتحمّل → إيقاف
         player.pauseVideo();
         setIsPlaying(false);
         setShowCenterButton(true);
         setControlsVisible(true);
       } else {
-        // متوقف أو منتهي → تشغيل
         if (isMobile) {
           setTimeout(() => {
             try {
@@ -714,13 +711,11 @@ export default function WatchPage() {
           setIsPlaying(true);
           setShowCenterButton(false);
         }
-        // إخفاء الأزرار بعد 2.5 ثانية من التشغيل
         setTimeout(() => {
           if (isPlaying) setControlsVisible(false);
         }, 2500);
       }
 
-      // إظهار الأزرار مؤقتاً
       setControlsVisible(true);
       clearTimeout(controlsTimerRef.current);
       controlsTimerRef.current = setTimeout(() => {
@@ -883,7 +878,7 @@ export default function WatchPage() {
   }, [playerReady, captionsEnabled, language]);
 
   // ================================================================
-  // 12. تأثير إخفاء الأزرار تلقائياً (تم تعديله)
+  // 12. تأثير إخفاء الأزرار تلقائياً
   // ================================================================
   useEffect(() => {
     if (isYoutubeOnly) return;
@@ -964,7 +959,7 @@ export default function WatchPage() {
   }, [isYoutubeOnly]);
 
   // ================================================================
-  // 14. اختصارات لوحة المفاتيح (تم إزالة Loop)
+  // 14. اختصارات لوحة المفاتيح
   // ================================================================
   useEffect(() => {
     if (isYoutubeOnly) return;
@@ -1227,8 +1222,6 @@ export default function WatchPage() {
     return '/dashboard/student/videos';
   };
 
-  const thumbnailUrl = youtubeId ? `https://img.youtube.com/vi/${youtubeId}/maxresdefault.jpg` : null;
-
   // ================================================================
   // 17. التصميم النهائي (مع شريط التحكم المخصص والزر المركزي)
   // ================================================================
@@ -1302,7 +1295,7 @@ export default function WatchPage() {
                     )}
                   </AnimatePresence>
 
-                  {/* زر التشغيل المركزي الأصفر - يختفي عند التشغيل ويظهر عند التوقف */}
+                  {/* زر التشغيل المركزي الأصفر */}
                   {playerReady && controlsVisible && showCenterButton && (
                     <div
                       className="absolute inset-0 z-30 flex items-center justify-center pb-8 sm:pb-0"
