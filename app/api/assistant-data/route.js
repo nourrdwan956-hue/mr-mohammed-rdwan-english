@@ -35,7 +35,7 @@ export async function GET(request) {
     // 2. تهيئة عميل Supabase باستخدام Service Role
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     // استخدام fallback لضمان وجود المفتاح
-    const supabaseSecretKey = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const supabaseSecretKey = process.env.SUPABASE_SERVICE_ROLE_KEY|| process.env.SUPABASE_SERVICE_ROLE_KEY;
 
     if (!supabaseUrl || !supabaseSecretKey) {
       console.error('❌ [assistant-data] مفاتيح Supabase غير مكتملة');
