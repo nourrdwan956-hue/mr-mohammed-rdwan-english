@@ -7,6 +7,7 @@
 // ✅ إزالة زر التكرار (Loop) نهائياً مع جميع توابعه
 // ✅ زر الترجمة يعمل كـ toggle مع رسائل واضحة
 // ✅ جميع الميزات السابقة محفوظة (تتبع ذكي، حماية، Wave Border، إلخ)
+// ✅ تحسينات إضافية: دالة togglePlay محسّنة للموبايل، إضافة isMobile، منع انتشار الأحداث
 // ================================================================
 
 'use client';
@@ -337,6 +338,18 @@ export default function WatchPage() {
   // حالة الترجمة: تتبع ما إذا كانت الترجمة مفعلة أم لا
   const [captionsEnabled, setCaptionsEnabled] = useState(false);
 
+  // ---- كشف الموبايل (جديد) ----
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
   // ===== نظام التتبع الذكي =====
   const [watchIntervals, setWatchIntervals] = useState([]);
   const [totalWatchedUnique, setTotalWatchedUnique] = useState(0);
@@ -653,24 +666,63 @@ export default function WatchPage() {
   }, [isYoutubeOnly, isValidYoutube, youtubeId, video, id, showIntro, playerReady]);
 
   // ================================================================
-  // 11. دوال التحكم
+  // 11. دوال التحكم (محسّنة للموبايل)
   // ================================================================
+
+  // ✅ دالة محسّنة لتشغيل/إيقاف الفيديو مع دعم الموبايل
   const togglePlay = useCallback(() => {
     if (!playerRef.current || !playerReady) return;
+
     try {
-      if (isPlaying) {
-        playerRef.current.pauseVideo();
+      const player = playerRef.current;
+      // الحصول على الحالة الفعلية من YouTube API
+      const state = player.getPlayerState();
+
+      // الحالات الممكنة:
+      // -1 = غير جاهز
+      // 0 = انتهى (ended)
+      // 1 = يعمل (playing)
+      // 2 = متوقف مؤقت (paused)
+      // 3 = تحميل (buffering)
+      // 5 = فيديو تم تحميله (cued)
+
+      if (state === 1 || state === 3) {
+        // ✅ الفيديو يعمل أو يتحمّل → نوقفه
+        player.pauseVideo();
+        setIsPlaying(false);
       } else {
-        playerRef.current.playVideo();
+        // ✅ الفيديو متوقف أو منتهي → نشغله
+        // للموبايل: نضيف تأخير بسيط لتجنب مشاكل التشغيل التلقائي
+        if (isMobile) {
+          // على الموبايل، نستخدم setTimeout لتأخير التشغيل قليلاً
+          setTimeout(() => {
+            try {
+              player.playVideo();
+              setIsPlaying(true);
+            } catch (e) {
+              console.warn('Play error on mobile:', e);
+            }
+          }, 100);
+        } else {
+          player.playVideo();
+          setIsPlaying(true);
+        }
       }
+
+      // إظهار الأزرار مؤقتاً
       setControlsVisible(true);
       clearTimeout(controlsTimerRef.current);
       controlsTimerRef.current = setTimeout(() => {
         if (isPlaying) setControlsVisible(false);
       }, 2500);
-    } catch (e) {}
-  }, [playerReady, isPlaying]);
 
+    } catch (error) {
+      console.error('TogglePlay error:', error);
+      toast.error('تعذر تشغيل الفيديو');
+    }
+  }, [playerReady, isPlaying, isMobile]);
+
+  // ✅ دالة السريع للأمام (تبقى كما هي)
   const skipForward = useCallback(() => {
     if (!playerRef.current || !playerReady) return;
     try {
@@ -683,9 +735,12 @@ export default function WatchPage() {
       controlsTimerRef.current = setTimeout(() => {
         if (isPlaying) setControlsVisible(false);
       }, 2500);
-    } catch (e) {}
+    } catch (e) {
+      console.warn('Skip forward error:', e);
+    }
   }, [playerReady, isPlaying]);
 
+  // ✅ دالة السريع للخلف (تبقى كما هي)
   const skipBackward = useCallback(() => {
     if (!playerRef.current || !playerReady) return;
     try {
@@ -697,7 +752,9 @@ export default function WatchPage() {
       controlsTimerRef.current = setTimeout(() => {
         if (isPlaying) setControlsVisible(false);
       }, 2500);
-    } catch (e) {}
+    } catch (e) {
+      console.warn('Skip backward error:', e);
+    }
   }, [playerReady, isPlaying]);
 
   const toggleMute = useCallback(() => {
@@ -1237,11 +1294,14 @@ export default function WatchPage() {
                     )}
                   </AnimatePresence>
 
-                  {/* زر التشغيل المركزي - حجم متجاوب مع شاشات صغيرة وكبيرة */}
+                  {/* زر التشغيل المركزي - محسّن للموبايل مع منع انتشار الحدث */}
                   {playerReady && controlsVisible && (
                     <div
-                      className="absolute inset-0 z-30 flex items-center justify-center cursor-pointer pb-8 sm:pb-0"
-                      onClick={togglePlay}
+                      className="absolute inset-0 z-30 flex items-center justify-center pb-8 sm:pb-0"
+                      onClick={(e) => {
+                        e.stopPropagation(); // ✅ منع انتشار الحدث
+                        togglePlay();
+                      }}
                     >
                       <motion.div
                         initial={{ scale: 0.8, opacity: 0.8 }}
@@ -1249,6 +1309,7 @@ export default function WatchPage() {
                         whileHover={{ scale: 1.1 }}
                         whileTap={{ scale: 0.95 }}
                         className="relative"
+                        onClick={(e) => e.stopPropagation()} // ✅ منع انتشار الحدث مرة أخرى
                       >
                         <div className="absolute inset-0 bg-yellow-400/20 rounded-full blur-xl scale-150 group-hover:scale-200 transition-transform duration-300" />
                         <div className="relative w-14 h-14 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-full bg-yellow-400/90 flex items-center justify-center shadow-2xl shadow-yellow-400/40 group-hover:shadow-yellow-400/60 transition-shadow">
@@ -1314,7 +1375,13 @@ export default function WatchPage() {
 
                       {/* صف الأزرار - مرن ومناسب لكل الأحجام */}
                       <div className="flex items-center gap-0.5 sm:gap-2 text-white flex-wrap">
-                        <button onClick={togglePlay} className="p-1 sm:p-1.5 rounded-full hover:bg-white/10 transition-colors">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation(); // ✅ منع انتشار الحدث
+                            togglePlay();
+                          }}
+                          className="p-1 sm:p-1.5 rounded-full hover:bg-white/10 transition-colors"
+                        >
                           {isPlaying ? <Icons.Pause className="h-4 w-4 sm:h-6 sm:w-6" /> : <Icons.Play className="h-4 w-4 sm:h-6 sm:w-6" />}
                         </button>
                         <button onClick={skipBackward} className="p-1 sm:p-1.5 rounded-full hover:bg-white/10 transition-colors">
