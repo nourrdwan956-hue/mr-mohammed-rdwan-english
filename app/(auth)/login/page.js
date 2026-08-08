@@ -50,9 +50,6 @@ function LoginContent() {
     }
   }, [redirectedFrom]);
 
-  // ============================================================
-  // ✅ دالة handleSubmit المحدَّثة
-  // ============================================================
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -84,11 +81,8 @@ function LoginContent() {
       }
 
       if (data?.user) {
-        // ✅ استخدم replace بدلاً من push عشان من رجعش للخلف
         const role = data.user.user_metadata?.role || 'student';
         const redirectPath = role === 'teacher' ? '/dashboard/teacher' : '/dashboard/student';
-        
-        // ✅ تأخير بسيط عشان الجلسة تثبت
         setTimeout(() => {
           window.location.href = redirectPath;
         }, 500);
@@ -103,7 +97,6 @@ function LoginContent() {
     }
   };
 
-  // بيانات حقيقية للمزايا (بدون أرقام)
   const features = [
     {
       icon: Icons.Video,
@@ -153,7 +146,16 @@ function LoginContent() {
           transition={{ duration: 0.5, delay: 0.2 }}
           className="flex items-center justify-center p-4 md:p-8 order-2 md:order-1"
         >
-          <div className="w-full max-w-md bg-white/5 backdrop-blur-2xl border border-white/10 rounded-3xl shadow-2xl shadow-yellow-400/5 p-8">
+          <div className="w-full max-w-md bg-white/5 backdrop-blur-2xl border border-white/10 rounded-3xl shadow-2xl shadow-yellow-400/5 p-8 relative">
+            {/* ✅ زر العودة للصفحة الرئيسية – في الزاوية العلوية اليمنى */}
+            <Link
+              href="/"
+              className="absolute top-4 right-4 md:top-6 md:right-6 flex items-center gap-2 px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/10 transition-all duration-300 group text-sm text-gray-300 hover:text-white"
+            >
+              <Icons.ArrowRight className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />
+              <span className="hidden sm:inline">الرئيسية</span>
+            </Link>
+
             {/* شعار المنصة */}
             <motion.div
               initial={{ scale: 0 }}
@@ -408,7 +410,7 @@ function LoginContent() {
               ))}
             </div>
 
-            {/* ✅ الذكر الدوار – كبير وبارز أعلى الاقتباس */}
+            {/* الذكر الدوار */}
             <div className="mb-4">
               <AnimatePresence mode="wait">
                 <motion.p
@@ -448,7 +450,6 @@ function LoginContent() {
               </div>
             ))}
           </div>
-          {/* ذكر دوار للجوال */}
           <div className="mb-4">
             <AnimatePresence mode="wait">
               <motion.p
