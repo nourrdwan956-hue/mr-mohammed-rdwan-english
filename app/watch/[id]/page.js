@@ -1,11 +1,9 @@
-// app/watch/[id]/page.js
 // ================================================================
 // 📁 المسار: app/watch/[id]/page.js
-// ✅ إصلاح نهائي: منع الوصول إلى أي عنصر من عناصر YouTube (العنوان، القناة، الأزرار)
-// ✅ استخدام طبقة شفافة (overlay) مع pointer-events: auto لمنع التفاعل مع iframe
-// ✅ الحفاظ على جميع عناصر التحكم المخصصة (الزر المركزي، شريط التقدم، الأزرار السفلية)
-// ✅ دعم كامل للموبايل والكمبيوتر
-// ✅ إزالة جميع عناصر YouTube نهائياً
+// ✅ إصلاح نهائي: سلوك YouTube بالضبط (الزر المركزي + الشريط السفلي)
+// ✅ عند التشغيل → كل شيء يختفي بعد 2.5 ثانية
+// ✅ عند الإيقاف → الزر المركزي يظهر فوراً والأزرار تبقى ظاهرة
+// ✅ عند التفاعل (ماوس/لمس) → تظهر الأزرار، ثم تختفي بعد 2.5 ثانية لو الفيديو شغال
 // ================================================================
 
 'use client';
@@ -267,7 +265,7 @@ const InteractiveTimer = ({ currentTime, duration, progress }) => {
 };
 
 // ================================================================
-// 6. دالة مساعدة لتوليد لون متدرج حسب النسبة المئوية (استخدام خلفية فقط)
+// 6. دالة مساعدة لتوليد لون متدرج حسب النسبة المئوية
 // ================================================================
 const getGradientColor = (percent) => {
   if (percent <= 0.33) {
@@ -567,6 +565,7 @@ export default function WatchPage() {
             },
             onStateChange: (e) => {
               if (e.data === 1) {
+                // ▶️ تشغيل
                 setIsPlaying(true);
                 isPlayingRef.current = true;
                 setBuffering(false);
@@ -578,6 +577,8 @@ export default function WatchPage() {
                   }
                 }, 2500);
               } else if (e.data === 2) {
+                // ⏸️ إيقاف مؤقت
+                clearTimeout(controlsTimerRef.current); // مهم جداً
                 setIsPlaying(false);
                 isPlayingRef.current = false;
                 setShowCenterButton(true);
@@ -585,6 +586,8 @@ export default function WatchPage() {
               } else if (e.data === 3) {
                 setBuffering(true);
               } else if (e.data === 0) {
+                // 🏁 انتهى الفيديو
+                clearTimeout(controlsTimerRef.current);
                 setIsPlaying(false);
                 isPlayingRef.current = false;
                 setBuffering(false);
@@ -681,7 +684,7 @@ export default function WatchPage() {
   }, [isYoutubeOnly, isValidYoutube, youtubeId, video, id, showIntro, playerReady]);
 
   // ================================================================
-  // 11. دوال التحكم
+  // 11. دوال التحكم (المعدلة لحل مشكلة الزر المركزي)
   // ================================================================
 
   const togglePlay = useCallback(() => {
@@ -694,46 +697,40 @@ export default function WatchPage() {
       const player = playerRef.current;
       const state = player.getPlayerState();
 
+      // ✅ نمسح أي تايمر قديم أولاً
+      clearTimeout(controlsTimerRef.current);
+
       if (state === 1 || state === 3) {
+        // 🟡 إيقاف الفيديو
         player.pauseVideo();
         setIsPlaying(false);
         isPlayingRef.current = false;
-        setShowCenterButton(true);
-        setControlsVisible(true);
+        setShowCenterButton(true);   // ⭐ نظهر الزر المركزي
+        setControlsVisible(true);    // ⭐ نظهر الأزرار كلها
+        // منحطش تايمر عشان الأزرار تفضل ظاهرة (الفيديو واقف)
       } else {
-        if (isMobile) {
-          setTimeout(() => {
-            try {
-              player.playVideo();
-              setIsPlaying(true);
-              isPlayingRef.current = true;
-              setShowCenterButton(false);
-            } catch (e) {
-              console.warn('Play error on mobile:', e);
-            }
-          }, 100);
-        } else {
+        // ▶️ تشغيل الفيديو
+        const doPlay = () => {
           player.playVideo();
           setIsPlaying(true);
           isPlayingRef.current = true;
-          setShowCenterButton(false);
+          setShowCenterButton(false); // نخفي الزر المركزي
+          setControlsVisible(true);    // نضهر الأزرار
+
+          // بعد 2.5 ثانية نخفي الأزرار لو الفيديو لسه شغال
+          controlsTimerRef.current = setTimeout(() => {
+            if (isPlayingRef.current) {
+              setControlsVisible(false);
+            }
+          }, 2500);
+        };
+
+        if (isMobile) {
+          setTimeout(doPlay, 100);
+        } else {
+          doPlay();
         }
-        clearTimeout(controlsTimerRef.current);
-        controlsTimerRef.current = setTimeout(() => {
-          if (isPlayingRef.current) {
-            setControlsVisible(false);
-          }
-        }, 2500);
       }
-
-      setControlsVisible(true);
-      clearTimeout(controlsTimerRef.current);
-      controlsTimerRef.current = setTimeout(() => {
-        if (isPlayingRef.current) {
-          setControlsVisible(false);
-        }
-      }, 2500);
-
     } catch (error) {
       console.error('TogglePlay error:', error);
       toast.error('تعذر تشغيل الفيديو');
@@ -750,9 +747,11 @@ export default function WatchPage() {
       player.seekTo(newTime, true);
       setControlsVisible(true);
       clearTimeout(controlsTimerRef.current);
-      controlsTimerRef.current = setTimeout(() => {
-        if (isPlayingRef.current) setControlsVisible(false);
-      }, 2500);
+      if (isPlayingRef.current) {
+        controlsTimerRef.current = setTimeout(() => {
+          if (isPlayingRef.current) setControlsVisible(false);
+        }, 2500);
+      }
     } catch (e) {
       console.warn('Skip forward error:', e);
     }
@@ -767,9 +766,11 @@ export default function WatchPage() {
       player.seekTo(newTime, true);
       setControlsVisible(true);
       clearTimeout(controlsTimerRef.current);
-      controlsTimerRef.current = setTimeout(() => {
-        if (isPlayingRef.current) setControlsVisible(false);
-      }, 2500);
+      if (isPlayingRef.current) {
+        controlsTimerRef.current = setTimeout(() => {
+          if (isPlayingRef.current) setControlsVisible(false);
+        }, 2500);
+      }
     } catch (e) {
       console.warn('Skip backward error:', e);
     }
@@ -815,9 +816,11 @@ export default function WatchPage() {
         setCurrentTime(target);
         setControlsVisible(true);
         clearTimeout(controlsTimerRef.current);
-        controlsTimerRef.current = setTimeout(() => {
-          if (isPlayingRef.current) setControlsVisible(false);
-        }, 2500);
+        if (isPlayingRef.current) {
+          controlsTimerRef.current = setTimeout(() => {
+            if (isPlayingRef.current) setControlsVisible(false);
+          }, 2500);
+        }
       }
     } catch (e) {}
   }, [playerReady]);
@@ -894,10 +897,11 @@ export default function WatchPage() {
   }, [playerReady, captionsEnabled, language]);
 
   // ================================================================
-  // 12. تأثير إخفاء الأزرار تلقائياً
+  // 12. تأثير إخفاء الأزرار تلقائياً (مع دعم الموبايل)
   // ================================================================
   useEffect(() => {
     if (isYoutubeOnly) return;
+
     const handleMouseMove = () => {
       setControlsVisible(true);
       clearTimeout(controlsTimerRef.current);
@@ -1298,7 +1302,7 @@ export default function WatchPage() {
                   {/* مشغل YouTube (في الخلفية) */}
                   <div id="youtube-player" className="w-full h-full absolute inset-0 z-0" />
                   
-                  {/* ✅ طبقة شفافة قوية تمنع أي تفاعل مع iframe (العنوان، القناة، الأزرار) */}
+                  {/* ✅ طبقة شفافة قوية تمنع أي تفاعل مع iframe */}
                   <div 
                     className="absolute inset-0 z-5" 
                     style={{ 
@@ -1338,7 +1342,7 @@ export default function WatchPage() {
                     )}
                   </AnimatePresence>
 
-                  {/* زر التشغيل المركزي الأصفر */}
+                  {/* زر التشغيل المركزي الأصفر - يظهر حسب الحالة */}
                   {playerReady && controlsVisible && showCenterButton && (
                     <div
                       className="absolute inset-0 z-30 flex items-center justify-center pb-8 sm:pb-0"
@@ -1359,7 +1363,7 @@ export default function WatchPage() {
                     </div>
                   )}
 
-                  {/* أزرار التخطي الجانبية */}
+                  {/* أزرار التخطي الجانبية (تظهر فقط عند تشغيل الفيديو وتكون الأزرار ظاهرة) */}
                   <AnimatePresence>
                     {isPlaying && controlsVisible && playerReady && (
                       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 z-30 pointer-events-none">
