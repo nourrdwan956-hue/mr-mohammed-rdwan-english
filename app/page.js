@@ -5,8 +5,8 @@
 // ✅ عرض الكورسات بشكل 3D أفقي عريض (Carousel)
 // ✅ صور الغلاف بأعلى وضوح وسطوع
 // ✅ شريط متحرك رفيع يدور حول كل بطاقة كورس
+// ✅ عرض إحصائيات الكورس (فيديوهات، امتحانات، كتب) بأيقونات وأعداد حقيقية
 // ✅ جميع البطاقات بنفس الحجم مع تكبير عند Hover
-// ✅ عرض عدد الدروس = عدد الفيديوهات في كل كورس (حقيقي من قاعدة البيانات)
 // ✅ رقم الهاتف الصحيح: 01148553118
 // ================================================================
 
@@ -380,7 +380,7 @@ const ScrollToTopButton = ({ show, onClick }) => (
 );
 
 // ================================================================
-// 🃏 بطاقة الكورس – نسخة 3D فاخرة مع شريط متحرك رفيع حول الإطار
+// 🃏 بطاقة الكورس – نسخة 3D فاخرة مع شريط متحرك رفيع وإحصائيات حقيقية
 // ================================================================
 
 const CourseCard3D = ({ course, teacher, index, isActive }) => {
@@ -408,6 +408,15 @@ const CourseCard3D = ({ course, teacher, index, isActive }) => {
     setRotation({ x: 0, y: 0 });
     setIsHovered(false);
   };
+
+  // إحصائيات الكورس (الأعداد الحقيقية)
+  const stats = [
+    { label: 'فيديوهات', count: course.videos_count || 0, icon: Icons.Video, color: 'text-blue-400' },
+    { label: 'امتحانات', count: course.exams_count || 0, icon: Icons.FileText, color: 'text-purple-400' },
+    { label: 'كتب', count: course.books_count || 0, icon: Icons.Book, color: 'text-orange-400' },
+  ];
+
+  const totalItems = stats.reduce((sum, s) => sum + s.count, 0);
 
   return (
     <motion.div
@@ -448,8 +457,8 @@ const CourseCard3D = ({ course, teacher, index, isActive }) => {
             transform: `rotateX(${rotation.x}deg) rotateY(${rotation.y}deg)`,
             transformStyle: 'preserve-3d',
             transition: 'transform 0.1s ease-out',
-            minHeight: '340px',
-            maxHeight: '440px',
+            minHeight: '380px',
+            maxHeight: '480px',
           }}
         >
           {/* تأثير إضاءة 3D */}
@@ -476,7 +485,6 @@ const CourseCard3D = ({ course, teacher, index, isActive }) => {
                   transition={{ duration: 0.5 }}
                   loading="lazy"
                 />
-                {/* طبقة شفافة خفيفة جداً */}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent" />
               </>
             ) : (
@@ -542,7 +550,7 @@ const CourseCard3D = ({ course, teacher, index, isActive }) => {
               </div>
               <div className="flex-shrink-0">
                 <span className="text-[10px] sm:text-xs font-extrabold text-yellow-400 bg-yellow-400/10 px-2 py-0.5 rounded-full border border-yellow-400/20">
-                  {course?.total_lessons || 0} درس
+                  {totalItems} عنصر
                 </span>
               </div>
             </div>
@@ -551,7 +559,18 @@ const CourseCard3D = ({ course, teacher, index, isActive }) => {
               {course?.description || 'لا يوجد وصف'}
             </p>
 
-            <div className="flex items-center justify-between mt-3 pt-2 border-t border-white/10">
+            {/* إحصائيات الكورس (فيديوهات، امتحانات، كتب) */}
+            <div className="flex items-center justify-between mt-2 gap-1 flex-wrap">
+              {stats.map((stat, idx) => (
+                <div key={idx} className="flex items-center gap-1 text-[8px] sm:text-[9px]">
+                  <stat.icon className={`h-3 w-3 ${stat.color}`} />
+                  <span className={`${isDark ? 'text-gray-300' : 'text-gray-700'} font-bold`}>{stat.count}</span>
+                  <span className={`${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{stat.label}</span>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex items-center justify-between mt-2 pt-2 border-t border-white/10">
               <div className="flex items-center gap-2 text-[7px] sm:text-[8px] text-gray-400">
                 <span className="flex items-center gap-0.5">
                   <Icons.Clock className="h-3 w-3" />
@@ -1296,31 +1315,61 @@ export default function Home() {
         if (coursesError) throw coursesError;
 
         if (coursesData?.length) {
-          // 2. جلب الفيديوهات المنشورة لحساب عدد الدروس لكل كورس
           const courseIds = coursesData.map(c => c.id);
+
+          // 2. جلب عدد الفيديوهات لكل كورس
           const { data: videosData, error: videosError } = await supabase
             .from('videos')
             .select('course_id')
             .in('course_id', courseIds)
-            .eq('is_published', true); // نأخذ فقط المنشورة، يمكنك تغيير هذا إذا أردت كل الفيديوهات
+            .eq('is_published', true);
 
           if (videosError) throw videosError;
 
-          // حساب عدد الفيديوهات لكل كورس
           const videoCounts = {};
           videosData?.forEach(v => {
             videoCounts[v.course_id] = (videoCounts[v.course_id] || 0) + 1;
           });
 
-          // إضافة total_lessons إلى كل كورس
-          const coursesWithLessons = coursesData.map(course => ({
+          // 3. جلب عدد الامتحانات لكل كورس
+          const { data: examsData, error: examsError } = await supabase
+            .from('exams')
+            .select('course_id')
+            .in('course_id', courseIds)
+            .eq('is_published', true);
+
+          if (examsError) throw examsError;
+
+          const examCounts = {};
+          examsData?.forEach(e => {
+            examCounts[e.course_id] = (examCounts[e.course_id] || 0) + 1;
+          });
+
+          // 4. جلب عدد الكتب لكل كورس
+          const { data: booksData, error: booksError } = await supabase
+            .from('books')
+            .select('course_id')
+            .in('course_id', courseIds)
+            .eq('is_published', true);
+
+          if (booksError) throw booksError;
+
+          const bookCounts = {};
+          booksData?.forEach(b => {
+            bookCounts[b.course_id] = (bookCounts[b.course_id] || 0) + 1;
+          });
+
+          // دمج الإحصائيات مع الكورسات
+          const coursesWithStats = coursesData.map(course => ({
             ...course,
-            total_lessons: videoCounts[course.id] || 0,
+            videos_count: videoCounts[course.id] || 0,
+            exams_count: examCounts[course.id] || 0,
+            books_count: bookCounts[course.id] || 0,
           }));
 
-          setCourses(coursesWithLessons);
+          setCourses(coursesWithStats);
 
-          // 3. جلب بيانات المعلمين (كما هو)
+          // 5. جلب بيانات المعلمين
           const teacherIds = [...new Set(coursesData.map(c => c.teacher_id).filter(Boolean))];
           if (teacherIds.length) {
             const { data: teachersData } = await supabase
