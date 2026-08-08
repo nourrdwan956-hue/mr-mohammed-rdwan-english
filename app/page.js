@@ -1,12 +1,11 @@
 // app/page.js
 // ================================================================
-// 🏛️ الصفحة الرئيسية – منصة مستر محمد رضوان (نسخة 3D فاخرة)
+// 🏛️ الصفحة الرئيسية – منصة مستر محمد رضوان (نسخة نهائية فاخرة)
 // ================================================================
-// ✅ عرض الكورسات بشكل 3D أفقي عريض (Carousel متطور)
+// ✅ عرض الكورسات بشكل 3D أفقي عريض (Carousel)
 // ✅ صور الغلاف بأعلى وضوح وسطوع
-// ✅ شريط متحرك خفي يدور حول كل بطاقة كورس
-// ✅ تكبير البطاقة عند Hover بشكل بسيط مع تحركها للأمام
-// ✅ جميع البطاقات بنفس الحجم مع تكبير البطاقة النشطة
+// ✅ شريط متحرك رفيع يدور حول كل بطاقة كورس
+// ✅ جميع البطاقات بنفس الحجم مع تكبير عند Hover
 // ✅ رقم الهاتف الصحيح: 01148553118
 // ================================================================
 
@@ -380,7 +379,7 @@ const ScrollToTopButton = ({ show, onClick }) => (
 );
 
 // ================================================================
-// 🃏 بطاقة الكورس – نسخة 3D فاخرة مع شريط متحرك خفي
+// 🃏 بطاقة الكورس – نسخة 3D فاخرة مع شريط متحرك رفيع حول الإطار
 // ================================================================
 
 const CourseCard3D = ({ course, teacher, index, isActive }) => {
@@ -422,7 +421,6 @@ const CourseCard3D = ({ course, teacher, index, isActive }) => {
       className="group cursor-pointer perspective-1000"
       style={{ perspective: '1200px' }}
     >
-      {/* الشريط المتحرك الخفي حول الإطار */}
       <motion.div
         className="relative rounded-2xl overflow-visible"
         animate={{
@@ -431,20 +429,12 @@ const CourseCard3D = ({ course, teacher, index, isActive }) => {
         }}
         transition={{ duration: 0.3 }}
       >
-        {/* الشريط الدوار المستمر (خفي وأنيق) */}
-        <motion.div
-          className="absolute inset-[-2px] rounded-2xl opacity-70"
-          style={{
-            background: `conic-gradient(from 0deg, transparent, rgba(255,215,0,0.3), transparent 30%, rgba(255,215,0,0.3), transparent 60%, rgba(255,215,0,0.3), transparent)`,
-            padding: '2px',
-            WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
-            WebkitMaskComposite: 'xor',
-            maskComposite: 'exclude',
-            pointerEvents: 'none',
-          }}
-          animate={{ rotate: 360 }}
-          transition={{ duration: 8, repeat: Infinity, ease: 'linear' }}
-        />
+        {/* الشريط المتحرك الرفيع حول الإطار (Border Stroke) */}
+        <div className="absolute inset-[-2px] rounded-2xl overflow-hidden pointer-events-none">
+          <div className="absolute inset-0 rounded-2xl p-[2px]">
+            <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-transparent via-yellow-400/40 to-transparent animate-border-flow" />
+          </div>
+        </div>
 
         {/* محتوى البطاقة */}
         <motion.div
@@ -583,6 +573,20 @@ const CourseCard3D = ({ course, teacher, index, isActive }) => {
           </div>
         </motion.div>
       </motion.div>
+
+      {/* أنماط الشريط المتحرك الرفيع */}
+      <style jsx>{`
+        .animate-border-flow {
+          animation: borderFlow 3s linear infinite;
+          background-size: 300% 100%;
+        }
+
+        @keyframes borderFlow {
+          0% { background-position: 0% 0%; }
+          50% { background-position: 100% 0%; }
+          100% { background-position: 200% 0%; }
+        }
+      `}</style>
     </motion.div>
   );
 };
