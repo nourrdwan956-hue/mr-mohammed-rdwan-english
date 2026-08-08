@@ -1,12 +1,11 @@
 // app/watch/[id]/page.js
 // ================================================================
 // 📁 المسار: app/watch/[id]/page.js
-// ✅ إصلاح خطأ postMessage وتحسين استقرار المشغل
-// ✅ إخفاء أزرار YouTube الأصلية (controls:0)
-// ✅ شريط تحكم سفلي مخصص بالكامل
-// ✅ زر تشغيل مركزي أصفر يظهر عند التوقف ويختفي أثناء التشغيل
-// ✅ دعم كامل للموبايل والكمبيوتر
-// ✅ إزالة زر التكرار (Loop) نهائياً
+// ✅ إصلاح خطأ 'getCurrentTime is not a function'
+// ✅ تحسين استقرار المشغل ومنع الأخطاء الناتجة عن استدعاء دوال YouTube قبل التجهيز
+// ✅ إضافة الحراسة (guard) في كل مكان يتم فيه استخدام playerRef
+// ✅ استخدام useRef لتجنب stale closure في setTimeout
+// ✅ تحسين إدارة المؤقتات
 // ================================================================
 
 'use client';
@@ -361,6 +360,7 @@ export default function WatchPage() {
   const progressRef = useRef(null);
   const controlsTimerRef = useRef(null);
   const progressIntervalRef = useRef(null);
+  const isPlayingRef = useRef(false); // لتجنب stale closure
 
   // ---- استخراج معلومات YouTube ----
   const youtubeId = useMemo(() => (video ? getYoutubeId(video.video_url) : null), [video]);
@@ -533,7 +533,6 @@ export default function WatchPage() {
       }
 
       try {
-        // استخدام origin = window.location.origin مع إضافة بروتوكول https إذا لزم الأمر
         const originUrl = window.location.origin;
 
         playerInstance = new window.YT.Player('youtube-player', {
@@ -543,7 +542,7 @@ export default function WatchPage() {
             showinfo: 0,
             rel: 0,
             iv_load_policy: 3,
-            controls: 0,          // إخفاء أزرار YouTube الأصلية
+            controls: 0,
             disablekb: 1,
             fs: 0,
             playsinline: 1,
@@ -564,24 +563,32 @@ export default function WatchPage() {
                 if (dur > 0) setDuration(dur);
               }
               console.log('✅ YouTube Player ready');
+              // بدء التتبع بعد أن يصبح المشغل جاهزاً
               startProgressTracking();
             },
             onStateChange: (e) => {
               if (e.data === 1) {
                 setIsPlaying(true);
+                isPlayingRef.current = true;
                 setBuffering(false);
                 setShowCenterButton(false);
-                setTimeout(() => {
-                  if (isPlaying) setControlsVisible(false);
+                // إخفاء الأزرار بعد 2.5 ثانية
+                clearTimeout(controlsTimerRef.current);
+                controlsTimerRef.current = setTimeout(() => {
+                  if (isPlayingRef.current) {
+                    setControlsVisible(false);
+                  }
                 }, 2500);
               } else if (e.data === 2) {
                 setIsPlaying(false);
+                isPlayingRef.current = false;
                 setShowCenterButton(true);
                 setControlsVisible(true);
               } else if (e.data === 3) {
                 setBuffering(true);
               } else if (e.data === 0) {
                 setIsPlaying(false);
+                isPlayingRef.current = false;
                 setBuffering(false);
                 setShowCenterButton(true);
                 setControlsVisible(true);
@@ -613,7 +620,8 @@ export default function WatchPage() {
       if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
       progressIntervalRef.current = setInterval(() => {
         const player = playerRef.current;
-        if (player && playerReady) {
+        // ✅ تحقق قوي: تأكد من وجود player وأنه يحتوي على getCurrentTime
+        if (player && playerReady && typeof player.getCurrentTime === 'function') {
           try {
             const current = player.getCurrentTime() || 0;
             const total = player.getDuration() || 0;
@@ -622,7 +630,9 @@ export default function WatchPage() {
               setDuration(total);
               setProgress((current / total) * 100);
             }
-          } catch (e) {}
+          } catch (e) {
+            // تجاهل الأخطاء المؤقتة
+          }
         }
       }, 200);
     };
@@ -633,7 +643,6 @@ export default function WatchPage() {
         return;
       }
 
-      // التحقق من وجود script مسبقاً
       if (document.querySelector('#youtube-iframe-api')) {
         const check = setInterval(() => {
           if (window.YT && window.YT.Player) {
@@ -649,7 +658,6 @@ export default function WatchPage() {
       script.id = 'youtube-iframe-api';
       script.src = 'https://www.youtube.com/iframe_api';
       script.onload = () => {
-        // قد يكون الـ API محمّلاً بالفعل، ننتظر قليلاً ثم نحاول
         setTimeout(() => {
           if (window.YT && window.YT.Player) {
             createPlayer();
@@ -669,12 +677,13 @@ export default function WatchPage() {
     return () => {
       cancelled = true;
       if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
+      clearTimeout(controlsTimerRef.current);
       if (playerInstance) {
         try { playerInstance.destroy(); } catch (e) {}
       }
       playerRef.current = null;
     };
-  }, [isYoutubeOnly, isValidYoutube, youtubeId, video, id, showIntro, playerReady, isPlaying]);
+  }, [isYoutubeOnly, isValidYoutube, youtubeId, video, id, showIntro, playerReady]);
 
   // ================================================================
   // 11. دوال التحكم (محسّنة للموبايل)
@@ -693,6 +702,7 @@ export default function WatchPage() {
       if (state === 1 || state === 3) {
         player.pauseVideo();
         setIsPlaying(false);
+        isPlayingRef.current = false;
         setShowCenterButton(true);
         setControlsVisible(true);
       } else {
@@ -701,6 +711,7 @@ export default function WatchPage() {
             try {
               player.playVideo();
               setIsPlaying(true);
+              isPlayingRef.current = true;
               setShowCenterButton(false);
             } catch (e) {
               console.warn('Play error on mobile:', e);
@@ -709,66 +720,76 @@ export default function WatchPage() {
         } else {
           player.playVideo();
           setIsPlaying(true);
+          isPlayingRef.current = true;
           setShowCenterButton(false);
         }
-        setTimeout(() => {
-          if (isPlaying) setControlsVisible(false);
+        // إخفاء الأزرار بعد 2.5 ثانية
+        clearTimeout(controlsTimerRef.current);
+        controlsTimerRef.current = setTimeout(() => {
+          if (isPlayingRef.current) {
+            setControlsVisible(false);
+          }
         }, 2500);
       }
 
       setControlsVisible(true);
       clearTimeout(controlsTimerRef.current);
       controlsTimerRef.current = setTimeout(() => {
-        if (isPlaying) setControlsVisible(false);
+        if (isPlayingRef.current) {
+          setControlsVisible(false);
+        }
       }, 2500);
 
     } catch (error) {
       console.error('TogglePlay error:', error);
       toast.error('تعذر تشغيل الفيديو');
     }
-  }, [playerReady, isPlaying, isMobile]);
+  }, [playerReady, isMobile]);
 
   const skipForward = useCallback(() => {
     if (!playerRef.current || !playerReady) return;
     try {
-      const current = playerRef.current.getCurrentTime();
-      const total = playerRef.current.getDuration();
+      const player = playerRef.current;
+      const current = player.getCurrentTime();
+      const total = player.getDuration();
       const newTime = Math.min(current + 10, total);
-      playerRef.current.seekTo(newTime, true);
+      player.seekTo(newTime, true);
       setControlsVisible(true);
       clearTimeout(controlsTimerRef.current);
       controlsTimerRef.current = setTimeout(() => {
-        if (isPlaying) setControlsVisible(false);
+        if (isPlayingRef.current) setControlsVisible(false);
       }, 2500);
     } catch (e) {
       console.warn('Skip forward error:', e);
     }
-  }, [playerReady, isPlaying]);
+  }, [playerReady]);
 
   const skipBackward = useCallback(() => {
     if (!playerRef.current || !playerReady) return;
     try {
-      const current = playerRef.current.getCurrentTime();
+      const player = playerRef.current;
+      const current = player.getCurrentTime();
       const newTime = Math.max(0, current - 10);
-      playerRef.current.seekTo(newTime, true);
+      player.seekTo(newTime, true);
       setControlsVisible(true);
       clearTimeout(controlsTimerRef.current);
       controlsTimerRef.current = setTimeout(() => {
-        if (isPlaying) setControlsVisible(false);
+        if (isPlayingRef.current) setControlsVisible(false);
       }, 2500);
     } catch (e) {
       console.warn('Skip backward error:', e);
     }
-  }, [playerReady, isPlaying]);
+  }, [playerReady]);
 
   const toggleMute = useCallback(() => {
     if (!playerRef.current || !playerReady) return;
     try {
+      const player = playerRef.current;
       if (muted) {
-        playerRef.current.unMute();
+        player.unMute();
         setMuted(false);
       } else {
-        playerRef.current.mute();
+        player.mute();
         setMuted(true);
       }
     } catch (e) {}
@@ -779,7 +800,8 @@ export default function WatchPage() {
     try {
       const val = parseFloat(e.target.value);
       setVolume(val);
-      playerRef.current.setVolume(val * 100);
+      const player = playerRef.current;
+      player.setVolume(val * 100);
       setMuted(val === 0);
     } catch (e) {}
   }, [playerReady]);
@@ -790,25 +812,27 @@ export default function WatchPage() {
       const rect = progressRef.current.getBoundingClientRect();
       const x = Math.max(0, Math.min(e.clientX - rect.left, rect.width));
       const percent = (x / rect.width) * 100;
-      const total = playerRef.current.getDuration();
+      const player = playerRef.current;
+      const total = player.getDuration();
       if (total > 0) {
         const target = (percent / 100) * total;
-        playerRef.current.seekTo(target, true);
+        player.seekTo(target, true);
         setProgress(percent);
         setCurrentTime(target);
         setControlsVisible(true);
         clearTimeout(controlsTimerRef.current);
         controlsTimerRef.current = setTimeout(() => {
-          if (isPlaying) setControlsVisible(false);
+          if (isPlayingRef.current) setControlsVisible(false);
         }, 2500);
       }
     } catch (e) {}
-  }, [playerReady, isPlaying]);
+  }, [playerReady]);
 
   const changePlaybackRate = useCallback((rate) => {
     if (!playerRef.current || !playerReady) return;
     try {
-      playerRef.current.setPlaybackRate(rate);
+      const player = playerRef.current;
+      player.setPlaybackRate(rate);
       setPlaybackRate(rate);
       setShowSpeedMenu(false);
       toast.success(`سرعة التشغيل: ${rate}x`);
@@ -818,7 +842,8 @@ export default function WatchPage() {
   const changeQuality = useCallback((quality) => {
     if (!playerRef.current || !playerReady) return;
     try {
-      playerRef.current.setPlaybackQuality(quality);
+      const player = playerRef.current;
+      player.setPlaybackQuality(quality);
       setCurrentQuality(quality);
       setShowQualityMenu(false);
       toast.success(`الجودة: ${quality}`);
@@ -844,9 +869,6 @@ export default function WatchPage() {
     });
   }, []);
 
-  // ================================================================
-  // زر الترجمة: يعمل كـ toggle (تشغيل/إيقاف) مع رسائل واضحة
-  // ================================================================
   const toggleCaptions = useCallback(() => {
     if (!playerRef.current || !playerReady) {
       toast.error(language === 'ar' ? 'المشغل غير جاهز' : 'Player not ready');
@@ -885,15 +907,15 @@ export default function WatchPage() {
     const handleMouseMove = () => {
       setControlsVisible(true);
       clearTimeout(controlsTimerRef.current);
-      if (isPlaying) {
+      if (isPlayingRef.current) {
         controlsTimerRef.current = setTimeout(() => {
-          setControlsVisible(false);
+          if (isPlayingRef.current) setControlsVisible(false);
         }, 2500);
       }
     };
 
     const handleMouseLeave = () => {
-      if (isPlaying) {
+      if (isPlayingRef.current) {
         setControlsVisible(false);
         clearTimeout(controlsTimerRef.current);
       }
@@ -912,7 +934,7 @@ export default function WatchPage() {
       }
       clearTimeout(controlsTimerRef.current);
     };
-  }, [isPlaying, isYoutubeOnly]);
+  }, [isYoutubeOnly]);
 
   // ================================================================
   // 13. حماية ضد تسريب الفيديو
@@ -983,17 +1005,33 @@ export default function WatchPage() {
   }, [playerReady, togglePlay, skipForward, skipBackward, toggleMute, toggleFullscreen, toggleFocusMode, toggleCaptions, isYoutubeOnly]);
 
   // ================================================================
-  // 15. نظام التتبع الذكي للمشاهدة
+  // 15. نظام التتبع الذكي للمشاهدة (محسّن بالحراسة)
   // ================================================================
 
   // 15.1 تتبع التقدم الحقيقي
   useEffect(() => {
     if (!playerReady || !isPlaying || !playerRef.current) return;
 
-    let lastTime = playerRef.current.getCurrentTime();
+    let lastTime = 0;
+    // محاولة قراءة الوقت الحالي مع الحراسة
+    try {
+      const player = playerRef.current;
+      if (typeof player.getCurrentTime === 'function') {
+        lastTime = player.getCurrentTime() || 0;
+      } else {
+        return; // لا يمكن التتبع
+      }
+    } catch (e) {
+      return;
+    }
+
     const interval = setInterval(() => {
       try {
-        const now = playerRef.current.getCurrentTime();
+        const player = playerRef.current;
+        if (!player || !playerReady || !isPlayingRef.current) return;
+        if (typeof player.getCurrentTime !== 'function') return;
+
+        const now = player.getCurrentTime();
         const delta = now - lastTime;
         if (delta > 0 && delta <= 2.0) {
           setWatchIntervals(prev => {
@@ -1005,7 +1043,9 @@ export default function WatchPage() {
           });
         }
         lastTime = now;
-      } catch (e) {}
+      } catch (e) {
+        // تجاهل الأخطاء المؤقتة
+      }
     }, 1000);
 
     return () => clearInterval(interval);
@@ -1019,7 +1059,7 @@ export default function WatchPage() {
       if (watchIntervals.length === 0) return;
       try {
         const watchedSeconds = totalWatchedUnique;
-        const duration = playerRef.current?.getDuration() || 0;
+        const duration = playerRef.current?.getDuration?.() || 0;
         const progress = duration > 0 ? (watchedSeconds / duration) * 100 : 0;
 
         const { data: { session } } = await supabase.auth.getSession();
@@ -1060,7 +1100,7 @@ export default function WatchPage() {
     const handleExit = () => {
       if (!video?.id || watchIntervals.length === 0) return;
       const watchedSeconds = totalWatchedUnique;
-      const duration = playerRef.current?.getDuration() || 0;
+      const duration = playerRef.current?.getDuration?.() || 0;
       const progress = duration > 0 ? (watchedSeconds / duration) * 100 : 0;
       const payload = {
         videoId: video.id,
@@ -1169,9 +1209,6 @@ export default function WatchPage() {
     </div>
   );
 
-  // ================================================================
-  // 16.1 عرض رسالة منع الوصول
-  // ================================================================
   if (accessDenied) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#0b0e1a] text-white p-6">
@@ -1268,7 +1305,6 @@ export default function WatchPage() {
               ) : (
                 <>
                   <div id="youtube-player" className="w-full h-full absolute inset-0 z-0" />
-                  {/* منع التفاعل مع iframe حتى لا تظهر أزرار YouTube */}
                   <div className="absolute inset-0 z-5 bg-transparent" style={{ pointerEvents: 'none' }} />
                   <style dangerouslySetInnerHTML={{
                     __html: `
@@ -1345,7 +1381,6 @@ export default function WatchPage() {
                         clearTimeout(controlsTimerRef.current);
                       }}
                     >
-                      {/* شريط التقدم */}
                       <div
                         ref={progressRef}
                         className="relative w-full h-1.5 sm:h-2.5 bg-white/15 rounded-full cursor-pointer group/progress"
@@ -1367,7 +1402,6 @@ export default function WatchPage() {
                         </div>
                       </div>
 
-                      {/* صف الأزرار */}
                       <div className="flex items-center gap-0.5 sm:gap-2 text-white flex-wrap">
                         <button
                           onClick={togglePlay}
