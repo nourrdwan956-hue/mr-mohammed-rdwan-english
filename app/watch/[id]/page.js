@@ -6,8 +6,10 @@
 //    - وضوح مثالي على الشاشات الكبيرة
 // ✅ إزالة زر التكرار (Loop) نهائياً مع جميع توابعه
 // ✅ زر الترجمة يعمل كـ toggle مع رسائل واضحة
+// ✅ إخفاء جميع عناصر YouTube الأصلية (controls:0, modestbranding, rel:0)
+// ✅ إعادة شريط التحكم السفلي المخصص بالكامل مع جميع الخصائص
+// ✅ إصلاح زر التشغيل المركزي الأصفر ليعمل بشكل مثالي
 // ✅ جميع الميزات السابقة محفوظة (تتبع ذكي، حماية، Wave Border، إلخ)
-// ✅ إزالة زر التشغيل المركزي الأصفر والاعتماد على أزرار YouTube الأصلية
 // ================================================================
 
 'use client';
@@ -335,8 +337,19 @@ export default function WatchPage() {
   const [currentQuality, setCurrentQuality] = useState('auto');
   const [bufferProgress, setBufferProgress] = useState(0);
   const [focusMode, setFocusMode] = useState(false);
-  // حالة الترجمة: تتبع ما إذا كانت الترجمة مفعلة أم لا
   const [captionsEnabled, setCaptionsEnabled] = useState(false);
+
+  // ---- كشف الموبايل ----
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // ===== نظام التتبع الذكي =====
   const [watchIntervals, setWatchIntervals] = useState([]);
@@ -526,19 +539,18 @@ export default function WatchPage() {
         playerInstance = new window.YT.Player('youtube-player', {
           videoId: youtubeId,
           playerVars: {
-            modestbranding: 1,
-            showinfo: 0,
-            rel: 0,
-            iv_load_policy: 3,
-            controls: 1,        // ✅ إظهار أزرار YouTube الأصلية
-            disablekb: 1,
-            fs: 1,
-            playsinline: 1,
+            modestbranding: 1,   // تقليص العلامة التجارية
+            showinfo: 0,         // إخفاء معلومات الفيديو
+            rel: 0,              // إخفاء الفيديوهات المقترحة في النهاية
+            iv_load_policy: 3,   // إخفاء التعليقات التوضيحية
+            controls: 0,         // إخفاء أزرار YouTube الأصلية تماماً
+            disablekb: 1,        // تعطيل اختصارات لوحة المفاتيح الأصلية
+            fs: 0,               // تعطيل زر ملء الشاشة الأصلي
+            playsinline: 1,      // تشغيل داخل الصفحة على الموبايل
             autoplay: 0,
             mute: 0,
             cc_load_policy: 0,
             autohide: 1,
-            listType: 'playlist',
             origin: window.location.origin,
             widget_referrer: window.location.origin,
           },
@@ -653,28 +665,52 @@ export default function WatchPage() {
   }, [isYoutubeOnly, isValidYoutube, youtubeId, video, id, showIntro, playerReady]);
 
   // ================================================================
-  // 11. دوال التحكم (لم تعد مستخدمة لكن نتركها للتوافق)
+  // 11. دوال التحكم (محسّنة للموبايل)
   // ================================================================
 
-  // ✅ دالة محسّنة لتشغيل/إيقاف الفيديو مع دعم الموبايل (لم تعد تستخدم مع الأزرار الأصلية)
   const togglePlay = useCallback(() => {
     if (!playerRef.current || !playerReady) return;
+
     try {
       const player = playerRef.current;
       const state = player.getPlayerState();
+
+      // الحالات: -1 غير جاهز، 0 انتهى، 1 يعمل، 2 متوقف، 3 تحميل، 5 محمّل
       if (state === 1 || state === 3) {
+        // يعمل أو يتحمّل → إيقاف
         player.pauseVideo();
         setIsPlaying(false);
       } else {
-        player.playVideo();
-        setIsPlaying(true);
+        // متوقف أو منتهي → تشغيل
+        if (isMobile) {
+          // تأخير بسيط للموبايل لتجنب مشاكل التشغيل التلقائي
+          setTimeout(() => {
+            try {
+              player.playVideo();
+              setIsPlaying(true);
+            } catch (e) {
+              console.warn('Play error on mobile:', e);
+            }
+          }, 100);
+        } else {
+          player.playVideo();
+          setIsPlaying(true);
+        }
       }
+
+      // إظهار الأزرار مؤقتاً
+      setControlsVisible(true);
+      clearTimeout(controlsTimerRef.current);
+      controlsTimerRef.current = setTimeout(() => {
+        if (isPlaying) setControlsVisible(false);
+      }, 2500);
+
     } catch (error) {
       console.error('TogglePlay error:', error);
+      toast.error('تعذر تشغيل الفيديو');
     }
-  }, [playerReady]);
+  }, [playerReady, isPlaying, isMobile]);
 
-  // دوال التخطي لم تعد مستخدمة مع الأزرار الأصلية، لكن نتركها
   const skipForward = useCallback(() => {
     if (!playerRef.current || !playerReady) return;
     try {
@@ -682,8 +718,15 @@ export default function WatchPage() {
       const total = playerRef.current.getDuration();
       const newTime = Math.min(current + 10, total);
       playerRef.current.seekTo(newTime, true);
-    } catch (e) { console.warn(e); }
-  }, [playerReady]);
+      setControlsVisible(true);
+      clearTimeout(controlsTimerRef.current);
+      controlsTimerRef.current = setTimeout(() => {
+        if (isPlaying) setControlsVisible(false);
+      }, 2500);
+    } catch (e) {
+      console.warn('Skip forward error:', e);
+    }
+  }, [playerReady, isPlaying]);
 
   const skipBackward = useCallback(() => {
     if (!playerRef.current || !playerReady) return;
@@ -691,8 +734,15 @@ export default function WatchPage() {
       const current = playerRef.current.getCurrentTime();
       const newTime = Math.max(0, current - 10);
       playerRef.current.seekTo(newTime, true);
-    } catch (e) { console.warn(e); }
-  }, [playerReady]);
+      setControlsVisible(true);
+      clearTimeout(controlsTimerRef.current);
+      controlsTimerRef.current = setTimeout(() => {
+        if (isPlaying) setControlsVisible(false);
+      }, 2500);
+    } catch (e) {
+      console.warn('Skip backward error:', e);
+    }
+  }, [playerReady, isPlaying]);
 
   const toggleMute = useCallback(() => {
     if (!playerRef.current || !playerReady) return;
@@ -729,9 +779,14 @@ export default function WatchPage() {
         playerRef.current.seekTo(target, true);
         setProgress(percent);
         setCurrentTime(target);
+        setControlsVisible(true);
+        clearTimeout(controlsTimerRef.current);
+        controlsTimerRef.current = setTimeout(() => {
+          if (isPlaying) setControlsVisible(false);
+        }, 2500);
       }
     } catch (e) {}
-  }, [playerReady]);
+  }, [playerReady, isPlaying]);
 
   const changePlaybackRate = useCallback((rate) => {
     if (!playerRef.current || !playerReady) return;
@@ -806,13 +861,41 @@ export default function WatchPage() {
   }, [playerReady, captionsEnabled, language]);
 
   // ================================================================
-  // 12. تأثير إخفاء الأزرار تلقائياً (لم يعد ضرورياً مع الأزرار الأصلية)
+  // 12. تأثير إخفاء الأزرار تلقائياً
   // ================================================================
   useEffect(() => {
     if (isYoutubeOnly) return;
-    // نلغي هذا التأثير لأن YouTube يدير إخفاء الأزرار بنفسه
-    // لكن نتركه فارغاً
-  }, [isYoutubeOnly]);
+    const handleMouseMove = () => {
+      setControlsVisible(true);
+      clearTimeout(controlsTimerRef.current);
+      if (isPlaying) {
+        controlsTimerRef.current = setTimeout(() => {
+          setControlsVisible(false);
+        }, 2500);
+      }
+    };
+
+    const handleMouseLeave = () => {
+      if (isPlaying) {
+        setControlsVisible(false);
+        clearTimeout(controlsTimerRef.current);
+      }
+    };
+
+    const container = containerRef.current;
+    if (container) {
+      container.addEventListener('mousemove', handleMouseMove);
+      container.addEventListener('mouseleave', handleMouseLeave);
+    }
+
+    return () => {
+      if (container) {
+        container.removeEventListener('mousemove', handleMouseMove);
+        container.removeEventListener('mouseleave', handleMouseLeave);
+      }
+      clearTimeout(controlsTimerRef.current);
+    };
+  }, [isPlaying, isYoutubeOnly]);
 
   // ================================================================
   // 13. حماية ضد تسريب الفيديو
@@ -1125,7 +1208,7 @@ export default function WatchPage() {
   const thumbnailUrl = youtubeId ? `https://img.youtube.com/vi/${youtubeId}/maxresdefault.jpg` : null;
 
   // ================================================================
-  // 17. التصميم النهائي (مع تحسينات متقدمة للشاشات الصغيرة والكبيرة، بدون Loop)
+  // 17. التصميم النهائي (مع شريط التحكم المخصص والزر المركزي)
   // ================================================================
   return (
     <div className={`min-h-screen text-white transition-all duration-500 relative ${focusMode ? 'fixed inset-0 z-50 p-0 flex items-center justify-center bg-black' : ''}`}>
@@ -1170,6 +1253,7 @@ export default function WatchPage() {
               ) : (
                 <>
                   <div id="youtube-player" className="w-full h-full absolute inset-0 z-0" />
+                  {/* منع التفاعل مع iframe حتى لا تظهر أزرار YouTube */}
                   <div className="absolute inset-0 z-5 bg-transparent" style={{ pointerEvents: 'auto' }} />
                   <style dangerouslySetInnerHTML={{
                     __html: `
@@ -1196,9 +1280,172 @@ export default function WatchPage() {
                     )}
                   </AnimatePresence>
 
-                  {/* ✅ تم إزالة زر التشغيل المركزي الأصفر والاعتماد على أزرار YouTube الأصلية */}
+                  {/* زر التشغيل المركزي الأصفر - يعمل الآن */}
+                  {playerReady && controlsVisible && (
+                    <div
+                      className="absolute inset-0 z-30 flex items-center justify-center pb-8 sm:pb-0"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        togglePlay();
+                      }}
+                    >
+                      <motion.div
+                        initial={{ scale: 0.8, opacity: 0.8 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.95 }}
+                        className="relative"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <div className="absolute inset-0 bg-yellow-400/20 rounded-full blur-xl scale-150 group-hover:scale-200 transition-transform duration-300" />
+                        <div className="relative w-14 h-14 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-full bg-yellow-400/90 flex items-center justify-center shadow-2xl shadow-yellow-400/40 group-hover:shadow-yellow-400/60 transition-shadow">
+                          {isPlaying ? (
+                            <Icons.Pause className="h-6 w-6 sm:h-10 sm:w-10 md:h-12 md:w-12 text-black" />
+                          ) : (
+                            <Icons.Play className="h-6 w-6 sm:h-10 sm:w-10 md:h-12 md:w-12 text-black ml-1" />
+                          )}
+                        </div>
+                      </motion.div>
+                    </div>
+                  )}
 
-                  {/* تم إزالة شريط التحكم السفلي المخصص بالكامل */}
+                  {/* أزرار التخطي الجانبية */}
+                  <AnimatePresence>
+                    {isPlaying && controlsVisible && playerReady && (
+                      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 z-30 pointer-events-none">
+                        <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-auto opacity-0 group-hover:opacity-100 transition-all duration-300" onClick={skipBackward}>
+                          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-black/70 backdrop-blur-sm flex items-center justify-center hover:bg-black/90 border border-white/10 shadow-lg group">
+                            <Icons.RotateCcw className="h-5 w-5 sm:h-6 sm:w-6 text-white group-hover:text-yellow-400 transition-colors" />
+                            <span className="absolute text-[8px] -bottom-4 text-white/70 group-hover:text-yellow-400">10s</span>
+                          </div>
+                        </div>
+                        <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-auto opacity-0 group-hover:opacity-100 transition-all duration-300" onClick={skipForward}>
+                          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-black/70 backdrop-blur-sm flex items-center justify-center hover:bg-black/90 border border-white/10 shadow-lg group">
+                            <Icons.RotateCw className="h-5 w-5 sm:h-6 sm:w-6 text-white group-hover:text-yellow-400 transition-colors" />
+                            <span className="absolute text-[8px] -bottom-4 text-white/70 group-hover:text-yellow-400">10s</span>
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  {/* شريط التحكم السفلي المخصص */}
+                  {playerReady && (
+                    <div
+                      className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent p-2 sm:p-4 flex flex-col gap-1 sm:gap-2 pointer-events-auto z-40 transition-opacity duration-300 ${controlsVisible ? 'opacity-100' : 'opacity-0'}`}
+                      onMouseEnter={() => {
+                        setControlsVisible(true);
+                        clearTimeout(controlsTimerRef.current);
+                      }}
+                    >
+                      {/* شريط التقدم */}
+                      <div
+                        ref={progressRef}
+                        className="relative w-full h-1.5 sm:h-2.5 bg-white/15 rounded-full cursor-pointer group/progress"
+                        onClick={handleProgressClick}
+                      >
+                        <div className="absolute top-0 left-0 h-full bg-white/20 rounded-full" style={{ width: `${bufferProgress}%` }} />
+                        <div
+                          className="absolute top-0 left-0 h-full rounded-full shadow-lg shadow-yellow-500/30"
+                          style={{
+                            width: `${progress}%`,
+                            background: `linear-gradient(to right, ${getGradientColor(0)}, ${getGradientColor(progress / 100)})`
+                          }}
+                        />
+                        <div
+                          className="absolute top-1/2 -translate-y-1/2 w-3 h-3 sm:w-5 sm:h-5 bg-white rounded-full shadow-2xl opacity-0 group-hover/progress:opacity-100 transition-all duration-200"
+                          style={{ left: `${progress}%`, marginLeft: '-6px' }}
+                        >
+                          <div className="absolute inset-1 bg-yellow-400 rounded-full scale-0 group-hover/progress:scale-100 transition-transform duration-200" />
+                        </div>
+                      </div>
+
+                      {/* صف الأزرار */}
+                      <div className="flex items-center gap-0.5 sm:gap-2 text-white flex-wrap">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            togglePlay();
+                          }}
+                          className="p-1 sm:p-1.5 rounded-full hover:bg-white/10 transition-colors"
+                        >
+                          {isPlaying ? <Icons.Pause className="h-4 w-4 sm:h-6 sm:w-6" /> : <Icons.Play className="h-4 w-4 sm:h-6 sm:w-6" />}
+                        </button>
+                        <button onClick={skipBackward} className="p-1 sm:p-1.5 rounded-full hover:bg-white/10 transition-colors">
+                          <Icons.SkipBack className="h-3 w-3 sm:h-5 sm:w-5" />
+                        </button>
+                        <button onClick={skipForward} className="p-1 sm:p-1.5 rounded-full hover:bg-white/10 transition-colors">
+                          <Icons.SkipForward className="h-3 w-3 sm:h-5 sm:w-5" />
+                        </button>
+                        <span className="text-[8px] sm:text-xs text-gray-300 font-mono min-w-[40px] sm:min-w-[80px]">
+                          {formatTime(currentTime)} / {formatTime(duration)}
+                        </span>
+
+                        <button onClick={toggleMute} className="p-1 sm:p-1.5 rounded-full hover:bg-white/10 transition-colors">
+                          {muted ? <Icons.VolumeX className="h-3 w-3 sm:h-5 sm:w-5" /> : <Icons.Volume2 className="h-3 w-3 sm:h-5 sm:w-5" />}
+                        </button>
+                        <input
+                          type="range"
+                          min="0"
+                          max="1"
+                          step="0.01"
+                          value={muted ? 0 : volume}
+                          onChange={handleVolumeChange}
+                          className="w-12 sm:w-20 h-0.5 sm:h-1 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-2 sm:[&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-2 sm:[&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-yellow-400 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-lg"
+                          style={{
+                            backgroundImage: `linear-gradient(to right, ${getGradientColor(muted ? 0 : volume)}, ${getGradientColor(muted ? 0 : volume)})`,
+                            backgroundColor: muted ? '#4a4a4a' : undefined,
+                          }}
+                        />
+
+                        <button
+                          onClick={toggleCaptions}
+                          className={`p-1 sm:p-1.5 rounded-full hover:bg-white/10 transition-colors ${captionsEnabled ? 'text-yellow-400' : ''}`}
+                          title={captionsEnabled ? (language === 'ar' ? 'إخفاء الترجمة' : 'Hide Captions') : (language === 'ar' ? 'إظهار الترجمة' : 'Show Captions')}
+                        >
+                          <Icons.ClosedCaption className="h-3 w-3 sm:h-5 sm:w-5" />
+                        </button>
+
+                        <div className="relative">
+                          <button onClick={() => { setShowSpeedMenu(!showSpeedMenu); setShowQualityMenu(false); }} className="px-1 sm:px-2 py-0.5 rounded-lg hover:bg-white/10 transition-colors text-[8px] sm:text-xs font-bold">
+                            {playbackRate}x
+                          </button>
+                          {showSpeedMenu && (
+                            <div className="absolute bottom-full mb-2 left-0 bg-gray-900/95 backdrop-blur-sm border border-white/10 rounded-xl py-1 shadow-2xl z-50 w-16 sm:w-20">
+                              {[0.5, 0.75, 1, 1.25, 1.5, 2].map(rate => (
+                                <button key={rate} onClick={() => changePlaybackRate(rate)} className={`block w-full text-left px-2 sm:px-3 py-1 text-[8px] sm:text-xs hover:bg-white/10 transition-colors ${rate === playbackRate ? 'text-yellow-400' : 'text-white'}`}>
+                                  {rate}x
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        {qualities.length > 0 && (
+                          <div className="relative">
+                            <button onClick={() => { setShowQualityMenu(!showQualityMenu); setShowSpeedMenu(false); }} className="p-1 sm:p-1.5 rounded-full hover:bg-white/10 transition-colors">
+                              <Icons.Settings className="h-3 w-3 sm:h-5 sm:w-5" />
+                            </button>
+                            {showQualityMenu && (
+                              <div className="absolute bottom-full mb-2 left-0 bg-gray-900/95 backdrop-blur-sm border border-white/10 rounded-xl py-1 shadow-2xl z-50 w-20 sm:w-24">
+                                <button onClick={() => changeQuality('auto')} className={`block w-full text-left px-2 sm:px-3 py-1 text-[8px] sm:text-xs hover:bg-white/10 transition-colors ${currentQuality === 'auto' ? 'text-yellow-400' : 'text-white'}`}>تلقائي</button>
+                                {qualities.map(q => (
+                                  <button key={q} onClick={() => changeQuality(q)} className={`block w-full text-left px-2 sm:px-3 py-1 text-[8px] sm:text-xs hover:bg-white/10 transition-colors ${currentQuality === q ? 'text-yellow-400' : 'text-white'}`}>{q}</button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        <button onClick={toggleFocusMode} className={`p-1 sm:p-1.5 rounded-full hover:bg-white/10 transition-colors ${focusMode ? 'text-yellow-400' : ''}`} title="وضع التركيز (Z)">
+                          <Icons.Eye className="h-3 w-3 sm:h-5 sm:w-5" />
+                        </button>
+                        <button onClick={toggleFullscreen} className="p-1 sm:p-1.5 rounded-full hover:bg-white/10 transition-colors ml-auto">
+                          <Icons.Maximize className="h-3 w-3 sm:h-5 sm:w-5" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </>
               )}
             </div>
@@ -1248,7 +1495,7 @@ export default function WatchPage() {
               <div className="mt-4 p-3 bg-white/5 rounded-xl border border-white/10 flex items-start gap-2">
                 <Icons.AlertCircle className="h-4 w-4 text-yellow-400 flex-shrink-0 mt-0.5" />
                 <p className="text-[10px] text-gray-400 leading-relaxed">
-                  يمكنك التحكم بالفيديو باستخدام أزرار YouTube أو اختصارات لوحة المفاتيح.
+                  يمكنك التحكم بالفيديو باستخدام الأزرار أو اختصارات لوحة المفاتيح.
                   <span className="block text-yellow-400/60 mt-1">⏱ اضغط على التايمر لتغيير العرض (متبقي / نسبة / مشاهدة)</span>
                   <span className="block text-yellow-400/60 mt-0.5">🔤 اضغط C لتشغيل/إيقاف الترجمة</span>
                 </p>
