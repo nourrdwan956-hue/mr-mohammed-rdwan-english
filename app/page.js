@@ -3,11 +3,11 @@
 // 🏛️ الصفحة الرئيسية – منصة مستر محمد رضوان (نسخة 3D فاخرة)
 // ================================================================
 // ✅ عرض الكورسات بشكل 3D أفقي عريض (Carousel متطور)
-// ✅ صور الغلاف بمقاس 9:16 مع عرض ممتد وحجم كبير
-// ✅ شريط متحرك ملون حول كل بطاقة كورس بشكل مستمر (Conic Gradient)
-// ✅ تحسين سطوع الصور بشكل كبير
+// ✅ صور الغلاف بأعلى وضوح وسطوع
+// ✅ شريط متحرك خفي يدور حول كل بطاقة كورس
+// ✅ تكبير البطاقة عند Hover بشكل بسيط مع تحركها للأمام
+// ✅ جميع البطاقات بنفس الحجم مع تكبير البطاقة النشطة
 // ✅ رقم الهاتف الصحيح: 01148553118
-// ✅ أزرار التنقل تعمل باتجاه صحيح (RTL)
 // ================================================================
 
 'use client';
@@ -380,7 +380,7 @@ const ScrollToTopButton = ({ show, onClick }) => (
 );
 
 // ================================================================
-// 🃏 بطاقة الكورس – نسخة 3D فاخرة مع شريط متحرك حول الإطار
+// 🃏 بطاقة الكورس – نسخة 3D فاخرة مع شريط متحرك خفي
 // ================================================================
 
 const CourseCard3D = ({ course, teacher, index, isActive }) => {
@@ -399,8 +399,8 @@ const CourseCard3D = ({ course, teacher, index, isActive }) => {
     const y = e.clientY - rect.top;
     const centerX = rect.width / 2;
     const centerY = rect.height / 2;
-    const rotateX = ((y - centerY) / centerY) * -8;
-    const rotateY = ((x - centerX) / centerX) * 8;
+    const rotateX = ((y - centerY) / centerY) * -6;
+    const rotateY = ((x - centerX) / centerX) * 6;
     setRotation({ x: rotateX, y: rotateY });
   };
 
@@ -409,16 +409,11 @@ const CourseCard3D = ({ course, teacher, index, isActive }) => {
     setIsHovered(false);
   };
 
-  // ألوان الشريط المتحرك (ذهبية مع تدرجات)
-  const borderColors = [
-    '#FFD700', '#FFA500', '#FF8C00', '#FFD700', '#FFC107', '#FFB300', '#FFA000', '#FFD700'
-  ];
-
   return (
     <motion.div
       ref={cardRef}
-      initial={{ opacity: 0, scale: 0.9, rotateY: 10 }}
-      animate={isActive ? { opacity: 1, scale: 1, rotateY: 0 } : { opacity: 0.6, scale: 0.95 }}
+      initial={{ opacity: 0, scale: 0.9, y: 20 }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
       transition={{ duration: 0.5, delay: index * 0.05 }}
       onMouseMove={handleMouseMove}
       onMouseEnter={() => setIsHovered(true)}
@@ -427,23 +422,31 @@ const CourseCard3D = ({ course, teacher, index, isActive }) => {
       className="group cursor-pointer perspective-1000"
       style={{ perspective: '1200px' }}
     >
-      {/* الشريط المتحرك حول الإطار (Conic Gradient) */}
-      <div className="relative p-[3px] rounded-2xl overflow-visible">
-        {/* الشريط الدوار المستمر */}
+      {/* الشريط المتحرك الخفي حول الإطار */}
+      <motion.div
+        className="relative rounded-2xl overflow-visible"
+        animate={{
+          scale: isHovered ? 1.03 : 1,
+          zIndex: isHovered ? 20 : 10,
+        }}
+        transition={{ duration: 0.3 }}
+      >
+        {/* الشريط الدوار المستمر (خفي وأنيق) */}
         <motion.div
-          className="absolute inset-0 rounded-2xl"
+          className="absolute inset-[-2px] rounded-2xl opacity-70"
           style={{
-            background: `conic-gradient(from var(--angle, 0deg), #FFD700, #FFA500, #FF8C00, #FFD700, #FFC107, #FFB300, #FFA000, #FFD700)`,
-            padding: '3px',
+            background: `conic-gradient(from 0deg, transparent, rgba(255,215,0,0.3), transparent 30%, rgba(255,215,0,0.3), transparent 60%, rgba(255,215,0,0.3), transparent)`,
+            padding: '2px',
             WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
             WebkitMaskComposite: 'xor',
             maskComposite: 'exclude',
+            pointerEvents: 'none',
           }}
           animate={{ rotate: 360 }}
-          transition={{ duration: 10, repeat: Infinity, ease: 'linear' }}
+          transition={{ duration: 8, repeat: Infinity, ease: 'linear' }}
         />
 
-        {/* محتوى البطاقة (فوق الشريط) */}
+        {/* محتوى البطاقة */}
         <motion.div
           className={`relative rounded-2xl overflow-hidden transition-all duration-400 ${
             isDark
@@ -454,24 +457,20 @@ const CourseCard3D = ({ course, teacher, index, isActive }) => {
             transform: `rotateX(${rotation.x}deg) rotateY(${rotation.y}deg)`,
             transformStyle: 'preserve-3d',
             transition: 'transform 0.1s ease-out',
-            minHeight: '360px',
-            maxHeight: '460px',
+            minHeight: '340px',
+            maxHeight: '440px',
           }}
-          animate={{
-            scale: isHovered ? 1.03 : 1,
-          }}
-          transition={{ duration: 0.25 }}
         >
           {/* تأثير إضاءة 3D */}
           <div
             className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500"
             style={{
-              background: `radial-gradient(circle at ${50 + rotation.y * 2}% ${50 + rotation.x * 2}%, rgba(255,255,255,0.15) 0%, transparent 80%)`,
+              background: `radial-gradient(circle at ${50 + rotation.y * 2}% ${50 + rotation.x * 2}%, rgba(255,255,255,0.12) 0%, transparent 80%)`,
             }}
           />
 
           {/* صورة الغلاف – بأعلى وضوح وسطوع */}
-          <div className="relative w-full overflow-hidden" style={{ height: '260px' }}>
+          <div className="relative w-full overflow-hidden" style={{ height: '250px' }}>
             {course?.cover_image ? (
               <>
                 <motion.img
@@ -479,15 +478,15 @@ const CourseCard3D = ({ course, teacher, index, isActive }) => {
                   alt={course.title}
                   className="w-full h-full object-cover object-center"
                   style={{
-                    filter: 'brightness(1.1) contrast(1.1) saturate(1.05)',
-                    backgroundColor: '#f0f0f0',
+                    filter: 'brightness(1.15) contrast(1.1) saturate(1.08)',
+                    backgroundColor: '#e8ecf0',
                   }}
-                  animate={{ scale: isHovered ? 1.08 : 1 }}
-                  transition={{ duration: 0.6 }}
+                  animate={{ scale: isHovered ? 1.06 : 1 }}
+                  transition={{ duration: 0.5 }}
                   loading="lazy"
                 />
-                {/* طبقة شفافة خفيفة جداً لتحسين القراءة */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent" />
+                {/* طبقة شفافة خفيفة جداً */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent" />
               </>
             ) : (
               <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-400/20 to-green-400/20">
@@ -500,15 +499,15 @@ const CourseCard3D = ({ course, teacher, index, isActive }) => {
               <motion.span
                 className={`text-[8px] sm:text-[9px] px-2.5 py-0.5 rounded-full font-bold backdrop-blur-lg border border-white/15 shadow-lg ${
                   course?.is_free
-                    ? 'bg-green-500 text-white'
-                    : 'bg-blue-500 text-white'
+                    ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white'
+                    : 'bg-gradient-to-r from-blue-500 to-blue-600 text-white'
                 }`}
                 whileHover={{ scale: 1.05 }}
               >
                 {course?.is_free ? 'مجاني' : `${course?.price} ج.م`}
               </motion.span>
               {course?.is_published && (
-                <span className="text-[8px] sm:text-[9px] px-2.5 py-0.5 rounded-full bg-blue-400/80 text-white font-bold backdrop-blur-lg border border-white/15 shadow-lg">
+                <span className="text-[8px] sm:text-[9px] px-2.5 py-0.5 rounded-full bg-gradient-to-r from-blue-400 to-cyan-500 text-white font-bold backdrop-blur-lg border border-white/15 shadow-lg">
                   متاح
                 </span>
               )}
@@ -530,7 +529,7 @@ const CourseCard3D = ({ course, teacher, index, isActive }) => {
 
             {/* أيقونة تشغيل عند Hover */}
             <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10">
-              <div className="p-4 rounded-full bg-black/40 backdrop-blur-md border border-white/20 shadow-2xl">
+              <div className="p-4 rounded-full bg-black/30 backdrop-blur-md border border-white/20 shadow-2xl group-hover:scale-110 transition-transform duration-300">
                 <Icons.Play className="h-8 w-8 text-white" />
               </div>
             </div>
@@ -551,7 +550,7 @@ const CourseCard3D = ({ course, teacher, index, isActive }) => {
                 )}
               </div>
               <div className="flex-shrink-0">
-                <span className="text-[10px] sm:text-xs font-extrabold text-yellow-400 bg-yellow-400/10 px-2 py-0.5 rounded-full">
+                <span className="text-[10px] sm:text-xs font-extrabold text-yellow-400 bg-yellow-400/10 px-2 py-0.5 rounded-full border border-yellow-400/20">
                   {course?.total_lessons || 0} درس
                 </span>
               </div>
@@ -583,7 +582,7 @@ const CourseCard3D = ({ course, teacher, index, isActive }) => {
             </div>
           </div>
         </motion.div>
-      </div>
+      </motion.div>
     </motion.div>
   );
 };
@@ -593,7 +592,6 @@ const CourseCard3D = ({ course, teacher, index, isActive }) => {
 // ================================================================
 
 const CoursesCarousel3D = ({ courses, teachers, isDark, loading }) => {
-  const [activeIndex, setActiveIndex] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [startX, setStartX] = useState(0);
   const [scrollLeft, setScrollLeft] = useState(0);
@@ -683,7 +681,7 @@ const CoursesCarousel3D = ({ courses, teachers, isDark, loading }) => {
               course={course}
               teacher={teachers[course.teacher_id] || null}
               index={index}
-              isActive={index === activeIndex}
+              isActive={false}
             />
           </div>
         ))}
@@ -885,7 +883,7 @@ const SocialCard = ({ link, index }) => {
 // 📐 أقسام الصفحة الرئيسية
 // ================================================================
 
-// ----- الهيرو (مضغوط) -----
+// ----- الهيرو -----
 const HeroSection = ({ isDark }) => {
   const { scrollY } = useScroll();
   const y = useTransform(scrollY, [0, 500], [0, 30]);
