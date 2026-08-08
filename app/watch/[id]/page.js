@@ -9,7 +9,8 @@
 // ✅ إخفاء جميع عناصر YouTube الأصلية (controls:0, modestbranding, rel:0)
 // ✅ إعادة شريط التحكم السفلي المخصص بالكامل مع جميع الخصائص
 // ✅ إصلاح زر التشغيل المركزي الأصفر ليعمل بشكل مثالي
-// ✅ جميع الميزات السابقة محفوظة (تتبع ذكي، حماية، Wave Border، إلخ)
+// ✅ إخفاء الزر الأصفر تلقائياً عند التشغيل وظهوره عند التوقف
+// ✅ إخفاء شريط التحكم السفلي تلقائياً بعد 2.5 ثانية من التشغيل
 // ================================================================
 
 'use client';
@@ -338,6 +339,8 @@ export default function WatchPage() {
   const [bufferProgress, setBufferProgress] = useState(0);
   const [focusMode, setFocusMode] = useState(false);
   const [captionsEnabled, setCaptionsEnabled] = useState(false);
+  // حالة لإظهار/إخفاء الزر المركزي الأصفر
+  const [showCenterButton, setShowCenterButton] = useState(true);
 
   // ---- كشف الموبايل ----
   const [isMobile, setIsMobile] = useState(false);
@@ -539,14 +542,14 @@ export default function WatchPage() {
         playerInstance = new window.YT.Player('youtube-player', {
           videoId: youtubeId,
           playerVars: {
-            modestbranding: 1,   // تقليص العلامة التجارية
-            showinfo: 0,         // إخفاء معلومات الفيديو
-            rel: 0,              // إخفاء الفيديوهات المقترحة في النهاية
-            iv_load_policy: 3,   // إخفاء التعليقات التوضيحية
-            controls: 0,         // إخفاء أزرار YouTube الأصلية تماماً
-            disablekb: 1,        // تعطيل اختصارات لوحة المفاتيح الأصلية
-            fs: 0,               // تعطيل زر ملء الشاشة الأصلي
-            playsinline: 1,      // تشغيل داخل الصفحة على الموبايل
+            modestbranding: 1,
+            showinfo: 0,
+            rel: 0,
+            iv_load_policy: 3,
+            controls: 0,        // إخفاء أزرار YouTube الأصلية تماماً
+            disablekb: 1,
+            fs: 0,
+            playsinline: 1,
             autoplay: 0,
             mute: 0,
             cc_load_policy: 0,
@@ -570,13 +573,25 @@ export default function WatchPage() {
               if (e.data === 1) {
                 setIsPlaying(true);
                 setBuffering(false);
+                // إخفاء الزر المركزي عند التشغيل
+                setShowCenterButton(false);
+                // إخفاء شريط التحكم بعد 2.5 ثانية
+                setTimeout(() => {
+                  if (isPlaying) setControlsVisible(false);
+                }, 2500);
               } else if (e.data === 2) {
                 setIsPlaying(false);
+                // إظهار الزر المركزي عند التوقف
+                setShowCenterButton(true);
+                // إظهار الأزرار عند التوقف
+                setControlsVisible(true);
               } else if (e.data === 3) {
                 setBuffering(true);
               } else if (e.data === 0) {
                 setIsPlaying(false);
                 setBuffering(false);
+                setShowCenterButton(true);
+                setControlsVisible(true);
               }
             },
             onError: (e) => {
@@ -662,7 +677,7 @@ export default function WatchPage() {
       }
       playerRef.current = null;
     };
-  }, [isYoutubeOnly, isValidYoutube, youtubeId, video, id, showIntro, playerReady]);
+  }, [isYoutubeOnly, isValidYoutube, youtubeId, video, id, showIntro, playerReady, isPlaying]);
 
   // ================================================================
   // 11. دوال التحكم (محسّنة للموبايل)
@@ -680,14 +695,16 @@ export default function WatchPage() {
         // يعمل أو يتحمّل → إيقاف
         player.pauseVideo();
         setIsPlaying(false);
+        setShowCenterButton(true);
+        setControlsVisible(true);
       } else {
         // متوقف أو منتهي → تشغيل
         if (isMobile) {
-          // تأخير بسيط للموبايل لتجنب مشاكل التشغيل التلقائي
           setTimeout(() => {
             try {
               player.playVideo();
               setIsPlaying(true);
+              setShowCenterButton(false);
             } catch (e) {
               console.warn('Play error on mobile:', e);
             }
@@ -695,7 +712,12 @@ export default function WatchPage() {
         } else {
           player.playVideo();
           setIsPlaying(true);
+          setShowCenterButton(false);
         }
+        // إخفاء الأزرار بعد 2.5 ثانية من التشغيل
+        setTimeout(() => {
+          if (isPlaying) setControlsVisible(false);
+        }, 2500);
       }
 
       // إظهار الأزرار مؤقتاً
@@ -861,7 +883,7 @@ export default function WatchPage() {
   }, [playerReady, captionsEnabled, language]);
 
   // ================================================================
-  // 12. تأثير إخفاء الأزرار تلقائياً
+  // 12. تأثير إخفاء الأزرار تلقائياً (تم تعديله)
   // ================================================================
   useEffect(() => {
     if (isYoutubeOnly) return;
@@ -1254,7 +1276,7 @@ export default function WatchPage() {
                 <>
                   <div id="youtube-player" className="w-full h-full absolute inset-0 z-0" />
                   {/* منع التفاعل مع iframe حتى لا تظهر أزرار YouTube */}
-                  <div className="absolute inset-0 z-5 bg-transparent" style={{ pointerEvents: 'auto' }} />
+                  <div className="absolute inset-0 z-5 bg-transparent" style={{ pointerEvents: 'none' }} />
                   <style dangerouslySetInnerHTML={{
                     __html: `
                       #youtube-player iframe {
@@ -1280,14 +1302,11 @@ export default function WatchPage() {
                     )}
                   </AnimatePresence>
 
-                  {/* زر التشغيل المركزي الأصفر - يعمل الآن */}
-                  {playerReady && controlsVisible && (
+                  {/* زر التشغيل المركزي الأصفر - يختفي عند التشغيل ويظهر عند التوقف */}
+                  {playerReady && controlsVisible && showCenterButton && (
                     <div
                       className="absolute inset-0 z-30 flex items-center justify-center pb-8 sm:pb-0"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        togglePlay();
-                      }}
+                      onClick={togglePlay}
                     >
                       <motion.div
                         initial={{ scale: 0.8, opacity: 0.8 }}
@@ -1295,15 +1314,10 @@ export default function WatchPage() {
                         whileHover={{ scale: 1.1 }}
                         whileTap={{ scale: 0.95 }}
                         className="relative"
-                        onClick={(e) => e.stopPropagation()}
                       >
                         <div className="absolute inset-0 bg-yellow-400/20 rounded-full blur-xl scale-150 group-hover:scale-200 transition-transform duration-300" />
                         <div className="relative w-14 h-14 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-full bg-yellow-400/90 flex items-center justify-center shadow-2xl shadow-yellow-400/40 group-hover:shadow-yellow-400/60 transition-shadow">
-                          {isPlaying ? (
-                            <Icons.Pause className="h-6 w-6 sm:h-10 sm:w-10 md:h-12 md:w-12 text-black" />
-                          ) : (
-                            <Icons.Play className="h-6 w-6 sm:h-10 sm:w-10 md:h-12 md:w-12 text-black ml-1" />
-                          )}
+                          <Icons.Play className="h-6 w-6 sm:h-10 sm:w-10 md:h-12 md:w-12 text-black ml-1" />
                         </div>
                       </motion.div>
                     </div>
@@ -1363,10 +1377,7 @@ export default function WatchPage() {
                       {/* صف الأزرار */}
                       <div className="flex items-center gap-0.5 sm:gap-2 text-white flex-wrap">
                         <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            togglePlay();
-                          }}
+                          onClick={togglePlay}
                           className="p-1 sm:p-1.5 rounded-full hover:bg-white/10 transition-colors"
                         >
                           {isPlaying ? <Icons.Pause className="h-4 w-4 sm:h-6 sm:w-6" /> : <Icons.Play className="h-4 w-4 sm:h-6 sm:w-6" />}
