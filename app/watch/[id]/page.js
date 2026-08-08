@@ -704,7 +704,7 @@ export default function WatchPage() {
         player.pauseVideo();
         setIsPlaying(false);
         isPlayingRef.current = false;
-        setControlsVisible(true); // الأزرار تظهر، والزر المركزي سيظهر لأن isPlaying = false
+        setControlsVisible(true);
         // لا نضع تايمر لأن الفيديو واقف والأزرار تفضل ظاهرة
       } else {
         // ▶️ تشغيل الفيديو
@@ -713,7 +713,7 @@ export default function WatchPage() {
           setIsPlaying(true);
           isPlayingRef.current = true;
           setControlsVisible(true);
-          // الزر المركزي سيختفي بعد 2.5 ثانية مع الأزرار
+          // بعد 2.5 ثانية نخفي الأزرار
           controlsTimerRef.current = setTimeout(() => {
             if (isPlayingRef.current) {
               setControlsVisible(false);
@@ -732,6 +732,22 @@ export default function WatchPage() {
       toast.error('تعذر تشغيل الفيديو');
     }
   }, [playerReady, isMobile]);
+
+  // ================================================================
+  // 11.1 تأثير تلقائي لإخفاء الأزرار عند بدء التشغيل من أي مصدر
+  // ================================================================
+  useEffect(() => {
+    if (isPlaying) {
+      // كلما بدأ التشغيل، نضبط تايمر لإخفاء الأزرار بعد 2.5 ثانية
+      clearTimeout(controlsTimerRef.current);
+      controlsTimerRef.current = setTimeout(() => {
+        if (isPlayingRef.current) {
+          setControlsVisible(false);
+        }
+      }, 2500);
+    }
+    // لو isPlaying = false، الأزرار تفضل ظاهرة ومافيش تايمر
+  }, [isPlaying]);
 
   const skipForward = useCallback(() => {
     if (!playerRef.current || !playerReady) return;
