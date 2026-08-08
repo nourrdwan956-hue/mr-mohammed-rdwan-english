@@ -1,9 +1,8 @@
 // ================================================================
 // 📁 المسار: app/watch/[id]/page.js
-// ✅ إصلاح نهائي لاختفاء الأزرار في وضع ملء الشاشة وأثناء التشغيل
-// ✅ زر مركزي يعمل تشغيل/إيقاف ويظهر عند التحرك/اللمس فقط أثناء التشغيل
-// ✅ شريط سفلي يظهر ويختفي بنفس الآلية
-// ✅ منع التفاعل مع عناصر YouTube
+// ✅ إصلاح نهائي لإخفاء الأزرار بعد 3 ثوانٍ من التشغيل (يعمل في ملء الشاشة أيضاً)
+// ✅ يظهران عند تحريك الماوس أو اللمس ويختفيان تلقائياً بعد 3 ثوانٍ
+// ✅ الزر المركزي يعمل تشغيل/إيقاف ويظهر عند الحاجة
 // ================================================================
 
 'use client';
@@ -492,19 +491,19 @@ export default function WatchPage() {
   };
 
   // ================================================================
-  // 11. دالة مساعدة لإخفاء الأزرار بعد فترة (تستخدم في عدة أماكن)
+  // 11. دالة مساعدة لإخفاء الأزرار بعد 3 ثوانٍ (تُستخدم في عدة أماكن)
   // ================================================================
   const scheduleHideControls = useCallback(() => {
+    // نلغي أي تايمر سابق
     clearTimeout(controlsTimerRef.current);
+    
+    // فقط إذا كان الفيديو شغالاً، نضبط تايمر لإخفاء الأزرار بعد 3 ثوانٍ
     if (isPlayingRef.current) {
       controlsTimerRef.current = setTimeout(() => {
         if (isPlayingRef.current) {
           setControlsVisible(false);
         }
-      }, 2500);
-    } else {
-      // إذا كان الفيديو واقفاً، لا نخفي الأزرار أبداً
-      setControlsVisible(true);
+      }, 3000); // 3 ثوانٍ (زودتها شوية عشان ميحصلش تعارض)
     }
   }, []);
 
@@ -586,13 +585,13 @@ export default function WatchPage() {
                 isPlayingRef.current = true;
                 setBuffering(false);
                 setControlsVisible(true);
-                scheduleHideControls(); // يخفي بعد 2.5 ثانية
+                scheduleHideControls(); // سيخفي الأزرار بعد 3 ثوانٍ
               } else if (e.data === 2) {
                 // إيقاف مؤقت
                 clearTimeout(controlsTimerRef.current);
                 setIsPlaying(false);
                 isPlayingRef.current = false;
-                setControlsVisible(true); // يظهر الأزرار (والزر المركزي)
+                setControlsVisible(true); // الأزرار تظهر ولا تختفي
               } else if (e.data === 3) {
                 setBuffering(true);
               } else if (e.data === 0) {
@@ -722,7 +721,7 @@ export default function WatchPage() {
           setIsPlaying(true);
           isPlayingRef.current = true;
           setControlsVisible(true);
-          scheduleHideControls(); // يخفي بعد 2.5 ثانية
+          scheduleHideControls(); // نخفي بعد 3 ثوانٍ
         };
 
         if (isMobile) {
@@ -746,7 +745,7 @@ export default function WatchPage() {
       const newTime = Math.min(current + 10, total);
       player.seekTo(newTime, true);
       setControlsVisible(true);
-      scheduleHideControls();
+      scheduleHideControls(); // نخفي بعد 3 ثوانٍ
     } catch (e) {
       console.warn('Skip forward error:', e);
     }
@@ -760,7 +759,7 @@ export default function WatchPage() {
       const newTime = Math.max(0, current - 10);
       player.seekTo(newTime, true);
       setControlsVisible(true);
-      scheduleHideControls();
+      scheduleHideControls(); // نخفي بعد 3 ثوانٍ
     } catch (e) {
       console.warn('Skip backward error:', e);
     }
@@ -805,7 +804,7 @@ export default function WatchPage() {
         setProgress(percent);
         setCurrentTime(target);
         setControlsVisible(true);
-        scheduleHideControls();
+        scheduleHideControls(); // نخفي بعد 3 ثوانٍ
       }
     } catch (e) {}
   }, [playerReady, scheduleHideControls]);
@@ -882,17 +881,18 @@ export default function WatchPage() {
   }, [playerReady, captionsEnabled, language]);
 
   // ================================================================
-  // 14. تأثير إخفاء الأزرار تلقائياً (مع دعم الموبايل وملء الشاشة)
+  // 14. تأثير إخفاء الأزرار تلقائياً عند التحرك (مع دعم الموبايل وملء الشاشة)
   // ================================================================
   useEffect(() => {
     if (isYoutubeOnly) return;
 
     const handleMouseMove = () => {
       setControlsVisible(true);
-      scheduleHideControls();
+      scheduleHideControls(); // يظهر الأزرار ويؤخر الإخفاء 3 ثوانٍ
     };
 
     const handleMouseLeave = () => {
+      // عند خروج الماوس من الحاوية، إذا كان الفيديو شغالاً نخفي الأزرار فوراً
       if (isPlayingRef.current) {
         setControlsVisible(false);
         clearTimeout(controlsTimerRef.current);
@@ -901,7 +901,7 @@ export default function WatchPage() {
 
     const handleTouchStart = () => {
       setControlsVisible(true);
-      scheduleHideControls();
+      scheduleHideControls(); // يظهر الأزرار ويؤخر الإخفاء 3 ثوانٍ
     };
 
     const container = containerRef.current;
