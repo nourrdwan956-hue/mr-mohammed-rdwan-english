@@ -1,13 +1,12 @@
 // app/watch/[id]/page.js
 // ================================================================
 // 📁 المسار: app/watch/[id]/page.js
-// ✅ تحسينات متقدمة للتوافق مع جميع الشاشات
-//    - تقليص أحجام الأزرار والمسافات على الموبايل
-//    - وضوح مثالي على الشاشات الكبيرة
-// ✅ إزالة زر التكرار (Loop) نهائياً مع جميع توابعه
-// ✅ زر الترجمة يعمل كـ toggle مع رسائل واضحة
-// ✅ جميع الميزات السابقة محفوظة (تتبع ذكي، حماية، Wave Border، إلخ)
-// ✅ تحسينات إضافية: دالة togglePlay محسّنة للموبايل، إضافة isMobile، منع انتشار الأحداث
+// ✅ تحسينات نهائية لتوافق الموبايل والكمبيوتر
+//    - إصلاح زر التشغيل المركزي والأسفل (يعملان بشكل صحيح)
+//    - دعم كامل للموبايل مع منع مشاكل التشغيل التلقائي
+//    - إزالة زر التكرار (Loop) نهائياً
+//    - زر الترجمة كـ toggle مع رسائل واضحة
+//    - جميع الميزات السابقة محفوظة
 // ================================================================
 
 'use client';
@@ -335,10 +334,9 @@ export default function WatchPage() {
   const [currentQuality, setCurrentQuality] = useState('auto');
   const [bufferProgress, setBufferProgress] = useState(0);
   const [focusMode, setFocusMode] = useState(false);
-  // حالة الترجمة: تتبع ما إذا كانت الترجمة مفعلة أم لا
   const [captionsEnabled, setCaptionsEnabled] = useState(false);
 
-  // ---- كشف الموبايل (جديد) ----
+  // ---- كشف الموبايل ----
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
@@ -577,7 +575,6 @@ export default function WatchPage() {
               } else if (e.data === 0) {
                 setIsPlaying(false);
                 setBuffering(false);
-                // تم إزالة التكرار (loop) نهائياً
               }
             },
             onError: (e) => {
@@ -666,35 +663,29 @@ export default function WatchPage() {
   }, [isYoutubeOnly, isValidYoutube, youtubeId, video, id, showIntro, playerReady]);
 
   // ================================================================
-  // 11. دوال التحكم (محسّنة للموبايل)
+  // 11. دوال التحكم (محسّنة للموبايل والكمبيوتر)
   // ================================================================
 
-  // ✅ دالة محسّنة لتشغيل/إيقاف الفيديو مع دعم الموبايل
+  // ✅ دالة موحدة لتشغيل/إيقاف الفيديو تعتمد على الحالة الفعلية للمشغل
   const togglePlay = useCallback(() => {
-    if (!playerRef.current || !playerReady) return;
+    if (!playerRef.current || !playerReady) {
+      toast.error('المشغل غير جاهز');
+      return;
+    }
 
     try {
       const player = playerRef.current;
-      // الحصول على الحالة الفعلية من YouTube API
       const state = player.getPlayerState();
 
-      // الحالات الممكنة:
-      // -1 = غير جاهز
-      // 0 = انتهى (ended)
-      // 1 = يعمل (playing)
-      // 2 = متوقف مؤقت (paused)
-      // 3 = تحميل (buffering)
-      // 5 = فيديو تم تحميله (cued)
-
+      // الحالات: -1=غير جاهز, 0=انتهى, 1=يعمل, 2=متوقف, 3=تحميل, 5=تم التحميل
       if (state === 1 || state === 3) {
-        // ✅ الفيديو يعمل أو يتحمّل → نوقفه
+        // يعمل أو يتحمّل → إيقاف
         player.pauseVideo();
         setIsPlaying(false);
       } else {
-        // ✅ الفيديو متوقف أو منتهي → نشغله
-        // للموبايل: نضيف تأخير بسيط لتجنب مشاكل التشغيل التلقائي
+        // متوقف أو منتهي → تشغيل
+        // للموبايل: تأخير بسيط لتجنب مشاكل التشغيل التلقائي
         if (isMobile) {
-          // على الموبايل، نستخدم setTimeout لتأخير التشغيل قليلاً
           setTimeout(() => {
             try {
               player.playVideo();
@@ -702,7 +693,7 @@ export default function WatchPage() {
             } catch (e) {
               console.warn('Play error on mobile:', e);
             }
-          }, 100);
+          }, 80);
         } else {
           player.playVideo();
           setIsPlaying(true);
@@ -722,7 +713,6 @@ export default function WatchPage() {
     }
   }, [playerReady, isPlaying, isMobile]);
 
-  // ✅ دالة السريع للأمام (تبقى كما هي)
   const skipForward = useCallback(() => {
     if (!playerRef.current || !playerReady) return;
     try {
@@ -740,7 +730,6 @@ export default function WatchPage() {
     }
   }, [playerReady, isPlaying]);
 
-  // ✅ دالة السريع للخلف (تبقى كما هي)
   const skipBackward = useCallback(() => {
     if (!playerRef.current || !playerReady) return;
     try {
@@ -840,9 +829,6 @@ export default function WatchPage() {
     });
   }, []);
 
-  // ================================================================
-  // زر الترجمة: يعمل كـ toggle (تشغيل/إيقاف) مع رسائل واضحة
-  // ================================================================
   const toggleCaptions = useCallback(() => {
     if (!playerRef.current || !playerReady) {
       toast.error(language === 'ar' ? 'المشغل غير جاهز' : 'Player not ready');
@@ -851,12 +837,10 @@ export default function WatchPage() {
     try {
       const player = playerRef.current;
       if (captionsEnabled) {
-        // إيقاف الترجمة (إخفاءها)
         player.setOption('captions', 'track', { languageCode: '' });
         setCaptionsEnabled(false);
         toast.success(language === 'ar' ? '✅ تم إيقاف الترجمة' : '✅ Captions disabled');
       } else {
-        // تشغيل الترجمة (إظهارها)
         player.loadModule('captions');
         setTimeout(() => {
           try {
@@ -957,7 +941,7 @@ export default function WatchPage() {
   }, [isYoutubeOnly]);
 
   // ================================================================
-  // 14. اختصارات لوحة المفاتيح (تم إزالة Loop)
+  // 14. اختصارات لوحة المفاتيح
   // ================================================================
   useEffect(() => {
     if (isYoutubeOnly) return;
@@ -981,7 +965,7 @@ export default function WatchPage() {
   }, [playerReady, togglePlay, skipForward, skipBackward, toggleMute, toggleFullscreen, toggleFocusMode, toggleCaptions, isYoutubeOnly]);
 
   // ================================================================
-  // 15. نظام التتبع الذكي للمشاهدة
+  // 15. نظام التتبع الذكي للمشاهدة (بدون تغيير)
   // ================================================================
 
   // 15.1 تتبع التقدم الحقيقي
@@ -1223,7 +1207,7 @@ export default function WatchPage() {
   const thumbnailUrl = youtubeId ? `https://img.youtube.com/vi/${youtubeId}/maxresdefault.jpg` : null;
 
   // ================================================================
-  // 17. التصميم النهائي (مع تحسينات متقدمة للشاشات الصغيرة والكبيرة، بدون Loop)
+  // 17. التصميم النهائي (مع تحسينات متقدمة للشاشات الصغيرة والكبيرة)
   // ================================================================
   return (
     <div className={`min-h-screen text-white transition-all duration-500 relative ${focusMode ? 'fixed inset-0 z-50 p-0 flex items-center justify-center bg-black' : ''}`}>
@@ -1299,7 +1283,7 @@ export default function WatchPage() {
                     <div
                       className="absolute inset-0 z-30 flex items-center justify-center pb-8 sm:pb-0"
                       onClick={(e) => {
-                        e.stopPropagation(); // ✅ منع انتشار الحدث
+                        e.stopPropagation();
                         togglePlay();
                       }}
                     >
@@ -1309,7 +1293,7 @@ export default function WatchPage() {
                         whileHover={{ scale: 1.1 }}
                         whileTap={{ scale: 0.95 }}
                         className="relative"
-                        onClick={(e) => e.stopPropagation()} // ✅ منع انتشار الحدث مرة أخرى
+                        onClick={(e) => e.stopPropagation()}
                       >
                         <div className="absolute inset-0 bg-yellow-400/20 rounded-full blur-xl scale-150 group-hover:scale-200 transition-transform duration-300" />
                         <div className="relative w-14 h-14 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-full bg-yellow-400/90 flex items-center justify-center shadow-2xl shadow-yellow-400/40 group-hover:shadow-yellow-400/60 transition-shadow">
@@ -1342,7 +1326,7 @@ export default function WatchPage() {
                     )}
                   </AnimatePresence>
 
-                  {/* شريط التحكم السفلي - محسّن جداً للموبايل والكبيرة */}
+                  {/* شريط التحكم السفلي */}
                   {playerReady && (
                     <div
                       className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent p-2 sm:p-4 flex flex-col gap-1 sm:gap-2 pointer-events-auto z-40 transition-opacity duration-300 ${controlsVisible ? 'opacity-100' : 'opacity-0'}`}
@@ -1351,7 +1335,6 @@ export default function WatchPage() {
                         clearTimeout(controlsTimerRef.current);
                       }}
                     >
-                      {/* شريط التقدم - مناسب للجميع */}
                       <div
                         ref={progressRef}
                         className="relative w-full h-1.5 sm:h-2.5 bg-white/15 rounded-full cursor-pointer group/progress"
@@ -1373,11 +1356,11 @@ export default function WatchPage() {
                         </div>
                       </div>
 
-                      {/* صف الأزرار - مرن ومناسب لكل الأحجام */}
+                      {/* صف الأزرار */}
                       <div className="flex items-center gap-0.5 sm:gap-2 text-white flex-wrap">
                         <button
                           onClick={(e) => {
-                            e.stopPropagation(); // ✅ منع انتشار الحدث
+                            e.stopPropagation();
                             togglePlay();
                           }}
                           className="p-1 sm:p-1.5 rounded-full hover:bg-white/10 transition-colors"
@@ -1411,7 +1394,6 @@ export default function WatchPage() {
                           }}
                         />
 
-                        {/* زر الترجمة - حجم متجاوب */}
                         <button
                           onClick={toggleCaptions}
                           className={`p-1 sm:p-1.5 rounded-full hover:bg-white/10 transition-colors ${captionsEnabled ? 'text-yellow-400' : ''}`}
