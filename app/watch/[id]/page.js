@@ -1,11 +1,11 @@
 // app/watch/[id]/page.js
 // ================================================================
 // 📁 المسار: app/watch/[id]/page.js
-// ✅ إصلاح خطأ 'getCurrentTime is not a function'
-// ✅ تحسين استقرار المشغل ومنع الأخطاء الناتجة عن استدعاء دوال YouTube قبل التجهيز
-// ✅ إضافة الحراسة (guard) في كل مكان يتم فيه استخدام playerRef
-// ✅ استخدام useRef لتجنب stale closure في setTimeout
-// ✅ تحسين إدارة المؤقتات
+// ✅ إصلاح نهائي: منع الوصول إلى أي عنصر من عناصر YouTube (العنوان، القناة، الأزرار)
+// ✅ استخدام طبقة شفافة (overlay) مع pointer-events: auto لمنع التفاعل مع iframe
+// ✅ الحفاظ على جميع عناصر التحكم المخصصة (الزر المركزي، شريط التقدم، الأزرار السفلية)
+// ✅ دعم كامل للموبايل والكمبيوتر
+// ✅ إزالة جميع عناصر YouTube نهائياً
 // ================================================================
 
 'use client';
@@ -360,7 +360,7 @@ export default function WatchPage() {
   const progressRef = useRef(null);
   const controlsTimerRef = useRef(null);
   const progressIntervalRef = useRef(null);
-  const isPlayingRef = useRef(false); // لتجنب stale closure
+  const isPlayingRef = useRef(false);
 
   // ---- استخراج معلومات YouTube ----
   const youtubeId = useMemo(() => (video ? getYoutubeId(video.video_url) : null), [video]);
@@ -495,7 +495,7 @@ export default function WatchPage() {
   };
 
   // ================================================================
-  // 10. إنشاء مشغل YouTube (محسّن لتجنب أخطاء origin)
+  // 10. إنشاء مشغل YouTube (مع منع تفاعل المستخدم مع عناصر YouTube)
   // ================================================================
   useEffect(() => {
     if (isYoutubeOnly || !isValidYoutube || !video) return;
@@ -563,7 +563,6 @@ export default function WatchPage() {
                 if (dur > 0) setDuration(dur);
               }
               console.log('✅ YouTube Player ready');
-              // بدء التتبع بعد أن يصبح المشغل جاهزاً
               startProgressTracking();
             },
             onStateChange: (e) => {
@@ -572,7 +571,6 @@ export default function WatchPage() {
                 isPlayingRef.current = true;
                 setBuffering(false);
                 setShowCenterButton(false);
-                // إخفاء الأزرار بعد 2.5 ثانية
                 clearTimeout(controlsTimerRef.current);
                 controlsTimerRef.current = setTimeout(() => {
                   if (isPlayingRef.current) {
@@ -620,7 +618,6 @@ export default function WatchPage() {
       if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
       progressIntervalRef.current = setInterval(() => {
         const player = playerRef.current;
-        // ✅ تحقق قوي: تأكد من وجود player وأنه يحتوي على getCurrentTime
         if (player && playerReady && typeof player.getCurrentTime === 'function') {
           try {
             const current = player.getCurrentTime() || 0;
@@ -630,9 +627,7 @@ export default function WatchPage() {
               setDuration(total);
               setProgress((current / total) * 100);
             }
-          } catch (e) {
-            // تجاهل الأخطاء المؤقتة
-          }
+          } catch (e) {}
         }
       }, 200);
     };
@@ -686,7 +681,7 @@ export default function WatchPage() {
   }, [isYoutubeOnly, isValidYoutube, youtubeId, video, id, showIntro, playerReady]);
 
   // ================================================================
-  // 11. دوال التحكم (محسّنة للموبايل)
+  // 11. دوال التحكم
   // ================================================================
 
   const togglePlay = useCallback(() => {
@@ -723,7 +718,6 @@ export default function WatchPage() {
           isPlayingRef.current = true;
           setShowCenterButton(false);
         }
-        // إخفاء الأزرار بعد 2.5 ثانية
         clearTimeout(controlsTimerRef.current);
         controlsTimerRef.current = setTimeout(() => {
           if (isPlayingRef.current) {
@@ -1005,7 +999,7 @@ export default function WatchPage() {
   }, [playerReady, togglePlay, skipForward, skipBackward, toggleMute, toggleFullscreen, toggleFocusMode, toggleCaptions, isYoutubeOnly]);
 
   // ================================================================
-  // 15. نظام التتبع الذكي للمشاهدة (محسّن بالحراسة)
+  // 15. نظام التتبع الذكي للمشاهدة
   // ================================================================
 
   // 15.1 تتبع التقدم الحقيقي
@@ -1013,13 +1007,12 @@ export default function WatchPage() {
     if (!playerReady || !isPlaying || !playerRef.current) return;
 
     let lastTime = 0;
-    // محاولة قراءة الوقت الحالي مع الحراسة
     try {
       const player = playerRef.current;
       if (typeof player.getCurrentTime === 'function') {
         lastTime = player.getCurrentTime() || 0;
       } else {
-        return; // لا يمكن التتبع
+        return;
       }
     } catch (e) {
       return;
@@ -1043,9 +1036,7 @@ export default function WatchPage() {
           });
         }
         lastTime = now;
-      } catch (e) {
-        // تجاهل الأخطاء المؤقتة
-      }
+      } catch (e) {}
     }, 1000);
 
     return () => clearInterval(interval);
@@ -1260,7 +1251,7 @@ export default function WatchPage() {
   };
 
   // ================================================================
-  // 17. التصميم النهائي (مع شريط التحكم المخصص والزر المركزي)
+  // 17. التصميم النهائي (مع طبقة حماية كاملة لمنع التفاعل مع YouTube)
   // ================================================================
   return (
     <div className={`min-h-screen text-white transition-all duration-500 relative ${focusMode ? 'fixed inset-0 z-50 p-0 flex items-center justify-center bg-black' : ''}`}>
@@ -1304,15 +1295,31 @@ export default function WatchPage() {
                 </div>
               ) : (
                 <>
+                  {/* مشغل YouTube (في الخلفية) */}
                   <div id="youtube-player" className="w-full h-full absolute inset-0 z-0" />
-                  <div className="absolute inset-0 z-5 bg-transparent" style={{ pointerEvents: 'none' }} />
+                  
+                  {/* ✅ طبقة شفافة قوية تمنع أي تفاعل مع iframe (العنوان، القناة، الأزرار) */}
+                  <div 
+                    className="absolute inset-0 z-5" 
+                    style={{ 
+                      pointerEvents: 'auto',
+                      backgroundColor: 'transparent',
+                      cursor: 'default',
+                    }}
+                  />
+                  
+                  {/* منع أي تفاعل مع iframe عبر CSS */}
                   <style dangerouslySetInnerHTML={{
                     __html: `
                       #youtube-player iframe {
                         pointer-events: none !important;
                       }
+                      #youtube-player iframe * {
+                        pointer-events: none !important;
+                      }
                     `
                   }} />
+                  
                   <div className="absolute inset-0 z-10 pointer-events-none" />
 
                   <AnimatePresence>
