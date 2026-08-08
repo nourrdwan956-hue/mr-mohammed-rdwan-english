@@ -6,6 +6,7 @@
 // ✅ صور الغلاف بأعلى وضوح وسطوع
 // ✅ شريط متحرك رفيع يدور حول كل بطاقة كورس
 // ✅ جميع البطاقات بنفس الحجم مع تكبير عند Hover
+// ✅ عرض عدد الدروس = عدد الفيديوهات في كل كورس (حقيقي من قاعدة البيانات)
 // ✅ رقم الهاتف الصحيح: 01148553118
 // ================================================================
 
@@ -1284,6 +1285,7 @@ export default function Home() {
   useEffect(() => {
     const fetchCourses = async () => {
       try {
+        // 1. جلب الكورسات المنشورة
         const { data: coursesData, error: coursesError } = await supabase
           .from('courses')
           .select('*')
@@ -1294,7 +1296,31 @@ export default function Home() {
         if (coursesError) throw coursesError;
 
         if (coursesData?.length) {
-          setCourses(coursesData);
+          // 2. جلب الفيديوهات المنشورة لحساب عدد الدروس لكل كورس
+          const courseIds = coursesData.map(c => c.id);
+          const { data: videosData, error: videosError } = await supabase
+            .from('videos')
+            .select('course_id')
+            .in('course_id', courseIds)
+            .eq('is_published', true); // نأخذ فقط المنشورة، يمكنك تغيير هذا إذا أردت كل الفيديوهات
+
+          if (videosError) throw videosError;
+
+          // حساب عدد الفيديوهات لكل كورس
+          const videoCounts = {};
+          videosData?.forEach(v => {
+            videoCounts[v.course_id] = (videoCounts[v.course_id] || 0) + 1;
+          });
+
+          // إضافة total_lessons إلى كل كورس
+          const coursesWithLessons = coursesData.map(course => ({
+            ...course,
+            total_lessons: videoCounts[course.id] || 0,
+          }));
+
+          setCourses(coursesWithLessons);
+
+          // 3. جلب بيانات المعلمين (كما هو)
           const teacherIds = [...new Set(coursesData.map(c => c.teacher_id).filter(Boolean))];
           if (teacherIds.length) {
             const { data: teachersData } = await supabase
