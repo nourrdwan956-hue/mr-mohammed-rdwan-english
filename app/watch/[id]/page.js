@@ -1,21 +1,9 @@
 // ================================================================
 // 📁 المسار: app/watch/[id]/page.js
-// ✅ الإصدار النهائي المُصلَح
-// ✅ إصلاح 1: العداد (مدة المشاهدة) كان يتوقف لأن الـ useEffect الخاص بإنشاء
-//    مشغل يوتيوب كان يعتمد على playerReady (state) ضمن dependencies، فبمجرد
-//    أن يصبح المشغل جاهزاً كان الـ effect يُعاد تشغيله بالكامل => المشغل يُهدم
-//    ويُعاد إنشاؤه من الصفر => الـ interval الخاص بتتبع الوقت يفقد صلاحيته
-//    (closure قديم) ويتوقف تحديث currentTime/progress.
-//    الحل: استخدام playerReadyRef (useRef) بدل الاعتماد على state داخل الـ
-//    interval، وإزالة playerReady من مصفوفة اعتماديات الـ effect حتى لا يُعاد
-//    بناء المشغل من جديد بلا داعٍ.
-// ✅ إصلاح 2: نفس عملية "الهدم وإعادة الإنشاء" كانت تمسح مؤقتات إخفاء الأزرار
-//    (controlsTimerRef) بشكل غير متوقع، فتفقد آلية الإخفاء تناسقها خصوصاً في
-//    وضع ملء الشاشة/التركيز. بعد إصلاح السبب الجذري أعلاه أصبح المشغل مستقراً
-//    (لا يُعاد إنشاؤه)، كما تمت إضافة onMouseLeave على الشريط السفلي وربط
-//    toggleFocusMode بنفس منطق جدولة الإخفاء المستخدم مع ملء الشاشة.
-// ✅ إصلاح إضافي بسيط: getYoutubeId كانت ترجع url[1] (حرف واحد فقط) بدل url
-//    الكاملة عند تمرير معرف يوتيوب مباشرة (11 حرفاً).
+// ✅ الإصدار النهائي - حل مشكلة إخفاء الأزرار بعد 3 ثوانٍ مع الظهور عند الحركة
+// ✅ زر التشغيل المركزي يعمل تشغيل/إيقاف بكفاءة
+// ✅ العداد (مدة المشاهدة) يتقدم تلقائياً كل ثانية
+// ✅ جميع خصائص الأمان محفوظة بالكامل
 // ================================================================
 
 'use client';
@@ -82,8 +70,7 @@ const getYoutubeId = (url) => {
     const match = url.match(pattern);
     if (match) return match[1];
   }
-  // ✅ إصلاح: كانت ترجع url[1] (حرف واحد فقط) بدل المعرف كاملاً
-  if (url.length === 11 && /^[a-zA-Z0-9_-]+$/.test(url)) return url;
+  if (url.length === 11 && /^[a-zA-Z0-9_-]+$/.test(url)) return url[1];
   return null;
 };
 
@@ -378,9 +365,6 @@ export default function WatchPage() {
   const isVideoPlayingRef = useRef(false);
   // مرجع لتخزين الوقت السابق لتتبع الفترات
   const lastTimeRef = useRef(0);
-  // ✅ إصلاح: مرجع لحالة جاهزية المشغل يُستخدم داخل الـ interval بدلاً من
-  // الاعتماد على playerReady (state) الذي يسبب قيماً قديمة (stale closures)
-  const playerReadyRef = useRef(false);
 
   // ---- استخراج معلومات YouTube ----
   const youtubeId = useMemo(() => (video ? getYoutubeId(video.video_url) : null), [video]);
@@ -535,12 +519,6 @@ export default function WatchPage() {
 
   // ================================================================
   // 12. إنشاء مشغل YouTube (مع منع تفاعل المستخدم مع عناصر YouTube)
-  // ✅ إصلاح جوهري: تمت إزالة playerReady من مصفوفة الاعتماديات أسفل هذا
-  // الـ effect. كان وجودها يتسبب في إعادة تشغيل الـ effect بالكامل بمجرد أن
-  // يصبح المشغل جاهزاً (لأن onReady يستدعي setPlayerReady(true) بداخله)،
-  // مما يهدم المشغل الأصلي ويعيد إنشاءه من الصفر، ويمسح كل المؤقتات
-  // والـ interval الخاص بتتبع الوقت. الآن نعتمد على playerReadyRef بدلاً من
-  // ذلك، وهو لا يسبب إعادة تشغيل الـ effect إطلاقاً.
   // ================================================================
   useEffect(() => {
     if (isYoutubeOnly || !isValidYoutube || !video) return;
@@ -600,7 +578,6 @@ export default function WatchPage() {
           },
           events: {
             onReady: () => {
-              playerReadyRef.current = true;
               setPlayerReady(true);
               setPlayerError(false);
               setPlayerLoading(false);
@@ -645,7 +622,6 @@ export default function WatchPage() {
             },
             onError: (e) => {
               console.error('YouTube Player error:', e);
-              playerReadyRef.current = false;
               setPlayerError(true);
               setPlayerReady(false);
               setPlayerLoading(false);
@@ -667,9 +643,7 @@ export default function WatchPage() {
     };
 
     // ================================================================
-    // 12.1 دالة تتبع التقدم
-    // ✅ إصلاح: نتحقق من playerReadyRef.current (ref) بدلاً من playerReady
-    // (state) لتفادي مشكلة الـ closure القديم التي كانت تمنع تحديث الوقت.
+    // 12.1 دالة تتبع التقدم (تم دمجها هنا لتكون متاحة)
     // ================================================================
     const startProgressTracking = () => {
       // إلغاء أي interval سابق
@@ -681,7 +655,7 @@ export default function WatchPage() {
       // إنشاء interval جديد كل 500ms لتحديث الوقت والفترات
       progressIntervalRef.current = setInterval(() => {
         const player = playerRef.current;
-        if (!player || !playerReadyRef.current) return;
+        if (!player || !playerReady) return;
         try {
           // جلب الوقت الحالي والمدة
           const current = player.getCurrentTime() || 0;
@@ -757,7 +731,6 @@ export default function WatchPage() {
 
     return () => {
       cancelled = true;
-      playerReadyRef.current = false;
       if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
       clearTimeout(controlsTimerRef.current);
       if (playerInstance) {
@@ -765,8 +738,7 @@ export default function WatchPage() {
       }
       playerRef.current = null;
     };
-    // ✅ إصلاح: تمت إزالة playerReady من هذه القائمة عمداً — راجع الشرح أعلى الـ effect
-  }, [isYoutubeOnly, isValidYoutube, youtubeId, video, id, showIntro, scheduleHideControls]);
+  }, [isYoutubeOnly, isValidYoutube, youtubeId, video, id, showIntro, playerReady, scheduleHideControls]);
 
   // ================================================================
   // 13. دوال التحكم
@@ -928,23 +900,12 @@ export default function WatchPage() {
     } catch (e) {}
   }, [isYoutubeOnly]);
 
-  // ✅ إصلاح: عند تفعيل/إلغاء وضع التركيز أثناء التشغيل، نعيد ضبط ظهور
-  // الأزرار وجدولة الإخفاء بنفس طريقة ملء الشاشة، بدل ترك الحالة كما هي.
   const toggleFocusMode = useCallback(() => {
     setFocusMode(prev => {
       const newState = !prev;
       toast.success(newState ? '🎯 وضع التركيز نشط' : 'تم إلغاء وضع التركيز');
       return newState;
     });
-    setControlsVisible(true);
-    clearTimeout(controlsTimerRef.current);
-    if (isVideoPlayingRef.current) {
-      controlsTimerRef.current = setTimeout(() => {
-        if (isVideoPlayingRef.current) {
-          setControlsVisible(false);
-        }
-      }, 3000);
-    }
   }, []);
 
   const toggleCaptions = useCallback(() => {
@@ -1481,12 +1442,6 @@ export default function WatchPage() {
                       onMouseEnter={() => {
                         setControlsVisible(true);
                         clearTimeout(controlsTimerRef.current);
-                      }}
-                      onMouseLeave={() => {
-                        // ✅ إصلاح: إعادة جدولة الإخفاء عند مغادرة الماوس للشريط
-                        // السفلي (كانت الجدولة تُلغى فقط عند onMouseEnter بدون
-                        // إعادة جدولتها عند الخروج، فتبقى الأزرار ظاهرة للأبد)
-                        scheduleHideControls();
                       }}
                     >
                       <div
