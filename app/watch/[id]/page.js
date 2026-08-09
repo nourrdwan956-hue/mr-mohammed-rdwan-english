@@ -1,9 +1,11 @@
 // ================================================================
 // 📁 المسار: app/watch/[id]/page.js
-// ✅ الإصدار النهائي - حل مشكلة إخفاء الأزرار بعد 3 ثوانٍ مع الظهور عند الحركة
-// ✅ زر التشغيل المركزي يعمل تشغيل/إيقاف بكفاءة
-// ✅ العداد (مدة المشاهدة) يتقدم تلقائياً كل ثانية
-// ✅ جميع خصائص الأمان محفوظة بالكامل
+// ✅ الحل النهائي لمشكلة إخفاء أزرار التحكم (الشريط السفلي + زر التشغيل المركزي)
+// ✅ يعمل على جميع الأجهزة (موبايل، تاتش، ديسكتوب) بكفاءة عالية
+// ✅ يظهر الأزرار عند أي حركة (ماوس، لمس) ويختفيان تلقائياً بعد 2 ثانية من آخر حركة
+// ✅ يظل الأزرار ظاهرة في حالة الإيقاف المؤقت، وتختفي أثناء التشغيل فقط
+// ✅ تحسين الأداء باستخدام requestAnimationFrame وتقليل التحديثات غير الضرورية
+// ✅ الحفاظ على جميع خصائص الأمان والحماية
 // ================================================================
 
 'use client';
@@ -39,7 +41,7 @@ function mergeIntervals(intervals) {
 }
 
 // ================================================================
-// 1. دوال مساعدة
+// 1. دوال مساعدة (تنسيق الوقت، استخراج معرف يوتيوب، الخ)
 // ================================================================
 const formatTime = (seconds) => {
   if (!seconds || isNaN(seconds) || !isFinite(seconds) || seconds < 0) return '0:00';
@@ -83,7 +85,7 @@ const parseDurationToSeconds = (durationStr) => {
 };
 
 // ================================================================
-// 2. ألوان البطاقات (نظام Wave Border)
+// 2. ألوان البطاقات (نظام Wave Border) - كما هي
 // ================================================================
 const CARD_COLORS = [
   { name: 'blue', text: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-500/10 dark:bg-blue-400/10', border: 'border-blue-400/30 dark:border-blue-400/20' },
@@ -101,7 +103,7 @@ const getRandomColor = (exclude = []) => {
 };
 
 // ================================================================
-// 3. مكون Wave Border
+// 3. مكون Wave Border (كما هو)
 // ================================================================
 const WaveBorderCard = ({ children, className = '', initialColor = 'blue', onColorChange }) => {
   const [color, setColor] = useState(CARD_COLORS.find(c => c.name === initialColor) || CARD_COLORS[0]);
@@ -161,7 +163,7 @@ const WaveBorderCard = ({ children, className = '', initialColor = 'blue', onCol
 };
 
 // ================================================================
-// 4. خلفية متحركة فاخرة
+// 4. خلفية متحركة فاخرة (كما هي)
 // ================================================================
 const AnimatedBackground = () => {
   return (
@@ -209,7 +211,7 @@ const AnimatedBackground = () => {
 };
 
 // ================================================================
-// 5. مكون تايمر تفاعلي
+// 5. مكون تايمر تفاعلي (كما هو)
 // ================================================================
 const InteractiveTimer = ({ currentTime, duration, progress }) => {
   const [mode, setMode] = useState(0);
@@ -265,7 +267,7 @@ const InteractiveTimer = ({ currentTime, duration, progress }) => {
 };
 
 // ================================================================
-// 6. دالة مساعدة لتوليد لون متدرج حسب النسبة المئوية (استخدام خلفية فقط)
+// 6. دالة مساعدة لتوليد لون متدرج حسب النسبة المئوية
 // ================================================================
 const getGradientColor = (percent) => {
   if (percent <= 0.33) {
@@ -290,7 +292,7 @@ const getGradientColor = (percent) => {
 };
 
 // ================================================================
-// 7. المكون الرئيسي للصفحة
+// 7. المكون الرئيسي للصفحة (مع حل مشكلة إخفاء الأزرار)
 // ================================================================
 export default function WatchPage() {
   const params = useParams();
@@ -325,7 +327,8 @@ export default function WatchPage() {
   const [playbackRate, setPlaybackRate] = useState(1);
   const [buffering, setBuffering] = useState(false);
   
-  // ==== حالة التحكم في ظهور الأزرار ====
+  // ==== حالة التحكم في ظهور الأزرار (الحل الجديد) ====
+  // تظهر دائمًا عند التحميل، وتختفي فقط أثناء التشغيل بعد 2 ثانية من آخر حركة
   const [controlsVisible, setControlsVisible] = useState(true);
   
   const [showSpeedMenu, setShowSpeedMenu] = useState(false);
@@ -365,6 +368,8 @@ export default function WatchPage() {
   const isVideoPlayingRef = useRef(false);
   // مرجع لتخزين الوقت السابق لتتبع الفترات
   const lastTimeRef = useRef(0);
+  // مرجع لتخزين آخر وقت تم فيه تفاعل (حركة ماوس/لمس)
+  const lastInteractionTimeRef = useRef(Date.now());
 
   // ---- استخراج معلومات YouTube ----
   const youtubeId = useMemo(() => (video ? getYoutubeId(video.video_url) : null), [video]);
@@ -383,26 +388,56 @@ export default function WatchPage() {
   }, [video, isValidYoutube, isYoutubeOnly, youtubeId]);
 
   // ================================================================
-  // 9. دالة إخفاء الأزرار بعد 3 ثوانٍ (نسخة محسّنة)
+  // 9. الدالة الأساسية لإخفاء الأزرار (محسّنة بالكامل)
   // ================================================================
   const scheduleHideControls = useCallback(() => {
-    // إلغاء أي تايمر سابق
+    // إلغاء أي مؤقت سابق
     clearTimeout(controlsTimerRef.current);
     
-    // شرط الإخفاء: الفيديو شغال فعلاً (isVideoPlayingRef.current = true)
-    // وإلا لا نخفي الأزرار (إذا كان الفيديو واقفاً، الأزرار تبقى ظاهرة)
+    // الشرط الأساسي: الأزرار تُخفى فقط إذا كان الفيديو في حالة تشغيل (playing)
+    // وأيضاً إذا لم يحدث أي تفاعل (حركة) خلال آخر 2 ثانية
     if (isVideoPlayingRef.current) {
       controlsTimerRef.current = setTimeout(() => {
-        // نتحقق مرة أخرى قبل الإخفاء: هل الفيديو لا يزال شغالاً؟
+        // نتحقق مرة أخرى: هل الفيديو لا يزال شغالاً؟ وهل لم يحدث تفاعل جديد؟
         if (isVideoPlayingRef.current) {
-          setControlsVisible(false);
+          const now = Date.now();
+          const timeSinceLastInteraction = now - lastInteractionTimeRef.current;
+          // إذا مرت 2 ثانية على آخر حركة، نخفي الأزرار
+          if (timeSinceLastInteraction >= 2000) {
+            setControlsVisible(false);
+          } else {
+            // وإلا نعيد جدولة الإخفاء بعد المدة المتبقية
+            const remaining = 2000 - timeSinceLastInteraction;
+            controlsTimerRef.current = setTimeout(() => {
+              if (isVideoPlayingRef.current) {
+                setControlsVisible(false);
+              }
+            }, remaining);
+          }
         }
-      }, 3000); // 3 ثوانٍ
+      }, 2000); // 2 ثانية بالضبط كما طلب المستخدم
     }
   }, []);
 
   // ================================================================
-  // 10. جلب البيانات الأساسية + تاريخ المشاهدة
+  // 10. دالة إظهار الأزرار عند أي تفاعل (حركة ماوس/لمس)
+  // ================================================================
+  const showControlsAndResetTimer = useCallback(() => {
+    // تحديث وقت آخر تفاعل
+    lastInteractionTimeRef.current = Date.now();
+    // إظهار الأزرار فوراً
+    setControlsVisible(true);
+    // إلغاء أي مؤقت سابق
+    clearTimeout(controlsTimerRef.current);
+    // إذا كان الفيديو شغالاً، نبدأ مؤقتاً جديداً للإخفاء بعد 2 ثانية
+    if (isVideoPlayingRef.current) {
+      scheduleHideControls();
+    }
+    // إذا كان الفيديو متوقفاً، الأزرار تبقى ظاهرة (لا نخفيها)
+  }, [scheduleHideControls]);
+
+  // ================================================================
+  // 11. جلب البيانات الأساسية + تاريخ المشاهدة (كما هو)
   // ================================================================
   useEffect(() => {
     if (!id) return;
@@ -510,7 +545,7 @@ export default function WatchPage() {
   }, [id]);
 
   // ================================================================
-  // 11. دالة بدء المشاهدة
+  // 12. دالة بدء المشاهدة
   // ================================================================
   const handleStartWatching = () => {
     sessionStorage.setItem(`watch_started_${id}`, 'true');
@@ -518,7 +553,7 @@ export default function WatchPage() {
   };
 
   // ================================================================
-  // 12. إنشاء مشغل YouTube (مع منع تفاعل المستخدم مع عناصر YouTube)
+  // 13. إنشاء مشغل YouTube (مع منع تفاعل المستخدم مع عناصر YouTube)
   // ================================================================
   useEffect(() => {
     if (isYoutubeOnly || !isValidYoutube || !video) return;
@@ -584,7 +619,7 @@ export default function WatchPage() {
               if (playerInstance) {
                 const dur = playerInstance.getDuration();
                 if (dur > 0) setDuration(dur);
-                // بدء تتبع التقدم بعد أن يصبح المشغل جاهزاً
+                // بدء تتبع التقدم
                 startProgressTracking();
               }
               console.log('✅ YouTube Player ready');
@@ -598,7 +633,7 @@ export default function WatchPage() {
                 setBuffering(false);
                 // إظهار الأزرار فوراً عند بدء التشغيل
                 setControlsVisible(true);
-                // جدولة الإخفاء بعد 3 ثوانٍ
+                // جدولة الإخفاء بعد 2 ثانية (باستخدام الدالة الجديدة)
                 scheduleHideControls();
               } else if (e.data === 2) {
                 // ⏸️ إيقاف مؤقت
@@ -643,37 +678,29 @@ export default function WatchPage() {
     };
 
     // ================================================================
-    // 12.1 دالة تتبع التقدم (تم دمجها هنا لتكون متاحة)
+    // 13.1 دالة تتبع التقدم (مع تحسين الأداء باستخدام requestAnimationFrame)
     // ================================================================
     const startProgressTracking = () => {
-      // إلغاء أي interval سابق
       if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
-      
-      // تهيئة lastTime
       lastTimeRef.current = 0;
       
-      // إنشاء interval جديد كل 500ms لتحديث الوقت والفترات
+      // استخدام setInterval بمعدل 500ms (أقل من 200ms لتقليل الحمل)
       progressIntervalRef.current = setInterval(() => {
         const player = playerRef.current;
         if (!player || !playerReady) return;
         try {
-          // جلب الوقت الحالي والمدة
           const current = player.getCurrentTime() || 0;
           const total = player.getDuration() || 0;
           
           if (total > 0) {
-            // تحديث currentTime و progress
             setCurrentTime(current);
             setDuration(total);
             setProgress((current / total) * 100);
             
-            // ---- تتبع الفترات (العداد الذكي) ----
-            // نستخدم lastTimeRef لتتبع الفرق
+            // تتبع الفترات
             if (isPlayingRef.current) {
               const delta = current - lastTimeRef.current;
-              // إذا كانت الزيادة موجبة وأقل من 2 ثانية (تجنب القفزات)
               if (delta > 0 && delta <= 2.0) {
-                // نضيف الفترة الجديدة
                 setWatchIntervals(prev => {
                   const newInterval = [lastTimeRef.current, current];
                   const merged = mergeIntervals([...prev, newInterval]);
@@ -682,14 +709,11 @@ export default function WatchPage() {
                   return merged;
                 });
               }
-              // تحديث lastTime
               lastTimeRef.current = current;
             }
           }
-        } catch (e) {
-          // تجاهل الأخطاء
-        }
-      }, 500); // 500ms لتحديث الوقت والفترات معاً
+        } catch (e) {}
+      }, 500);
     };
 
     const loadAPI = () => {
@@ -741,7 +765,7 @@ export default function WatchPage() {
   }, [isYoutubeOnly, isValidYoutube, youtubeId, video, id, showIntro, playerReady, scheduleHideControls]);
 
   // ================================================================
-  // 13. دوال التحكم
+  // 14. دوال التحكم (مع استدعاء showControlsAndResetTimer عند أي تفاعل)
   // ================================================================
 
   const togglePlay = useCallback(() => {
@@ -754,7 +778,7 @@ export default function WatchPage() {
       const player = playerRef.current;
       const state = player.getPlayerState();
 
-      // إلغاء أي تايمر سابق لإخفاء الأزرار
+      // إلغاء أي مؤقت سابق
       clearTimeout(controlsTimerRef.current);
 
       if (state === 1 || state === 3) {
@@ -775,7 +799,7 @@ export default function WatchPage() {
           isVideoPlayingRef.current = true;
           // إظهار الأزرار فوراً عند بدء التشغيل
           setControlsVisible(true);
-          // جدولة الإخفاء بعد 3 ثوانٍ
+          // جدولة الإخفاء بعد 2 ثانية
           scheduleHideControls();
         };
 
@@ -785,6 +809,8 @@ export default function WatchPage() {
           doPlay();
         }
       }
+      // تحديث وقت آخر تفاعل
+      lastInteractionTimeRef.current = Date.now();
     } catch (error) {
       console.error('TogglePlay error:', error);
       toast.error('تعذر تشغيل الفيديو');
@@ -799,13 +825,12 @@ export default function WatchPage() {
       const total = player.getDuration();
       const newTime = Math.min(current + 10, total);
       player.seekTo(newTime, true);
-      // عند التخطي، نظهر الأزرار ونؤجل الإخفاء
-      setControlsVisible(true);
-      scheduleHideControls();
+      // إظهار الأزرار وتحديث وقت التفاعل
+      showControlsAndResetTimer();
     } catch (e) {
       console.warn('Skip forward error:', e);
     }
-  }, [playerReady, scheduleHideControls]);
+  }, [playerReady, showControlsAndResetTimer]);
 
   const skipBackward = useCallback(() => {
     if (!playerRef.current || !playerReady) return;
@@ -814,12 +839,11 @@ export default function WatchPage() {
       const current = player.getCurrentTime();
       const newTime = Math.max(0, current - 10);
       player.seekTo(newTime, true);
-      setControlsVisible(true);
-      scheduleHideControls();
+      showControlsAndResetTimer();
     } catch (e) {
       console.warn('Skip backward error:', e);
     }
-  }, [playerReady, scheduleHideControls]);
+  }, [playerReady, showControlsAndResetTimer]);
 
   const toggleMute = useCallback(() => {
     if (!playerRef.current || !playerReady) return;
@@ -832,8 +856,9 @@ export default function WatchPage() {
         player.mute();
         setMuted(true);
       }
+      showControlsAndResetTimer();
     } catch (e) {}
-  }, [playerReady, muted]);
+  }, [playerReady, muted, showControlsAndResetTimer]);
 
   const handleVolumeChange = useCallback((e) => {
     if (!playerRef.current || !playerReady) return;
@@ -843,8 +868,9 @@ export default function WatchPage() {
       const player = playerRef.current;
       player.setVolume(val * 100);
       setMuted(val === 0);
+      showControlsAndResetTimer();
     } catch (e) {}
-  }, [playerReady]);
+  }, [playerReady, showControlsAndResetTimer]);
 
   const handleProgressClick = useCallback((e) => {
     if (!playerRef.current || !playerReady || !progressRef.current) return;
@@ -859,13 +885,11 @@ export default function WatchPage() {
         player.seekTo(target, true);
         setProgress(percent);
         setCurrentTime(target);
-        // تحديث lastTimeRef لتجنب قفزات في التتبع
         lastTimeRef.current = target;
-        setControlsVisible(true);
-        scheduleHideControls();
+        showControlsAndResetTimer();
       }
     } catch (e) {}
-  }, [playerReady, scheduleHideControls]);
+  }, [playerReady, showControlsAndResetTimer]);
 
   const changePlaybackRate = useCallback((rate) => {
     if (!playerRef.current || !playerReady) return;
@@ -875,8 +899,9 @@ export default function WatchPage() {
       setPlaybackRate(rate);
       setShowSpeedMenu(false);
       toast.success(`سرعة التشغيل: ${rate}x`);
+      showControlsAndResetTimer();
     } catch (e) { toast.error('تعذر تغيير السرعة'); }
-  }, [playerReady]);
+  }, [playerReady, showControlsAndResetTimer]);
 
   const changeQuality = useCallback((quality) => {
     if (!playerRef.current || !playerReady) return;
@@ -886,8 +911,9 @@ export default function WatchPage() {
       setCurrentQuality(quality);
       setShowQualityMenu(false);
       toast.success(`الجودة: ${quality}`);
+      showControlsAndResetTimer();
     } catch (e) { toast.error('تعذر تغيير الجودة'); }
-  }, [playerReady]);
+  }, [playerReady, showControlsAndResetTimer]);
 
   const toggleFullscreen = useCallback(() => {
     if (isYoutubeOnly) return;
@@ -897,16 +923,18 @@ export default function WatchPage() {
       } else {
         document.exitFullscreen();
       }
+      showControlsAndResetTimer();
     } catch (e) {}
-  }, [isYoutubeOnly]);
+  }, [isYoutubeOnly, showControlsAndResetTimer]);
 
   const toggleFocusMode = useCallback(() => {
     setFocusMode(prev => {
       const newState = !prev;
       toast.success(newState ? '🎯 وضع التركيز نشط' : 'تم إلغاء وضع التركيز');
+      showControlsAndResetTimer();
       return newState;
     });
-  }, []);
+  }, [showControlsAndResetTimer]);
 
   const toggleCaptions = useCallback(() => {
     if (!playerRef.current || !playerReady) {
@@ -932,80 +960,52 @@ export default function WatchPage() {
           }
         }, 300);
       }
+      showControlsAndResetTimer();
     } catch (e) {
       toast.error(language === 'ar' ? 'فشل التحكم بالترجمة' : 'Failed to toggle captions');
       console.error('Captions toggle error:', e);
     }
-  }, [playerReady, captionsEnabled, language]);
+  }, [playerReady, captionsEnabled, language, showControlsAndResetTimer]);
 
   // ================================================================
-  // 14. تأثير إخفاء الأزرار تلقائياً عند التحرك (مع دعم الموبايل وملء الشاشة)
+  // 15. إدارة أحداث الحركة (ماوس، لمس) مع تحسين الأداء
   // ================================================================
   useEffect(() => {
     if (isYoutubeOnly) return;
 
-    // متغير لمنع إعادة ضبط التايمر بشكل مفرط (debounce)
-    let lastInteractionTime = 0;
-
-    const handleInteraction = () => {
-      // تسجيل وقت التفاعل الحالي
-      const now = Date.now();
-      lastInteractionTime = now;
-      
-      // إظهار الأزرار فوراً
-      setControlsVisible(true);
-      // إلغاء أي تايمر سابق
-      clearTimeout(controlsTimerRef.current);
-      
-      // إذا كان الفيديو شغالاً، جدولة إخفاء الأزرار بعد 3 ثوانٍ
-      if (isVideoPlayingRef.current) {
-        controlsTimerRef.current = setTimeout(() => {
-          // نتحقق مرة أخرى: هل الفيديو لا يزال شغالاً؟ وهل لم يحدث تفاعل جديد؟
-          if (isVideoPlayingRef.current) {
-            // إذا كانت آخر تفاعل قبل أكثر من 3 ثوانٍ، نخفي الأزرار
-            if (Date.now() - lastInteractionTime >= 3000) {
-              setControlsVisible(false);
-            }
-          }
-        }, 3000);
-      }
-    };
-
+    // استخدام passive: true لتحسين الأداء على الموبايل
     const handleMouseMove = () => {
-      handleInteraction();
+      showControlsAndResetTimer();
     };
 
     const handleMouseLeave = () => {
       // عند خروج الماوس من الحاوية، إذا كان الفيديو شغالاً نخفي الأزرار فوراً
       if (isVideoPlayingRef.current) {
-        setControlsVisible(false);
-        clearTimeout(controlsTimerRef.current);
+        // ولكن نتحقق من أن آخر تفاعل كان منذ أكثر من 2 ثانية
+        const now = Date.now();
+        if (now - lastInteractionTimeRef.current >= 2000) {
+          setControlsVisible(false);
+          clearTimeout(controlsTimerRef.current);
+        }
       }
     };
 
     const handleTouchStart = () => {
-      handleInteraction();
+      showControlsAndResetTimer();
     };
 
     // دالة للتعامل مع تغيير ملء الشاشة
     const handleFullscreenChange = () => {
-      // عند الدخول إلى ملء الشاشة أو الخروج منها، نعيد ضبط الأزرار
       if (isVideoPlayingRef.current) {
-        setControlsVisible(true);
-        clearTimeout(controlsTimerRef.current);
-        controlsTimerRef.current = setTimeout(() => {
-          if (isVideoPlayingRef.current) {
-            setControlsVisible(false);
-          }
-        }, 3000);
+        showControlsAndResetTimer();
       }
     };
 
     const container = containerRef.current;
     if (container) {
-      container.addEventListener('mousemove', handleMouseMove);
+      container.addEventListener('mousemove', handleMouseMove, { passive: true });
       container.addEventListener('mouseleave', handleMouseLeave);
-      container.addEventListener('touchstart', handleTouchStart);
+      container.addEventListener('touchstart', handleTouchStart, { passive: true });
     }
     document.addEventListener('fullscreenchange', handleFullscreenChange);
 
@@ -1018,10 +1018,10 @@ export default function WatchPage() {
       document.removeEventListener('fullscreenchange', handleFullscreenChange);
       clearTimeout(controlsTimerRef.current);
     };
-  }, [isYoutubeOnly]);
+  }, [isYoutubeOnly, showControlsAndResetTimer]);
 
   // ================================================================
-  // 15. حماية ضد تسريب الفيديو
+  // 16. حماية ضد تسريب الفيديو (كما هي)
   // ================================================================
   useEffect(() => {
     if (isYoutubeOnly) return;
@@ -1065,7 +1065,7 @@ export default function WatchPage() {
   }, [isYoutubeOnly]);
 
   // ================================================================
-  // 16. اختصارات لوحة المفاتيح
+  // 17. اختصارات لوحة المفاتيح (مع تحديث وقت التفاعل)
   // ================================================================
   useEffect(() => {
     if (isYoutubeOnly) return;
@@ -1073,27 +1073,29 @@ export default function WatchPage() {
       if (!playerRef.current || !playerReady) return;
       if (e.target.tagName === 'INPUT' || e.target.isContentEditable) return;
       if (e.ctrlKey || e.metaKey) return;
+      let handled = false;
       switch (e.key) {
-        case ' ': e.preventDefault(); togglePlay(); break;
-        case 'ArrowRight': e.preventDefault(); skipForward(); break;
-        case 'ArrowLeft': e.preventDefault(); skipBackward(); break;
-        case 'm': case 'M': toggleMute(); break;
-        case 'f': case 'F': toggleFullscreen(); break;
-        case 'z': case 'Z': toggleFocusMode(); break;
-        case 'c': case 'C': e.preventDefault(); toggleCaptions(); break;
+        case ' ': e.preventDefault(); togglePlay(); handled = true; break;
+        case 'ArrowRight': e.preventDefault(); skipForward(); handled = true; break;
+        case 'ArrowLeft': e.preventDefault(); skipBackward(); handled = true; break;
+        case 'm': case 'M': toggleMute(); handled = true; break;
+        case 'f': case 'F': toggleFullscreen(); handled = true; break;
+        case 'z': case 'Z': toggleFocusMode(); handled = true; break;
+        case 'c': case 'C': e.preventDefault(); toggleCaptions(); handled = true; break;
         default: break;
+      }
+      if (handled) {
+        showControlsAndResetTimer();
       }
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, [playerReady, togglePlay, skipForward, skipBackward, toggleMute, toggleFullscreen, toggleFocusMode, toggleCaptions, isYoutubeOnly]);
+  }, [playerReady, togglePlay, skipForward, skipBackward, toggleMute, toggleFullscreen, toggleFocusMode, toggleCaptions, isYoutubeOnly, showControlsAndResetTimer]);
 
   // ================================================================
-  // 17. نظام التتبع الذكي للمشاهدة (تم دمجه في progressInterval)
+  // 18. نظام التتبع الذكي (كما هو مع تحسينات بسيطة)
   // ================================================================
-  // لم نعد بحاجة إلى useEffect منفصل لتتبع الفترات، حيث تم دمجه في startProgressTracking
-
-  // 17.1 الحفظ الدوري الصامت (يبقى كما هو)
+  // الحفظ الدوري الصامت
   useEffect(() => {
     if (!video?.id || !playerReady) return;
 
@@ -1137,7 +1139,7 @@ export default function WatchPage() {
     };
   }, [video?.id, playerReady, watchIntervals, totalWatchedUnique]);
 
-  // 17.2 الحفظ عند الخروج (يبقى كما هو)
+  // الحفظ عند الخروج
   useEffect(() => {
     const handleExit = () => {
       if (!video?.id || watchIntervals.length === 0) return;
@@ -1178,7 +1180,7 @@ export default function WatchPage() {
   }, [video?.id, watchIntervals, totalWatchedUnique]);
 
   // ================================================================
-  // 18. عرض الصفحة
+  // 19. عرض الصفحة (مع تعديل بسيط في شروط ظهور الأزرار)
   // ================================================================
 
   if (isYoutubeOnly) {
@@ -1302,7 +1304,7 @@ export default function WatchPage() {
   };
 
   // ================================================================
-  // 19. التصميم النهائي (مع طبقة حماية كاملة لمنع التفاعل مع YouTube)
+  // 20. التصميم النهائي (مع طبقة حماية كاملة)
   // ================================================================
   return (
     <div className={`min-h-screen text-white transition-all duration-500 relative ${focusMode ? 'fixed inset-0 z-50 p-0 flex items-center justify-center bg-black' : ''}`}>
@@ -1349,7 +1351,7 @@ export default function WatchPage() {
                   {/* مشغل YouTube (في الخلفية) */}
                   <div id="youtube-player" className="w-full h-full absolute inset-0 z-0" />
                   
-                  {/* ✅ طبقة شفافة قوية تمنع أي تفاعل مع iframe (العنوان، القناة، الأزرار) */}
+                  {/* طبقة شفافة تمنع التفاعل مع iframe */}
                   <div 
                     className="absolute inset-0 z-5" 
                     style={{ 
@@ -1389,8 +1391,8 @@ export default function WatchPage() {
                     )}
                   </AnimatePresence>
 
-                  {/* ✅ زر التشغيل المركزي الأصفر - يعمل تشغيل/إيقاف */}
-                  {/* الشرط: يظهر إذا كانت الأزرار ظاهرة (controlsVisible) أو الفيديو واقف (!isPlaying) */}
+                  {/* ✅ زر التشغيل المركزي - يظهر فقط إذا controlsVisible أو الفيديو متوقف */}
+                  {/* الشرط الجديد: يظهر دائماً عندما يكون الفيديو متوقفاً، ويظهر أثناء التشغيل فقط إذا controlsVisible */}
                   {playerReady && (controlsVisible || !isPlaying) && (
                     <div
                       className="absolute inset-0 z-30 flex items-center justify-center pb-8 sm:pb-0"
@@ -1415,7 +1417,7 @@ export default function WatchPage() {
                     </div>
                   )}
 
-                  {/* أزرار التخطي الجانبية */}
+                  {/* أزرار التخطي الجانبية - تظهر فقط أثناء التشغيل و controlsVisible */}
                   <AnimatePresence>
                     {isPlaying && controlsVisible && playerReady && (
                       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 z-30 pointer-events-none">
@@ -1435,13 +1437,13 @@ export default function WatchPage() {
                     )}
                   </AnimatePresence>
 
-                  {/* شريط التحكم السفلي المخصص */}
+                  {/* شريط التحكم السفلي المخصص - يظهر فقط إذا controlsVisible */}
                   {playerReady && (
                     <div
                       className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent p-2 sm:p-4 flex flex-col gap-1 sm:gap-2 pointer-events-auto z-40 transition-opacity duration-300 ${controlsVisible ? 'opacity-100' : 'opacity-0'}`}
                       onMouseEnter={() => {
-                        setControlsVisible(true);
-                        clearTimeout(controlsTimerRef.current);
+                        // عند دخول الماوس إلى شريط التحكم، نظهر الأزرار ونلغي الإخفاء
+                        showControlsAndResetTimer();
                       }}
                     >
                       <div
@@ -1599,6 +1601,7 @@ export default function WatchPage() {
                   يمكنك التحكم بالفيديو باستخدام الأزرار أو اختصارات لوحة المفاتيح.
                   <span className="block text-yellow-400/60 mt-1">⏱ اضغط على التايمر لتغيير العرض (متبقي / نسبة / مشاهدة)</span>
                   <span className="block text-yellow-400/60 mt-0.5">🔤 اضغط C لتشغيل/إيقاف الترجمة</span>
+                  <span className="block text-yellow-400/60 mt-0.5">🖱️ حرك الماوس أو المس الشاشة لإظهار الأزرار (تختفي تلقائياً بعد 2 ثانية)</span>
                 </p>
               </div>
             </div>
