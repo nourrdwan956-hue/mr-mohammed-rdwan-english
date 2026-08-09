@@ -1,3 +1,4 @@
+//compinents/simple-video-player.jsx
 'use client';
 
 export default function SimpleVideoPlayer({ videoId }) {

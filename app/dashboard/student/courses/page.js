@@ -4,18 +4,45 @@
 // ✅ تصغير الأحجام والهوامش
 // ✅ إضافة عرض محتوى الكورس (فيديوهات - امتحانات - كتب) قبل الشراء
 // ✅ منع التشغيل حتى الدفع
+// ✅ تحسينات الأداء: استيراد فردي للأيقونات، next/image، pagination حقيقي،
+//    تحسين WaveBorderCard للموبايل، React.memo، تعطيل الأسهم على الموبايل
 // ================================================================
 
 'use client';
 
-import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import * as Icons from 'lucide-react';
+import {
+  BookOpen,
+  Video,
+  FileText,
+  Clock,
+  Heart,
+  Pin,
+  Play,
+  UserPlus,
+  ShoppingCart,
+  Loader2,
+  ChevronDown,
+  List,
+  Grid3X3,
+  Search,
+  Filter,
+  ChevronRight,
+  ChevronLeft,
+  AlertTriangle,
+  Lock,
+  Grid2X2,
+  Book,
+  ArrowRight,
+  ChevronUp,
+} from 'lucide-react';
 import { useTheme } from '@/lib/hooks/useTheme';
 import { supabase } from '@/lib/supabaseClient';
 import { toast } from 'react-hot-toast';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 
 // ================================================================
 // ألوان البطاقات المتغيرة – لوحة غنية ومتنوعة
@@ -38,23 +65,38 @@ const getRandomColor = (exclude = []) => {
 };
 
 // ================================================================
-// 🌊 مكون الحدود الموجية المتطورة (Wave Border)
+// 🌊 مكون الحدود الموجية المتطورة (Wave Border) – محسّن للموبايل
 // ================================================================
 const WaveBorderCard = ({ children, className = '', initialColor = 'blue', onColorChange, intensity = 1 }) => {
   const [color, setColor] = useState(CARD_COLORS.find(c => c.name === initialColor) || CARD_COLORS[0]);
   const [rotation, setRotation] = useState(0);
   const colorRef = useRef(color);
   const isMounted = useRef(true);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // كشف الموبايل
+  useEffect(() => {
+    const checkMobile = () => {
+      const width = window.innerWidth;
+      setIsMobile(width < 640);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   useEffect(() => {
     colorRef.current = color;
   }, [color]);
 
   useEffect(() => {
+    // ✅ تقليل سرعة التحديث على الموبايل
+    const intervalTime = isMobile ? 200 : 50 / intensity;
     const interval = setInterval(() => {
       if (!isMounted.current) return;
       setRotation(prev => {
-        const newRot = prev + 2 * intensity;
+        const step = isMobile ? 1 : 2 * intensity;
+        const newRot = prev + step;
         if (newRot >= 360) {
           const newColor = getRandomColor([colorRef.current.name]);
           setColor(newColor);
@@ -63,12 +105,12 @@ const WaveBorderCard = ({ children, className = '', initialColor = 'blue', onCol
         }
         return newRot;
       });
-    }, 50 / intensity);
+    }, intervalTime);
     return () => {
       isMounted.current = false;
       clearInterval(interval);
     };
-  }, [onColorChange, intensity]);
+  }, [isMobile, onColorChange, intensity]);
 
   const waveColors = [
     `rgba(59, 130, 246, 0.6)`,
@@ -133,8 +175,9 @@ function parseGrade(gradeText) {
 
 // ================================================================
 // 🎴 بطاقة كورس – تصميم فاخر مع غلاف 16:9 ومحتوى الكورس المعروض
+// ✅ استخدام memo + next/image
 // ================================================================
-const CourseCard = ({
+const CourseCard = memo(({
   course,
   isEnrolled,
   progress,
@@ -225,7 +268,7 @@ const CourseCard = ({
     if (loadingContent) {
       return (
         <div className="flex justify-center py-2">
-          <Icons.Loader2 className="h-4 w-4 animate-spin text-blue-400" />
+          <Loader2 className="h-4 w-4 animate-spin text-blue-400" />
         </div>
       );
     }
@@ -248,7 +291,7 @@ const CourseCard = ({
         {videos.length > 0 && (
           <div>
             <div className={`flex items-center gap-1.5 font-semibold ${cardColor.text} mb-0.5`}>
-              <Icons.Video className="h-3 w-3" />
+              <Video className="h-3 w-3" />
               <span>{language === 'ar' ? 'فيديوهات' : 'Videos'} ({videos.length})</span>
             </div>
             <ul className="space-y-0.5 pr-2">
@@ -257,7 +300,7 @@ const CourseCard = ({
                   <span className="w-4 text-center text-[8px] text-gray-400">{idx + 1}.</span>
                   <span className="truncate">{v.title}</span>
                   {!isEnrolled && (
-                    <span className="text-[8px] text-yellow-400/60 mr-auto">🔒</span>
+                    <span className="text-[8px] text-yellow-400/60 mr-auto"><Lock className="h-2.5 w-2.5 inline" /></span>
                   )}
                 </li>
               ))}
@@ -274,7 +317,7 @@ const CourseCard = ({
         {exams.length > 0 && (
           <div>
             <div className={`flex items-center gap-1.5 font-semibold ${cardColor.text} mb-0.5`}>
-              <Icons.FileText className="h-3 w-3" />
+              <FileText className="h-3 w-3" />
               <span>{language === 'ar' ? 'امتحانات' : 'Exams'} ({exams.length})</span>
             </div>
             <ul className="space-y-0.5 pr-2">
@@ -283,7 +326,7 @@ const CourseCard = ({
                   <span className="w-4 text-center text-[8px] text-gray-400">{idx + 1}.</span>
                   <span className="truncate">{e.title}</span>
                   {!isEnrolled && (
-                    <span className="text-[8px] text-yellow-400/60 mr-auto">🔒</span>
+                    <span className="text-[8px] text-yellow-400/60 mr-auto"><Lock className="h-2.5 w-2.5 inline" /></span>
                   )}
                 </li>
               ))}
@@ -300,7 +343,7 @@ const CourseCard = ({
         {books.length > 0 && (
           <div>
             <div className={`flex items-center gap-1.5 font-semibold ${cardColor.text} mb-0.5`}>
-              <Icons.Book className="h-3 w-3" />
+              <Book className="h-3 w-3" />
               <span>{language === 'ar' ? 'كتب' : 'Books'} ({books.length})</span>
             </div>
             <ul className="space-y-0.5 pr-2">
@@ -309,7 +352,7 @@ const CourseCard = ({
                   <span className="w-4 text-center text-[8px] text-gray-400">{idx + 1}.</span>
                   <span className="truncate">{b.title}</span>
                   {!isEnrolled && (
-                    <span className="text-[8px] text-yellow-400/60 mr-auto">🔒</span>
+                    <span className="text-[8px] text-yellow-400/60 mr-auto"><Lock className="h-2.5 w-2.5 inline" /></span>
                   )}
                 </li>
               ))}
@@ -324,7 +367,7 @@ const CourseCard = ({
 
         {!isEnrolled && (
           <p className={`text-[9px] ${styles.subtext} opacity-40 mt-1 flex items-center gap-1`}>
-            <Icons.Lock className="h-2.5 w-2.5" />
+            <Lock className="h-2.5 w-2.5" />
             {language === 'ar' ? 'المحتوى مقفل، اشترك لفتحه' : 'Content locked, subscribe to unlock'}
           </p>
         )}
@@ -345,20 +388,24 @@ const CourseCard = ({
     >
       <WaveBorderCard initialColor={cardColor.name} onColorChange={handleColorChange} intensity={1}>
         <div className="relative overflow-hidden rounded-2xl">
-          {/* غلاف 16:9 – أصغر قليلاً */}
+          {/* غلاف 16:9 – باستخدام next/image */}
           <div className="relative w-full aspect-[16/9] bg-gradient-to-br from-gray-800/80 via-gray-900/60 to-gray-950/90 overflow-hidden">
             {course.cover_image ? (
               <>
-                <img
+                <Image
                   src={course.cover_image}
                   alt={course.title}
+                  width={640}
+                  height={360}
+                  loading="lazy"
                   className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
               </>
             ) : (
               <div className="flex items-center justify-center w-full h-full">
-                <Icons.BookOpen className="h-16 w-16 sm:h-20 sm:w-20 text-gray-600/40" />
+                <BookOpen className="h-16 w-16 sm:h-20 sm:w-20 text-gray-600/40" />
               </div>
             )}
 
@@ -409,12 +456,12 @@ const CourseCard = ({
                 <div className="flex flex-wrap items-center gap-1.5 mt-1 text-[9px] sm:text-[10px] text-gray-400">
                   {videosCount > 0 && (
                     <span className="flex items-center gap-0.5 bg-white/5 px-1.5 py-0.5 rounded-full border border-white/5">
-                      <Icons.Video className="h-2.5 w-2.5" /> {videosCount}
+                      <Video className="h-2.5 w-2.5" /> {videosCount}
                     </span>
                   )}
                   {duration && (
                     <span className="flex items-center gap-0.5 bg-white/5 px-1.5 py-0.5 rounded-full border border-white/5">
-                      <Icons.Clock className="h-2.5 w-2.5" /> {duration}
+                      <Clock className="h-2.5 w-2.5" /> {duration}
                     </span>
                   )}
                 </div>
@@ -435,7 +482,7 @@ const CourseCard = ({
                       isFavorite ? 'bg-red-500/20' : 'hover:bg-white/10'
                     }`}
                   >
-                    <Icons.Heart className={`h-3.5 w-3.5 transition-colors ${isFavorite ? 'fill-red-500 text-red-500' : 'text-gray-400'}`} />
+                    <Heart className={`h-3.5 w-3.5 transition-colors ${isFavorite ? 'fill-red-500 text-red-500' : 'text-gray-400'}`} />
                   </button>
                   <button
                     onClick={(e) => { e.preventDefault(); e.stopPropagation(); onTogglePin(course.id); }}
@@ -443,7 +490,7 @@ const CourseCard = ({
                       isPinned ? 'bg-yellow-500/20' : 'hover:bg-white/10'
                     }`}
                   >
-                    <Icons.Pin className={`h-3.5 w-3.5 transition-colors ${isPinned ? 'fill-yellow-400 text-yellow-400' : 'text-gray-400'}`} />
+                    <Pin className={`h-3.5 w-3.5 transition-colors ${isPinned ? 'fill-yellow-400 text-yellow-400' : 'text-gray-400'}`} />
                   </button>
                 </div>
 
@@ -452,7 +499,7 @@ const CourseCard = ({
                     href={`/dashboard/student/courses/${course.id}`}
                     className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-yellow-400 to-yellow-600 text-black font-bold text-[10px] sm:text-xs hover:scale-105 transition-all duration-300 shadow-lg shadow-yellow-400/30 flex items-center gap-1 whitespace-nowrap"
                   >
-                    <Icons.Play className="h-2.5 w-2.5" />
+                    <Play className="h-2.5 w-2.5" />
                     {language === 'ar' ? 'متابعة' : 'Continue'}
                   </Link>
                 ) : (
@@ -465,7 +512,7 @@ const CourseCard = ({
                         : 'bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:scale-105 shadow-lg shadow-blue-500/30'
                     }`}
                   >
-                    {enrolling ? <Icons.Loader2 className="h-2.5 w-2.5 animate-spin" /> : (isFree ? <Icons.UserPlus className="h-2.5 w-2.5" /> : <Icons.ShoppingCart className="h-2.5 w-2.5" />)}
+                    {enrolling ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : (isFree ? <UserPlus className="h-2.5 w-2.5" /> : <ShoppingCart className="h-2.5 w-2.5" />)}
                     {enrolling ? (language === 'ar' ? 'جاري...' : 'Loading...') : (isFree ? (language === 'ar' ? 'اشترك' : 'Enroll') : (language === 'ar' ? 'اشترِ' : 'Buy'))}
                   </button>
                 )}
@@ -478,14 +525,14 @@ const CourseCard = ({
                 onClick={handleToggleContent}
                 className={`flex items-center gap-1.5 text-[10px] sm:text-xs font-semibold ${cardColor.text} hover:opacity-80 transition-all duration-300 w-full text-right`}
               >
-                <Icons.List className="h-3.5 w-3.5" />
+                <List className="h-3.5 w-3.5" />
                 <span>{language === 'ar' ? 'محتوى الكورس' : 'Course Content'}</span>
                 <motion.div
                   animate={{ rotate: showContent ? 180 : 0 }}
                   transition={{ duration: 0.3 }}
                   className="mr-auto"
                 >
-                  <Icons.ChevronDown className="h-3.5 w-3.5" />
+                  <ChevronDown className="h-3.5 w-3.5" />
                 </motion.div>
                 <span className={`text-[8px] ${styles.subtext} opacity-50 mr-1`}>
                   ({courseContent ? `${courseContent.videos.length + courseContent.exams.length + courseContent.books.length}` : '...'})
@@ -518,10 +565,14 @@ const CourseCard = ({
       </WaveBorderCard>
     </motion.div>
   );
-};
+});
+
+CourseCard.displayName = 'CourseCard';
 
 // ================================================================
 // الصفحة الرئيسية – مع أسهم تمرير في منتصف الشاشة (مضغوطة)
+// ✅ Pagination حقيقي مع Supabase range
+// ✅ تعطيل الأسهم على الموبايل
 // ================================================================
 export default function StudentCoursesPage() {
   const router = useRouter();
@@ -544,9 +595,26 @@ export default function StudentCoursesPage() {
   const containerRef = useRef(null);
   const scrollTimeoutRef = useRef(null);
 
+  // 👇 ترقيم الصفحات
+  const [totalCount, setTotalCount] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+
   const [showScrollUp, setShowScrollUp] = useState(false);
   const [showScrollDown, setShowScrollDown] = useState(true);
   const [hideArrows, setHideArrows] = useState(false);
+
+  // كشف الموبايل لتعطيل الأسهم
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      const width = window.innerWidth;
+      setIsMobile(width < 640);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // المفضلة
   useEffect(() => {
@@ -562,8 +630,8 @@ export default function StudentCoursesPage() {
   const savePinned = (pinnedIds) => { setPinned(pinnedIds); localStorage.setItem('studentPinnedCourses', JSON.stringify(pinnedIds)); };
   const togglePin = (id) => savePinned(pinned.includes(id) ? pinned.filter(i => i !== id) : [...pinned, id]);
 
-  // جلب البيانات
-  const fetchAllCourses = async () => {
+  // جلب البيانات مع ترقيم الصفحات الحقيقي
+  const fetchAllCourses = useCallback(async (page = 1, limit = COURSES_PER_PAGE) => {
     setLoading(true);
     setError('');
     try {
@@ -574,29 +642,72 @@ export default function StudentCoursesPage() {
       const gradeInfo = parseGrade(profile?.grade);
       setStudentGradeInfo(gradeInfo);
 
-      const { data: courses } = await supabase
-        .from('courses')
-        .select('*, teacher:teacher_id(full_name)')
-        .eq('is_published', true)
-        .order('created_at', { ascending: false });
-      setAllCourses(courses || []);
+      // ✅ Pagination حقيقي باستخدام range و count
+      const from = (page - 1) * limit;
+      const to = from + limit - 1;
 
+      let query = supabase
+        .from('courses')
+        .select('*, teacher:teacher_id(full_name)', { count: 'exact' })
+        .eq('is_published', true);
+
+      // تطبيق عوامل التصفية على مستوى قاعدة البيانات حيثما أمكن
+      if (!showAllCourses && gradeInfo.stageEn) {
+        // نطبق التصفية بالمرحلة إذا كانت متوفرة
+        const stageFilter = gradeInfo.stageEn;
+        query = query.or(`grade_stage.eq.${stageFilter},grade_stage.eq.${gradeInfo.stageAr}`);
+        if (gradeInfo.level !== null) {
+          query = query.eq('grade_level', gradeInfo.level);
+        }
+      }
+
+      // ترتيب
+      query = query.order('created_at', { ascending: false });
+
+      // جلب البيانات مع العدد الإجمالي
+      const { data, count, error } = await query.range(from, to);
+
+      if (error) throw error;
+
+      setAllCourses(data || []);
+      setTotalCount(count || 0);
+      setTotalPages(Math.ceil((count || 0) / limit));
+
+      // جلب التسجيلات
       const { data: enrolls } = await supabase.from('enrollments').select('course_id, progress').eq('student_id', user.id);
       const map = {};
       enrolls?.forEach(e => { map[e.course_id] = { enrolled: true, progress: e.progress }; });
       setEnrollments(map);
+
     } catch (err) {
       console.error(err);
       setError(language === 'ar' ? 'فشل تحميل الكورسات' : 'Failed to load courses');
     } finally {
       setLoading(false);
     }
-  };
+  }, [language, showAllCourses]);
 
-  useEffect(() => { if (!fetchedRef.current) { fetchedRef.current = true; fetchAllCourses(); } }, []);
-
-  // مراقبة التمرير للأسهم
+  // استدعاء عند تغيير الصفحة أو الفلاتر
   useEffect(() => {
+    if (!fetchedRef.current) return;
+    fetchAllCourses(currentPage, COURSES_PER_PAGE);
+  }, [currentPage, fetchAllCourses]);
+
+  // التحميل الأولي
+  useEffect(() => {
+    if (fetchedRef.current) return;
+    fetchedRef.current = true;
+    fetchAllCourses(1, COURSES_PER_PAGE);
+  }, [fetchAllCourses]);
+
+  // مراقبة التمرير للأسهم – تعطيل على الموبايل
+  useEffect(() => {
+    if (isMobile) {
+      setShowScrollUp(false);
+      setShowScrollDown(false);
+      return;
+    }
+
     const container = containerRef.current;
     if (!container) return;
 
@@ -626,7 +737,7 @@ export default function StudentCoursesPage() {
       container.removeEventListener('scroll', onScroll);
       if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
     };
-  }, []);
+  }, [isMobile]);
 
   const scrollUp = () => {
     const container = containerRef.current;
@@ -644,29 +755,31 @@ export default function StudentCoursesPage() {
     setTimeout(() => setHideArrows(true), 1500);
   };
 
-  // فلترة وترتيب
+  // فلترة وترتيب على العميل (للبحث والفلترة الإضافية)
   const filteredCourses = useMemo(() => {
     let result = allCourses;
-    if (!showAllCourses && studentGradeInfo.stageEn) {
-      const { stageEn, stageAr, level } = studentGradeInfo;
-      result = result.filter(c => {
-        const isGeneral = !c.grade_stage && !c.grade_level;
-        if (isGeneral) return true;
-        const stageMatch = c.grade_stage === stageEn || c.grade_stage === stageAr;
-        if (!stageMatch) return false;
-        if (level !== null) return String(c.grade_level ?? '').trim() === String(level).trim();
-        return true;
-      });
-    }
+
+    // تطبيق البحث
     if (search.trim()) {
       const q = search.trim().toLowerCase();
       result = result.filter(c => c.title.toLowerCase().includes(q) || c.description?.toLowerCase().includes(q));
     }
+
+    // تطبيق فلتر مجاني/مدفوع
     if (filterFree === true) result = result.filter(c => c.is_free || c.price === 0);
     else if (filterFree === false) result = result.filter(c => !c.is_free && c.price > 0);
-    if (filterStage) result = result.filter(c => c.grade_stage === filterStage || GRADE_STAGES.find(s => s.id === filterStage)?.ar === c.grade_stage);
-    if (filterLevel) result = result.filter(c => String(c.grade_level) === String(filterLevel));
 
+    // تطبيق فلتر المرحلة (إذا لم يتم تطبيقه على قاعدة البيانات)
+    if (filterStage) {
+      result = result.filter(c => c.grade_stage === filterStage || GRADE_STAGES.find(s => s.id === filterStage)?.ar === c.grade_stage);
+    }
+
+    // تطبيق فلتر الصف
+    if (filterLevel) {
+      result = result.filter(c => String(c.grade_level) === String(filterLevel));
+    }
+
+    // ترتيب
     const pinnedIds = pinned || [];
     const pinnedCourses = [];
     const unpinnedCourses = [];
@@ -691,27 +804,17 @@ export default function StudentCoursesPage() {
     }
 
     return [...pinnedCourses, ...unpinnedCourses];
-  }, [allCourses, search, filterFree, filterStage, filterLevel, sort, showAllCourses, studentGradeInfo, pinned]);
+  }, [allCourses, search, filterFree, filterStage, filterLevel, sort, pinned]);
 
-  const totalPages = Math.ceil(filteredCourses.length / COURSES_PER_PAGE);
-  const paginatedCourses = useMemo(
-    () => filteredCourses.slice((currentPage - 1) * COURSES_PER_PAGE, currentPage * COURSES_PER_PAGE),
-    [filteredCourses, currentPage]
-  );
-
-  const handleEnrollSuccess = (courseId) => {
-    setEnrollments(prev => ({ ...prev, [courseId]: { enrolled: true, progress: 0 } }));
-  };
-
-  const handlePaymentRedirect = (courseId) => {
-    router.push(`/dashboard/student/courses/${courseId}/payment`);
-  };
-
-  useEffect(() => { setCurrentPage(1); }, [search, filterFree, filterStage, filterLevel, sort, showAllCourses]);
+  // إعادة تعيين الصفحة عند تغيير الفلاتر
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, filterFree, filterStage, filterLevel, sort, showAllCourses]);
 
   const stageDisplayName = studentGradeInfo.stageEn ? GRADE_STAGES.find(s => s.id === studentGradeInfo.stageEn)?.ar || '' : '';
-  const totalCoursesCount = allCourses.length;
+  const totalCoursesCount = totalCount;
 
+  // التحميل
   if (loading) {
     return (
       <div className="h-full w-full flex items-center justify-center bg-[var(--bg-primary)]">
@@ -727,9 +830,9 @@ export default function StudentCoursesPage() {
     return (
       <div className="h-full w-full flex items-center justify-center bg-[var(--bg-primary)]">
         <div className="text-center">
-          <Icons.AlertTriangle className="h-10 w-10 sm:h-12 sm:w-12 text-red-400 mx-auto mb-3" />
+          <AlertTriangle className="h-10 w-10 sm:h-12 sm:w-12 text-red-400 mx-auto mb-3" />
           <p className={`text-sm sm:text-base font-semibold ${styles.text}`}>{error}</p>
-          <button onClick={fetchAllCourses} className="mt-3 px-4 py-2 sm:px-5 sm:py-2.5 bg-blue-500/20 text-blue-500 rounded-lg hover:bg-blue-500/30 transition font-bold text-xs sm:text-sm">
+          <button onClick={() => fetchAllCourses(currentPage, COURSES_PER_PAGE)} className="mt-3 px-4 py-2 sm:px-5 sm:py-2.5 bg-blue-500/20 text-blue-500 rounded-lg hover:bg-blue-500/30 transition font-bold text-xs sm:text-sm">
             {language === 'ar' ? 'إعادة المحاولة' : 'Retry'}
           </button>
         </div>
@@ -737,7 +840,7 @@ export default function StudentCoursesPage() {
     );
   }
 
-  const hasCourses = paginatedCourses.length > 0;
+  const hasCourses = filteredCourses.length > 0;
 
   return (
     <div className={`w-full min-h-screen ${styles.bg} transition-colors duration-500 relative`}>
@@ -789,9 +892,9 @@ export default function StudentCoursesPage() {
                   }`}
                 >
                   {showAllCourses ? (
-                    <><Icons.Filter className="h-3 w-3" /> {language === 'ar' ? 'عرض صفي فقط' : 'My Grade Only'}</>
+                    <><Filter className="h-3 w-3" /> {language === 'ar' ? 'عرض صفي فقط' : 'My Grade Only'}</>
                   ) : (
-                    <><Icons.Grid2X2 className="h-3 w-3" /> {language === 'ar' ? 'عرض الكل' : 'Show All'}</>
+                    <><Grid2X2 className="h-3 w-3" /> {language === 'ar' ? 'عرض الكل' : 'Show All'}</>
                   )}
                 </button>
               </div>
@@ -799,7 +902,7 @@ export default function StudentCoursesPage() {
               {/* شريط البحث والفلترة – مضغوط */}
               <div className="flex flex-col sm:flex-row gap-1.5 sm:gap-2 items-stretch">
                 <div className="relative flex-1 group">
-                  <Icons.Search className="absolute left-2.5 sm:left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 sm:h-4 sm:w-4 text-gray-400 group-focus-within:text-blue-400 transition-colors" />
+                  <Search className="absolute left-2.5 sm:left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 sm:h-4 sm:w-4 text-gray-400 group-focus-within:text-blue-400 transition-colors" />
                   <input
                     type="text" 
                     value={search} 
@@ -858,8 +961,8 @@ export default function StudentCoursesPage() {
 
           {/* شبكة الكورسات */}
           <div className="grid grid-cols-1 gap-4 sm:gap-5">
-            {paginatedCourses.length > 0 ? (
-              paginatedCourses.map((course, index) => (
+            {filteredCourses.length > 0 ? (
+              filteredCourses.map((course, index) => (
                 <motion.div
                   key={course.id}
                   initial={{ opacity: 0, y: 20 }}
@@ -875,8 +978,10 @@ export default function StudentCoursesPage() {
                     isPinned={pinned.includes(course.id)}
                     onToggleFavorite={toggleFavorite}
                     onTogglePin={togglePin}
-                    onEnroll={handleEnrollSuccess}
-                    onPayment={handlePaymentRedirect}
+                    onEnroll={(id) => {
+                      setEnrollments(prev => ({ ...prev, [id]: { enrolled: true, progress: 0 } }));
+                    }}
+                    onPayment={(id) => router.push(`/dashboard/student/courses/${id}/payment`)}
                     styles={styles}
                     language={language}
                   />
@@ -889,7 +994,7 @@ export default function StudentCoursesPage() {
                 className="col-span-full flex flex-col items-center justify-center py-12 sm:py-16"
               >
                 <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-full bg-gradient-to-br from-gray-500/10 to-gray-600/10 flex items-center justify-center mb-3 border border-gray-400/20">
-                  <Icons.BookOpen className="h-10 w-10 sm:h-14 sm:w-14 text-gray-500/40" />
+                  <BookOpen className="h-10 w-10 sm:h-14 sm:w-14 text-gray-500/40" />
                 </div>
                 <h2 className={`text-xl sm:text-2xl font-bold ${styles.text} mb-1.5`}>
                   {language === 'ar' ? 'لا يوجد كورسات حالية' : 'No Courses Available'}
@@ -911,7 +1016,7 @@ export default function StudentCoursesPage() {
             )}
           </div>
 
-          {/* ترقيم الصفحات */}
+          {/* ترقيم الصفحات – باستخدام totalPages الحقيقي */}
           {totalPages > 1 && hasCourses && (
             <div className="flex justify-center items-center gap-1.5 sm:gap-2 mt-5 sm:mt-6 pb-4">
               <button 
@@ -919,7 +1024,7 @@ export default function StudentCoursesPage() {
                 disabled={currentPage === 1} 
                 className={`p-1.5 sm:p-2 rounded-lg border ${styles.border} ${styles.card} disabled:opacity-30 hover:border-blue-400/50 transition-all duration-300 hover:scale-105`}
               >
-                <Icons.ChevronRight className="h-4 w-4 sm:h-5 sm:w-5" />
+                <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5" />
               </button>
               <div className="flex gap-1 sm:gap-1.5">
                 {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
@@ -951,16 +1056,16 @@ export default function StudentCoursesPage() {
                 disabled={currentPage === totalPages} 
                 className={`p-1.5 sm:p-2 rounded-lg border ${styles.border} ${styles.card} disabled:opacity-30 hover:border-blue-400/50 transition-all duration-300 hover:scale-105`}
               >
-                <Icons.ChevronLeft className="h-4 w-4 sm:h-5 sm:w-5" />
+                <ChevronLeft className="h-4 w-4 sm:h-5 sm:w-5" />
               </button>
             </div>
           )}
         </div>
       </div>
 
-      {/* أسهم التمرير – مضغوطة */}
+      {/* أسهم التمرير – مضغوطة ومعطلة على الموبايل */}
       <AnimatePresence>
-        {showScrollUp && !hideArrows && (
+        {showScrollUp && !hideArrows && !isMobile && (
           <motion.button
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 0.8, scale: 1 }}
@@ -969,13 +1074,13 @@ export default function StudentCoursesPage() {
             onClick={scrollUp}
             className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-[50px] sm:-translate-y-[60px] z-50 p-2.5 sm:p-3 rounded-full bg-gradient-to-r from-blue-500/80 to-indigo-500/80 text-white shadow-2xl shadow-blue-500/30 hover:scale-110 hover:opacity-100 transition-all duration-300 backdrop-blur-md border border-white/20"
           >
-            <Icons.ChevronUp className="h-5 w-5 sm:h-6 sm:w-6" />
+            <ChevronUp className="h-5 w-5 sm:h-6 sm:w-6" />
           </motion.button>
         )}
       </AnimatePresence>
 
       <AnimatePresence>
-        {showScrollDown && !hideArrows && (
+        {showScrollDown && !hideArrows && !isMobile && (
           <motion.button
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 0.8, scale: 1 }}
@@ -984,7 +1089,7 @@ export default function StudentCoursesPage() {
             onClick={scrollDown}
             className="fixed left-1/2 top-1/2 -translate-x-1/2 translate-y-[50px] sm:translate-y-[60px] z-50 p-2.5 sm:p-3 rounded-full bg-gradient-to-r from-green-500/80 to-emerald-500/80 text-white shadow-2xl shadow-green-500/30 hover:scale-110 hover:opacity-100 transition-all duration-300 backdrop-blur-md border border-white/20"
           >
-            <Icons.ChevronDown className="h-5 w-5 sm:h-6 sm:w-6" />
+            <ChevronUp className="h-5 w-5 sm:h-6 sm:w-6 rotate-180" />
           </motion.button>
         )}
       </AnimatePresence>

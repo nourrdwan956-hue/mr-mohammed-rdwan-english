@@ -86,8 +86,12 @@ const Sidebar = ({ user, language, toggleLanguage, theme, toggleTheme, styles, p
             animate={{ x: 0, opacity: 1 }}
             exit={{ x: isMobile || isTablet ? (isRTL ? 60 : -60) : 0, opacity: isMobile || isTablet ? 0 : 1 }}
             transition={{ type: 'spring', stiffness: 350, damping: 30 }}
-            className={`fixed ${sidebarPosition} top-0 h-full ${sidebarWidth} z-30 ${borderSide} border-[var(--border-color)] backdrop-blur-2xl shadow-2xl`}
-            style={{ backgroundColor: 'rgba(var(--bg-primary-rgb), 0.92)' }}
+            className={`fixed ${sidebarPosition} top-0 h-full ${sidebarWidth} z-30 ${borderSide} border-[var(--border-color)] shadow-2xl`}
+            style={{
+              backgroundColor: isMobile ? 'rgba(var(--bg-primary-rgb), 0.98)' : 'rgba(var(--bg-primary-rgb), 0.92)',
+              backdropFilter: isMobile ? 'none' : 'blur(20px)',
+              WebkitBackdropFilter: isMobile ? 'none' : 'blur(20px)',
+            }}
           >
             <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent pointer-events-none" />
 
@@ -220,7 +224,7 @@ const Sidebar = ({ user, language, toggleLanguage, theme, toggleTheme, styles, p
 // ================================================================
 // شريط التنقل السفلي للجوال – أيقونات أصغر
 // ================================================================
-const MobileBottomNav = ({ language, pathname, styles }) => {
+const MobileBottomNav = ({ language, pathname, styles, isMobile }) => {
   const isActive = (path) => pathname === path;
 
   return (
@@ -228,8 +232,12 @@ const MobileBottomNav = ({ language, pathname, styles }) => {
       initial={{ y: 60, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-      className="lg:hidden fixed bottom-0 left-0 right-0 z-20 px-1 xs:px-2 pb-1.5 pt-1 backdrop-blur-2xl border-t border-[var(--border-color)] shadow-2xl"
-      style={{ backgroundColor: 'rgba(var(--bg-primary-rgb), 0.88)' }}
+      className="lg:hidden fixed bottom-0 left-0 right-0 z-20 px-1 xs:px-2 pb-1.5 pt-1 border-t border-[var(--border-color)] shadow-2xl"
+      style={{
+        backgroundColor: isMobile ? 'rgba(var(--bg-primary-rgb), 0.95)' : 'rgba(var(--bg-primary-rgb), 0.88)',
+        backdropFilter: isMobile ? 'none' : 'blur(20px)',
+        WebkitBackdropFilter: isMobile ? 'none' : 'blur(20px)',
+      }}
     >
       <div className="flex justify-around items-center max-w-lg mx-auto">
         {NAV_ITEMS.slice(0, 5).map((item) => {
@@ -375,18 +383,22 @@ export default function StudentLayout({ children }) {
 
   return (
     <div dir={isRTL ? 'rtl' : 'ltr'} className="h-dvh w-full flex flex-col overflow-hidden">
-      {/* خلفية مخفضة الاستهلاك */}
+      {/* خلفية مخفضة الاستهلاك - إزالة التأثيرات على الموبايل */}
       <div className="fixed inset-0 -z-10 bg-[var(--bg-primary)]">
-        <motion.div
-          animate={{ x: ['-3%', '3%', '-3%'], y: ['-3%', '3%', '-3%'] }}
-          transition={{ duration: 30, repeat: Infinity, ease: 'linear' }}
-          className="absolute top-0 right-0 w-[300px] h-[300px] xs:w-[400px] xs:h-[400px] bg-blue-500/5 rounded-full blur-3xl"
-        />
-        <motion.div
-          animate={{ x: ['3%', '-3%', '3%'], y: ['3%', '-3%', '3%'] }}
-          transition={{ duration: 35, repeat: Infinity, ease: 'linear' }}
-          className="absolute bottom-0 left-0 w-[400px] h-[400px] xs:w-[500px] xs:h-[500px] bg-green-500/5 rounded-full blur-3xl"
-        />
+        {!isMobile && (
+          <>
+            <motion.div
+              animate={{ x: ['-3%', '3%', '-3%'], y: ['-3%', '3%', '-3%'] }}
+              transition={{ duration: 30, repeat: Infinity, ease: 'linear' }}
+              className="absolute top-0 right-0 w-[300px] h-[300px] xs:w-[400px] xs:h-[400px] bg-blue-500/5 rounded-full blur-3xl"
+            />
+            <motion.div
+              animate={{ x: ['3%', '-3%', '3%'], y: ['3%', '-3%', '3%'] }}
+              transition={{ duration: 35, repeat: Infinity, ease: 'linear' }}
+              className="absolute bottom-0 left-0 w-[400px] h-[400px] xs:w-[500px] xs:h-[500px] bg-green-500/5 rounded-full blur-3xl"
+            />
+          </>
+        )}
       </div>
 
       {/* زر التحكم في الشريط الجانبي */}
@@ -445,7 +457,7 @@ export default function StudentLayout({ children }) {
 
       {/* شريط التنقل السفلي */}
       {!isExamPage && (isMobile || isTablet) && (
-        <MobileBottomNav language={language} pathname={pathname} styles={styles} />
+        <MobileBottomNav language={language} pathname={pathname} styles={styles} isMobile={isMobile} />
       )}
     </div>
   );

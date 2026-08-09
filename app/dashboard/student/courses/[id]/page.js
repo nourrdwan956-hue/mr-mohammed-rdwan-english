@@ -5,15 +5,33 @@
 // ✅ ترتيب المحتوى من الأحدث إلى الأقدم (videos, exams, books, related)
 // ✅ إضافة فلتر ترتيب (أحدث/أقدم) لكل من الفيديوهات والامتحانات والكتب
 // ✅ الحفاظ على جميع الوظائف (التحقق من الوصول، الاشتراك، التبويبات، إلخ)
+// ✅ استيراد الأيقونات فردياً، تحسين WaveBorderCard للموبايل،
+//    React.memo للمكونات الفرعية، useMemo للبيانات المحسوبة
 // ================================================================
 
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
-import * as Icons from 'lucide-react';
+import {
+  Play,
+  CheckCircle,
+  Bookmark,
+  FileText,
+  BookOpen,
+  Clock,
+  ArrowLeft,
+  Lock,
+  Grid3X3,
+  Video,
+  FileQuestion,
+  Book,
+  MessageCircle,
+  ArrowDown,
+  ArrowUp,
+} from 'lucide-react';
 import { useTheme } from '@/lib/hooks/useTheme';
 import { supabase } from '@/lib/supabaseClient';
 import { toast } from 'react-hot-toast';
@@ -43,23 +61,38 @@ const getRandomColor = (exclude = []) => {
 };
 
 // ================================================================
-// 🌊 مكون الحدود الموجية (Wave Border) – مضغوط ومتجاوب
+// 🌊 مكون الحدود الموجية (Wave Border) – محسّن للموبايل
 // ================================================================
 const WaveBorderCard = ({ children, className = '', initialColor = 'blue', onColorChange }) => {
   const [color, setColor] = useState(CARD_COLORS.find(c => c.name === initialColor) || CARD_COLORS[0]);
   const [rotation, setRotation] = useState(0);
   const colorRef = useRef(color);
   const isMounted = useRef(true);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // كشف الموبايل
+  useEffect(() => {
+    const checkMobile = () => {
+      const width = window.innerWidth;
+      setIsMobile(width < 640);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   useEffect(() => {
     colorRef.current = color;
   }, [color]);
 
   useEffect(() => {
+    // ✅ تقليل سرعة التحديث على الموبايل
+    const intervalTime = isMobile ? 200 : 50;
     const interval = setInterval(() => {
       if (!isMounted.current) return;
       setRotation(prev => {
-        const newRot = prev + 2;
+        const step = isMobile ? 1 : 2;
+        const newRot = prev + step;
         if (newRot >= 360) {
           const newColor = getRandomColor([colorRef.current.name]);
           setColor(newColor);
@@ -68,12 +101,12 @@ const WaveBorderCard = ({ children, className = '', initialColor = 'blue', onCol
         }
         return newRot;
       });
-    }, 50);
+    }, intervalTime);
     return () => {
       isMounted.current = false;
       clearInterval(interval);
     };
-  }, [onColorChange]);
+  }, [isMobile, onColorChange]);
 
   const waveColors = [
     `rgba(59, 130, 246, 0.6)`,
@@ -182,10 +215,10 @@ const CircularProgress = ({ percentage, size = 60, strokeWidth = 5, label, style
 };
 
 // ================================================================
-// مكونات عناصر المحتوى – مضغوطة ومتجاوبة
+// مكونات عناصر المحتوى – مضغوطة ومتجاوبة مع React.memo
 // ================================================================
 
-const VideoItem = ({ video, bookmarked, onToggleBookmark, styles, language, watched }) => {
+const VideoItem = memo(({ video, bookmarked, onToggleBookmark, styles, language, watched }) => {
   const [color, setColor] = useState(CARD_COLORS[Math.floor(Math.random() * CARD_COLORS.length)]);
   const handleColorChange = (newColor) => setColor(newColor);
 
@@ -194,12 +227,12 @@ const VideoItem = ({ video, bookmarked, onToggleBookmark, styles, language, watc
       <div className={`p-2 sm:p-2.5 flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3 hover:border-${color.name}-400/50 transition group relative min-h-[50px] sm:min-h-[56px]`}>
         {watched && (
           <div className="absolute top-1 right-1 sm:top-1.5 sm:right-1.5 bg-green-500/20 text-green-400 rounded-full p-0.5">
-            <Icons.CheckCircle className="h-2.5 w-2.5 sm:h-3 sm:w-3 fill-current" />
+            <CheckCircle className="h-2.5 w-2.5 sm:h-3 sm:w-3 fill-current" />
           </div>
         )}
         <div className="relative flex-shrink-0">
           <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-lg ${watched ? 'bg-green-400/10' : 'bg-blue-400/10'} flex items-center justify-center`}>
-            <Icons.Play className={`h-3.5 w-3.5 sm:h-4 sm:w-4 ${watched ? 'text-green-500' : `text-${color.name}-500`}`} />
+            <Play className={`h-3.5 w-3.5 sm:h-4 sm:w-4 ${watched ? 'text-green-500' : `text-${color.name}-500`}`} />
           </div>
           {video.duration && (
             <span className="absolute -bottom-0.5 -right-0.5 bg-black/80 text-white text-[6px] px-1 py-0.5 rounded font-mono">
@@ -214,14 +247,16 @@ const VideoItem = ({ video, bookmarked, onToggleBookmark, styles, language, watc
           {video.description && <p className={`text-[8px] sm:text-[10px] ${styles.subtext} line-clamp-1 mt-0.5`}>{video.description}</p>}
         </div>
         <button onClick={() => onToggleBookmark(video.id)} className={`p-1.5 rounded-lg transition ${bookmarked ? `text-${color.name}-500 bg-${color.name}-400/10` : 'text-gray-400 hover:text-yellow-500 hover:bg-yellow-400/5'}`}>
-          <Icons.Bookmark className={`h-3 w-3 sm:h-3.5 sm:w-3.5 ${bookmarked ? 'fill-current' : ''}`} />
+          <Bookmark className={`h-3 w-3 sm:h-3.5 sm:w-3.5 ${bookmarked ? 'fill-current' : ''}`} />
         </button>
       </div>
     </WaveBorderCard>
   );
-};
+});
 
-const ExamItem = ({ exam, styles, language, attempted, score }) => {
+VideoItem.displayName = 'VideoItem';
+
+const ExamItem = memo(({ exam, styles, language, attempted, score }) => {
   const [color, setColor] = useState(CARD_COLORS[Math.floor(Math.random() * CARD_COLORS.length)]);
   const handleColorChange = (newColor) => setColor(newColor);
 
@@ -229,7 +264,7 @@ const ExamItem = ({ exam, styles, language, attempted, score }) => {
     <WaveBorderCard initialColor={color.name} onColorChange={handleColorChange}>
       <div className={`p-2 sm:p-2.5 flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3 hover:border-${color.name}-400/50 transition min-h-[50px] sm:min-h-[56px]`}>
         <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-lg ${attempted ? 'bg-blue-400/10' : 'bg-emerald-400/10'} flex items-center justify-center flex-shrink-0`}>
-          <Icons.FileText className={`h-3.5 w-3.5 sm:h-4 sm:w-4 ${attempted ? 'text-blue-500' : 'text-emerald-500'}`} />
+          <FileText className={`h-3.5 w-3.5 sm:h-4 sm:w-4 ${attempted ? 'text-blue-500' : 'text-emerald-500'}`} />
         </div>
         <div className="flex-1 min-w-0">
           <Link href={`/dashboard/student/exams/${exam.id}`} className={`text-[10px] sm:text-sm font-bold ${styles.text} hover:text-${color.name}-500 transition line-clamp-1`}>
@@ -247,9 +282,11 @@ const ExamItem = ({ exam, styles, language, attempted, score }) => {
       </div>
     </WaveBorderCard>
   );
-};
+});
 
-const BookItem = ({ book, styles, language }) => {
+ExamItem.displayName = 'ExamItem';
+
+const BookItem = memo(({ book, styles, language }) => {
   const [color, setColor] = useState(CARD_COLORS[Math.floor(Math.random() * CARD_COLORS.length)]);
   const handleColorChange = (newColor) => setColor(newColor);
 
@@ -257,7 +294,7 @@ const BookItem = ({ book, styles, language }) => {
     <WaveBorderCard initialColor={color.name} onColorChange={handleColorChange}>
       <div className={`p-2 sm:p-2.5 flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3 hover:border-${color.name}-400/50 transition min-h-[50px] sm:min-h-[56px]`}>
         <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-purple-400/10 flex items-center justify-center flex-shrink-0">
-          <Icons.BookOpen className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-purple-500" />
+          <BookOpen className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-purple-500" />
         </div>
         <div className="flex-1 min-w-0">
           <Link href={`/dashboard/student/books/${book.id}`} className={`text-[10px] sm:text-sm font-bold ${styles.text} hover:text-${color.name}-500 transition line-clamp-1`}>
@@ -267,14 +304,16 @@ const BookItem = ({ book, styles, language }) => {
       </div>
     </WaveBorderCard>
   );
-};
+});
+
+BookItem.displayName = 'BookItem';
 
 // ================================================================
 // مكون زر الترتيب – واضح في كل الثيمات ويعمل بشكل صحيح
 // ================================================================
 const OrderToggleButton = ({ order, onToggle, label, styles, language }) => {
   const isDesc = order === 'desc';
-  const icon = isDesc ? <Icons.ArrowDown className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> : <Icons.ArrowUp className="h-3.5 w-3.5 sm:h-4 sm:w-4" />;
+  const icon = isDesc ? <ArrowDown className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> : <ArrowUp className="h-3.5 w-3.5 sm:h-4 sm:w-4" />;
   const labelText = isDesc ? (language === 'ar' ? 'الأحدث' : 'Newest') : (language === 'ar' ? 'الأقدم' : 'Oldest');
 
   return (
@@ -334,6 +373,30 @@ export default function StudentCourseDetailsPage() {
   // ألوان متغيرة للرأس
   const [headerColor, setHeaderColor] = useState(CARD_COLORS[0]);
 
+  // ================================================================
+  // استخدام useMemo للبيانات المحسوبة
+  // ================================================================
+  const totalVideos = useMemo(() => videos.length, [videos]);
+  const totalExams = useMemo(() => exams.length, [exams]);
+  const totalBooks = useMemo(() => books.length, [books]);
+  const completedVideos = useMemo(() => Object.keys(watchedVideos).length, [watchedVideos]);
+  const attemptedExams = useMemo(() => Object.keys(examAttempts).length, [examAttempts]);
+  const progress = useMemo(() => enrollment?.progress || 0, [enrollment]);
+  const enrolled = useMemo(() => !!enrollment, [enrollment]);
+
+  const videosProgress = useMemo(() => {
+    if (totalVideos === 0) return 0;
+    return (completedVideos / totalVideos) * 100;
+  }, [completedVideos, totalVideos]);
+
+  const examsProgress = useMemo(() => {
+    if (totalExams === 0) return 0;
+    return (attemptedExams / totalExams) * 100;
+  }, [attemptedExams, totalExams]);
+
+  // ================================================================
+  // دالة إنشاء الملف الشخصي
+  // ================================================================
   const ensureProfile = useCallback(async (userId, userEmail) => {
     const { data: existingProfile } = await supabase.from('profiles').select('id').eq('id', userId).maybeSingle();
     if (!existingProfile) {
@@ -567,15 +630,6 @@ export default function StudentCourseDetailsPage() {
     localStorage.setItem('videoBookmarks', JSON.stringify(updated));
   };
 
-  const progress = enrollment?.progress || 0;
-  const enrolled = !!enrollment;
-  const completedVideos = Object.keys(watchedVideos).length;
-  const totalVideos = videos.length;
-  const videosProgress = totalVideos > 0 ? (completedVideos / totalVideos) * 100 : 0;
-  const attemptedExams = Object.keys(examAttempts).length;
-  const totalExams = exams.length;
-  const examsProgress = totalExams > 0 ? (attemptedExams / totalExams) * 100 : 0;
-
   // ===== دوال تبديل الترتيب =====
   const toggleVideoOrder = () => {
     setVideoOrder(prev => prev === 'desc' ? 'asc' : 'desc');
@@ -634,7 +688,7 @@ export default function StudentCourseDetailsPage() {
       <div className={`min-h-screen flex items-center justify-center ${styles.bg} p-3`}>
         <div className={`max-w-sm w-full p-4 sm:p-6 rounded-2xl ${styles.card} border ${styles.border} text-center shadow-2xl`}>
           <div className="inline-flex p-2.5 sm:p-3 rounded-full bg-red-500/20 border-2 border-red-500/30">
-            <Icons.Lock className="h-8 w-8 sm:h-10 sm:w-10 text-red-400" />
+            <Lock className="h-8 w-8 sm:h-10 sm:w-10 text-red-400" />
           </div>
           <h2 className={`text-base sm:text-lg font-extrabold ${styles.text} mt-3`}>
             {language === 'ar' ? '🚫 وصول ممنوع' : '🚫 Access Denied'}
@@ -687,7 +741,7 @@ export default function StudentCourseDetailsPage() {
                     />
                   ) : (
                     <div className="flex items-center justify-center w-full h-full">
-                      <Icons.BookOpen className="h-10 w-10 sm:h-14 sm:w-14 text-gray-600" />
+                      <BookOpen className="h-10 w-10 sm:h-14 sm:w-14 text-gray-600" />
                     </div>
                   )}
                   {enrolled && (
@@ -734,7 +788,7 @@ export default function StudentCourseDetailsPage() {
 
                 {totalDuration > 0 && (
                   <div className="flex items-center gap-1 sm:gap-2 text-[9px] sm:text-xs">
-                    <Icons.Clock className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-blue-500" />
+                    <Clock className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-blue-500" />
                     <span className={styles.subtext}>{formatDuration(totalDuration, language)} {language==='ar'?'محتوى':'content'}</span>
                   </div>
                 )}
@@ -767,7 +821,7 @@ export default function StudentCourseDetailsPage() {
                   {enrolled ? (
                     <>
                       <Link href={`/dashboard/student/courses/${id}/progress`} className="px-2.5 py-1.5 sm:px-4 sm:py-2 rounded-lg bg-gradient-to-r from-blue-500 to-blue-600 text-white font-bold text-[9px] sm:text-xs hover:scale-105 transition shadow-lg shadow-blue-500/30 flex items-center gap-1">
-                        <Icons.ArrowLeft className="h-2.5 w-2.5 sm:h-3.5 sm:w-3.5" />
+                        <ArrowLeft className="h-2.5 w-2.5 sm:h-3.5 sm:w-3.5" />
                         {language==='ar'?'متابعة التعلم':'Continue'}
                       </Link>
                     </>
@@ -801,15 +855,15 @@ export default function StudentCourseDetailsPage() {
         {enrolled && (
           <>
             <div className="flex gap-1 border-b-2 border-gray-200 dark:border-white/10 pb-1 overflow-x-auto no-scrollbar">
-              <TabButton active={activeTab==='videos'} onClick={()=>setActiveTab('videos')} icon={Icons.Video} label={language==='ar'?'فيديوهات':'Videos'} count={totalVideos} styles={styles}/>
-              <TabButton active={activeTab==='exams'} onClick={()=>setActiveTab('exams')} icon={Icons.FileQuestion} label={language==='ar'?'امتحانات':'Exams'} count={totalExams} styles={styles}/>
-              <TabButton active={activeTab==='books'} onClick={()=>setActiveTab('books')} icon={Icons.Book} label={language==='ar'?'كتب':'Books'} count={books.length} styles={styles}/>
+              <TabButton active={activeTab==='videos'} onClick={()=>setActiveTab('videos')} icon={Video} label={language==='ar'?'فيديوهات':'Videos'} count={totalVideos} styles={styles}/>
+              <TabButton active={activeTab==='exams'} onClick={()=>setActiveTab('exams')} icon={FileQuestion} label={language==='ar'?'امتحانات':'Exams'} count={totalExams} styles={styles}/>
+              <TabButton active={activeTab==='books'} onClick={()=>setActiveTab('books')} icon={Book} label={language==='ar'?'كتب':'Books'} count={totalBooks} styles={styles}/>
               <TabButton 
                 active={activeTab==='academic'} 
                 onClick={() => {
                   router.push(`/dashboard/student/support/academic?course=${id}`);
                 }} 
-                icon={Icons.MessageCircle} 
+                icon={MessageCircle} 
                 label={language==='ar'?'سؤال':'Q'} 
                 styles={styles}
               />
@@ -821,7 +875,6 @@ export default function StudentCourseDetailsPage() {
                 <>
                   {activeTab==='videos' && (
                     <div>
-                      {/* رأس التبويب مع زر الترتيب */}
                       <div className="flex items-center justify-between mb-2 sm:mb-3">
                         <span className={`text-xs sm:text-sm font-bold ${styles.subtext}`}>
                           {language === 'ar' ? `${totalVideos} فيديو` : `${totalVideos} videos`}
@@ -843,7 +896,6 @@ export default function StudentCourseDetailsPage() {
                   )}
                   {activeTab==='exams' && (
                     <div>
-                      {/* رأس التبويب مع زر الترتيب */}
                       <div className="flex items-center justify-between mb-2 sm:mb-3">
                         <span className={`text-xs sm:text-sm font-bold ${styles.subtext}`}>
                           {language === 'ar' ? `${totalExams} امتحان` : `${totalExams} exams`}
@@ -865,10 +917,9 @@ export default function StudentCourseDetailsPage() {
                   )}
                   {activeTab==='books' && (
                     <div>
-                      {/* رأس التبويب مع زر الترتيب */}
                       <div className="flex items-center justify-between mb-2 sm:mb-3">
                         <span className={`text-xs sm:text-sm font-bold ${styles.subtext}`}>
-                          {language === 'ar' ? `${books.length} كتاب` : `${books.length} books`}
+                          {language === 'ar' ? `${totalBooks} كتاب` : `${totalBooks} books`}
                         </span>
                         <OrderToggleButton
                           order={bookOrder}
@@ -893,7 +944,7 @@ export default function StudentCourseDetailsPage() {
 
         {!enrolled && (
           <div className="text-center py-6 sm:py-12 border-2 border-dashed border-gray-300 dark:border-white/10 rounded-2xl">
-            <Icons.Lock className="h-8 w-8 sm:h-12 sm:w-12 text-gray-400 mx-auto mb-1.5"/>
+            <Lock className="h-8 w-8 sm:h-12 sm:w-12 text-gray-400 mx-auto mb-1.5"/>
             <h3 className={`text-sm sm:text-lg font-bold ${styles.text} mb-0.5`}>
               {course.is_free ? (language==='ar'?'ابدأ التعلم مجاناً':'Start learning for free') : (language==='ar'?'اشترك للوصول للمحتوى':'Enroll to access content')}
             </h3>
@@ -926,14 +977,14 @@ export default function StudentCourseDetailsPage() {
         {relatedCourses.length>0 && (
           <div>
             <h2 className={`text-sm sm:text-base font-bold ${styles.text} mb-2 flex items-center gap-1.5`}>
-              <Icons.Grid3X3 className="h-4 w-4 sm:h-5 sm:w-5 text-blue-500"/> {language==='ar'?'كورسات ذات صلة':'Related Courses'}
+              <Grid3X3 className="h-4 w-4 sm:h-5 sm:w-5 text-blue-500"/> {language==='ar'?'كورسات ذات صلة':'Related Courses'}
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
               {relatedCourses.map(rc=>(
                 <Link key={rc.id} href={`/dashboard/student/courses/${rc.id}`} className={`p-2 sm:p-3 rounded-lg border ${styles.border} ${styles.card} hover:border-blue-400/50 transition group`}>
                   <div className="flex items-center gap-2 sm:gap-3 mb-1">
                     <div className="w-7 h-7 sm:w-9 sm:h-9 rounded-lg bg-blue-500/10 flex items-center justify-center">
-                      <Icons.BookOpen className="h-3.5 w-3.5 sm:h-5 sm:w-5 text-blue-500 group-hover:scale-110 transition"/>
+                      <BookOpen className="h-3.5 w-3.5 sm:h-5 sm:w-5 text-blue-500 group-hover:scale-110 transition"/>
                     </div>
                     <span className={`text-[10px] sm:text-sm font-bold ${styles.text} line-clamp-1`}>{rc.title}</span>
                   </div>

@@ -1,3 +1,4 @@
+//components/video-player.jsx
 'use client';
 
 import dynamic from 'next/dynamic';

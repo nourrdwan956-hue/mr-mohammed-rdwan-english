@@ -1,7 +1,7 @@
 // app/dashboard/student/page.js
 'use client';
 
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 // ✅ استيراد فردي للأيقونات لتقليل حجم الباندل
 import {
@@ -124,6 +124,21 @@ function getDaysSinceJoin(createdAt) {
 }
 
 // ================================================================
+// 0. Hook للكشف عن الأجهزة التي تدعم hover
+// ================================================================
+function useHoverable() {
+  const [isHoverable, setIsHoverable] = useState(false);
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(hover: hover)');
+    setIsHoverable(mediaQuery.matches);
+    const handler = (e) => setIsHoverable(e.matches);
+    mediaQuery.addEventListener('change', handler);
+    return () => mediaQuery.removeEventListener('change', handler);
+  }, []);
+  return isHoverable;
+}
+
+// ================================================================
 // 1. عداد متحرك (بدون تغيير)
 // ================================================================
 const AnimatedCounter = ({ value, duration = 1.2, suffix = '' }) => {
@@ -190,23 +205,37 @@ const getRandomColor = (exclude = []) => {
 };
 
 // ================================================================
-// 4. مكون الحدود الموجية – تم تعديل الفاصل إلى 100ms
+// 4. مكون الحدود الموجية – تم التعديل (200ms على الموبايل)
 // ================================================================
 const WaveBorderCard = ({ children, className = '', initialColor = 'blue', onColorChange }) => {
   const [color, setColor] = useState(CARD_COLORS.find(c => c.name === initialColor) || CARD_COLORS[0]);
   const [rotation, setRotation] = useState(0);
   const colorRef = useRef(color);
   const isMounted = useRef(true);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // كشف الموبايل
+  useEffect(() => {
+    const checkMobile = () => {
+      const width = window.innerWidth;
+      setIsMobile(width < 640);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   useEffect(() => {
     colorRef.current = color;
   }, [color]);
 
   useEffect(() => {
+    // ✅ 200ms على الموبايل، 100ms على الديسكتوب
+    const intervalTime = isMobile ? 200 : 100;
     const interval = setInterval(() => {
       if (!isMounted.current) return;
       setRotation(prev => {
-        const newRot = prev + 2;
+        const newRot = prev + (isMobile ? 1 : 2);
         if (newRot >= 360) {
           const newColor = getRandomColor([colorRef.current.name]);
           setColor(newColor);
@@ -217,12 +246,12 @@ const WaveBorderCard = ({ children, className = '', initialColor = 'blue', onCol
         }
         return newRot;
       });
-    }, 100); // ✅ تم التعديل من 50 إلى 100 لتقليل الحمل
+    }, intervalTime);
     return () => {
       isMounted.current = false;
       clearInterval(interval);
     };
-  }, [onColorChange]);
+  }, [isMobile, onColorChange]);
 
   const waveColors = [
     `rgba(59, 130, 246, 0.6)`,
@@ -255,11 +284,12 @@ const WaveBorderCard = ({ children, className = '', initialColor = 'blue', onCol
 };
 
 // ================================================================
-// 5. بطاقة إحصائية – مصغرة مع تحسينات الاستجابة
+// 5. بطاقة إحصائية – مصغرة مع تحسينات الاستجابة + memo
 // ================================================================
-const LargeStatCard = ({ icon: Icon, label, value, styles, delay = 0 }) => {
+const LargeStatCard = memo(({ icon: Icon, label, value, styles, delay = 0 }) => {
   const [color, setColor] = useState(CARD_COLORS[0]);
   const [isHovered, setIsHovered] = useState(false);
+  const isHoverable = useHoverable();
 
   const handleColorChange = (newColor) => setColor(newColor);
 
@@ -268,9 +298,9 @@ const LargeStatCard = ({ icon: Icon, label, value, styles, delay = 0 }) => {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, delay }}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-      whileHover={{ scale: 1.03 }}
+      onMouseEnter={() => isHoverable && setIsHovered(true)}
+      onMouseLeave={() => isHoverable && setIsHovered(false)}
+      whileHover={isHoverable ? { scale: 1.03 } : {}}
     >
       <WaveBorderCard initialColor={color.name} onColorChange={handleColorChange}>
         <div className="p-3 xs:p-4 sm:p-5 flex items-center justify-between gap-2 xs:gap-3">
@@ -291,23 +321,26 @@ const LargeStatCard = ({ icon: Icon, label, value, styles, delay = 0 }) => {
       </WaveBorderCard>
     </motion.div>
   );
-};
+});
+
+LargeStatCard.displayName = 'LargeStatCard';
 
 // ================================================================
-// 6. بطاقة كورس – مصغرة مع تحسينات الاستجابة
+// 6. بطاقة كورس – مصغرة مع تحسينات الاستجابة + memo
 // ================================================================
-const LargeCourseCard = ({ course, progress, styles, theme, language }) => {
+const LargeCourseCard = memo(({ course, progress, styles, theme, language }) => {
   const router = useRouter();
   const [color, setColor] = useState(CARD_COLORS[1]);
   const [isHovered, setIsHovered] = useState(false);
+  const isHoverable = useHoverable();
 
   const handleColorChange = (newColor) => setColor(newColor);
 
   return (
     <motion.div
-      whileHover={{ scale: 1.02, y: -4 }}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
+      whileHover={isHoverable ? { scale: 1.02, y: -4 } : {}}
+      onMouseEnter={() => isHoverable && setIsHovered(true)}
+      onMouseLeave={() => isHoverable && setIsHovered(false)}
       className="relative cursor-pointer"
       onClick={() => router.push(`/dashboard/student/courses/${course.id}`)}
     >
@@ -366,7 +399,9 @@ const LargeCourseCard = ({ course, progress, styles, theme, language }) => {
       </WaveBorderCard>
     </motion.div>
   );
-};
+});
+
+LargeCourseCard.displayName = 'LargeCourseCard';
 
 // ================================================================
 // 7. بطاقة الإعلانات – مصغرة مع تحسينات الاستجابة
@@ -377,6 +412,7 @@ const SuperAnnouncements = ({ announcements, styles, language }) => {
   const totalPages = announcements.length;
   const [color, setColor] = useState(CARD_COLORS[2]);
   const [isHovered, setIsHovered] = useState(false);
+  const isHoverable = useHoverable();
 
   const handleColorChange = (newColor) => setColor(newColor);
 
@@ -483,8 +519,8 @@ const SuperAnnouncements = ({ announcements, styles, language }) => {
         initial={{ opacity: 0, y: 15 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true }}
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
+        onMouseEnter={() => isHoverable && setIsHovered(true)}
+        onMouseLeave={() => isHoverable && setIsHovered(false)}
         className="relative"
       >
         <WaveBorderCard initialColor={color.name} onColorChange={handleColorChange}>
@@ -588,16 +624,21 @@ const SuperAnnouncements = ({ announcements, styles, language }) => {
 };
 
 // ================================================================
-// 8. بطاقة الملاحظة – مصغرة مع تحسينات الاستجابة
+// 8. بطاقة الملاحظة – مصغرة مع تحسينات الاستجابة + memo
 // ================================================================
-const LargeNoteCard = ({ latestNote, language, styles, theme }) => {
+const LargeNoteCard = memo(({ latestNote, language, styles, theme }) => {
   const router = useRouter();
   const [color, setColor] = useState(CARD_COLORS[4]);
+  const [isHovered, setIsHovered] = useState(false);
+  const isHoverable = useHoverable();
+
   const handleColorChange = (newColor) => setColor(newColor);
 
   return (
     <motion.div
-      whileHover={{ scale: 1.02, y: -3 }}
+      whileHover={isHoverable ? { scale: 1.02, y: -3 } : {}}
+      onMouseEnter={() => isHoverable && setIsHovered(true)}
+      onMouseLeave={() => isHoverable && setIsHovered(false)}
       onClick={() => router.push('/dashboard/student/notes')}
       className="relative cursor-pointer"
     >
@@ -627,7 +668,9 @@ const LargeNoteCard = ({ latestNote, language, styles, theme }) => {
       </WaveBorderCard>
     </motion.div>
   );
-};
+});
+
+LargeNoteCard.displayName = 'LargeNoteCard';
 
 // ================================================================
 // 9. شريط المعلومات اليومية – مصغر مع تحسينات الاستجابة
@@ -699,6 +742,35 @@ const LanguageTipCarousel = ({ language, styles }) => {
 };
 
 // ================================================================
+// 10. نظام التخزين المؤقت (Cache) مع انتهاء صلاحية 5 دقائق
+// ================================================================
+const CACHE_KEY = 'dashboard_data_cache';
+const CACHE_EXPIRY_MS = 5 * 60 * 1000; // 5 دقائق
+
+function getCachedData() {
+  try {
+    const cached = localStorage.getItem(CACHE_KEY);
+    if (!cached) return null;
+    const { data, timestamp } = JSON.parse(cached);
+    if (Date.now() - timestamp > CACHE_EXPIRY_MS) {
+      localStorage.removeItem(CACHE_KEY);
+      return null;
+    }
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+function setCachedData(data) {
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify({ data, timestamp: Date.now() }));
+  } catch (e) {
+    // تجاهل أخطاء التخزين
+  }
+}
+
+// ================================================================
 // الصفحة الرئيسية – مصغرة بالكامل مع تحسينات الاستجابة
 // ================================================================
 export default function StudentDashboard() {
@@ -719,12 +791,13 @@ export default function StudentDashboard() {
   const [loading, setLoading] = useState(true);
   const [daysSinceJoin, setDaysSinceJoin] = useState(0);
   const fetchedRef = useRef(false);
+  const cacheUsedRef = useRef(false);
 
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [teacherId, setTeacherId] = useState(null);
 
-  // دوال جلب البيانات (بدون تغيير)
+  // دوال جلب البيانات
   const looksLikeEmailOrUsername = (text) => {
     if (!text) return true;
     if (text.includes('@')) return true;
@@ -748,7 +821,35 @@ export default function StudentDashboard() {
     return currentProfile;
   }, []);
 
-  const fetchData = useCallback(async (userId) => {
+  const fetchData = useCallback(async (userId, useCache = true) => {
+    // محاولة استخدام التخزين المؤقت
+    if (useCache) {
+      const cached = getCachedData();
+      if (cached && cached.userId === userId) {
+        const { user: cachedUser, enrollments: cachedEnrolls, courses: cachedCourses,
+                upcomingExams: cachedExams, recentActivity: cachedActivity,
+                announcements: cachedAnns, messages: cachedMsgs, latestNote: cachedNote,
+                stats: cachedStats, daysSinceJoin: cachedDays, notificationsEnabled: cachedNotif,
+                teacherId: cachedTeacherId } = cached;
+        setUser(cachedUser);
+        setEnrollments(cachedEnrolls || []);
+        setCourses(cachedCourses || []);
+        setUpcomingExams(cachedExams || []);
+        setRecentActivity(cachedActivity || []);
+        setAnnouncements(cachedAnns || []);
+        setMessages(cachedMsgs || []);
+        setLatestNote(cachedNote || null);
+        setStats(cachedStats || { coursesEnrolled: 0, completedVideos: 0, totalExamsTaken: 0, xp: 0, streak: 0, rank: 1 });
+        setDaysSinceJoin(cachedDays || 0);
+        setNotificationsEnabled(cachedNotif ?? true);
+        setTeacherId(cachedTeacherId || null);
+        setLoading(false);
+        cacheUsedRef.current = true;
+        return true;
+      }
+    }
+
+    // جلب البيانات من السيرفر
     try {
       const { data: { user: authUser } } = await supabase.auth.getUser();
       const authMetadata = authUser?.user_metadata || {};
@@ -778,7 +879,6 @@ export default function StudentDashboard() {
 
       profile = await ensureValidFullName(userId, profile, authMetadata);
       setUser(profile);
-
       setNotificationsEnabled(profile?.notifications_enabled ?? true);
 
       const joinDays = getDaysSinceJoin(profile?.created_at || profile?.updated_at || new Date().toISOString());
@@ -803,14 +903,15 @@ export default function StudentDashboard() {
       ]);
       const totalExams = attemptedExams.data?.length || 0;
 
-      setStats({
+      const newStats = {
         coursesEnrolled: validEnrolls.length,
         completedVideos: compVids.count || 0,
         totalExamsTaken: totalExams,
         xp: profile.xp || 0,
         streak: profile.streak || 0,
         rank: profile.rank || 1,
-      });
+      };
+      setStats(newStats);
 
       if (validEnrolls.length) {
         const courseIds = validEnrolls.map(e => e.course_id);
@@ -861,32 +962,51 @@ export default function StudentDashboard() {
       });
       setAnnouncements(processedAnns);
 
-      if (teacherId) {
-        const { data: msgs, error: msgError } = await supabase
+      // جلب الرسائل إذا وجد معلم
+      const teacherIdFromState = validEnrolls.length > 0 && validEnrolls[0].courses?.teacher_id;
+      let msgs = [];
+      if (teacherIdFromState) {
+        const { data: msgsData, error: msgError } = await supabase
           .from('messages')
           .select('*')
           .eq('receiver_id', userId)
-          .eq('sender_id', teacherId)
+          .eq('sender_id', teacherIdFromState)
           .order('created_at', { ascending: false })
           .limit(20);
-
-        if (msgError) {
-          console.error('خطأ في جلب الرسائل:', msgError);
-        } else {
-          setMessages(msgs || []);
-        }
+        if (!msgError) msgs = msgsData || [];
       }
+      setMessages(msgs);
 
       const note = await getLatestNote();
       setLatestNote(note);
 
+      // حفظ في التخزين المؤقت
+      const cacheData = {
+        userId,
+        user: profile,
+        enrollments: validEnrolls,
+        courses: validEnrolls.map(e => e.courses),
+        upcomingExams: upcomingExams.length > 0 ? upcomingExams : [],
+        recentActivity: allActivity,
+        announcements: processedAnns,
+        messages: msgs,
+        latestNote: note,
+        stats: newStats,
+        daysSinceJoin: joinDays,
+        notificationsEnabled: profile?.notifications_enabled ?? true,
+        teacherId: teacherIdFromState || null,
+      };
+      setCachedData(cacheData);
+
+      setLoading(false);
+      return true;
     } catch (err) {
       console.error(err);
       toast.error(language === 'ar' ? 'فشل تحميل البيانات' : 'Failed to load data');
-    } finally {
       setLoading(false);
+      return false;
     }
-  }, [language, ensureValidFullName, teacherId]);
+  }, [language, ensureValidFullName]);
 
   useEffect(() => {
     if (fetchedRef.current) return;
@@ -894,9 +1014,26 @@ export default function StudentDashboard() {
     (async () => {
       const { data: { user: authUser } } = await supabase.auth.getUser();
       if (!authUser) { window.location.href = '/login'; return; }
-      await fetchData(authUser.id);
+      await fetchData(authUser.id, true);
     })();
   }, [fetchData]);
+
+  // تحديث البيانات في الخلفية عند التركيز
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && !loading) {
+        // تحديث في الخلفية مع تجاهل الكاش
+        (async () => {
+          const { data: { user: authUser } } = await supabase.auth.getUser();
+          if (authUser) {
+            await fetchData(authUser.id, false);
+          }
+        })();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [fetchData, loading]);
 
   const toggleNotifications = useCallback(async () => {
     const newState = !notificationsEnabled;

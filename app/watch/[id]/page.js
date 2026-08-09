@@ -1,11 +1,12 @@
 // ================================================================
 // 📁 المسار: app/watch/[id]/page.js
-// ✅ الحل النهائي لمشكلة إخفاء أزرار التحكم (الشريط السفلي + زر التشغيل المركزي)
-// ✅ يعمل على جميع الأجهزة (موبايل، تاتش، ديسكتوب) بكفاءة عالية
-// ✅ يظهر الأزرار عند أي حركة (ماوس، لمس) ويختفيان تلقائياً بعد 2 ثانية من آخر حركة
-// ✅ يظل الأزرار ظاهرة في حالة الإيقاف المؤقت، وتختفي أثناء التشغيل فقط
-// ✅ تحسين الأداء باستخدام requestAnimationFrame وتقليل التحديثات غير الضرورية
-// ✅ الحفاظ على جميع خصائص الأمان والحماية
+// ✅ الإصدار النهائي – حل شامل لمشاكل مشغل الفيديو
+// ✅ إخفاء الأزرار (الشريط السفلي + زر التشغيل المركزي) تلقائياً بعد 2 ثانية من التشغيل
+// ✅ ظهور الأزرار فوراً عند أي حركة (ماوس، لمس، تمرير) على جميع الأجهزة
+// ✅ إصلاح عداد المشاهدة ليتقدم كل ثانية بدقة
+// ✅ تحسين الأداء على الموبايل (تقليل التحديثات، استخدام passive events)
+// ✅ الحفاظ على جميع خصائص الأمان (منع النقر الأيمن، منع الاختصارات، إلخ)
+// ✅ دعم وضع ملء الشاشة بنفس السلوك
 // ================================================================
 
 'use client';
@@ -16,7 +17,20 @@ import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/lib/supabaseClient';
 import { toast } from 'react-hot-toast';
-import * as Icons from 'lucide-react';
+// ✅ تحسين استيراد الأيقونات: استيراد فردي لتقليل الحجم
+import {
+  Play, Pause, Clock, PieChart, AlertCircle, Lock, VideoOff,
+  ArrowRight, Calendar, Eye, Tv, Maximize, Volume2, VolumeX,
+  SkipBack, SkipForward, RotateCcw, RotateCw, Settings,
+  ClosedCaption, Eye as EyeIcon, FileText, RotateCcw as RotateCCW,
+  RotateCw as RotateCW, ChevronDown, ChevronUp, X, Loader2,
+  BookOpen, User, Globe, Sun, Moon, LogOut, PanelRightClose,
+  PanelRightOpen, HelpCircle, TrendingUp, StickyNote, Calendar as CalendarIcon,
+  Receipt, Monitor, CreditCard, Search, Filter, Grid3X3, Grid2X2,
+  List, Book, AlertTriangle, ChevronRight, ChevronLeft, UserPlus,
+  ShoppingCart, Heart, Pin, Megaphone, Lightbulb, Activity, Bell,
+  AlarmClock, ChevronUp as ChevronUpIcon, ChevronDown as ChevronDownIcon
+} from 'lucide-react';
 import { checkCourseAccess } from '@/lib/course-access';
 import { useTheme } from '@/lib/hooks/useTheme';
 import { getDeviceFingerprint } from '@/lib/device-fingerprint';
@@ -85,7 +99,7 @@ const parseDurationToSeconds = (durationStr) => {
 };
 
 // ================================================================
-// 2. ألوان البطاقات (نظام Wave Border) - كما هي
+// 2. ألوان البطاقات (نظام Wave Border) – نفس الألوان السابقة
 // ================================================================
 const CARD_COLORS = [
   { name: 'blue', text: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-500/10 dark:bg-blue-400/10', border: 'border-blue-400/30 dark:border-blue-400/20' },
@@ -103,23 +117,32 @@ const getRandomColor = (exclude = []) => {
 };
 
 // ================================================================
-// 3. مكون Wave Border (كما هو)
+// 3. مكون Wave Border – نسخة محسّنة للموبايل (مستقلة)
 // ================================================================
 const WaveBorderCard = ({ children, className = '', initialColor = 'blue', onColorChange }) => {
   const [color, setColor] = useState(CARD_COLORS.find(c => c.name === initialColor) || CARD_COLORS[0]);
   const [rotation, setRotation] = useState(0);
   const colorRef = useRef(color);
   const isMounted = useRef(true);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 640);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   useEffect(() => {
     colorRef.current = color;
   }, [color]);
 
   useEffect(() => {
+    const intervalTime = isMobile ? 200 : 50; // أبطأ على الموبايل
     const interval = setInterval(() => {
       if (!isMounted.current) return;
       setRotation(prev => {
-        const newRot = prev + 2;
+        const newRot = prev + (isMobile ? 1 : 2);
         if (newRot >= 360) {
           const newColor = getRandomColor([colorRef.current.name]);
           setColor(newColor);
@@ -128,12 +151,12 @@ const WaveBorderCard = ({ children, className = '', initialColor = 'blue', onCol
         }
         return newRot;
       });
-    }, 50);
+    }, intervalTime);
     return () => {
       isMounted.current = false;
       clearInterval(interval);
     };
-  }, [onColorChange]);
+  }, [onColorChange, isMobile]);
 
   const waveColors = [
     `rgba(59, 130, 246, 0.6)`,
@@ -163,9 +186,22 @@ const WaveBorderCard = ({ children, className = '', initialColor = 'blue', onCol
 };
 
 // ================================================================
-// 4. خلفية متحركة فاخرة (كما هي)
+// 4. خلفية متحركة فاخرة – مع تعطيل على الموبايل
 // ================================================================
 const AnimatedBackground = () => {
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 640);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  if (isMobile) {
+    return <div className="fixed inset-0 -z-10 bg-[#0a0a10]" />;
+  }
+
   return (
     <div className="fixed inset-0 -z-10 overflow-hidden">
       <div className="absolute inset-0 bg-gradient-to-br from-[#0a0a10] via-[#0b0e1a] to-[#0a0a10]" />
@@ -232,10 +268,10 @@ const InteractiveTimer = ({ currentTime, duration, progress }) => {
 
   const getIcon = () => {
     switch (mode) {
-      case 0: return <Icons.Clock className="h-3 w-3" />;
-      case 1: return <Icons.PieChart className="h-3 w-3" />;
-      case 2: return <Icons.Play className="h-3 w-3" />;
-      default: return <Icons.Clock className="h-3 w-3" />;
+      case 0: return <Clock className="h-3 w-3" />;
+      case 1: return <PieChart className="h-3 w-3" />;
+      case 2: return <Play className="h-3 w-3" />;
+      default: return <Clock className="h-3 w-3" />;
     }
   };
 
@@ -292,7 +328,7 @@ const getGradientColor = (percent) => {
 };
 
 // ================================================================
-// 7. المكون الرئيسي للصفحة (مع حل مشكلة إخفاء الأزرار)
+// 7. المكون الرئيسي للصفحة (مع حل شامل للمشكلات)
 // ================================================================
 export default function WatchPage() {
   const params = useParams();
@@ -327,8 +363,7 @@ export default function WatchPage() {
   const [playbackRate, setPlaybackRate] = useState(1);
   const [buffering, setBuffering] = useState(false);
   
-  // ==== حالة التحكم في ظهور الأزرار (الحل الجديد) ====
-  // تظهر دائمًا عند التحميل، وتختفي فقط أثناء التشغيل بعد 2 ثانية من آخر حركة
+  // ==== حالة التحكم في ظهور الأزرار (محسّنة) ====
   const [controlsVisible, setControlsVisible] = useState(true);
   
   const [showSpeedMenu, setShowSpeedMenu] = useState(false);
@@ -364,12 +399,11 @@ export default function WatchPage() {
   const controlsTimerRef = useRef(null);
   const progressIntervalRef = useRef(null);
   const isPlayingRef = useRef(false);
-  // مرجع لتتبع ما إذا كان الفيديو في حالة تشغيل لتحديد إخفاء الأزرار
   const isVideoPlayingRef = useRef(false);
-  // مرجع لتخزين الوقت السابق لتتبع الفترات
   const lastTimeRef = useRef(0);
-  // مرجع لتخزين آخر وقت تم فيه تفاعل (حركة ماوس/لمس)
   const lastInteractionTimeRef = useRef(Date.now());
+  // مرجع لمنع التحديث المتكرر للعداد
+  const currentTimeRef = useRef(0);
 
   // ---- استخراج معلومات YouTube ----
   const youtubeId = useMemo(() => (video ? getYoutubeId(video.video_url) : null), [video]);
@@ -415,7 +449,7 @@ export default function WatchPage() {
             }, remaining);
           }
         }
-      }, 2000); // 2 ثانية بالضبط كما طلب المستخدم
+      }, 2000); // 2 ثانية بالضبط
     }
   }, []);
 
@@ -633,7 +667,7 @@ export default function WatchPage() {
                 setBuffering(false);
                 // إظهار الأزرار فوراً عند بدء التشغيل
                 setControlsVisible(true);
-                // جدولة الإخفاء بعد 2 ثانية (باستخدام الدالة الجديدة)
+                // جدولة الإخفاء بعد 2 ثانية
                 scheduleHideControls();
               } else if (e.data === 2) {
                 // ⏸️ إيقاف مؤقت
@@ -678,13 +712,13 @@ export default function WatchPage() {
     };
 
     // ================================================================
-    // 13.1 دالة تتبع التقدم (مع تحسين الأداء باستخدام requestAnimationFrame)
+    // 13.1 دالة تتبع التقدم (محسّنة مع العداد الدقيق)
     // ================================================================
     const startProgressTracking = () => {
       if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
       lastTimeRef.current = 0;
       
-      // استخدام setInterval بمعدل 500ms (أقل من 200ms لتقليل الحمل)
+      // استخدام setInterval بمعدل 200ms للحصول على عداد دقيق
       progressIntervalRef.current = setInterval(() => {
         const player = playerRef.current;
         if (!player || !playerReady) return;
@@ -693,11 +727,13 @@ export default function WatchPage() {
           const total = player.getDuration() || 0;
           
           if (total > 0) {
+            // تحديث الوقت الحالي والمدة والنسبة
             setCurrentTime(current);
+            currentTimeRef.current = current;
             setDuration(total);
             setProgress((current / total) * 100);
             
-            // تتبع الفترات
+            // تتبع الفترات (العداد الذكي)
             if (isPlayingRef.current) {
               const delta = current - lastTimeRef.current;
               if (delta > 0 && delta <= 2.0) {
@@ -713,7 +749,7 @@ export default function WatchPage() {
             }
           }
         } catch (e) {}
-      }, 500);
+      }, 200); // 200ms لتحديث دقيق للعداد
     };
 
     const loadAPI = () => {
@@ -885,6 +921,7 @@ export default function WatchPage() {
         player.seekTo(target, true);
         setProgress(percent);
         setCurrentTime(target);
+        currentTimeRef.current = target;
         lastTimeRef.current = target;
         showControlsAndResetTimer();
       }
@@ -1180,7 +1217,7 @@ export default function WatchPage() {
   }, [video?.id, watchIntervals, totalWatchedUnique]);
 
   // ================================================================
-  // 19. عرض الصفحة (مع تعديل بسيط في شروط ظهور الأزرار)
+  // 19. عرض الصفحة
   // ================================================================
 
   if (isYoutubeOnly) {
@@ -1203,7 +1240,7 @@ export default function WatchPage() {
             <div className="p-8 md:p-12 text-center">
               <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.6 }}>
                 <div className="w-24 h-24 mx-auto mb-6 rounded-full bg-yellow-400/20 flex items-center justify-center border-4 border-yellow-400/30">
-                  <Icons.Play className="h-12 w-12 text-yellow-400" />
+                  <Play className="h-12 w-12 text-yellow-400" />
                 </div>
                 <h1 className="text-3xl md:text-4xl font-black text-white mb-4">
                   {language === 'ar' ? '📖 استعن بالله وابدأ' : 'Start Learning'}
@@ -1218,7 +1255,7 @@ export default function WatchPage() {
                   onClick={handleStartWatching}
                   className="px-10 py-4 bg-gradient-to-r from-yellow-400 to-yellow-600 text-black font-bold rounded-2xl text-lg hover:scale-105 transition shadow-2xl shadow-yellow-400/30 flex items-center gap-3 mx-auto"
                 >
-                  <Icons.Play className="h-6 w-6" />
+                  <Play className="h-6 w-6" />
                   {language === 'ar' ? 'ابدأ الآن 🚀' : 'Start Now 🚀'}
                 </button>
                 <p className="text-xs text-gray-400 mt-6">
@@ -1244,7 +1281,7 @@ export default function WatchPage() {
   if (error || !video) return (
     <div className="min-h-screen flex items-center justify-center bg-[#0b0e1a] text-red-400 p-4">
       <div className="text-center max-w-md">
-        <Icons.AlertCircle className="h-16 w-16 mx-auto mb-4 text-red-500" />
+        <AlertCircle className="h-16 w-16 mx-auto mb-4 text-red-500" />
         <p className="text-lg">{error || 'غير موجود'}</p>
         <Link href={userRole === 'teacher' ? '/dashboard/teacher/videos' : '/dashboard/student/videos'} className="mt-4 inline-block px-6 py-2 bg-yellow-400 text-black font-bold rounded-xl hover:bg-yellow-500 transition">
           العودة
@@ -1258,7 +1295,7 @@ export default function WatchPage() {
       <div className="min-h-screen flex items-center justify-center bg-[#0b0e1a] text-white p-6">
         <div className="max-w-md w-full text-center">
           <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-red-500/20 flex items-center justify-center border-2 border-red-500/30">
-            <Icons.Lock className="h-10 w-10 text-red-400" />
+            <Lock className="h-10 w-10 text-red-400" />
           </div>
           <h2 className="text-2xl font-bold text-red-400 mb-3">🚫 وصول ممنوع</h2>
           <p className="text-gray-400 mb-6">
@@ -1314,7 +1351,7 @@ export default function WatchPage() {
         {!focusMode && (
           <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between p-4 bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl">
             <Link href={getBackLink()} className="text-gray-400 hover:text-yellow-400 transition flex items-center gap-2 group">
-              <Icons.ArrowRight className="h-5 w-5 group-hover:-translate-x-1 transition" />
+              <ArrowRight className="h-5 w-5 group-hover:-translate-x-1 transition" />
               <span className="text-sm font-medium">العودة</span>
             </Link>
             <h1 className="text-xl font-bold bg-gradient-to-r from-yellow-400 to-amber-400 bg-clip-text text-transparent truncate max-w-[40%]">
@@ -1343,7 +1380,7 @@ export default function WatchPage() {
             >
               {!isValidYoutube ? (
                 <div className="flex items-center justify-center h-full text-gray-400 flex-col gap-3">
-                  <Icons.VideoOff className="h-16 w-16 opacity-50" />
+                  <VideoOff className="h-16 w-16 opacity-50" />
                   <p>رابط YouTube غير صحيح</p>
                 </div>
               ) : (
@@ -1408,9 +1445,9 @@ export default function WatchPage() {
                         <div className="absolute inset-0 bg-yellow-400/20 rounded-full blur-xl scale-150 group-hover:scale-200 transition-transform duration-300" />
                         <div className="relative w-14 h-14 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-full bg-yellow-400/90 flex items-center justify-center shadow-2xl shadow-yellow-400/40 group-hover:shadow-yellow-400/60 transition-shadow">
                           {isPlaying ? (
-                            <Icons.Pause className="h-6 w-6 sm:h-10 sm:w-10 md:h-12 md:w-12 text-black" />
+                            <Pause className="h-6 w-6 sm:h-10 sm:w-10 md:h-12 md:w-12 text-black" />
                           ) : (
-                            <Icons.Play className="h-6 w-6 sm:h-10 sm:w-10 md:h-12 md:w-12 text-black ml-1" />
+                            <Play className="h-6 w-6 sm:h-10 sm:w-10 md:h-12 md:w-12 text-black ml-1" />
                           )}
                         </div>
                       </motion.div>
@@ -1423,13 +1460,13 @@ export default function WatchPage() {
                       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 z-30 pointer-events-none">
                         <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-auto opacity-0 group-hover:opacity-100 transition-all duration-300" onClick={skipBackward}>
                           <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-black/70 backdrop-blur-sm flex items-center justify-center hover:bg-black/90 border border-white/10 shadow-lg group">
-                            <Icons.RotateCcw className="h-5 w-5 sm:h-6 sm:w-6 text-white group-hover:text-yellow-400 transition-colors" />
+                            <RotateCcw className="h-5 w-5 sm:h-6 sm:w-6 text-white group-hover:text-yellow-400 transition-colors" />
                             <span className="absolute text-[8px] -bottom-4 text-white/70 group-hover:text-yellow-400">10s</span>
                           </div>
                         </div>
                         <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-auto opacity-0 group-hover:opacity-100 transition-all duration-300" onClick={skipForward}>
                           <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-black/70 backdrop-blur-sm flex items-center justify-center hover:bg-black/90 border border-white/10 shadow-lg group">
-                            <Icons.RotateCw className="h-5 w-5 sm:h-6 sm:w-6 text-white group-hover:text-yellow-400 transition-colors" />
+                            <RotateCw className="h-5 w-5 sm:h-6 sm:w-6 text-white group-hover:text-yellow-400 transition-colors" />
                             <span className="absolute text-[8px] -bottom-4 text-white/70 group-hover:text-yellow-400">10s</span>
                           </div>
                         </div>
@@ -1472,20 +1509,20 @@ export default function WatchPage() {
                           onClick={togglePlay}
                           className="p-1 sm:p-1.5 rounded-full hover:bg-white/10 transition-colors"
                         >
-                          {isPlaying ? <Icons.Pause className="h-4 w-4 sm:h-6 sm:w-6" /> : <Icons.Play className="h-4 w-4 sm:h-6 sm:w-6" />}
+                          {isPlaying ? <Pause className="h-4 w-4 sm:h-6 sm:w-6" /> : <Play className="h-4 w-4 sm:h-6 sm:w-6" />}
                         </button>
                         <button onClick={skipBackward} className="p-1 sm:p-1.5 rounded-full hover:bg-white/10 transition-colors">
-                          <Icons.SkipBack className="h-3 w-3 sm:h-5 sm:w-5" />
+                          <SkipBack className="h-3 w-3 sm:h-5 sm:w-5" />
                         </button>
                         <button onClick={skipForward} className="p-1 sm:p-1.5 rounded-full hover:bg-white/10 transition-colors">
-                          <Icons.SkipForward className="h-3 w-3 sm:h-5 sm:w-5" />
+                          <SkipForward className="h-3 w-3 sm:h-5 sm:w-5" />
                         </button>
                         <span className="text-[8px] sm:text-xs text-gray-300 font-mono min-w-[40px] sm:min-w-[80px]">
                           {formatTime(currentTime)} / {formatTime(duration)}
                         </span>
 
                         <button onClick={toggleMute} className="p-1 sm:p-1.5 rounded-full hover:bg-white/10 transition-colors">
-                          {muted ? <Icons.VolumeX className="h-3 w-3 sm:h-5 sm:w-5" /> : <Icons.Volume2 className="h-3 w-3 sm:h-5 sm:w-5" />}
+                          {muted ? <VolumeX className="h-3 w-3 sm:h-5 sm:w-5" /> : <Volume2 className="h-3 w-3 sm:h-5 sm:w-5" />}
                         </button>
                         <input
                           type="range"
@@ -1506,7 +1543,7 @@ export default function WatchPage() {
                           className={`p-1 sm:p-1.5 rounded-full hover:bg-white/10 transition-colors ${captionsEnabled ? 'text-yellow-400' : ''}`}
                           title={captionsEnabled ? (language === 'ar' ? 'إخفاء الترجمة' : 'Hide Captions') : (language === 'ar' ? 'إظهار الترجمة' : 'Show Captions')}
                         >
-                          <Icons.ClosedCaption className="h-3 w-3 sm:h-5 sm:w-5" />
+                          <ClosedCaption className="h-3 w-3 sm:h-5 sm:w-5" />
                         </button>
 
                         <div className="relative">
@@ -1527,7 +1564,7 @@ export default function WatchPage() {
                         {qualities.length > 0 && (
                           <div className="relative">
                             <button onClick={() => { setShowQualityMenu(!showQualityMenu); setShowSpeedMenu(false); }} className="p-1 sm:p-1.5 rounded-full hover:bg-white/10 transition-colors">
-                              <Icons.Settings className="h-3 w-3 sm:h-5 sm:w-5" />
+                              <Settings className="h-3 w-3 sm:h-5 sm:w-5" />
                             </button>
                             {showQualityMenu && (
                               <div className="absolute bottom-full mb-2 left-0 bg-gray-900/95 backdrop-blur-sm border border-white/10 rounded-xl py-1 shadow-2xl z-50 w-20 sm:w-24">
@@ -1541,10 +1578,10 @@ export default function WatchPage() {
                         )}
 
                         <button onClick={toggleFocusMode} className={`p-1 sm:p-1.5 rounded-full hover:bg-white/10 transition-colors ${focusMode ? 'text-yellow-400' : ''}`} title="وضع التركيز (Z)">
-                          <Icons.Eye className="h-3 w-3 sm:h-5 sm:w-5" />
+                          <EyeIcon className="h-3 w-3 sm:h-5 sm:w-5" />
                         </button>
                         <button onClick={toggleFullscreen} className="p-1 sm:p-1.5 rounded-full hover:bg-white/10 transition-colors ml-auto">
-                          <Icons.Maximize className="h-3 w-3 sm:h-5 sm:w-5" />
+                          <Maximize className="h-3 w-3 sm:h-5 sm:w-5" />
                         </button>
                       </div>
                     </div>
@@ -1559,7 +1596,7 @@ export default function WatchPage() {
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="md:col-span-2 p-6 bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl shadow-xl">
               <h3 className="text-lg font-bold text-yellow-400/90 mb-3 flex items-center gap-2">
-                <Icons.FileText className="h-5 w-5" /> تفاصيل الدرس
+                <FileText className="h-5 w-5" /> تفاصيل الدرس
               </h3>
               {video.description ? (
                 <p className="text-gray-300 leading-relaxed whitespace-pre-wrap">{video.description}</p>
@@ -1571,32 +1608,32 @@ export default function WatchPage() {
             <div className="p-6 bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl shadow-xl flex flex-col justify-between space-y-4">
               <div className="space-y-3">
                 <div className="flex items-center gap-2 text-sm text-gray-400">
-                  <Icons.Calendar className="h-4 w-4 text-yellow-500" />
+                  <Calendar className="h-4 w-4 text-yellow-500" />
                   <span>{new Date(video.created_at).toLocaleDateString('ar-EG', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
                 </div>
                 {userRole === 'teacher' && (
                   <div className="flex items-center gap-2 text-sm text-gray-400">
-                    <Icons.Eye className="h-4 w-4 text-blue-400" />
+                    <Eye className="h-4 w-4 text-blue-400" />
                     <span>{video.views || 0} مشاهدة</span>
                   </div>
                 )}
                 <div className="flex items-center gap-2 text-sm text-gray-400">
-                  <Icons.Clock className="h-4 w-4 text-yellow-400" />
+                  <Clock className="h-4 w-4 text-yellow-400" />
                   <span>المدة: {duration > 0 ? formatTimeDetailed(duration) : 'غير محددة'}</span>
                 </div>
                 {duration > 0 && (
                   <div className="flex items-center gap-2 text-sm text-gray-400">
-                    <Icons.PieChart className="h-4 w-4 text-emerald-400" />
+                    <PieChart className="h-4 w-4 text-emerald-400" />
                     <span>شاهدت: {Math.round((currentTime / duration) * 100)}%</span>
                   </div>
                 )}
                 <div className="flex items-center gap-2 text-sm text-gray-400">
-                  <Icons.Tv className="h-4 w-4 text-emerald-400" />
+                  <Tv className="h-4 w-4 text-emerald-400" />
                   <span>جودة عالية</span>
                 </div>
               </div>
               <div className="mt-4 p-3 bg-white/5 rounded-xl border border-white/10 flex items-start gap-2">
-                <Icons.AlertCircle className="h-4 w-4 text-yellow-400 flex-shrink-0 mt-0.5" />
+                <AlertCircle className="h-4 w-4 text-yellow-400 flex-shrink-0 mt-0.5" />
                 <p className="text-[10px] text-gray-400 leading-relaxed">
                   يمكنك التحكم بالفيديو باستخدام الأزرار أو اختصارات لوحة المفاتيح.
                   <span className="block text-yellow-400/60 mt-1">⏱ اضغط على التايمر لتغيير العرض (متبقي / نسبة / مشاهدة)</span>
