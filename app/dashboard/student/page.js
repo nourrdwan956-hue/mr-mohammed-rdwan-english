@@ -1,10 +1,9 @@
 // app/dashboard/student/page.js
 // ================================================================
-// 🏛️ الصفحة الرئيسية للطالب – تحكم مثالي في الأحجام والسرعة
-// ✅ تصغير الأيقونات والبطاقات على الموبايل بشكل ملحوظ
-// ✅ تثبيت الأحجام الفاخرة على الشاشات الكبيرة
-// ✅ تعطيل كل الحركات على الموبايل لسرعة قصوى
-// ✅ إبقاء الإعلانات في مكانها البارز
+// 🏛️ الصفحة الرئيسية للطالب – إصلاح أيقونات الوصول السريع
+// ✅ جعل الأيقونات والنصوص تظهر كاملة على جميع الشاشات
+// ✅ تحسين المسافات لتناسب الهواتف مع الحفاظ على سرعة التمرير
+// ✅ الحفاظ على التصميم الفاخر على الديسكتوب
 // ================================================================
 
 'use client';
@@ -194,7 +193,7 @@ const AnimatedCounter = memo(({ value, duration = 1.2, suffix = '' }) => {
 AnimatedCounter.displayName = 'AnimatedCounter';
 
 // ================================================================
-// 2. عداد أيام الانضمام (مضغوط على الموبايل)
+// 2. عداد أيام الانضمام
 // ================================================================
 const MembershipCounter = memo(({ days, styles, language }) => {
   const { isMobile } = useDevice();
@@ -300,7 +299,7 @@ const WaveBorderCard = memo(({ children, className = '', initialColor = 'blue', 
 WaveBorderCard.displayName = 'WaveBorderCard';
 
 // ================================================================
-// 5. بطاقة إحصائية (مضغوطة على الموبايل)
+// 5. بطاقة إحصائية
 // ================================================================
 const StatCard = memo(({ icon: Icon, label, value, styles, delay = 0 }) => {
   const [color, setColor] = useState(CARD_COLORS[0]);
@@ -344,7 +343,7 @@ const StatCard = memo(({ icon: Icon, label, value, styles, delay = 0 }) => {
 StatCard.displayName = 'StatCard';
 
 // ================================================================
-// 6. بطاقة كورس (مضغوطة جداً على الموبايل)
+// 6. بطاقة كورس
 // ================================================================
 const CourseCard = memo(({ course, progress, styles, language }) => {
   const router = useRouter();
@@ -368,12 +367,10 @@ const CourseCard = memo(({ course, progress, styles, language }) => {
         <div className="p-2.5 xs:p-3 sm:p-4">
           <div className="flex items-start justify-between mb-1.5 xs:mb-2">
             <div className="flex items-center gap-1.5 xs:gap-2 sm:gap-3 min-w-0 flex-1">
-              {/* ✅ أيقونة الكورس – تصغير كبير على الموبايل */}
               <div className={`h-8 w-8 xs:h-9 xs:w-9 sm:h-11 sm:w-11 rounded-lg sm:rounded-xl ${color.bg} flex items-center justify-center shadow-sm flex-shrink-0`}>
                 <BookOpen className={`h-3.5 w-3.5 xs:h-4 xs:w-4 sm:h-5 sm:w-5 ${color.text}`} />
               </div>
               <div className="flex-1 min-w-0">
-                {/* ✅ عنوان الكورس – أصغر على الموبايل */}
                 <h4 className={`text-[10px] xs:text-xs sm:text-sm font-bold truncate ${styles.text}`}>{course.title}</h4>
                 <p className={`text-[9px] xs:text-[10px] sm:text-xs ${styles.subtext} truncate`}>
                   {course.category || (language === 'ar' ? 'كورس' : 'Course')}
@@ -612,7 +609,7 @@ const AnnouncementsCard = memo(({ announcements, styles, language }) => {
 AnnouncementsCard.displayName = 'AnnouncementsCard';
 
 // ================================================================
-// 8. بطاقة الملاحظة (مضغوطة على الموبايل)
+// 8. بطاقة الملاحظة
 // ================================================================
 const NoteCard = memo(({ latestNote, language, styles }) => {
   const router = useRouter();
@@ -754,7 +751,7 @@ function setCachedData(data) {
 }
 
 // ================================================================
-// الصفحة الرئيسية – مع ضبط الأحجام على الموبايل
+// الصفحة الرئيسية – مع ضبط أيقونات الوصول السريع
 // ================================================================
 export default function StudentDashboard() {
   const { theme, styles, language } = useTheme();
@@ -1035,7 +1032,7 @@ export default function StudentDashboard() {
   if (loading) return (
     <div className={`h-full w-full flex items-center justify-center ${styles.bg}`}>
       <div className="relative">
-        <div className="w-10 h-10 xs:w-12 xs:h-12 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin" />
+        <div className="w-10 h-10 xs:w-12 xs:w-12 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin" />
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="w-5 h-5 xs:w-6 xs:h-6 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full shadow-2xl shadow-blue-500/50" />
         </div>
@@ -1134,7 +1131,7 @@ export default function StudentDashboard() {
               <StatCard icon={FileQuestion} label={language === 'ar' ? 'امتحانات' : 'Exams'} value={stats.totalExamsTaken} styles={styles} delay={0.1} />
             </div>
 
-            {/* ===== قسم الإعلانات – ظاهر جداً على الديسكتوب ===== */}
+            {/* ===== قسم الإعلانات ===== */}
             <div className="w-full">
               <AnnouncementsCard announcements={announcements} styles={styles} language={language} />
             </div>
@@ -1212,8 +1209,8 @@ export default function StudentDashboard() {
           </div>
         </div>
 
-        {/* روابط سريعة */}
-        <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 xs:gap-3 sm:gap-4">
+        {/* ===== روابط سريعة – معدلة لإظهار كل العناصر بالكامل ===== */}
+        <div className="grid grid-cols-3 sm:grid-cols-6 gap-1 xs:gap-1.5 sm:gap-3 lg:gap-4">
           {[
             { href: '/dashboard/student/courses', icon: Search, label: { ar: 'كورسات', en: 'Courses' } },
             { href: '/dashboard/student/support', icon: HelpCircle, label: { ar: 'دعم', en: 'Support' } },
@@ -1222,11 +1219,15 @@ export default function StudentDashboard() {
             { href: '/dashboard/student/study-schedule', icon: Calendar, label: { ar: 'جدول', en: 'Schedule' } },
             { href: '/dashboard/student/notes', icon: StickyNote, label: { ar: 'ملاحظات', en: 'Notes' } },
           ].map((item) => (
-            <Link key={item.href} href={item.href}
-              className={`flex flex-col items-center gap-0.5 xs:gap-1 p-2 xs:p-3 sm:p-4 rounded-lg border ${styles.border} ${styles.card} transition-all duration-200 group hover:border-blue-500/40`}
+            <Link
+              key={item.href}
+              href={item.href}
+              className={`flex flex-col items-center justify-center gap-0.5 xs:gap-1 p-1.5 xs:p-2 sm:p-3 lg:p-4 rounded-lg border ${styles.border} ${styles.card} transition-all duration-200 group hover:border-blue-500/40 min-w-0`}
             >
-              <item.icon className={`h-4 w-4 xs:h-5 xs:w-5 sm:h-6 sm:w-6 text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform`} />
-              <span className={`text-[8px] xs:text-[10px] sm:text-sm font-bold ${styles.text} text-center`}>{item.label[language]}</span>
+              <item.icon className={`h-3.5 w-3.5 xs:h-4 xs:w-4 sm:h-5 sm:w-6 text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform flex-shrink-0`} />
+              <span className={`text-[6px] xs:text-[7px] sm:text-[10px] lg:text-sm font-bold ${styles.text} text-center break-words leading-tight max-w-full`}>
+                {item.label[language]}
+              </span>
             </Link>
           ))}
         </div>
