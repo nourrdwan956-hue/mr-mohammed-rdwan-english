@@ -289,36 +289,6 @@ input:focus, textarea:focus, select:focus {
   .wave-border-animation {
     animation: none !important;
   }
-
-  /* ===== 🆕 تحسينات إضافية خفيفة للموبايل (ما تلمسش الديسكتوب) ===== */
-  
-  /* 1. تقليل الظلال على الكروت عشان تخفيف GPU */
-  .card {
-    box-shadow: 0 1px 2px rgba(0,0,0,0.06) !important;
-  }
-  .card:hover {
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1) !important;
-  }
-
-  /* 2. إبطاء أنيميشن التدرج عشان تقليل الاستهلاك */
-  .animate-gradient {
-    animation-duration: 8s !important; /* بدلاً من 4s */
-  }
-
-  /* 3. منع حركة scale على الأزرار في hover عشان الموبايل ميعملش إعادة رسم */
-  .btn-primary:hover {
-    transform: none !important;
-    box-shadow: 0 2px 12px rgba(201, 168, 76, 0.2) !important;
-  }
-
-  /* 4. تصغير شريط التمرير المخصص عشان يقل الرندر */
-  .exam-scrollbar::-webkit-scrollbar {
-    height: 5px !important;
-    width: 5px !important;
-  }
-  .exam-scrollbar::-webkit-scrollbar-thumb {
-    border-radius: 6px !important;
-  }
 }
 
 /* ================================================================ */
@@ -336,7 +306,7 @@ input:focus, textarea:focus, select:focus {
   
   /* ✅ تصغير شريط التمرير على الجوال */
   .exam-scrollbar::-webkit-scrollbar {
-    height: 4px !important;
+    height: 6px;
   }
 }
 
@@ -351,6 +321,6 @@ input:focus, textarea:focus, select:focus {
   }
   
   .exam-scrollbar::-webkit-scrollbar {
-    height: 3px !important;
+    height: 5px;
   }
 }
