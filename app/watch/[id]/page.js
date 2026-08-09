@@ -1,11 +1,9 @@
 // ================================================================
 // 📁 المسار: app/watch/[id]/page.js
-// ✅ الإصدار النهائي المحسّن – تجربة تشغيل مرنة مثل YouTube مع حماية كاملة
-// ✅ إظهار الأزرار عند أي تفاعل (ماوس، لمس، تمرير) على جميع الأجهزة
+// ✅ الإصدار النهائي – تحكم كامل مثل YouTube (إظهار/إخفاء الأزرار)
+// ✅ إظهار الأزرار فوراً عند أي تفاعل (ماوس، لمس، تمرير) على جميع الأجهزة
 // ✅ إخفاء الأزرار تلقائياً بعد 2.5 ثانية من التوقف عن التفاعل (فقط أثناء التشغيل)
-// ✅ تحسين الأداء بشكل كبير على الموبايل والأجهزة الضعيفة
-// ✅ تقليل عدد التحديثات واستخدام requestAnimationFrame بدلاً من setInterval
-// ✅ استخدام passive events وتجنب إعادة الرسم غير الضرورية
+// ✅ تحسين الأداء مع requestAnimationFrame واستخدام أحداث React المضمنة
 // ✅ الحفاظ على جميع خصائص الأمان (منع النقر الأيمن، منع الاختصارات، حماية iframe)
 // ✅ دعم وضع ملء الشاشة ووضع التركيز بنفس السلوك
 // ================================================================
@@ -404,7 +402,7 @@ export default function WatchPage() {
   const lastTimeRef = useRef(0);
   const lastInteractionTimeRef = useRef(Date.now());
   const currentTimeRef = useRef(0);
-  const isControlsHiddenByTimer = useRef(false); // لتتبع ما إذا كان الإخفاء تم بواسطة المؤقت
+  const isControlsHiddenByTimer = useRef(false);
 
   // ---- استخراج معلومات YouTube ----
   const youtubeId = useMemo(() => (video ? getYoutubeId(video.video_url) : null), [video]);
@@ -423,38 +421,33 @@ export default function WatchPage() {
   }, [video, isValidYoutube, isYoutubeOnly, youtubeId]);
 
   // ================================================================
-  // 9. الدالة الأساسية لإظهار الأزرار وإلغاء أي إخفاء مجدول
+  // 9. الدوال الأساسية لإظهار/إخفاء الأزرار
   // ================================================================
+
+  // إظهار الأزرار فوراً
   const showControls = useCallback(() => {
     clearTimeout(controlsTimerRef.current);
     setControlsVisible(true);
     isControlsHiddenByTimer.current = false;
-    // تحديث وقت آخر تفاعل
     lastInteractionTimeRef.current = Date.now();
   }, []);
 
-  // ================================================================
-  // 10. الدالة الأساسية لإخفاء الأزرار (تستدعى بعد فترة من عدم النشاط)
-  // ================================================================
+  // جدولة إخفاء الأزرار بعد 2.5 ثانية (فقط إذا كان الفيديو شغالاً)
   const hideControlsDelayed = useCallback(() => {
-    // لا نخفي الأزرار إذا كان الفيديو متوقفاً أو إذا كانت المؤشر فوق شريط التحكم
     if (!isVideoPlayingRef.current) {
-      // الأزرار تبقى ظاهرة
+      // إذا كان الفيديو متوقفاً، الأزرار تبقى ظاهرة
       return;
     }
-    // إذا كان المؤشر فوق منطقة المشغل ولكن ليس فوق شريط التحكم، نستمر في الإخفاء
     clearTimeout(controlsTimerRef.current);
     controlsTimerRef.current = setTimeout(() => {
-      // نتحقق من أن الفيديو لا يزال شغالاً وأنه لم يحدث تفاعل جديد
       if (isVideoPlayingRef.current) {
         const now = Date.now();
         const timeSinceLastInteraction = now - lastInteractionTimeRef.current;
-        // إذا مرت 2.5 ثانية على آخر حركة، نخفي الأزرار
         if (timeSinceLastInteraction >= 2500) {
           setControlsVisible(false);
           isControlsHiddenByTimer.current = true;
         } else {
-          // وإلا نعيد جدولة الإخفاء بعد المدة المتبقية
+          // إعادة جدولة الإخفاء بعد المدة المتبقية
           const remaining = 2500 - timeSinceLastInteraction;
           controlsTimerRef.current = setTimeout(() => {
             if (isVideoPlayingRef.current) {
@@ -467,20 +460,16 @@ export default function WatchPage() {
     }, 2500);
   }, []);
 
-  // ================================================================
-  // 11. دالة إظهار الأزرار وإعادة جدولة الإخفاء (تفاعل المستخدم)
-  // ================================================================
+  // دالة تسمى عند أي تفاعل (حركة ماوس، لمس)
   const handleUserInteraction = useCallback(() => {
-    // إظهار الأزرار فوراً
     showControls();
-    // إذا كان الفيديو شغالاً، نبدأ مؤقتاً جديداً للإخفاء
     if (isVideoPlayingRef.current) {
       hideControlsDelayed();
     }
   }, [showControls, hideControlsDelayed]);
 
   // ================================================================
-  // 12. جلب البيانات الأساسية + تاريخ المشاهدة (كما هو)
+  // 10. جلب البيانات الأساسية + تاريخ المشاهدة (كما هو)
   // ================================================================
   useEffect(() => {
     if (!id) return;
@@ -588,7 +577,7 @@ export default function WatchPage() {
   }, [id]);
 
   // ================================================================
-  // 13. دالة بدء المشاهدة
+  // 11. دالة بدء المشاهدة
   // ================================================================
   const handleStartWatching = () => {
     sessionStorage.setItem(`watch_started_${id}`, 'true');
@@ -596,7 +585,7 @@ export default function WatchPage() {
   };
 
   // ================================================================
-  // 14. إنشاء مشغل YouTube (مع منع تفاعل المستخدم مع عناصر YouTube)
+  // 12. إنشاء مشغل YouTube (مع منع تفاعل المستخدم مع عناصر YouTube)
   // ================================================================
   useEffect(() => {
     if (isYoutubeOnly || !isValidYoutube || !video) return;
@@ -721,7 +710,7 @@ export default function WatchPage() {
     };
 
     // ================================================================
-    // 14.1 دالة تتبع التقدم (محسّنة مع requestAnimationFrame لتوفير الأداء)
+    // 12.1 دالة تتبع التقدم (محسّنة مع requestAnimationFrame)
     // ================================================================
     const startProgressTracking = () => {
       if (progressIntervalRef.current) {
@@ -830,7 +819,7 @@ export default function WatchPage() {
   }, [isYoutubeOnly, isValidYoutube, youtubeId, video, id, showIntro, playerReady, showControls, hideControlsDelayed]);
 
   // ================================================================
-  // 15. دوال التحكم (مع استدعاء handleUserInteraction عند أي تفاعل)
+  // 13. دوال التحكم (مع استدعاء handleUserInteraction عند أي تفاعل)
   // ================================================================
 
   const togglePlay = useCallback(() => {
@@ -1032,64 +1021,13 @@ export default function WatchPage() {
   }, [playerReady, captionsEnabled, language, handleUserInteraction]);
 
   // ================================================================
-  // 16. إدارة أحداث الحركة (ماوس، لمس) مع تحسين الأداء
+  // 14. أحداث التفاعل (ماوس، لمس) – باستخدام JSX events
   // ================================================================
-  useEffect(() => {
-    if (isYoutubeOnly) return;
-
-    // استخدام passive: true لتحسين الأداء على الموبايل
-    const handleMouseMove = () => {
-      handleUserInteraction();
-    };
-
-    const handleMouseLeave = () => {
-      // عند خروج الماوس من الحاوية، إذا كان الفيديو شغالاً نخفي الأزرار بعد تأخير قصير
-      if (isVideoPlayingRef.current) {
-        // نتحقق من أن آخر تفاعل كان منذ أكثر من 2.5 ثانية
-        const now = Date.now();
-        if (now - lastInteractionTimeRef.current >= 2500) {
-          setControlsVisible(false);
-          clearTimeout(controlsTimerRef.current);
-          isControlsHiddenByTimer.current = true;
-        } else {
-          // وإلا نعيد جدولة الإخفاء
-          hideControlsDelayed();
-        }
-      }
-    };
-
-    const handleTouchStart = () => {
-      handleUserInteraction();
-    };
-
-    // دالة للتعامل مع تغيير ملء الشاشة
-    const handleFullscreenChange = () => {
-      if (isVideoPlayingRef.current) {
-        handleUserInteraction();
-      }
-    };
-
-    const container = containerRef.current;
-    if (container) {
-      container.addEventListener('mousemove', handleMouseMove, { passive: true });
-      container.addEventListener('mouseleave', handleMouseLeave);
-      container.addEventListener('touchstart', handleTouchStart, { passive: true });
-    }
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
-
-    return () => {
-      if (container) {
-        container.removeEventListener('mousemove', handleMouseMove);
-        container.removeEventListener('mouseleave', handleMouseLeave);
-        container.removeEventListener('touchstart', handleTouchStart);
-      }
-      document.removeEventListener('fullscreenchange', handleFullscreenChange);
-      clearTimeout(controlsTimerRef.current);
-    };
-  }, [isYoutubeOnly, handleUserInteraction, hideControlsDelayed]);
+  // لم نعد نضيف المستمعين عبر useEffect، بل نستخدم الأحداث المضمنة في JSX
+  // (onMouseMove, onTouchStart, onMouseLeave) على العنصر الخارجي.
 
   // ================================================================
-  // 17. حماية ضد تسريب الفيديو (كما هي)
+  // 15. حماية ضد تسريب الفيديو (كما هي)
   // ================================================================
   useEffect(() => {
     if (isYoutubeOnly) return;
@@ -1133,7 +1071,7 @@ export default function WatchPage() {
   }, [isYoutubeOnly]);
 
   // ================================================================
-  // 18. اختصارات لوحة المفاتيح (مع تحديث وقت التفاعل)
+  // 16. اختصارات لوحة المفاتيح (مع تحديث وقت التفاعل)
   // ================================================================
   useEffect(() => {
     if (isYoutubeOnly) return;
@@ -1161,7 +1099,7 @@ export default function WatchPage() {
   }, [playerReady, togglePlay, skipForward, skipBackward, toggleMute, toggleFullscreen, toggleFocusMode, toggleCaptions, isYoutubeOnly, handleUserInteraction]);
 
   // ================================================================
-  // 19. نظام التتبع الذكي (مع تحسينات بسيطة)
+  // 17. نظام التتبع الذكي (مع تحسينات بسيطة)
   // ================================================================
   // الحفظ الدوري الصامت
   useEffect(() => {
@@ -1248,7 +1186,7 @@ export default function WatchPage() {
   }, [video?.id, watchIntervals, totalWatchedUnique]);
 
   // ================================================================
-  // 20. عرض الصفحة
+  // 18. عرض الصفحة
   // ================================================================
 
   if (isYoutubeOnly) {
@@ -1372,7 +1310,7 @@ export default function WatchPage() {
   };
 
   // ================================================================
-  // 21. التصميم النهائي (مع طبقة حماية كاملة وتحكم محسّن)
+  // 19. التصميم النهائي (مع أحداث JSX المباشرة)
   // ================================================================
   return (
     <div className={`min-h-screen text-white transition-all duration-500 relative ${focusMode ? 'fixed inset-0 z-50 p-0 flex items-center justify-center bg-black' : ''}`}>
@@ -1408,6 +1346,21 @@ export default function WatchPage() {
               ref={containerRef}
               className={`relative ${focusMode ? 'h-screen w-screen' : 'aspect-video'} overflow-hidden bg-black group`}
               onDoubleClick={toggleFullscreen}
+              onMouseMove={handleUserInteraction}
+              onTouchStart={handleUserInteraction}
+              onMouseLeave={() => {
+                // عند خروج الماوس من الحاوية، إذا كان الفيديو شغالاً نخفي الأزرار بعد تأخير
+                if (isVideoPlayingRef.current) {
+                  const now = Date.now();
+                  if (now - lastInteractionTimeRef.current >= 2500) {
+                    setControlsVisible(false);
+                    clearTimeout(controlsTimerRef.current);
+                    isControlsHiddenByTimer.current = true;
+                  } else {
+                    hideControlsDelayed();
+                  }
+                }
+              }}
             >
               {!isValidYoutube ? (
                 <div className="flex items-center justify-center h-full text-gray-400 flex-col gap-3">
