@@ -3,7 +3,6 @@
 @tailwind utilities;
 
 @layer base {
-  /* ✅ حدود أكثر تحديداً لتجنب المشاكل */
   .card, .input, .button, .modal, .sidebar {
     border-color: var(--border-color);
   }
@@ -12,56 +11,48 @@
     @apply scroll-smooth;
   }
 
-  /* ✅ تحسين الطباعة */
   @media print {
     body {
       background: white !important;
       color: black !important;
     }
-    .no-print {
-      display: none !important;
-    }
-    .print-only {
-      display: block !important;
-    }
+    .no-print { display: none !important; }
+    .print-only { display: block !important; }
   }
 }
 
 /* ===== متغيرات الثيم ===== */
 :root {
-  /* خلفيات */
   --bg-primary: #f9fafb;
   --bg-secondary: #ffffff;
   --bg-card: #ffffff;
   --bg-input: #f3f4f6;
   --bg-hover: #f3f4f6;
 
-  /* نصوص */
   --text-primary: #111827;
   --text-secondary: #4b5563;
   --text-muted: #6b7280;
   --text-inverse: #ffffff;
 
-  /* حدود */
   --border-color: #e5e7eb;
   --border-light: #f3f4f6;
 
-  /* ظلال */
   --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
   --shadow: 0 1px 3px rgba(0,0,0,0.1);
   --shadow-lg: 0 10px 15px rgba(0,0,0,0.1);
 
-  /* ألوان خاصة */
   --gold: #c9a84c;
   --gold-light: #fbbf24;
   --gold-dark: #b8962e;
 
-  /* خطوط */
   --font-primary: 'Cairo', 'Inter', 'Segoe UI', sans-serif;
   --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+
+  --bg-primary-rgb: 249, 250, 251;
+  --bg-secondary-rgb: 255, 255, 255;
+  --bg-card-rgb: 255, 255, 255;
 }
 
-/* ===== الوضع الداكن ===== */
 .dark {
   --bg-primary: #0b0e1a;
   --bg-secondary: #0f1326;
@@ -80,9 +71,13 @@
   --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
   --shadow: 0 1px 3px rgba(0,0,0,0.4);
   --shadow-lg: 0 10px 15px rgba(0,0,0,0.5);
+
+  --bg-primary-rgb: 11, 14, 26;
+  --bg-secondary-rgb: 15, 19, 38;
+  --bg-card-rgb: 15, 19, 38;
 }
 
-/* ===== تطبيق المتغيرات (بدون transition على الكل) ===== */
+/* ===== تطبيق المتغيرات ===== */
 body {
   background-color: var(--bg-primary);
   color: var(--text-primary);
@@ -98,9 +93,7 @@ a {
   text-decoration: none;
   transition: color 0.2s;
 }
-a:hover {
-  color: var(--gold-light);
-}
+a:hover { color: var(--gold-light); }
 
 /* ===== الحقول ===== */
 input, textarea, select {
@@ -121,6 +114,12 @@ input:focus, textarea:focus, select:focus {
   border: 1px solid var(--border-color);
   box-shadow: var(--shadow);
   border-radius: 16px;
+  /* ✅ تفعيل GPU وتسريع الريندر */
+  transform: translateZ(0);
+  will-change: transform;
+  /* ✅ منع إعادة الرسم غير الضرورية */
+  contain: layout style paint;
+  /* ✅ نقلل transition للعناصر الأساسية بس */
   transition: box-shadow 0.2s;
 }
 .card:hover {
@@ -134,7 +133,10 @@ input:focus, textarea:focus, select:focus {
   font-weight: 700;
   padding: 10px 24px;
   border-radius: 12px;
+  /* ✅ transition خفيف وموجه */
   transition: transform 0.2s, box-shadow 0.2s;
+  will-change: transform;
+  transform: translateZ(0);
 }
 .btn-primary:hover {
   transform: scale(1.02);
@@ -144,7 +146,7 @@ input:focus, textarea:focus, select:focus {
   transform: scale(0.98);
 }
 
-/* ===== شريط التمرير العام ===== */
+/* ===== شريط التمرير العام (خفيف) ===== */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -163,10 +165,8 @@ input:focus, textarea:focus, select:focus {
 /* ================================================================ */
 /* ✅ شريط التمرير الأفقي المخصص لصفحة الامتحان (يظهر دائماً) */
 /* ================================================================ */
-
-/* للـ WebKit (Chrome, Safari, Edge) */
 .exam-scrollbar::-webkit-scrollbar {
-  height: 10px;                 /* ارتفاع الشريط */
+  height: 10px;
   width: 10px;
 }
 .exam-scrollbar::-webkit-scrollbar-track {
@@ -189,14 +189,10 @@ input:focus, textarea:focus, select:focus {
 .exam-scrollbar::-webkit-scrollbar-corner {
   background: transparent;
 }
-
-/* للـ Firefox */
 .exam-scrollbar {
   scrollbar-width: thin;
   scrollbar-color: var(--gold) rgba(255, 255, 255, 0.06);
 }
-
-/* ✅ نسخة للوضع الداكن مع تباين أعلى */
 .dark .exam-scrollbar::-webkit-scrollbar-track {
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -211,24 +207,12 @@ input:focus, textarea:focus, select:focus {
 }
 
 /* ===== أنماط إضافية لبيئة الامتحان ===== */
-.focus-mode .question-sidebar {
-  display: none !important;
-}
+.focus-mode .question-sidebar { display: none !important; }
 .focus-mode .exam-header {
   opacity: 0.5;
   transition: opacity 0.3s;
 }
-.focus-mode .exam-header:hover {
-  opacity: 1;
-}
-
-/* ===== تحسينات للوضع الفاتح ===== */
-:root {
-  --text-on-gold: #000000;
-}
-.dark {
-  --text-on-gold: #000000;
-}
+.focus-mode .exam-header:hover { opacity: 1; }
 
 /* ===== أنيميشن الاهتزاز (لآخر 10 ثوانٍ) ===== */
 @keyframes shake {
@@ -251,7 +235,59 @@ input:focus, textarea:focus, select:focus {
   animation: gradient 4s ease infinite;
 }
 
-/* ===== تحسين الجوال (شاشات صغيرة) ===== */
+/* ================================================================ */
+/* ✅ تعطيل تأثيرات backdrop-blur على الموبايل (حتى 767px) */
+/* ================================================================ */
+@media (max-width: 767px) {
+  /* تعطيل جميع درجات backdrop-blur */
+  .backdrop-blur-sm,
+  .backdrop-blur-md,
+  .backdrop-blur-lg,
+  .backdrop-blur-xl,
+  .backdrop-blur-2xl,
+  .backdrop-blur-3xl {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    background-color: rgba(var(--bg-primary-rgb), 0.92) !important;
+  }
+
+  /* ✅ إلغاء أنيميشن WaveBorderCard */
+  .wave-border-animation {
+    animation: none !important;
+  }
+
+  /* ✅ تقليل الظلال على الموبايل */
+  .card {
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08) !important;
+  }
+  .card:hover {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.12) !important;
+  }
+
+  /* ✅ تقليل أنيميشن التدرج على الموبايل (أو إيقافها) */
+  .animate-gradient {
+    animation-duration: 8s !important; /* أبطأ */
+  }
+
+  /* ✅ تقليل تأثير hover على الأزرار */
+  .btn-primary:hover {
+    transform: none !important;
+    box-shadow: 0 2px 12px rgba(201, 168, 76, 0.2) !important;
+  }
+
+  /* ✅ إزالة شريط التمرير المخصص للموبايل (استخدام الافتراضي) */
+  .exam-scrollbar::-webkit-scrollbar {
+    height: 4px !important;
+    width: 4px !important;
+  }
+  .exam-scrollbar::-webkit-scrollbar-thumb {
+    border-radius: 4px !important;
+  }
+}
+
+/* ================================================================ */
+/* ✅ دعم الشاشات الصغيرة جداً (640px) */
+/* ================================================================ */
 @media (max-width: 640px) {
   .card {
     padding: 12px !important;
@@ -261,14 +297,14 @@ input:focus, textarea:focus, select:focus {
     padding: 8px 16px;
     font-size: 14px;
   }
-  
-  /* ✅ تصغير شريط التمرير على الجوال */
   .exam-scrollbar::-webkit-scrollbar {
-    height: 6px;
+    height: 4px !important;
   }
 }
 
-/* ✅ إضافة دعم للشاشات الصغيرة جداً (xs) */
+/* ================================================================ */
+/* ✅ دعم الشاشات الصغيرة جداً (480px) */
+/* ================================================================ */
 @media (max-width: 480px) {
   .card {
     padding: 10px !important;
@@ -277,8 +313,7 @@ input:focus, textarea:focus, select:focus {
     padding: 6px 14px;
     font-size: 13px;
   }
-  
   .exam-scrollbar::-webkit-scrollbar {
-    height: 5px;
+    height: 3px !important;
   }
 }
