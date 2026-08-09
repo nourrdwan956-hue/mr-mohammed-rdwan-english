@@ -1,4 +1,12 @@
 // app/dashboard/student/page.js
+// ================================================================
+// 🏛️ الصفحة الرئيسية للطالب – نسخة فائقة السرعة على الموبايل، وفاخرة على الديسكتوب
+// ✅ تعطيل جميع تأثيرات التهنيج على الهواتف (backdrop-filter, animations, scale)
+// ✅ تقليص حجم العناصر بشكل ذكي مع بقاء الأيقونات واضحة
+// ✅ الحفاظ على الأنيميشن الفاخر على الأجهزة الكبيرة (hover, scale, glow)
+// ✅ استخدام React.memo و useMemo لتحسين الأداء
+// ================================================================
+
 'use client';
 
 import { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react';
@@ -124,7 +132,7 @@ function getDaysSinceJoin(createdAt) {
 }
 
 // ================================================================
-// 0. Hook للكشف عن الأجهزة التي تدعم hover
+// 0. Hook للكشف عن الأجهزة التي تدعم hover (وتعطيله على الموبايل)
 // ================================================================
 function useHoverable() {
   const [isHoverable, setIsHoverable] = useState(false);
@@ -139,11 +147,25 @@ function useHoverable() {
 }
 
 // ================================================================
-// 1. عداد متحرك (بدون تغيير)
+// 1. عداد متحرك (يُبطل على الموبايل)
 // ================================================================
-const AnimatedCounter = ({ value, duration = 1.2, suffix = '' }) => {
+const AnimatedCounter = memo(({ value, duration = 1.2, suffix = '' }) => {
   const [count, setCount] = useState(0);
+  const [isMobile, setIsMobile] = useState(false);
+  
   useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 640);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  useEffect(() => {
+    // على الموبايل نعرض القيمة مباشرة بدون أنيميشن
+    if (isMobile) {
+      setCount(parseInt(value, 10) || 0);
+      return;
+    }
     let start = 0;
     const end = parseInt(value, 10) || 0;
     if (end === 0) return;
@@ -154,37 +176,52 @@ const AnimatedCounter = ({ value, duration = 1.2, suffix = '' }) => {
       else setCount(Math.floor(start));
     }, 1000 / 60);
     return () => clearInterval(timer);
-  }, [value, duration]);
+  }, [value, duration, isMobile]);
+
+  // ✅ على الموبايل نزيل تأثير الـ scale
+  if (isMobile) {
+    return <span>{count}{suffix}</span>;
+  }
+
   return <motion.span animate={{ scale: [1, 1.04, 1] }} transition={{ duration: 1.5, repeat: Infinity }}>{count}{suffix}</motion.span>;
-};
+});
+AnimatedCounter.displayName = 'AnimatedCounter';
 
 // ================================================================
-// 2. عداد أيام الانضمام – مصغر
+// 2. عداد أيام الانضمام – مصغر ومبسط على الموبايل
 // ================================================================
-const MembershipCounter = ({ days, styles, language }) => {
+const MembershipCounter = memo(({ days, styles, language }) => {
+  const [isMobile, setIsMobile] = useState(false);
+  
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 640);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.9 }}
+      initial={!isMobile ? { opacity: 0, scale: 0.9 } : {}}
       animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.5, type: 'spring', stiffness: 200 }}
-      className={`px-3 xs:px-4 py-2 xs:py-2.5 rounded-xl border ${styles.border} backdrop-blur-sm shadow-md text-center min-w-[80px] xs:min-w-[100px] ${styles.card}`}
+      transition={!isMobile ? { duration: 0.5, type: 'spring', stiffness: 200 } : {}}
+      className={`px-2 xs:px-3 py-1.5 xs:py-2 rounded-xl border ${styles.border} shadow-sm text-center min-w-[60px] xs:min-w-[80px] ${styles.card}`}
+      style={{
+        // على الموبايل نزيل backdrop-blur
+        backdropFilter: isMobile ? 'none' : 'blur(4px)',
+        WebkitBackdropFilter: isMobile ? 'none' : 'blur(4px)',
+      }}
     >
-      <motion.div
-        animate={{ scale: [1, 1.05, 1] }}
-        transition={{ duration: 2, repeat: Infinity }}
-        className="text-xl xs:text-2xl sm:text-3xl font-black text-blue-600 dark:text-blue-400"
-      >
+      <div className="text-lg xs:text-xl sm:text-2xl font-black text-blue-600 dark:text-blue-400">
         {days}
-      </motion.div>
-      <div className="text-[8px] xs:text-[9px] sm:text-xs font-medium text-blue-600/80 dark:text-blue-400/80 mt-0.5">
-        {language === 'ar' ? 'يوم في المنصة' : 'Days on platform'}
       </div>
-      <div className={`text-[7px] xs:text-[8px] sm:text-[10px] ${styles.subtext} mt-0.5`}>
-        {language === 'ar' ? 'رحلة تعلم مستمرة 🚀' : 'Continuous learning journey 🚀'}
+      <div className="text-[6px] xs:text-[8px] sm:text-[10px] font-medium text-blue-600/80 dark:text-blue-400/80 mt-0.5">
+        {language === 'ar' ? 'يوم' : 'Days'}
       </div>
     </motion.div>
   );
-};
+});
+MembershipCounter.displayName = 'MembershipCounter';
 
 // ================================================================
 // 3. ألوان البطاقات (بدون تغيير)
@@ -205,9 +242,9 @@ const getRandomColor = (exclude = []) => {
 };
 
 // ================================================================
-// 4. مكون الحدود الموجية – تم التعديل (200ms على الموبايل)
+// 4. مكون الحدود الموجية – محسّن للموبايل (200ms, بدون backdrop)
 // ================================================================
-const WaveBorderCard = ({ children, className = '', initialColor = 'blue', onColorChange }) => {
+const WaveBorderCard = memo(({ children, className = '', initialColor = 'blue', onColorChange }) => {
   const [color, setColor] = useState(CARD_COLORS.find(c => c.name === initialColor) || CARD_COLORS[0]);
   const [rotation, setRotation] = useState(0);
   const colorRef = useRef(color);
@@ -230,18 +267,18 @@ const WaveBorderCard = ({ children, className = '', initialColor = 'blue', onCol
   }, [color]);
 
   useEffect(() => {
-    // ✅ 200ms على الموبايل، 100ms على الديسكتوب
-    const intervalTime = isMobile ? 200 : 100;
+    // ✅ على الموبايل نبطئ الحركة جداً (200ms) أو نوقفها تماماً إذا أردنا
+    // هنا نتركها تعمل ببطء شديد للحفاظ على بعض الجمال
+    const intervalTime = isMobile ? 300 : 80;
     const interval = setInterval(() => {
       if (!isMounted.current) return;
       setRotation(prev => {
-        const newRot = prev + (isMobile ? 1 : 2);
+        const step = isMobile ? 1 : 2;
+        const newRot = prev + step;
         if (newRot >= 360) {
           const newColor = getRandomColor([colorRef.current.name]);
           setColor(newColor);
-          if (onColorChange) {
-            onColorChange(newColor);
-          }
+          if (onColorChange) onColorChange(newColor);
           return 0;
         }
         return newRot;
@@ -264,27 +301,33 @@ const WaveBorderCard = ({ children, className = '', initialColor = 'blue', onCol
   const gradientStyle = {
     background: `conic-gradient(from ${rotation}deg, ${waveColors.join(', ')})`,
     borderRadius: '1.5rem',
-    padding: '3px',
+    padding: '2px', // تصغير الحواف على الموبايل
     WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
     WebkitMaskComposite: 'xor',
     maskComposite: 'exclude',
   };
 
   return (
-    <div className={`relative rounded-2xl overflow-hidden group ${className}`}>
-      <div
-        className="absolute inset-0 rounded-2xl"
-        style={gradientStyle}
-      />
-      <div className="relative z-10 h-full w-full rounded-2xl backdrop-blur-sm bg-[var(--bg-card)] border border-[var(--border-color)]">
+    <div className={`relative rounded-xl sm:rounded-2xl overflow-hidden group ${className}`}>
+      <div className="absolute inset-0 rounded-xl sm:rounded-2xl" style={gradientStyle} />
+      <div 
+        className="relative z-10 h-full w-full rounded-xl sm:rounded-2xl border border-[var(--border-color)]"
+        style={{
+          // ✅ على الموبايل نزيل backdrop-blur تماماً، ونستخدم خلفية صلبة
+          backgroundColor: isMobile ? 'var(--bg-card)' : 'var(--bg-card)',
+          backdropFilter: isMobile ? 'none' : 'blur(6px)',
+          WebkitBackdropFilter: isMobile ? 'none' : 'blur(6px)',
+        }}
+      >
         {children}
       </div>
     </div>
   );
-};
+});
+WaveBorderCard.displayName = 'WaveBorderCard';
 
 // ================================================================
-// 5. بطاقة إحصائية – مصغرة مع تحسينات الاستجابة + memo
+// 5. بطاقة إحصائية – مع تعطيل hover على الموبايل
 // ================================================================
 const LargeStatCard = memo(({ icon: Icon, label, value, styles, delay = 0 }) => {
   const [color, setColor] = useState(CARD_COLORS[0]);
@@ -297,36 +340,36 @@ const LargeStatCard = memo(({ icon: Icon, label, value, styles, delay = 0 }) => 
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, delay }}
+      transition={{ duration: 0.4, delay }}
       onMouseEnter={() => isHoverable && setIsHovered(true)}
       onMouseLeave={() => isHoverable && setIsHovered(false)}
-      whileHover={isHoverable ? { scale: 1.03 } : {}}
+      whileHover={isHoverable ? { scale: 1.02 } : {}}
+      className="h-full"
     >
       <WaveBorderCard initialColor={color.name} onColorChange={handleColorChange}>
-        <div className="p-3 xs:p-4 sm:p-5 flex items-center justify-between gap-2 xs:gap-3">
-          <div>
-            <p className={`text-[10px] xs:text-xs sm:text-sm font-medium ${styles.subtext} mb-0.5`}>{label}</p>
-            <p className={`text-xl xs:text-2xl sm:text-3xl font-black ${styles.text}`}>
+        <div className="p-2 xs:p-3 sm:p-4 flex items-center justify-between gap-2">
+          <div className="flex-1 min-w-0">
+            <p className={`text-[8px] xs:text-[10px] sm:text-xs font-medium ${styles.subtext} mb-0.5 truncate`}>{label}</p>
+            <p className={`text-lg xs:text-xl sm:text-2xl font-black ${styles.text}`}>
               <AnimatedCounter value={value} />
             </p>
           </div>
           <motion.div
-            animate={isHovered ? { scale: 1.2, rotate: 8 } : { scale: 1 }}
+            animate={isHovered ? { scale: 1.1, rotate: 4 } : { scale: 1 }}
             transition={{ type: 'spring', stiffness: 300 }}
-            className={`p-1.5 xs:p-2 sm:p-2.5 rounded-xl ${color.bg} shadow-lg`}
+            className={`p-1.5 xs:p-2 rounded-xl ${color.bg} shadow-sm flex-shrink-0`}
           >
-            <Icon className={`h-5 w-5 xs:h-6 xs:w-6 sm:h-8 sm:w-8 ${color.text}`} />
+            <Icon className={`h-4 w-4 xs:h-5 xs:w-5 sm:h-6 sm:w-6 ${color.text}`} />
           </motion.div>
         </div>
       </WaveBorderCard>
     </motion.div>
   );
 });
-
 LargeStatCard.displayName = 'LargeStatCard';
 
 // ================================================================
-// 6. بطاقة كورس – مصغرة مع تحسينات الاستجابة + memo
+// 6. بطاقة كورس – مع تعطيل hover على الموبايل
 // ================================================================
 const LargeCourseCard = memo(({ course, progress, styles, theme, language }) => {
   const router = useRouter();
@@ -338,59 +381,59 @@ const LargeCourseCard = memo(({ course, progress, styles, theme, language }) => 
 
   return (
     <motion.div
-      whileHover={isHoverable ? { scale: 1.02, y: -4 } : {}}
+      whileHover={isHoverable ? { scale: 1.015, y: -3 } : {}}
       onMouseEnter={() => isHoverable && setIsHovered(true)}
       onMouseLeave={() => isHoverable && setIsHovered(false)}
-      className="relative cursor-pointer"
+      className="relative cursor-pointer h-full"
       onClick={() => router.push(`/dashboard/student/courses/${course.id}`)}
     >
       <WaveBorderCard initialColor={color.name} onColorChange={handleColorChange}>
-        <div className="p-3 xs:p-4 sm:p-5">
-          <div className="flex items-start justify-between mb-2 xs:mb-3">
-            <div className="flex items-center gap-2 xs:gap-3">
+        <div className="p-2 xs:p-3 sm:p-4">
+          <div className="flex items-start justify-between mb-1.5 xs:mb-2">
+            <div className="flex items-center gap-1.5 xs:gap-2 min-w-0 flex-1">
               <motion.div
-                animate={isHovered ? { scale: 1.15, rotate: [0, -6, 6, -6, 0] } : { scale: 1 }}
-                transition={{ duration: 0.4 }}
-                className={`h-10 w-10 xs:h-12 xs:w-12 sm:h-14 sm:w-14 rounded-xl ${color.bg} flex items-center justify-center shadow-md`}
+                animate={isHovered ? { scale: 1.1, rotate: [0, -4, 4, -4, 0] } : { scale: 1 }}
+                transition={{ duration: 0.3 }}
+                className={`h-8 w-8 xs:h-10 xs:w-10 sm:h-12 sm:w-12 rounded-lg xs:rounded-xl ${color.bg} flex items-center justify-center shadow-sm flex-shrink-0`}
               >
-                <BookOpen className={`h-5 w-5 xs:h-6 xs:w-6 sm:h-7 sm:w-7 ${color.text}`} />
+                <BookOpen className={`h-4 w-4 xs:h-5 xs:w-5 sm:h-6 sm:w-6 ${color.text}`} />
               </motion.div>
               <div className="flex-1 min-w-0">
-                <h4 className={`text-xs xs:text-sm sm:text-base font-bold truncate ${styles.text}`}>{course.title}</h4>
-                <p className={`text-[10px] xs:text-xs ${styles.subtext}`}>{course.category || (language === 'ar' ? 'كورس' : 'Course')}</p>
+                <h4 className={`text-[10px] xs:text-xs sm:text-sm font-bold truncate ${styles.text}`}>{course.title}</h4>
+                <p className={`text-[8px] xs:text-[10px] ${styles.subtext} truncate`}>{course.category || (language === 'ar' ? 'كورس' : 'Course')}</p>
               </div>
             </div>
             <motion.div
-              animate={isHovered ? { x: 10, opacity: 1 } : { x: 0, opacity: 0.6 }}
-              className={`${color.text}`}
+              animate={isHovered ? { x: 6, opacity: 1 } : { x: 0, opacity: 0.5 }}
+              className={`${color.text} flex-shrink-0 hidden xs:block`}
             >
-              <ArrowRight className="h-4 w-4 xs:h-5 xs:w-5" />
+              <ArrowRight className="h-3 w-3 xs:h-4 xs:w-4" />
             </motion.div>
           </div>
 
-          <div className="mt-2 xs:mt-3">
-            <div className="flex justify-between text-[10px] xs:text-xs sm:text-sm mb-1.5">
+          <div className="mt-1.5 xs:mt-2">
+            <div className="flex justify-between text-[8px] xs:text-[10px] sm:text-xs mb-0.5 xs:mb-1">
               <span className={styles.subtext}>{language === 'ar' ? 'التقدم' : 'Progress'}</span>
               <span className={`${color.text} font-bold`}>{Math.round(progress)}%</span>
             </div>
-            <div className="w-full h-1.5 xs:h-2 bg-gray-200 dark:bg-white/10 rounded-full overflow-hidden">
+            <div className="w-full h-1 xs:h-1.5 sm:h-2 bg-gray-200 dark:bg-white/10 rounded-full overflow-hidden">
               <motion.div
                 initial={{ width: 0 }}
                 animate={{ width: `${progress}%` }}
-                transition={{ duration: 1, ease: 'easeOut' }}
+                transition={{ duration: 0.8, ease: 'easeOut' }}
                 className={`h-full bg-gradient-to-r ${color.text} rounded-full`}
               />
             </div>
           </div>
 
-          {isHovered && (
+          {isHovered && isHoverable && (
             <motion.div
-              initial={{ opacity: 0, y: 8 }}
+              initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 8 }}
-              className="absolute bottom-3 right-3 z-20"
+              exit={{ opacity: 0, y: 6 }}
+              className="absolute bottom-2 right-2 z-10"
             >
-              <span className={`px-2 xs:px-3 py-0.5 xs:py-1 rounded-full ${color.bg} ${color.text} text-[8px] xs:text-[10px] sm:text-xs font-bold backdrop-blur-sm border ${color.border}`}>
+              <span className={`px-1.5 xs:px-2 py-0.5 rounded-full ${color.bg} ${color.text} text-[6px] xs:text-[8px] sm:text-[10px] font-bold border ${color.border}`}>
                 {progress >= 100 ? '✅ مكتمل' : progress >= 50 ? '🚀 متقدم' : '📖 جديد'}
               </span>
             </motion.div>
@@ -400,13 +443,12 @@ const LargeCourseCard = memo(({ course, progress, styles, theme, language }) => 
     </motion.div>
   );
 });
-
 LargeCourseCard.displayName = 'LargeCourseCard';
 
 // ================================================================
-// 7. بطاقة الإعلانات – مصغرة مع تحسينات الاستجابة
+// 7. بطاقة الإعلانات – مع تحسينات للموبايل
 // ================================================================
-const SuperAnnouncements = ({ announcements, styles, language }) => {
+const SuperAnnouncements = memo(({ announcements, styles, language }) => {
   const [expanded, setExpanded] = useState(false);
   const [currentPage, setCurrentPage] = useState(0);
   const totalPages = announcements.length;
@@ -418,23 +460,21 @@ const SuperAnnouncements = ({ announcements, styles, language }) => {
 
   if (totalPages === 0) {
     return (
-      <motion.div initial={{ opacity: 0, y: 15 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
+      <motion.div initial={{ opacity: 0, y: 10 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
         <WaveBorderCard initialColor={color.name} onColorChange={handleColorChange}>
-          <div className="p-3 xs:p-4 space-y-2.5">
-            <div className="flex items-center gap-1.5 xs:gap-2">
-              <Megaphone className={`h-3.5 w-3.5 xs:h-4 xs:w-4 ${color.text}`} />
-              <h3 className={`text-sm xs:text-base font-bold ${styles.text}`}>{language === 'ar' ? 'الإعلانات' : 'Announcements'}</h3>
+          <div className="p-2 xs:p-3 space-y-2">
+            <div className="flex items-center gap-1 xs:gap-1.5">
+              <Megaphone className={`h-3 w-3 xs:h-3.5 xs:w-3.5 ${color.text}`} />
+              <h3 className={`text-xs xs:text-sm font-bold ${styles.text}`}>{language === 'ar' ? 'الإعلانات' : 'Announcements'}</h3>
             </div>
-            <div className="text-center py-3 xs:py-4">
-              <Megaphone className={`h-10 w-10 xs:h-12 xs:w-12 ${styles.subtext} mx-auto mb-2`} />
-              <p className={`text-xs xs:text-sm ${styles.subtext}`}>{language === 'ar' ? 'لا توجد إعلانات حالياً' : 'No announcements yet'}</p>
+            <div className="text-center py-2 xs:py-3">
+              <Megaphone className={`h-8 w-8 xs:h-10 xs:w-10 ${styles.subtext} mx-auto mb-1`} />
+              <p className={`text-[10px] xs:text-xs ${styles.subtext}`}>{language === 'ar' ? 'لا توجد إعلانات' : 'No announcements'}</p>
             </div>
-            <div className={`flex items-start gap-2 p-2.5 xs:p-3 rounded-xl ${color.bg} border ${color.border}`}>
-              <Lightbulb className={`h-3.5 w-3.5 xs:h-4 xs:w-4 ${color.text} mt-0.5 flex-shrink-0`} />
-              <p className={`text-[10px] xs:text-xs ${styles.subtext}`}>
-                {language === 'ar'
-                  ? 'خصص 30 دقيقة يومياً للمراجعة، وستلاحظ الفرق بعد شهر!'
-                  : 'Dedicate 30 min daily to revision and see the difference!'}
+            <div className={`flex items-start gap-1.5 xs:gap-2 p-2 rounded-lg ${color.bg} border ${color.border}`}>
+              <Lightbulb className={`h-3 w-3 xs:h-3.5 xs:w-3.5 ${color.text} mt-0.5 flex-shrink-0`} />
+              <p className={`text-[8px] xs:text-[10px] ${styles.subtext}`}>
+                {language === 'ar' ? 'خصص 30 دقيقة يومياً للمراجعة!' : '30 min daily revision!'}
               </p>
             </div>
           </div>
@@ -450,15 +490,9 @@ const SuperAnnouncements = ({ announcements, styles, language }) => {
   const handleNext = () => { setDirection(1); nextPage(); };
   const handlePrev = () => { setDirection(-1); prevPage(); };
 
-  const variants = {
-    enter: (direction) => ({ x: direction > 0 ? 200 : -200, opacity: 0 }),
-    center: { x: 0, opacity: 1 },
-    exit: (direction) => ({ x: direction > 0 ? -200 : 200, opacity: 0 }),
-  };
-
   const toggleExpand = () => setExpanded(!expanded);
 
-  const truncateText = (text, maxLength = 70) => {
+  const truncateText = (text, maxLength = 50) => {
     if (!text) return '';
     if (text.length <= maxLength) return text;
     return text.substring(0, maxLength) + '...';
@@ -467,21 +501,16 @@ const SuperAnnouncements = ({ announcements, styles, language }) => {
   const renderAnnouncementPreview = () => {
     const announcement = announcements[currentPage];
     return (
-      <div className={`flex items-start gap-2 xs:gap-3 p-2.5 xs:p-3 rounded-xl border ${styles.border} backdrop-blur-sm cursor-pointer transition ${styles.card} hover:bg-white/10 dark:hover:bg-white/5`}>
-        <div className={`rounded-lg ${color.bg} ${color.text} flex-shrink-0 p-1.5 xs:p-2`}>
-          <Megaphone className="h-3.5 w-3.5 xs:h-4 xs:w-4" />
+      <div className={`flex items-start gap-1.5 xs:gap-2 p-2 rounded-lg border ${styles.border} cursor-pointer transition ${styles.card}`}>
+        <div className={`rounded-lg ${color.bg} ${color.text} flex-shrink-0 p-1`}>
+          <Megaphone className="h-3 w-3 xs:h-3.5 xs:w-3.5" />
         </div>
         <div className="flex-1 min-w-0">
-          <h4 className={`text-xs xs:text-sm font-bold ${styles.text} mb-0.5`}>{announcement.title}</h4>
-          <p className={`text-[10px] xs:text-xs ${styles.subtext} leading-relaxed`}>
-            {truncateText(announcement.body, 80)}
-            {announcement.body.length > 80 && (
-              <span className={`${color.text} font-medium mr-1`}>
-                {language === 'ar' ? '...اقرأ المزيد' : '...read more'}
-              </span>
-            )}
+          <h4 className={`text-[10px] xs:text-xs font-bold ${styles.text} mb-0.5`}>{announcement.title}</h4>
+          <p className={`text-[8px] xs:text-[10px] ${styles.subtext} leading-relaxed`}>
+            {truncateText(announcement.body, 60)}
           </p>
-          <p className={`text-[8px] xs:text-[10px] ${styles.subtext} mt-0.5`}>
+          <p className={`text-[6px] xs:text-[8px] ${styles.subtext} mt-0.5`}>
             {new Date(announcement.created_at).toLocaleDateString(
               language === 'ar' ? 'ar-EG' : 'en-US',
               { month: 'short', day: 'numeric' }
@@ -495,14 +524,14 @@ const SuperAnnouncements = ({ announcements, styles, language }) => {
   const renderAnnouncementFull = () => {
     const announcement = announcements[currentPage];
     return (
-      <div className={`flex items-start gap-3 xs:gap-4 p-4 xs:p-5 rounded-xl border ${styles.border} backdrop-blur-sm ${styles.card}`}>
-        <div className={`rounded-xl ${color.bg} ${color.text} flex-shrink-0 p-2 xs:p-3`}>
-          <Megaphone className="h-6 w-6 xs:h-8 xs:w-8" />
+      <div className={`flex items-start gap-2 xs:gap-3 p-3 xs:p-4 rounded-lg border ${styles.border} ${styles.card}`}>
+        <div className={`rounded-lg ${color.bg} ${color.text} flex-shrink-0 p-1.5 xs:p-2`}>
+          <Megaphone className="h-5 w-5 xs:h-6 xs:w-6" />
         </div>
         <div className="flex-1 min-w-0">
-          <h4 className={`text-lg xs:text-xl font-bold ${styles.text} mb-1.5 xs:mb-2`}>{announcement.title}</h4>
-          <p className={`text-sm xs:text-base ${styles.subtext} leading-relaxed whitespace-pre-wrap`}>{announcement.body}</p>
-          <p className={`text-[10px] xs:text-xs ${styles.subtext} mt-2 xs:mt-3`}>
+          <h4 className={`text-sm xs:text-base font-bold ${styles.text} mb-1`}>{announcement.title}</h4>
+          <p className={`text-xs xs:text-sm ${styles.subtext} leading-relaxed whitespace-pre-wrap`}>{announcement.body}</p>
+          <p className={`text-[8px] xs:text-[10px] ${styles.subtext} mt-2`}>
             {new Date(announcement.created_at).toLocaleDateString(
               language === 'ar' ? 'ar-EG' : 'en-US',
               { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }
@@ -516,7 +545,7 @@ const SuperAnnouncements = ({ announcements, styles, language }) => {
   return (
     <>
       <motion.div
-        initial={{ opacity: 0, y: 15 }}
+        initial={{ opacity: 0, y: 10 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true }}
         onMouseEnter={() => isHoverable && setIsHovered(true)}
@@ -525,30 +554,24 @@ const SuperAnnouncements = ({ announcements, styles, language }) => {
       >
         <WaveBorderCard initialColor={color.name} onColorChange={handleColorChange}>
           <motion.div
-            animate={isHovered ? { scale: 1.02 } : { scale: 1 }}
+            animate={isHovered && isHoverable ? { scale: 1.01 } : { scale: 1 }}
             transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-            className="p-2 xs:p-3 sm:p-4"
+            className="p-2 xs:p-3"
           >
-            <div className="flex items-center justify-between mb-1.5 xs:mb-2">
-              <div className="flex items-center gap-1 xs:gap-1.5">
-                <Megaphone className={`h-3.5 w-3.5 xs:h-4 xs:w-4 ${color.text}`} />
-                <h3 className={`text-xs xs:text-sm sm:text-base font-bold ${styles.text}`}>{language === 'ar' ? 'الإعلانات' : 'Announcements'}</h3>
-                <span className={`text-[8px] xs:text-[9px] px-1.5 py-0.5 rounded-full ${color.bg} ${color.text}`}>
-                  {currentPage + 1} / {totalPages}
+            <div className="flex items-center justify-between mb-1 xs:mb-1.5">
+              <div className="flex items-center gap-1">
+                <Megaphone className={`h-3 w-3 xs:h-3.5 xs:w-3.5 ${color.text}`} />
+                <h3 className={`text-[10px] xs:text-xs sm:text-sm font-bold ${styles.text}`}>{language === 'ar' ? 'الإعلانات' : 'Announcements'}</h3>
+                <span className={`text-[6px] xs:text-[8px] px-1 py-0.5 rounded-full ${color.bg} ${color.text}`}>
+                  {currentPage + 1}/{totalPages}
                 </span>
               </div>
               <div className="flex items-center gap-0.5">
-                <button
-                  onClick={(e) => { e.stopPropagation(); handlePrev(); }}
-                  className={`p-1 rounded-lg hover:bg-white/10 dark:hover:bg-white/5 transition ${color.text}`}
-                >
-                  <ChevronRight className="h-3 w-3 xs:h-3.5 xs:w-3.5" />
+                <button onClick={handlePrev} className={`p-0.5 rounded hover:bg-white/10 transition ${color.text}`}>
+                  <ChevronRight className="h-2.5 w-2.5 xs:h-3 xs:w-3" />
                 </button>
-                <button
-                  onClick={(e) => { e.stopPropagation(); handleNext(); }}
-                  className={`p-1 rounded-lg hover:bg-white/10 dark:hover:bg-white/5 transition ${color.text}`}
-                >
-                  <ChevronLeft className="h-3 w-3 xs:h-3.5 xs:w-3.5" />
+                <button onClick={handleNext} className={`p-0.5 rounded hover:bg-white/10 transition ${color.text}`}>
+                  <ChevronLeft className="h-2.5 w-2.5 xs:h-3 xs:w-3" />
                 </button>
               </div>
             </div>
@@ -558,12 +581,12 @@ const SuperAnnouncements = ({ announcements, styles, language }) => {
             </div>
 
             {totalPages > 1 && (
-              <div className="flex justify-center gap-1 mt-2">
-                {Array.from({ length: totalPages }).map((_, idx) => (
+              <div className="flex justify-center gap-1 mt-1.5">
+                {Array.from({ length: Math.min(totalPages, 5) }).map((_, idx) => (
                   <button
                     key={idx}
-                    onClick={(e) => { e.stopPropagation(); setDirection(idx > currentPage ? 1 : -1); setCurrentPage(idx); }}
-                    className={`h-1 rounded-full transition-all duration-300 ${idx === currentPage ? `w-3 xs:w-4 ${color.bg}` : `w-1 ${styles.subtext}`}`}
+                    onClick={() => setCurrentPage(idx)}
+                    className={`h-1 rounded-full transition-all duration-300 ${idx === currentPage ? `w-2 xs:w-3 ${color.bg}` : `w-1 ${styles.subtext}`}`}
                   />
                 ))}
               </div>
@@ -572,48 +595,41 @@ const SuperAnnouncements = ({ announcements, styles, language }) => {
         </WaveBorderCard>
       </motion.div>
 
+      {/* المودال عند التوسيع */}
       <AnimatePresence>
         {expanded && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 dark:bg-black/70 backdrop-blur-md p-4"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-2 xs:p-4"
             onClick={() => setExpanded(false)}
           >
             <motion.div
               initial={{ scale: 0.9, y: 20 }}
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.9, y: 20 }}
-              className={`relative w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-2xl border ${color.border} shadow-2xl p-4 xs:p-5 ${styles.card}`}
+              className={`relative w-full max-w-2xl max-h-[80vh] overflow-y-auto rounded-xl border ${color.border} shadow-xl p-3 xs:p-4 ${styles.card}`}
               onClick={(e) => e.stopPropagation()}
             >
-              <button onClick={() => setExpanded(false)} className={`absolute top-2 xs:top-3 right-2 xs:right-3 p-1.5 rounded-full bg-white/10 dark:bg-white/5 hover:bg-white/20 dark:hover:bg-white/10 transition ${color.text}`}>
-                <X className="h-5 w-5 xs:h-6 xs:w-6" />
+              <button onClick={() => setExpanded(false)} className={`absolute top-2 right-2 p-1 rounded-full bg-white/10 hover:bg-white/20 transition ${color.text}`}>
+                <X className="h-4 w-4 xs:h-5 xs:w-5" />
               </button>
-              <div className="space-y-4 xs:space-y-5">
-                <div className="flex items-center gap-1.5 xs:gap-2">
-                  <Megaphone className={`h-5 w-5 xs:h-6 xs:w-6 ${color.text}`} />
-                  <h2 className={`text-xl xs:text-2xl font-bold ${styles.text}`}>{language === 'ar' ? 'الإعلانات' : 'Announcements'}</h2>
-                  <span className={`text-[10px] xs:text-xs px-2 py-0.5 rounded-full ${color.bg} ${color.text}`}>{currentPage + 1} / {totalPages}</span>
+              <div className="space-y-3">
+                <div className="flex items-center gap-1.5">
+                  <Megaphone className={`h-4 w-4 xs:h-5 xs:w-5 ${color.text}`} />
+                  <h2 className={`text-lg xs:text-xl font-bold ${styles.text}`}>{language === 'ar' ? 'الإعلانات' : 'Announcements'}</h2>
+                  <span className={`text-[8px] xs:text-[10px] px-2 py-0.5 rounded-full ${color.bg} ${color.text}`}>{currentPage+1}/{totalPages}</span>
                 </div>
                 {renderAnnouncementFull()}
-                {totalPages > 1 && (
-                  <div className="flex items-center justify-between gap-3">
-                    <button onClick={handlePrev} className={`p-1.5 rounded-lg bg-white/5 dark:bg-white/5 hover:bg-white/10 dark:hover:bg-white/10 transition ${color.text}`}>
-                      <ChevronRight className="h-5 w-5 xs:h-6 xs:w-6" />
-                    </button>
-                    <div className="flex gap-1.5">
-                      {Array.from({ length: totalPages }).map((_, idx) => (
-                        <button key={idx} onClick={() => { setDirection(idx > currentPage ? 1 : -1); setCurrentPage(idx); }}
-                          className={`h-1.5 rounded-full transition-all ${idx === currentPage ? `w-4 xs:w-6 ${color.bg}` : `w-1.5 ${styles.subtext}`}`} />
-                      ))}
-                    </div>
-                    <button onClick={handleNext} className={`p-1.5 rounded-lg bg-white/5 dark:bg-white/5 hover:bg-white/10 dark:hover:bg-white/10 transition ${color.text}`}>
-                      <ChevronLeft className="h-5 w-5 xs:h-6 xs:w-6" />
-                    </button>
-                  </div>
-                )}
+                <div className="flex justify-center gap-2">
+                  <button onClick={handlePrev} className={`p-1 rounded ${color.text} hover:bg-white/10`}>
+                    <ChevronRight className="h-5 w-5" />
+                  </button>
+                  <button onClick={handleNext} className={`p-1 rounded ${color.text} hover:bg-white/10`}>
+                    <ChevronLeft className="h-5 w-5" />
+                  </button>
+                </div>
               </div>
             </motion.div>
           </motion.div>
@@ -621,10 +637,11 @@ const SuperAnnouncements = ({ announcements, styles, language }) => {
       </AnimatePresence>
     </>
   );
-};
+});
+SuperAnnouncements.displayName = 'SuperAnnouncements';
 
 // ================================================================
-// 8. بطاقة الملاحظة – مصغرة مع تحسينات الاستجابة + memo
+// 8. بطاقة الملاحظة – مع تعطيل hover على الموبايل
 // ================================================================
 const LargeNoteCard = memo(({ latestNote, language, styles, theme }) => {
   const router = useRouter();
@@ -636,57 +653,56 @@ const LargeNoteCard = memo(({ latestNote, language, styles, theme }) => {
 
   return (
     <motion.div
-      whileHover={isHoverable ? { scale: 1.02, y: -3 } : {}}
+      whileHover={isHoverable ? { scale: 1.015, y: -2 } : {}}
       onMouseEnter={() => isHoverable && setIsHovered(true)}
       onMouseLeave={() => isHoverable && setIsHovered(false)}
       onClick={() => router.push('/dashboard/student/notes')}
-      className="relative cursor-pointer"
+      className="relative cursor-pointer h-full"
     >
       <WaveBorderCard initialColor={color.name} onColorChange={handleColorChange}>
-        <div className="p-3 xs:p-4 sm:p-5">
-          <div className="flex items-center gap-1.5 xs:gap-2 mb-1.5 xs:mb-2">
-            <div className={`p-1.5 xs:p-2 rounded-lg ${color.bg}`}>
-              <StickyNote className={`h-3.5 w-3.5 xs:h-4 xs:w-4 sm:h-5 sm:w-5 ${color.text}`} />
+        <div className="p-2 xs:p-3 sm:p-4">
+          <div className="flex items-center gap-1 xs:gap-1.5 mb-1 xs:mb-1.5">
+            <div className={`p-1 rounded-lg ${color.bg}`}>
+              <StickyNote className={`h-3 w-3 xs:h-3.5 xs:w-3.5 sm:h-4 sm:w-4 ${color.text}`} />
             </div>
-            <h3 className={`text-sm xs:text-base sm:text-lg font-bold ${styles.text}`}>{language === 'ar' ? 'آخر ملاحظة' : 'Recent Note'}</h3>
+            <h3 className={`text-[10px] xs:text-xs sm:text-sm font-bold ${styles.text}`}>{language === 'ar' ? 'آخر ملاحظة' : 'Recent Note'}</h3>
           </div>
           {latestNote ? (
-            <div className="space-y-1.5">
-              <div className="flex items-start gap-2">
-                <span className="text-xl xs:text-2xl">{latestNote.emoji || '📝'}</span>
-                <p className={`text-xs xs:text-sm ${styles.text} line-clamp-3 leading-relaxed`}>{latestNote.note}</p>
+            <div className="space-y-1">
+              <div className="flex items-start gap-1.5">
+                <span className="text-lg xs:text-xl">{latestNote.emoji || '📝'}</span>
+                <p className={`text-[10px] xs:text-xs ${styles.text} line-clamp-3 leading-relaxed`}>{latestNote.note}</p>
               </div>
-              <p className={`text-[10px] xs:text-xs ${styles.subtext}`}>
-                {new Date(latestNote.created_at).toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
-                {latestNote.pinned && ' 📌 مثبتة'}
+              <p className={`text-[8px] xs:text-[10px] ${styles.subtext}`}>
+                {new Date(latestNote.created_at).toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US', { month: 'short', day: 'numeric' })}
+                {latestNote.pinned && ' 📌'}
               </p>
             </div>
           ) : (
-            <p className={`text-xs xs:text-sm ${styles.subtext}`}>{language === 'ar' ? 'لا توجد ملاحظات. اضف واحدة!' : 'No notes yet. Add one!'}</p>
+            <p className={`text-[10px] xs:text-xs ${styles.subtext}`}>{language === 'ar' ? 'لا توجد ملاحظات' : 'No notes'}</p>
           )}
         </div>
       </WaveBorderCard>
     </motion.div>
   );
 });
-
 LargeNoteCard.displayName = 'LargeNoteCard';
 
 // ================================================================
-// 9. شريط المعلومات اليومية – مصغر مع تحسينات الاستجابة
+// 9. شريط المعلومات اليومية – مبسط على الموبايل
 // ================================================================
-const LanguageTipCarousel = ({ language, styles }) => {
+const LanguageTipCarousel = memo(({ language, styles }) => {
   const tips = [
-    { ar: 'اللغة الإنجليزية هي اللغة الرسمية في 67 دولة حول العالم.', en: 'English is the official language in 67 countries worldwide.' },
-    { ar: 'أكثر الكلمات استخداماً في الإنجليزية هي "the" – تظهر في كل جملة تقريباً!', en: 'The most common word in English is "the" – it appears in almost every sentence!' },
-    { ar: 'اللغة الإنجليزية تحتوي على 26 حرفاً فقط، ولكنها تضم أكثر من 500,000 كلمة!', en: 'English has only 26 letters, but it contains over 500,000 words!' },
-    { ar: 'أطول كلمة في الإنجليزية هي "pneumonoultramicroscopicsilicovolcanoconiosis" – وتشير إلى مرض رئوي.', en: 'The longest word in English is "pneumonoultramicroscopicsilicovolcanoconiosis" – a lung disease.' },
-    { ar: 'كلمة "set" لها أكثر من 430 معنى مختلف في قاموس أكسفورد!', en: 'The word "set" has over 430 different meanings in the Oxford Dictionary!' },
-    { ar: 'أقصر جملة مكتملة في الإنجليزية هي "I am" – وتحتوي على فاعل وفعل ومفعول به ضمنياً.', en: 'The shortest complete sentence in English is "I am" – it has a subject, verb, and implied object.' },
-    { ar: 'كلمة "Goodbye" جاءت من عبارة "God be with you" التي اختصرت عبر الزمن.', en: 'The word "Goodbye" comes from "God be with you" shortened over time.' },
-    { ar: 'اللغة الإنجليزية تتغير باستمرار – يتم إضافة حوالي 1000 كلمة جديدة كل عام!', en: 'English is constantly evolving – about 1000 new words are added every year!' },
-    { ar: 'أول قاموس إنجليزي كتبه صامويل جونسون عام 1755 واستغرق 9 سنوات لإكماله.', en: 'The first English dictionary was written by Samuel Johnson in 1755 and took 9 years to complete.' },
-    { ar: 'كلمة "queue" هي الكلمة الوحيدة التي تنطق كما لو كانت حرفاً واحداً (Q).', en: 'The word "queue" is the only word that is pronounced as if it were a single letter (Q).' },
+    { ar: 'اللغة الإنجليزية هي اللغة الرسمية في 67 دولة حول العالم.', en: 'English is the official language in 67 countries.' },
+    { ar: 'أكثر الكلمات استخداماً في الإنجليزية هي "the" – تظهر في كل جملة تقريباً!', en: 'The most common word in English is "the".' },
+    { ar: 'اللغة الإنجليزية تحتوي على 26 حرفاً فقط، ولكنها تضم أكثر من 500,000 كلمة!', en: 'English has 26 letters, but over 500,000 words!' },
+    { ar: 'أطول كلمة في الإنجليزية هي "pneumonoultramicroscopicsilicovolcanoconiosis" – تشير إلى مرض رئوي.', en: 'Longest word: pneumonoultramicroscopicsilicovolcanoconiosis.' },
+    { ar: 'كلمة "set" لها أكثر من 430 معنى مختلف في قاموس أكسفورد!', en: '"set" has over 430 meanings in Oxford Dictionary!' },
+    { ar: 'أقصر جملة مكتملة في الإنجليزية هي "I am" – تحتوي على فاعل وفعل.', en: 'Shortest sentence: "I am".' },
+    { ar: 'كلمة "Goodbye" جاءت من عبارة "God be with you" التي اختصرت.', en: '"Goodbye" comes from "God be with you".' },
+    { ar: 'اللغة الإنجليزية تتغير باستمرار – يتم إضافة حوالي 1000 كلمة جديدة كل عام!', en: 'About 1000 new words added every year!' },
+    { ar: 'أول قاموس إنجليزي كتبه صامويل جونسون عام 1755 واستغرق 9 سنوات.', en: 'First English dictionary took 9 years (1755).' },
+    { ar: 'كلمة "queue" هي الكلمة الوحيدة التي تنطق كما لو كانت حرفاً واحداً (Q).', en: '"queue" is pronounced like the letter Q.' },
   ];
 
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -696,7 +712,7 @@ const LanguageTipCarousel = ({ language, styles }) => {
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentIndex((prev) => (prev + 1) % totalTips);
-    }, 12000);
+    }, 10000);
     return () => clearInterval(interval);
   }, [totalTips]);
 
@@ -707,28 +723,28 @@ const LanguageTipCarousel = ({ language, styles }) => {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 8 }}
+      initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -8 }}
+      exit={{ opacity: 0, y: -6 }}
       key={currentIndex}
     >
       <WaveBorderCard initialColor={color.name} onColorChange={handleColorChange}>
-        <div className="p-3 xs:p-4 sm:p-5">
-          <div className="flex items-start gap-2 xs:gap-3">
-            <div className={`p-1.5 xs:p-2 rounded-lg ${color.bg} flex-shrink-0`}>
-              <Lightbulb className={`h-4 w-4 xs:h-5 xs:w-5 sm:h-6 sm:w-6 ${color.text}`} />
+        <div className="p-2 xs:p-3 sm:p-4">
+          <div className="flex items-start gap-1.5 xs:gap-2">
+            <div className={`p-1 rounded-lg ${color.bg} flex-shrink-0`}>
+              <Lightbulb className={`h-3.5 w-3.5 xs:h-4 xs:w-4 sm:h-5 sm:w-5 ${color.text}`} />
             </div>
             <div className="flex-1 min-w-0">
-              <p className={`text-[8px] xs:text-[9px] sm:text-xs font-bold ${styles.subtext} uppercase tracking-wider mb-0.5`}>
-                💡 {language === 'ar' ? 'معلومة إنجليزية اليوم' : 'English Fact of the Day'}
+              <p className={`text-[6px] xs:text-[8px] font-bold ${styles.subtext} uppercase tracking-wider mb-0.5`}>
+                💡 {language === 'ar' ? 'معلومة اليوم' : 'Fact'}
               </p>
-              <p className={`text-xs xs:text-sm sm:text-base ${styles.text} leading-relaxed`}>{tipText}</p>
-              <div className="flex gap-1 mt-2">
-                {Array.from({ length: totalTips }).map((_, idx) => (
+              <p className={`text-[10px] xs:text-xs sm:text-sm ${styles.text} leading-relaxed`}>{tipText}</p>
+              <div className="flex gap-1 mt-1.5">
+                {Array.from({ length: Math.min(totalTips, 5) }).map((_, idx) => (
                   <span
                     key={idx}
-                    className={`h-1.5 rounded-full transition-all duration-500 ${
-                      idx === currentIndex ? `w-3 xs:w-4 sm:w-5 ${color.bg}` : `w-1.5 ${styles.subtext}`
+                    className={`h-1 rounded-full transition-all duration-500 ${
+                      idx === currentIndex ? `w-2 xs:w-3 ${color.bg}` : `w-1 ${styles.subtext}`
                     }`}
                   />
                 ))}
@@ -739,13 +755,14 @@ const LanguageTipCarousel = ({ language, styles }) => {
       </WaveBorderCard>
     </motion.div>
   );
-};
+});
+LanguageTipCarousel.displayName = 'LanguageTipCarousel';
 
 // ================================================================
 // 10. نظام التخزين المؤقت (Cache) مع انتهاء صلاحية 5 دقائق
 // ================================================================
 const CACHE_KEY = 'dashboard_data_cache';
-const CACHE_EXPIRY_MS = 5 * 60 * 1000; // 5 دقائق
+const CACHE_EXPIRY_MS = 5 * 60 * 1000;
 
 function getCachedData() {
   try {
@@ -765,13 +782,11 @@ function getCachedData() {
 function setCachedData(data) {
   try {
     localStorage.setItem(CACHE_KEY, JSON.stringify({ data, timestamp: Date.now() }));
-  } catch (e) {
-    // تجاهل أخطاء التخزين
-  }
+  } catch (e) {}
 }
 
 // ================================================================
-// الصفحة الرئيسية – مصغرة بالكامل مع تحسينات الاستجابة
+// الصفحة الرئيسية – نسخة فائقة السرعة على الموبايل
 // ================================================================
 export default function StudentDashboard() {
   const { theme, styles, language } = useTheme();
@@ -797,7 +812,7 @@ export default function StudentDashboard() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [teacherId, setTeacherId] = useState(null);
 
-  // دوال جلب البيانات
+  // دوال جلب البيانات (نفسها بدون تغيير)
   const looksLikeEmailOrUsername = (text) => {
     if (!text) return true;
     if (text.includes('@')) return true;
@@ -822,7 +837,6 @@ export default function StudentDashboard() {
   }, []);
 
   const fetchData = useCallback(async (userId, useCache = true) => {
-    // محاولة استخدام التخزين المؤقت
     if (useCache) {
       const cached = getCachedData();
       if (cached && cached.userId === userId) {
@@ -849,7 +863,6 @@ export default function StudentDashboard() {
       }
     }
 
-    // جلب البيانات من السيرفر
     try {
       const { data: { user: authUser } } = await supabase.auth.getUser();
       const authMetadata = authUser?.user_metadata || {};
@@ -945,42 +958,31 @@ export default function StudentDashboard() {
         .order('created_at', { ascending: false })
         .limit(10);
 
-      if (annError) {
-        console.error('خطأ في جلب الإعلانات:', annError);
-      }
-
       const processedAnns = (anns || []).map(ann => {
         const likes = ann.announcement_likes || [];
         const totalLikes = likes.length;
         const userLiked = likes.some(like => like.student_id === userId);
-        return {
-          ...ann,
-          total_likes: totalLikes,
-          user_liked: userLiked,
-          announcement_likes: undefined,
-        };
+        return { ...ann, total_likes: totalLikes, user_liked: userLiked, announcement_likes: undefined };
       });
       setAnnouncements(processedAnns);
 
-      // جلب الرسائل إذا وجد معلم
       const teacherIdFromState = validEnrolls.length > 0 && validEnrolls[0].courses?.teacher_id;
       let msgs = [];
       if (teacherIdFromState) {
-        const { data: msgsData, error: msgError } = await supabase
+        const { data: msgsData } = await supabase
           .from('messages')
           .select('*')
           .eq('receiver_id', userId)
           .eq('sender_id', teacherIdFromState)
           .order('created_at', { ascending: false })
           .limit(20);
-        if (!msgError) msgs = msgsData || [];
+        if (msgsData) msgs = msgsData;
       }
       setMessages(msgs);
 
       const note = await getLatestNote();
       setLatestNote(note);
 
-      // حفظ في التخزين المؤقت
       const cacheData = {
         userId,
         user: profile,
@@ -997,7 +999,6 @@ export default function StudentDashboard() {
         teacherId: teacherIdFromState || null,
       };
       setCachedData(cacheData);
-
       setLoading(false);
       return true;
     } catch (err) {
@@ -1018,16 +1019,12 @@ export default function StudentDashboard() {
     })();
   }, [fetchData]);
 
-  // تحديث البيانات في الخلفية عند التركيز
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible' && !loading) {
-        // تحديث في الخلفية مع تجاهل الكاش
         (async () => {
           const { data: { user: authUser } } = await supabase.auth.getUser();
-          if (authUser) {
-            await fetchData(authUser.id, false);
-          }
+          if (authUser) await fetchData(authUser.id, false);
         })();
       }
     };
@@ -1039,7 +1036,6 @@ export default function StudentDashboard() {
     const newState = !notificationsEnabled;
     setNotificationsEnabled(newState);
     setIsDrawerOpen(false);
-
     try {
       const res = await fetch('/api/user/preferences', {
         method: 'PUT',
@@ -1058,11 +1054,7 @@ export default function StudentDashboard() {
 
   const handleUpdateAnnouncements = useCallback((annId, liked, totalLikes) => {
     setAnnouncements(prev =>
-      prev.map(a =>
-        a.id === annId
-          ? { ...a, user_liked: liked, total_likes: totalLikes }
-          : a
-      )
+      prev.map(a => a.id === annId ? { ...a, user_liked: liked, total_likes: totalLikes } : a)
     );
   }, []);
 
@@ -1073,12 +1065,12 @@ export default function StudentDashboard() {
   if (loading) return (
     <div className={`h-full w-full flex items-center justify-center ${styles.bg}`}>
       <div className="relative">
-        <div className="w-14 h-14 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin" />
+        <div className="w-12 h-12 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin" />
         <div className="absolute inset-0 flex items-center justify-center">
           <motion.div
             animate={{ scale: [1, 1.2, 1] }}
             transition={{ duration: 1.5, repeat: Infinity }}
-            className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full shadow-2xl shadow-blue-500/50"
+            className="w-6 h-6 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full shadow-2xl shadow-blue-500/50"
           />
         </div>
       </div>
@@ -1087,77 +1079,75 @@ export default function StudentDashboard() {
 
   return (
     <div className={`w-full min-h-screen ${styles.bg} transition-colors duration-300 relative overflow-hidden`}>
-      {/* خلفية متحركة */}
+      {/* خلفية متحركة – تُعطّل على الموبايل */}
       <motion.div
         animate={{ x: ['-5%', '5%', '-5%'], y: ['-5%', '5%', '-5%'] }}
         transition={{ duration: 30, repeat: Infinity, ease: 'linear' }}
-        className="fixed -top-60 -right-60 w-[600px] h-[600px] bg-blue-500/5 dark:bg-blue-400/5 rounded-full blur-3xl pointer-events-none"
+        className="fixed -top-60 -right-60 w-[600px] h-[600px] bg-blue-500/5 rounded-full blur-3xl pointer-events-none hidden sm:block"
       />
       <motion.div
         animate={{ x: ['5%', '-5%', '5%'], y: ['5%', '-5%', '5%'] }}
         transition={{ duration: 35, repeat: Infinity, ease: 'linear' }}
-        className="fixed -bottom-60 -left-60 w-[700px] h-[700px] bg-green-500/5 dark:bg-green-400/5 rounded-full blur-3xl pointer-events-none"
+        className="fixed -bottom-60 -left-60 w-[700px] h-[700px] bg-green-500/5 rounded-full blur-3xl pointer-events-none hidden sm:block"
       />
 
-      <div className="relative z-10 px-3 xs:px-4 sm:px-6 py-4 xs:py-5 sm:py-6 space-y-4 xs:space-y-5 sm:space-y-6 max-w-7xl mx-auto">
-        {/* ===== رأس الصفحة المعدل ===== */}
+      <div className="relative z-10 px-2 xs:px-3 sm:px-4 md:px-6 py-2 xs:py-3 sm:py-4 md:py-6 space-y-3 xs:space-y-4 sm:space-y-5 max-w-7xl mx-auto">
+        {/* ===== رأس الصفحة – مبسط على الموبايل ===== */}
         <motion.div
-          initial={{ opacity: 0, y: -20 }}
+          initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, type: 'spring', stiffness: 200 }}
-          className={`flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 xs:gap-4 p-4 xs:p-5 sm:p-6 rounded-2xl border ${styles.border} backdrop-blur-sm shadow-md ${styles.card}`}
+          transition={{ duration: 0.4 }}
+          className={`flex flex-col md:flex-row md:items-center md:justify-between gap-2 xs:gap-3 p-3 xs:p-4 sm:p-5 rounded-xl sm:rounded-2xl border ${styles.border} shadow-sm ${styles.card}`}
+          style={{
+            backdropFilter: 'none', // نزيل الزجاج على الموبايل
+          }}
         >
-          <div className="flex items-center gap-3 xs:gap-4">
+          <div className="flex items-center gap-2 xs:gap-3">
             <motion.div
-              whileHover={{ scale: 1.05, rotate: 4 }}
-              className="relative h-14 w-14 xs:h-16 xs:w-16 sm:h-20 sm:w-20 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-extrabold text-lg xs:text-2xl sm:text-3xl shadow-xl shadow-blue-500/30 dark:shadow-blue-400/20 overflow-hidden ring-4 ring-blue-500/20 dark:ring-blue-400/10"
+              whileHover={{ scale: 1.04, rotate: 3 }}
+              className="relative h-12 w-12 xs:h-14 xs:w-14 sm:h-16 sm:w-16 rounded-lg xs:rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-extrabold text-base xs:text-lg sm:text-2xl shadow-md overflow-hidden ring-2 ring-blue-500/20"
             >
               {user?.avatar_url ? (
                 <img src={user.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
               ) : (
                 <span>{(user?.full_name?.[0] || (language === 'ar' ? 'ط' : 'S')).toUpperCase()}</span>
               )}
-              <span className="absolute -bottom-0.5 -right-0.5 h-4 w-4 xs:h-5 xs:w-5 rounded-full bg-emerald-500 border-2 border-white dark:border-gray-800" />
+              <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 xs:h-4 xs:w-4 rounded-full bg-emerald-500 border-2 border-white dark:border-gray-800" />
             </motion.div>
             <div>
-              <h1 className={`text-lg xs:text-2xl sm:text-3xl md:text-4xl font-black ${styles.text}`}>
+              <h1 className={`text-base xs:text-xl sm:text-2xl md:text-3xl font-black ${styles.text}`}>
                 {language === 'ar' ? 'مرحباً' : 'Welcome'}{', '}
-                <motion.span
-                  animate={{ backgroundPosition: ['0% 50%', '100% 50%', '0% 50%'] }}
-                  transition={{ duration: 6, repeat: Infinity, ease: 'linear' }}
-                  className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-blue-500 to-blue-400 dark:from-blue-300 dark:via-blue-400 dark:to-blue-300 bg-[length:300%_auto]"
-                >
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-500 to-blue-400 dark:from-blue-300 dark:to-blue-400">
                   {user?.full_name || (language === 'ar' ? 'طالب' : 'Student')}
-                </motion.span>
+                </span>
               </h1>
-              <p className={`text-[10px] xs:text-xs sm:text-sm ${styles.subtext} opacity-80 mt-0.5`}>
+              <p className={`text-[8px] xs:text-[10px] sm:text-xs ${styles.subtext} opacity-70 mt-0.5`}>
                 {language === 'ar' ? 'كل يوم فرصة جديدة للتعلم!' : 'Every day is a new chance to learn!'}
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 xs:gap-3">
+          <div className="flex items-center gap-1.5 xs:gap-2 self-end md:self-center">
             <MembershipCounter days={daysSinceJoin} styles={styles} language={language} />
 
             <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
+              whileTap={{ scale: 0.92 }}
               onClick={() => {
                 if (!notificationsEnabled) {
-                  toast.error('الإشعارات معطلة. قم بتفعيلها أولاً.');
+                  toast.error('الإشعارات معطلة');
                   return;
                 }
                 setIsDrawerOpen(true);
               }}
-              className={`relative p-2 xs:p-2.5 rounded-xl border ${styles.border} ${styles.card} hover:border-yellow-500/50 transition-all duration-300`}
+              className={`relative p-1.5 xs:p-2 rounded-lg border ${styles.border} ${styles.card} transition-all duration-300`}
             >
-              <Bell className={`h-4 w-4 xs:h-5 xs:w-5 ${notificationsEnabled ? 'text-yellow-500' : 'text-gray-500'}`} />
+              <Bell className={`h-3.5 w-3.5 xs:h-4 xs:w-4 ${notificationsEnabled ? 'text-yellow-500' : 'text-gray-400'}`} />
               {notificationsEnabled && (() => {
                 const unreadMessages = messages.filter(m => m.sender_id === teacherId && !m.is_read).length;
                 const totalUnread = unreadMessages + announcements.filter(a => a.is_published).length;
                 if (totalUnread > 0) {
                   return (
-                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[8px] font-bold rounded-full h-3.5 w-3.5 xs:h-4 xs:w-4 flex items-center justify-center shadow-lg animate-pulse">
+                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[6px] xs:text-[8px] font-bold rounded-full h-3 w-3 xs:h-3.5 xs:w-3.5 flex items-center justify-center shadow-lg">
                       {totalUnread > 9 ? '9+' : totalUnread}
                     </span>
                   );
@@ -1172,10 +1162,10 @@ export default function StudentDashboard() {
         <LanguageTipCarousel language={language} styles={styles} />
 
         {/* ===== الشبكة الرئيسية ===== */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 xs:gap-5 sm:gap-6">
-          <div className="lg:col-span-2 space-y-4 xs:space-y-5 sm:space-y-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 xs:gap-4 sm:gap-5">
+          <div className="lg:col-span-2 space-y-3 xs:space-y-4 sm:space-y-5">
             {/* بطاقات الإحصائيات */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 xs:gap-3 sm:gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 xs:gap-3">
               <LargeStatCard icon={BookOpen} label={language === 'ar' ? 'كورسات' : 'Courses'} value={stats.coursesEnrolled} styles={styles} delay={0} />
               <LargeStatCard icon={Video} label={language === 'ar' ? 'فيديوهات' : 'Videos'} value={stats.completedVideos} styles={styles} delay={0.05} />
               <LargeStatCard icon={FileQuestion} label={language === 'ar' ? 'امتحانات' : 'Exams'} value={stats.totalExamsTaken} styles={styles} delay={0.1} />
@@ -1183,80 +1173,81 @@ export default function StudentDashboard() {
 
             {/* كورساتي النشطة */}
             <motion.div
-              initial={{ opacity: 0, y: 15 }}
+              initial={{ opacity: 0, y: 10 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
+              transition={{ duration: 0.3 }}
             >
-              <div className="flex justify-between items-center mb-2 xs:mb-3 sm:mb-4">
-                <h2 className={`text-base xs:text-xl sm:text-2xl font-black ${styles.text} flex items-center gap-1.5 xs:gap-2`}>
-                  <BookOpen className="h-5 w-5 xs:h-6 xs:w-6 text-green-600 dark:text-green-400" />
-                  {language === 'ar' ? 'كورساتي النشطة' : 'Active Courses'}
+              <div className="flex justify-between items-center mb-1.5 xs:mb-2">
+                <h2 className={`text-sm xs:text-base sm:text-xl font-black ${styles.text} flex items-center gap-1.5`}>
+                  <BookOpen className="h-4 w-4 xs:h-5 xs:w-5 text-green-600 dark:text-green-400" />
+                  {language === 'ar' ? 'كورساتي' : 'My Courses'}
                 </h2>
-                <Link href="/dashboard/student/courses" className={`text-[10px] xs:text-sm font-bold ${styles.subtext} hover:text-green-600 dark:hover:text-green-400 transition`}>
+                <Link href="/dashboard/student/courses" className={`text-[8px] xs:text-[10px] sm:text-sm font-bold ${styles.subtext} hover:text-green-600 transition`}>
                   {language === 'ar' ? 'عرض الكل' : 'View all'}
                 </Link>
               </div>
               {courses.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 xs:gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 xs:gap-3">
                   {courses.slice(0, 4).map(course => {
                     const progress = enrollments.find(e => e.course_id === course.id)?.progress || 0;
                     return <LargeCourseCard key={course.id} course={course} progress={progress} styles={styles} theme={theme} language={language} />;
                   })}
                 </div>
               ) : (
-                <p className={`text-sm xs:text-base ${styles.subtext} text-center py-4 xs:py-6`}>
+                <p className={`text-xs xs:text-sm ${styles.subtext} text-center py-3 xs:py-4`}>
                   {language === 'ar' ? 'لا توجد كورسات مسجلة' : 'No courses enrolled yet'}
                 </p>
               )}
             </motion.div>
 
             {/* امتحانات قادمة + نشاط حديث */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 xs:gap-4 sm:gap-5">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 xs:gap-4">
               <motion.div
-                initial={{ opacity: 0, y: 15 }}
+                initial={{ opacity: 0, y: 10 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
               >
                 <WaveBorderCard initialColor="blue">
-                  <div className="p-3 xs:p-4 sm:p-5">
-                    <h2 className={`text-base xs:text-lg sm:text-xl font-black ${styles.text} flex items-center gap-1.5 xs:gap-2`}>
-                      <AlarmClock className="h-5 w-5 xs:h-6 xs:w-6 text-blue-600 dark:text-blue-400" />
+                  <div className="p-2 xs:p-3 sm:p-4">
+                    <h2 className={`text-sm xs:text-base sm:text-lg font-black ${styles.text} flex items-center gap-1.5`}>
+                      <AlarmClock className="h-4 w-4 xs:h-5 xs:w-5 text-blue-600 dark:text-blue-400" />
                       {language === 'ar' ? 'الامتحانات القادمة' : 'Upcoming Exams'}
                     </h2>
-                    <div className="space-y-2 xs:space-y-2.5 mt-2">
-                      {upcomingExams.length > 0 ? upcomingExams.map(exam => (
-                        <div key={exam.id} className={`flex items-center justify-between p-2.5 xs:p-3 rounded-xl ${styles.card} border ${styles.border} backdrop-blur-sm`}>
-                          <span className={`text-xs xs:text-sm font-medium ${styles.text}`}>{exam.title}</span>
-                          <Link href={`/dashboard/student/exams/${exam.id}`} className="text-blue-600 dark:text-blue-400 px-2 xs:px-3 py-1 xs:py-1.5 bg-blue-500/10 dark:bg-blue-400/10 rounded-lg text-[10px] xs:text-xs font-bold hover:bg-blue-500/20 dark:hover:bg-blue-400/20 transition">
+                    <div className="space-y-1.5 xs:space-y-2 mt-1.5">
+                      {upcomingExams.length > 0 ? upcomingExams.slice(0, 3).map(exam => (
+                        <div key={exam.id} className={`flex items-center justify-between p-1.5 xs:p-2 rounded-lg ${styles.card} border ${styles.border}`}>
+                          <span className={`text-[10px] xs:text-xs font-medium ${styles.text} truncate`}>{exam.title}</span>
+                          <Link href={`/dashboard/student/exams/${exam.id}`} className="text-blue-600 dark:text-blue-400 px-1.5 xs:px-2 py-0.5 xs:py-1 bg-blue-500/10 rounded-lg text-[8px] xs:text-[10px] font-bold hover:bg-blue-500/20 transition">
                             {language === 'ar' ? 'دخول' : 'Enter'}
                           </Link>
                         </div>
-                      )) : <p className={`text-xs xs:text-sm ${styles.subtext}`}>{language === 'ar' ? 'لا توجد امتحانات قادمة' : 'No upcoming exams'}</p>}
+                      )) : <p className={`text-[10px] xs:text-xs ${styles.subtext}`}>{language === 'ar' ? 'لا توجد امتحانات' : 'No exams'}</p>}
                     </div>
                   </div>
                 </WaveBorderCard>
               </motion.div>
 
               <motion.div
-                initial={{ opacity: 0, y: 15 }}
+                initial={{ opacity: 0, y: 10 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
               >
                 <WaveBorderCard initialColor="orange">
-                  <div className="p-3 xs:p-4 sm:p-5">
-                    <h3 className={`text-base xs:text-lg sm:text-xl font-black ${styles.text} flex items-center gap-1.5 xs:gap-2`}>
-                      <Activity className="h-5 w-5 xs:h-6 xs:w-6 text-orange-600 dark:text-orange-400" />
-                      {language === 'ar' ? 'نشاط حديث' : 'Recent Activity'}
+                  <div className="p-2 xs:p-3 sm:p-4">
+                    <h3 className={`text-sm xs:text-base sm:text-lg font-black ${styles.text} flex items-center gap-1.5`}>
+                      <Activity className="h-4 w-4 xs:h-5 xs:w-5 text-orange-600 dark:text-orange-400" />
+                      {language === 'ar' ? 'نشاط حديث' : 'Recent'}
                     </h3>
-                    <div className="space-y-2 xs:space-y-2.5 mt-2">
-                      {recentActivity.map((act, i) => (
-                        <div key={i} className={`flex items-center gap-2 xs:gap-3 text-xs xs:text-sm ${styles.subtext}`}>
-                          {act.type === 'video' ? <Video className="h-4 w-4 xs:h-5 xs:w-5 text-blue-500 dark:text-blue-400" /> : <FileQuestion className="h-4 w-4 xs:h-5 xs:w-5 text-emerald-500 dark:text-emerald-400" />}
+                    <div className="space-y-1.5 xs:space-y-2 mt-1.5">
+                      {recentActivity.slice(0, 3).map((act, i) => (
+                        <div key={i} className={`flex items-center gap-1.5 xs:gap-2 text-[10px] xs:text-xs ${styles.subtext}`}>
+                          {act.type === 'video' ? <Video className="h-3.5 w-3.5 xs:h-4 xs:w-4 text-blue-500" /> : <FileQuestion className="h-3.5 w-3.5 xs:h-4 xs:w-4 text-emerald-500" />}
                           <span className="flex-1 truncate font-medium">{act.title}</span>
-                          <span className="text-[9px] xs:text-[10px] whitespace-nowrap opacity-70">{timeAgo(act.date, language)}</span>
+                          <span className="text-[7px] xs:text-[9px] whitespace-nowrap opacity-60">{timeAgo(act.date, language)}</span>
                         </div>
                       ))}
-                      {recentActivity.length === 0 && <p className={`text-xs xs:text-sm ${styles.subtext}`}>{language === 'ar' ? 'لا يوجد نشاط' : 'No activity'}</p>}
+                      {recentActivity.length === 0 && <p className={`text-[10px] xs:text-xs ${styles.subtext}`}>{language === 'ar' ? 'لا يوجد نشاط' : 'No activity'}</p>}
                     </div>
                   </div>
                 </WaveBorderCard>
@@ -1265,14 +1256,14 @@ export default function StudentDashboard() {
           </div>
 
           {/* العمود الأيمن */}
-          <div className="space-y-4 xs:space-y-5 sm:space-y-6">
+          <div className="space-y-3 xs:space-y-4 sm:space-y-5">
             <LargeNoteCard latestNote={latestNote} language={language} styles={styles} theme={theme} />
             <SuperAnnouncements announcements={announcements} styles={styles} language={language} />
           </div>
         </div>
 
-        {/* روابط سريعة – مصغرة */}
-        <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 xs:gap-3 sm:gap-4">
+        {/* روابط سريعة – مصغرة جداً على الموبايل */}
+        <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5 xs:gap-2 sm:gap-3">
           {[
             { href: '/dashboard/student/courses', icon: Search, label: { ar: 'كورسات', en: 'Courses' } },
             { href: '/dashboard/student/support', icon: HelpCircle, label: { ar: 'دعم', en: 'Support' } },
@@ -1282,10 +1273,10 @@ export default function StudentDashboard() {
             { href: '/dashboard/student/notes', icon: StickyNote, label: { ar: 'ملاحظات', en: 'Notes' } },
           ].map((item) => (
             <Link key={item.href} href={item.href}
-              className={`flex flex-col items-center gap-1.5 xs:gap-2 p-3 xs:p-4 sm:p-5 rounded-xl border ${styles.border} ${styles.card} hover:border-blue-500/50 dark:hover:border-blue-400/50 transition-all duration-300 group hover:-translate-y-1 hover:shadow-lg`}
+              className={`flex flex-col items-center gap-0.5 xs:gap-1 p-2 xs:p-3 rounded-lg border ${styles.border} ${styles.card} transition-all duration-200 group hover:border-blue-500/40`}
             >
-              <item.icon className={`h-5 w-5 xs:h-6 xs:w-6 sm:h-7 sm:w-7 text-blue-600 dark:text-blue-400 group-hover:scale-110 group-hover:rotate-6 transition-transform`} />
-              <span className={`text-[10px] xs:text-xs sm:text-sm font-bold ${styles.text}`}>{item.label[language]}</span>
+              <item.icon className={`h-4 w-4 xs:h-5 xs:w-5 text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform`} />
+              <span className={`text-[7px] xs:text-[9px] sm:text-xs font-bold ${styles.text} text-center`}>{item.label[language]}</span>
             </Link>
           ))}
         </div>
