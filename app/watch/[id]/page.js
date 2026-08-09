@@ -1,9 +1,8 @@
 // ================================================================
 // 📁 المسار: app/watch/[id]/page.js
-// ✅ النسخة النهائية – نفس المميزات والتصميم الفاخر على الديسكتوب
-// ✅ خفيفة وسريعة جداً على الموبايل مع تقليل التهنيج تماماً
-// ✅ الحفاظ على جميع خصائص الأمان والتحكم
-// ✅ استخدام تقنيات تحسين الأداء الشرطية (حسب الجهاز)
+// ✅ النسخة النهائية – إلغاء التهنيج تماماً على الموبايل
+// ✅ إصلاح ظهور الأزرار في وضع ملء الشاشة (Fullscreen) على الموبايل
+// ✅ الحفاظ على التصميم الفاخر والمميزات الكاملة على الديسكتوب
 // ================================================================
 
 'use client';
@@ -14,13 +13,12 @@ import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/lib/supabaseClient';
 import { toast } from 'react-hot-toast';
-// ✅ استيراد الأيقونات الأساسية فقط
+// استيراد الأيقونات الأساسية فقط
 import {
   Play, Pause, Clock, PieChart, AlertCircle, Lock, VideoOff,
   ArrowRight, Calendar, Eye, Tv, Maximize, Volume2, VolumeX,
   SkipBack, SkipForward, RotateCcw, RotateCw, Settings,
   ClosedCaption, Eye as EyeIcon, FileText,
-  ChevronDown, ChevronUp, X, Loader2,
 } from 'lucide-react';
 import { checkCourseAccess } from '@/lib/course-access';
 import { useTheme } from '@/lib/hooks/useTheme';
@@ -101,7 +99,7 @@ function useMobile() {
 }
 
 // ================================================================
-// 2. Wave Border – متكيف مع الموبايل (نفس المظهر، أداء أخف)
+// 2. Wave Border – متكيف مع الموبايل
 // ================================================================
 const WaveBorderCard = ({ children, className = '', initialColor = 'blue', onColorChange }) => {
   const isMobile = useMobile();
@@ -110,7 +108,7 @@ const WaveBorderCard = ({ children, className = '', initialColor = 'blue', onCol
   const isMounted = useRef(true);
 
   useEffect(() => {
-    if (isMobile) return; // تعطيل الأنيميشن على الموبايل
+    if (isMobile) return;
     const interval = setInterval(() => {
       if (!isMounted.current) return;
       setRotation(prev => {
@@ -121,7 +119,7 @@ const WaveBorderCard = ({ children, className = '', initialColor = 'blue', onCol
         }
         return newRot;
       });
-    }, 200); // أبطأ على كل الأحوال
+    }, 200);
     return () => {
       isMounted.current = false;
       clearInterval(interval);
@@ -229,7 +227,6 @@ const InteractiveTimer = ({ currentTime, duration, progress }) => {
     }
   };
 
-  // نسخة مبسطة للموبايل (بدون أنيميشن)
   if (isMobile) {
     return (
       <button onClick={handleClick} className="flex items-center gap-1 text-[10px] font-mono font-bold text-white/90">
@@ -292,7 +289,7 @@ const getGradientColor = (percent) => {
 };
 
 // ================================================================
-// 6. المكون الرئيسي
+// 6. المكون الرئيسي – مع إلغاء التهنيج وإصلاح Fullscreen
 // ================================================================
 export default function WatchPage() {
   const params = useParams();
@@ -336,13 +333,13 @@ export default function WatchPage() {
   const [focusMode, setFocusMode] = useState(false);
   const [captionsEnabled, setCaptionsEnabled] = useState(false);
 
-  // ---- نظام التتبع ----
+  // ---- التتبع ----
   const [watchIntervals, setWatchIntervals] = useState([]);
   const [totalWatchedUnique, setTotalWatchedUnique] = useState(0);
   const lastSaveTimeRef = useRef(Date.now());
   const saveIntervalRef = useRef(null);
 
-  // ---- المراجع ----
+  // ---- مراجع ----
   const containerRef = useRef(null);
   const playerRef = useRef(null);
   const progressRef = useRef(null);
@@ -352,8 +349,11 @@ export default function WatchPage() {
   const isVideoPlayingRef = useRef(false);
   const lastTimeRef = useRef(0);
   const lastInteractionTimeRef = useRef(Date.now());
+  // لتحديث الـ DOM مباشرة دون إعادة رسم React
+  const currentTimeDisplayRef = useRef(null);
+  const progressBarRef = useRef(null);
 
-  // ---- استخراج يوتيوب ----
+  // ---- يوتيوب ----
   const youtubeId = useMemo(() => (video ? getYoutubeId(video.video_url) : null), [video]);
   const isValidYoutube = youtubeId !== null;
   const displayMode = video?.display_mode || 'platform';
@@ -370,12 +370,12 @@ export default function WatchPage() {
   }, [video, isValidYoutube, isYoutubeOnly, youtubeId]);
 
   // ================================================================
-  // 8. إخفاء الأزرار – محسّن للموبايل
+  // 8. إخفاء الأزرار – محسّن للموبايل و Fullscreen
   // ================================================================
   const scheduleHideControls = useCallback(() => {
     clearTimeout(controlsTimerRef.current);
     if (!isVideoPlayingRef.current) return;
-    const delay = isMobile ? 2500 : 2000; // أبطأ قليلاً على الموبايل
+    const delay = isMobile ? 2500 : 2000;
     controlsTimerRef.current = setTimeout(() => {
       if (isVideoPlayingRef.current) {
         const now = Date.now();
@@ -387,7 +387,7 @@ export default function WatchPage() {
   }, [isMobile]);
 
   // ================================================================
-  // 9. إظهار الأزرار عند التفاعل
+  // 9. إظهار الأزرار عند التفاعل – يدعم Fullscreen
   // ================================================================
   const showControlsAndResetTimer = useCallback(() => {
     lastInteractionTimeRef.current = Date.now();
@@ -509,7 +509,7 @@ export default function WatchPage() {
   };
 
   // ================================================================
-  // 12. إنشاء مشغل YouTube
+  // 12. إنشاء مشغل YouTube مع تتبع خفيف جداً
   // ================================================================
   useEffect(() => {
     if (isYoutubeOnly || !isValidYoutube || !video) return;
@@ -626,25 +626,44 @@ export default function WatchPage() {
     };
 
     // ================================================================
-    // 12.1 تتبع التقدم – معدل تحديث أبطأ على الموبايل
+    // 12.1 تتبع التقدم – نسخة خفيفة جداً للموبايل (تحديث DOM مباشر)
     // ================================================================
     const startProgressTracking = () => {
       if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
       lastTimeRef.current = 0;
-      
-      const intervalTime = isMobile ? 500 : 200; // أبطأ على الموبايل
+
+      // على الموبايل: نحدّث الـ DOM مباشرة كل 200ms، ونحدّث React كل ثانية
+      // على الديسكتوب: نحدّث React كل 200ms (للدقة)
+      const intervalTime = isMobile ? 200 : 200;
+      let lastReactUpdate = 0;
+
       progressIntervalRef.current = setInterval(() => {
         const player = playerRef.current;
         if (!player || !playerReady) return;
         try {
           const current = player.getCurrentTime() || 0;
           const total = player.getDuration() || 0;
-          
           if (total > 0) {
-            setCurrentTime(current);
-            setDuration(total);
-            setProgress((current / total) * 100);
-            
+            // تحديث الـ DOM مباشرة (دون إعادة رسم React)
+            if (currentTimeDisplayRef.current) {
+              currentTimeDisplayRef.current.textContent = formatTime(current);
+            }
+            if (progressBarRef.current) {
+              const percent = (current / total) * 100;
+              progressBarRef.current.style.width = `${percent}%`;
+            }
+
+            // تحديث React كل 1000ms (للموبايل) أو كل 200ms (للديسكتوب)
+            const now = Date.now();
+            const updateInterval = isMobile ? 1000 : 200;
+            if (now - lastReactUpdate >= updateInterval) {
+              setCurrentTime(current);
+              setDuration(total);
+              setProgress((current / total) * 100);
+              lastReactUpdate = now;
+            }
+
+            // تتبع الفترات (للحفظ) – يحدث دائماً
             if (isPlayingRef.current) {
               const delta = current - lastTimeRef.current;
               if (delta > 0 && delta <= 2.0) {
@@ -856,6 +875,7 @@ export default function WatchPage() {
       } else {
         document.exitFullscreen();
       }
+      // في Fullscreen، نضطر لإظهار الأزرار فوراً
       showControlsAndResetTimer();
     } catch (e) {}
   }, [isYoutubeOnly, showControlsAndResetTimer]);
@@ -901,7 +921,7 @@ export default function WatchPage() {
   }, [playerReady, captionsEnabled, language, showControlsAndResetTimer]);
 
   // ================================================================
-  // 14. أحداث الحركة – محسّنة للموبايل
+  // 14. أحداث الحركة – تدعم Fullscreen والموبايل
   // ================================================================
   useEffect(() => {
     if (isYoutubeOnly) return;
@@ -909,7 +929,6 @@ export default function WatchPage() {
     let interactionTimeout = null;
 
     const handleInteraction = () => {
-      // استخدام debounce لتقليل التحديثات المتكررة
       if (interactionTimeout) clearTimeout(interactionTimeout);
       interactionTimeout = setTimeout(() => {
         showControlsAndResetTimer();
@@ -926,9 +945,27 @@ export default function WatchPage() {
       }
     };
 
-    const handleFullscreenChange = () => {
-      if (isVideoPlayingRef.current) {
+    // مستمع خاص لـ Fullscreen على الموبايل (التشغيل بالإصبع)
+    const handleFullscreenTouch = (e) => {
+      // نتحقق إذا كنا في وضع Fullscreen
+      if (document.fullscreenElement) {
+        // نمنع تمرير الحدث للعناصر الداخلية
+        e.preventDefault();
         showControlsAndResetTimer();
+      }
+    };
+
+    const handleFullscreenChange = () => {
+      if (document.fullscreenElement) {
+        // عند الدخول إلى Fullscreen، نظهر الأزرار فوراً
+        showControlsAndResetTimer();
+      } else {
+        // عند الخروج، نعيد ضبط الحالة
+        setControlsVisible(true);
+        clearTimeout(controlsTimerRef.current);
+        if (isVideoPlayingRef.current) {
+          scheduleHideControls();
+        }
       }
     };
 
@@ -936,8 +973,13 @@ export default function WatchPage() {
     if (container) {
       container.addEventListener('mousemove', handleInteraction, { passive: true });
       container.addEventListener('mouseleave', handleMouseLeave);
+      // مستمعات لمس للموبايل داخل الحاوية
       container.addEventListener('touchstart', handleInteraction, { passive: true });
+      container.addEventListener('touchend', handleInteraction, { passive: true });
     }
+
+    // مستمع عام للموبايل في Fullscreen (على الـ document)
+    document.addEventListener('touchstart', handleFullscreenTouch, { passive: false });
     document.addEventListener('fullscreenchange', handleFullscreenChange);
 
     return () => {
@@ -945,12 +987,14 @@ export default function WatchPage() {
         container.removeEventListener('mousemove', handleInteraction);
         container.removeEventListener('mouseleave', handleMouseLeave);
         container.removeEventListener('touchstart', handleInteraction);
+        container.removeEventListener('touchend', handleInteraction);
       }
+      document.removeEventListener('touchstart', handleFullscreenTouch);
       document.removeEventListener('fullscreenchange', handleFullscreenChange);
       clearTimeout(controlsTimerRef.current);
       if (interactionTimeout) clearTimeout(interactionTimeout);
     };
-  }, [isYoutubeOnly, showControlsAndResetTimer, isMobile]);
+  }, [isYoutubeOnly, showControlsAndResetTimer, scheduleHideControls, isMobile]);
 
   // ================================================================
   // 15. حماية
@@ -1025,7 +1069,7 @@ export default function WatchPage() {
   }, [playerReady, togglePlay, skipForward, skipBackward, toggleMute, toggleFullscreen, toggleFocusMode, toggleCaptions, isYoutubeOnly, showControlsAndResetTimer]);
 
   // ================================================================
-  // 17. حفظ التقدم
+  // 17. حفظ التقدم – خفيف
   // ================================================================
   useEffect(() => {
     if (!video?.id || !playerReady) return;
@@ -1062,7 +1106,7 @@ export default function WatchPage() {
     };
 
     const initialTimeout = setTimeout(saveProgress, 5000);
-    saveIntervalRef.current = setInterval(saveProgress, isMobile ? 60000 : 30000); // أبطأ على الموبايل
+    saveIntervalRef.current = setInterval(saveProgress, isMobile ? 60000 : 30000);
 
     return () => {
       clearTimeout(initialTimeout);
@@ -1231,7 +1275,7 @@ export default function WatchPage() {
   };
 
   // ================================================================
-  // 19. التصميم النهائي
+  // 19. التصميم النهائي – مع دعم Fullscreen
   // ================================================================
   return (
     <div className={`min-h-screen text-white transition-all duration-500 relative ${focusMode ? 'fixed inset-0 z-50 p-0 flex items-center justify-center bg-black' : ''}`}>
@@ -1277,8 +1321,8 @@ export default function WatchPage() {
                 <>
                   {/* مشغل YouTube */}
                   <div id="youtube-player" className="w-full h-full absolute inset-0 z-0" />
-                  
-                  {/* طبقة منع التفاعل مع YouTube */}
+
+                  {/* طبقة منع التفاعل مع YouTube ولكن مع السماح باللمس للأزرار */}
                   <div 
                     className="absolute inset-0 z-5" 
                     style={{ 
@@ -1287,7 +1331,7 @@ export default function WatchPage() {
                       cursor: 'default',
                     }}
                   />
-                  
+
                   <style dangerouslySetInnerHTML={{
                     __html: `
                       #youtube-player iframe {
@@ -1298,7 +1342,7 @@ export default function WatchPage() {
                       }
                     `
                   }} />
-                  
+
                   <div className="absolute inset-0 z-10 pointer-events-none" />
 
                   {/* شاشة التحميل */}
@@ -1318,7 +1362,7 @@ export default function WatchPage() {
                     )}
                   </AnimatePresence>
 
-                  {/* زر التشغيل المركزي */}
+                  {/* زر التشغيل المركزي – يظهر في Fullscreen أيضاً */}
                   {playerReady && (controlsVisible || !isPlaying) && (
                     <div
                       className="absolute inset-0 z-30 flex items-center justify-center pb-8 sm:pb-0"
@@ -1363,10 +1407,11 @@ export default function WatchPage() {
                     )}
                   </AnimatePresence>
 
-                  {/* شريط التحكم السفلي */}
+                  {/* شريط التحكم السفلي – مع z-index عالي في Fullscreen */}
                   {playerReady && (
                     <div
                       className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent p-2 sm:p-4 flex flex-col gap-1 sm:gap-2 pointer-events-auto z-40 transition-opacity duration-300 ${controlsVisible ? 'opacity-100' : 'opacity-0'}`}
+                      style={{ zIndex: 9999 }} // لضمان الظهور فوق كل شيء في Fullscreen
                       onMouseEnter={() => {
                         showControlsAndResetTimer();
                       }}
@@ -1378,6 +1423,7 @@ export default function WatchPage() {
                       >
                         <div className="absolute top-0 left-0 h-full bg-white/20 rounded-full" style={{ width: `${bufferProgress}%` }} />
                         <div
+                          ref={progressBarRef}
                           className="absolute top-0 left-0 h-full rounded-full shadow-lg shadow-yellow-500/30"
                           style={{
                             width: `${progress}%`,
@@ -1403,7 +1449,7 @@ export default function WatchPage() {
                           <SkipForward className="h-3 w-3 sm:h-5 sm:w-5" />
                         </button>
                         <span className="text-[8px] sm:text-xs text-gray-300 font-mono min-w-[40px] sm:min-w-[80px]">
-                          {formatTime(currentTime)} / {formatTime(duration)}
+                          <span ref={currentTimeDisplayRef}>{formatTime(currentTime)}</span> / {formatTime(duration)}
                         </span>
 
                         <button onClick={toggleMute} className="p-1 sm:p-1.5 rounded-full hover:bg-white/10 transition-colors">
