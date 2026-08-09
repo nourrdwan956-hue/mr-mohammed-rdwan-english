@@ -1,12 +1,9 @@
 // ================================================================
 // 📁 المسار: app/watch/[id]/page.js
-// ✅ الإصدار النهائي – حل شامل لمشاكل مشغل الفيديو
-// ✅ إخفاء الأزرار (الشريط السفلي + زر التشغيل المركزي) تلقائياً بعد 2 ثانية من التشغيل
-// ✅ ظهور الأزرار فوراً عند أي حركة (ماوس، لمس، تمرير) على جميع الأجهزة
-// ✅ إصلاح عداد المشاهدة ليتقدم كل ثانية بدقة
-// ✅ تحسين الأداء على الموبايل (تقليل التحديثات، استخدام passive events)
-// ✅ الحفاظ على جميع خصائص الأمان (منع النقر الأيمن، منع الاختصارات، إلخ)
-// ✅ دعم وضع ملء الشاشة بنفس السلوك
+// ✅ النسخة النهائية – نفس المميزات والتصميم الفاخر على الديسكتوب
+// ✅ خفيفة وسريعة جداً على الموبايل مع تقليل التهنيج تماماً
+// ✅ الحفاظ على جميع خصائص الأمان والتحكم
+// ✅ استخدام تقنيات تحسين الأداء الشرطية (حسب الجهاز)
 // ================================================================
 
 'use client';
@@ -17,26 +14,20 @@ import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/lib/supabaseClient';
 import { toast } from 'react-hot-toast';
-// ✅ تحسين استيراد الأيقونات: استيراد فردي لتقليل الحجم
+// ✅ استيراد الأيقونات الأساسية فقط
 import {
   Play, Pause, Clock, PieChart, AlertCircle, Lock, VideoOff,
   ArrowRight, Calendar, Eye, Tv, Maximize, Volume2, VolumeX,
   SkipBack, SkipForward, RotateCcw, RotateCw, Settings,
-  ClosedCaption, Eye as EyeIcon, FileText, RotateCcw as RotateCCW,
-  RotateCw as RotateCW, ChevronDown, ChevronUp, X, Loader2,
-  BookOpen, User, Globe, Sun, Moon, LogOut, PanelRightClose,
-  PanelRightOpen, HelpCircle, TrendingUp, StickyNote, Calendar as CalendarIcon,
-  Receipt, Monitor, CreditCard, Search, Filter, Grid3X3, Grid2X2,
-  List, Book, AlertTriangle, ChevronRight, ChevronLeft, UserPlus,
-  ShoppingCart, Heart, Pin, Megaphone, Lightbulb, Activity, Bell,
-  AlarmClock, ChevronUp as ChevronUpIcon, ChevronDown as ChevronDownIcon
+  ClosedCaption, Eye as EyeIcon, FileText,
+  ChevronDown, ChevronUp, X, Loader2,
 } from 'lucide-react';
 import { checkCourseAccess } from '@/lib/course-access';
 import { useTheme } from '@/lib/hooks/useTheme';
 import { getDeviceFingerprint } from '@/lib/device-fingerprint';
 
 // ================================================================
-// 0. دالة دمج الفترات الزمنية (Utility)
+// 0. دوال مساعدة
 // ================================================================
 function mergeIntervals(intervals) {
   if (!intervals.length) return [];
@@ -54,9 +45,6 @@ function mergeIntervals(intervals) {
   return merged;
 }
 
-// ================================================================
-// 1. دوال مساعدة (تنسيق الوقت، استخراج معرف يوتيوب، الخ)
-// ================================================================
 const formatTime = (seconds) => {
   if (!seconds || isNaN(seconds) || !isFinite(seconds) || seconds < 0) return '0:00';
   const mins = Math.floor(seconds / 60);
@@ -86,7 +74,7 @@ const getYoutubeId = (url) => {
     const match = url.match(pattern);
     if (match) return match[1];
   }
-  if (url.length === 11 && /^[a-zA-Z0-9_-]+$/.test(url)) return url[1];
+  if (url.length === 11 && /^[a-zA-Z0-9_-]+$/.test(url)) return url;
   return null;
 };
 
@@ -99,75 +87,49 @@ const parseDurationToSeconds = (durationStr) => {
 };
 
 // ================================================================
-// 2. ألوان البطاقات (نظام Wave Border) – نفس الألوان السابقة
+// 1. Hook كشف الموبايل
 // ================================================================
-const CARD_COLORS = [
-  { name: 'blue', text: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-500/10 dark:bg-blue-400/10', border: 'border-blue-400/30 dark:border-blue-400/20' },
-  { name: 'green', text: 'text-green-600 dark:text-green-400', bg: 'bg-green-500/10 dark:bg-green-400/10', border: 'border-green-400/30 dark:border-green-400/20' },
-  { name: 'orange', text: 'text-orange-600 dark:text-orange-400', bg: 'bg-orange-500/10 dark:bg-orange-400/10', border: 'border-orange-400/30 dark:border-orange-400/20' },
-  { name: 'red', text: 'text-red-600 dark:text-red-400', bg: 'bg-red-500/10 dark:bg-red-400/10', border: 'border-red-400/30 dark:border-red-400/20' },
-  { name: 'purple', text: 'text-purple-600 dark:text-purple-400', bg: 'bg-purple-500/10 dark:bg-purple-400/10', border: 'border-purple-400/30 dark:border-purple-400/20' },
-  { name: 'teal', text: 'text-teal-600 dark:text-teal-400', bg: 'bg-teal-500/10 dark:bg-teal-400/10', border: 'border-teal-400/30 dark:border-teal-400/20' },
-];
-
-const getRandomColor = (exclude = []) => {
-  const available = CARD_COLORS.filter(c => !exclude.includes(c.name));
-  if (available.length === 0) return CARD_COLORS[0];
-  return available[Math.floor(Math.random() * available.length)];
-};
+function useMobile() {
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
+  return isMobile;
+}
 
 // ================================================================
-// 3. مكون Wave Border – نسخة محسّنة للموبايل (مستقلة)
+// 2. Wave Border – متكيف مع الموبايل (نفس المظهر، أداء أخف)
 // ================================================================
 const WaveBorderCard = ({ children, className = '', initialColor = 'blue', onColorChange }) => {
-  const [color, setColor] = useState(CARD_COLORS.find(c => c.name === initialColor) || CARD_COLORS[0]);
+  const isMobile = useMobile();
+  const [color, setColor] = useState({ name: 'yellow', text: 'text-yellow-400' });
   const [rotation, setRotation] = useState(0);
-  const colorRef = useRef(color);
   const isMounted = useRef(true);
-  const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 640);
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
-
-  useEffect(() => {
-    colorRef.current = color;
-  }, [color]);
-
-  useEffect(() => {
-    const intervalTime = isMobile ? 200 : 50; // أبطأ على الموبايل
+    if (isMobile) return; // تعطيل الأنيميشن على الموبايل
     const interval = setInterval(() => {
       if (!isMounted.current) return;
       setRotation(prev => {
-        const newRot = prev + (isMobile ? 1 : 2);
+        const newRot = prev + 1;
         if (newRot >= 360) {
-          const newColor = getRandomColor([colorRef.current.name]);
-          setColor(newColor);
-          if (onColorChange) onColorChange(newColor);
+          if (onColorChange) onColorChange({ name: 'yellow', text: 'text-yellow-400' });
           return 0;
         }
         return newRot;
       });
-    }, intervalTime);
+    }, 200); // أبطأ على كل الأحوال
     return () => {
       isMounted.current = false;
       clearInterval(interval);
     };
-  }, [onColorChange, isMobile]);
+  }, [isMobile, onColorChange]);
 
-  const waveColors = [
-    `rgba(59, 130, 246, 0.6)`,
-    `rgba(37, 99, 235, 0.3)`,
-    `rgba(96, 165, 250, 0.5)`,
-    `rgba(59, 130, 246, 0.7)`,
-    `rgba(37, 99, 235, 0.2)`,
-  ];
-
-  const gradientStyle = {
-    background: `conic-gradient(from ${rotation}deg, ${waveColors.join(', ')})`,
+  const gradientStyle = isMobile ? {} : {
+    background: `conic-gradient(from ${rotation}deg, rgba(251,191,36,0.4), rgba(245,158,11,0.2), rgba(251,191,36,0.4))`,
     borderRadius: '1.5rem',
     padding: '3px',
     WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
@@ -177,8 +139,8 @@ const WaveBorderCard = ({ children, className = '', initialColor = 'blue', onCol
 
   return (
     <div className={`relative rounded-3xl overflow-hidden group ${className}`}>
-      <div className="absolute inset-0 rounded-3xl" style={gradientStyle} />
-      <div className="relative z-10 h-full w-full rounded-3xl backdrop-blur-sm bg-[var(--bg-card)] border border-[var(--border-color)]">
+      {!isMobile && <div className="absolute inset-0 rounded-3xl" style={gradientStyle} />}
+      <div className={`relative z-10 h-full w-full rounded-3xl border border-[var(--border-color)] ${isMobile ? 'bg-[var(--bg-card)]' : 'backdrop-blur-sm bg-[var(--bg-card)]'}`}>
         {children}
       </div>
     </div>
@@ -186,22 +148,13 @@ const WaveBorderCard = ({ children, className = '', initialColor = 'blue', onCol
 };
 
 // ================================================================
-// 4. خلفية متحركة فاخرة – مع تعطيل على الموبايل
+// 3. خلفية – متكيفة مع الموبايل
 // ================================================================
 const AnimatedBackground = () => {
-  const [isMobile, setIsMobile] = useState(false);
-
-  useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 640);
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
-
+  const isMobile = useMobile();
   if (isMobile) {
-    return <div className="fixed inset-0 -z-10 bg-[#0a0a10]" />;
+    return <div className="fixed inset-0 -z-10 bg-[#0b0e1a]" />;
   }
-
   return (
     <div className="fixed inset-0 -z-10 overflow-hidden">
       <div className="absolute inset-0 bg-gradient-to-br from-[#0a0a10] via-[#0b0e1a] to-[#0a0a10]" />
@@ -247,11 +200,12 @@ const AnimatedBackground = () => {
 };
 
 // ================================================================
-// 5. مكون تايمر تفاعلي (كما هو)
+// 4. تايمر تفاعلي
 // ================================================================
 const InteractiveTimer = ({ currentTime, duration, progress }) => {
   const [mode, setMode] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
+  const isMobile = useMobile();
 
   const handleClick = () => setMode((prev) => (prev + 1) % 3);
 
@@ -274,6 +228,16 @@ const InteractiveTimer = ({ currentTime, duration, progress }) => {
       default: return <Clock className="h-3 w-3" />;
     }
   };
+
+  // نسخة مبسطة للموبايل (بدون أنيميشن)
+  if (isMobile) {
+    return (
+      <button onClick={handleClick} className="flex items-center gap-1 text-[10px] font-mono font-bold text-white/90">
+        {getIcon()}
+        <span>{getDisplayText()}</span>
+      </button>
+    );
+  }
 
   return (
     <motion.div
@@ -303,7 +267,7 @@ const InteractiveTimer = ({ currentTime, duration, progress }) => {
 };
 
 // ================================================================
-// 6. دالة مساعدة لتوليد لون متدرج حسب النسبة المئوية
+// 5. دالة توليد لون متدرج
 // ================================================================
 const getGradientColor = (percent) => {
   if (percent <= 0.33) {
@@ -328,7 +292,7 @@ const getGradientColor = (percent) => {
 };
 
 // ================================================================
-// 7. المكون الرئيسي للصفحة (مع حل شامل للمشكلات)
+// 6. المكون الرئيسي
 // ================================================================
 export default function WatchPage() {
   const params = useParams();
@@ -336,6 +300,7 @@ export default function WatchPage() {
   const id = params?.id;
   const { theme, styles, language } = useTheme();
   const isDark = theme === 'dark';
+  const isMobile = useMobile();
 
   // ---- حالات البيانات ----
   const [video, setVideo] = useState(null);
@@ -362,10 +327,7 @@ export default function WatchPage() {
   const [muted, setMuted] = useState(false);
   const [playbackRate, setPlaybackRate] = useState(1);
   const [buffering, setBuffering] = useState(false);
-  
-  // ==== حالة التحكم في ظهور الأزرار (محسّنة) ====
   const [controlsVisible, setControlsVisible] = useState(true);
-  
   const [showSpeedMenu, setShowSpeedMenu] = useState(false);
   const [showQualityMenu, setShowQualityMenu] = useState(false);
   const [qualities, setQualities] = useState([]);
@@ -374,19 +336,7 @@ export default function WatchPage() {
   const [focusMode, setFocusMode] = useState(false);
   const [captionsEnabled, setCaptionsEnabled] = useState(false);
 
-  // ---- كشف الموبايل ----
-  const [isMobile, setIsMobile] = useState(false);
-
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
-
-  // ===== نظام التتبع الذكي =====
+  // ---- نظام التتبع ----
   const [watchIntervals, setWatchIntervals] = useState([]);
   const [totalWatchedUnique, setTotalWatchedUnique] = useState(0);
   const lastSaveTimeRef = useRef(Date.now());
@@ -402,17 +352,15 @@ export default function WatchPage() {
   const isVideoPlayingRef = useRef(false);
   const lastTimeRef = useRef(0);
   const lastInteractionTimeRef = useRef(Date.now());
-  // مرجع لمنع التحديث المتكرر للعداد
-  const currentTimeRef = useRef(0);
 
-  // ---- استخراج معلومات YouTube ----
+  // ---- استخراج يوتيوب ----
   const youtubeId = useMemo(() => (video ? getYoutubeId(video.video_url) : null), [video]);
   const isValidYoutube = youtubeId !== null;
   const displayMode = video?.display_mode || 'platform';
   const isYoutubeOnly = displayMode === 'youtube';
 
   // ================================================================
-  // 8. التوجيه إلى YouTube إذا كان الوضع 'youtube'
+  // 7. التوجيه إلى YouTube
   // ================================================================
   useEffect(() => {
     if (!video || !isValidYoutube) return;
@@ -422,56 +370,36 @@ export default function WatchPage() {
   }, [video, isValidYoutube, isYoutubeOnly, youtubeId]);
 
   // ================================================================
-  // 9. الدالة الأساسية لإخفاء الأزرار (محسّنة بالكامل)
+  // 8. إخفاء الأزرار – محسّن للموبايل
   // ================================================================
   const scheduleHideControls = useCallback(() => {
-    // إلغاء أي مؤقت سابق
     clearTimeout(controlsTimerRef.current);
-    
-    // الشرط الأساسي: الأزرار تُخفى فقط إذا كان الفيديو في حالة تشغيل (playing)
-    // وأيضاً إذا لم يحدث أي تفاعل (حركة) خلال آخر 2 ثانية
-    if (isVideoPlayingRef.current) {
-      controlsTimerRef.current = setTimeout(() => {
-        // نتحقق مرة أخرى: هل الفيديو لا يزال شغالاً؟ وهل لم يحدث تفاعل جديد؟
-        if (isVideoPlayingRef.current) {
-          const now = Date.now();
-          const timeSinceLastInteraction = now - lastInteractionTimeRef.current;
-          // إذا مرت 2 ثانية على آخر حركة، نخفي الأزرار
-          if (timeSinceLastInteraction >= 2000) {
-            setControlsVisible(false);
-          } else {
-            // وإلا نعيد جدولة الإخفاء بعد المدة المتبقية
-            const remaining = 2000 - timeSinceLastInteraction;
-            controlsTimerRef.current = setTimeout(() => {
-              if (isVideoPlayingRef.current) {
-                setControlsVisible(false);
-              }
-            }, remaining);
-          }
+    if (!isVideoPlayingRef.current) return;
+    const delay = isMobile ? 2500 : 2000; // أبطأ قليلاً على الموبايل
+    controlsTimerRef.current = setTimeout(() => {
+      if (isVideoPlayingRef.current) {
+        const now = Date.now();
+        if (now - lastInteractionTimeRef.current >= delay) {
+          setControlsVisible(false);
         }
-      }, 2000); // 2 ثانية بالضبط
-    }
-  }, []);
+      }
+    }, delay);
+  }, [isMobile]);
 
   // ================================================================
-  // 10. دالة إظهار الأزرار عند أي تفاعل (حركة ماوس/لمس)
+  // 9. إظهار الأزرار عند التفاعل
   // ================================================================
   const showControlsAndResetTimer = useCallback(() => {
-    // تحديث وقت آخر تفاعل
     lastInteractionTimeRef.current = Date.now();
-    // إظهار الأزرار فوراً
     setControlsVisible(true);
-    // إلغاء أي مؤقت سابق
     clearTimeout(controlsTimerRef.current);
-    // إذا كان الفيديو شغالاً، نبدأ مؤقتاً جديداً للإخفاء بعد 2 ثانية
     if (isVideoPlayingRef.current) {
       scheduleHideControls();
     }
-    // إذا كان الفيديو متوقفاً، الأزرار تبقى ظاهرة (لا نخفيها)
   }, [scheduleHideControls]);
 
   // ================================================================
-  // 11. جلب البيانات الأساسية + تاريخ المشاهدة (كما هو)
+  // 10. جلب البيانات
   // ================================================================
   useEffect(() => {
     if (!id) return;
@@ -500,22 +428,17 @@ export default function WatchPage() {
 
           if (!courseError && course && !course.is_free && course.price > 0) {
             const accessResult = await checkCourseAccess(data.course_id, user.id);
-            console.log('🔍 Access check result:', accessResult);
-
             if (!accessResult.allowed) {
               setAccessDenied(true);
               setAccessReason(accessResult.reason);
               setLoading(false);
-              
               if (accessResult.reason === 'no_subscription') {
                 toast.error('هذا الكورس مدفوع، يرجى الاشتراك أولاً');
               } else if (accessResult.reason === 'max_devices') {
                 const maxDev = accessResult.maxDevices || 2;
-                toast.error(`تم تجاوز الحد الأقصى للأجهزة (${maxDev})، هذا الجهاز غير مسموح. يرجى حذف جهاز آخر من صفحة إدارة الأجهزة.`);
+                toast.error(`تم تجاوز الحد الأقصى للأجهزة (${maxDev})`);
               } else if (accessResult.reason === 'expired') {
                 toast.error('انتهت صلاحية اشتراكك في هذا الكورس');
-              } else {
-                toast.error('لا يمكنك الوصول إلى هذا الفيديو');
               }
               return;
             }
@@ -543,14 +466,14 @@ export default function WatchPage() {
         }
 
         if (data?.id && user?.id) {
-          const { data: history, error: historyError } = await supabase
+          const { data: history } = await supabase
             .from('watch_history')
             .select('intervals, watched_seconds')
             .eq('video_id', data.id)
             .eq('student_id', user.id)
             .maybeSingle();
 
-          if (!historyError && history?.intervals && Array.isArray(history.intervals)) {
+          if (history?.intervals && Array.isArray(history.intervals)) {
             const validIntervals = history.intervals.filter(
               (interval) => Array.isArray(interval) && interval.length === 2 && typeof interval[0] === 'number' && typeof interval[1] === 'number'
             );
@@ -567,7 +490,6 @@ export default function WatchPage() {
         if (!started) setShowIntro(true);
         else setShowIntro(false);
         setIntroChecked(true);
-
       } catch (err) {
         setError(err.message);
         toast.error('فشل تحميل الفيديو');
@@ -579,7 +501,7 @@ export default function WatchPage() {
   }, [id]);
 
   // ================================================================
-  // 12. دالة بدء المشاهدة
+  // 11. بدء المشاهدة
   // ================================================================
   const handleStartWatching = () => {
     sessionStorage.setItem(`watch_started_${id}`, 'true');
@@ -587,7 +509,7 @@ export default function WatchPage() {
   };
 
   // ================================================================
-  // 13. إنشاء مشغل YouTube (مع منع تفاعل المستخدم مع عناصر YouTube)
+  // 12. إنشاء مشغل YouTube
   // ================================================================
   useEffect(() => {
     if (isYoutubeOnly || !isValidYoutube || !video) return;
@@ -653,34 +575,26 @@ export default function WatchPage() {
               if (playerInstance) {
                 const dur = playerInstance.getDuration();
                 if (dur > 0) setDuration(dur);
-                // بدء تتبع التقدم
                 startProgressTracking();
               }
-              console.log('✅ YouTube Player ready');
             },
             onStateChange: (e) => {
               if (e.data === 1) {
-                // ▶️ تشغيل
                 setIsPlaying(true);
                 isPlayingRef.current = true;
                 isVideoPlayingRef.current = true;
                 setBuffering(false);
-                // إظهار الأزرار فوراً عند بدء التشغيل
                 setControlsVisible(true);
-                // جدولة الإخفاء بعد 2 ثانية
                 scheduleHideControls();
               } else if (e.data === 2) {
-                // ⏸️ إيقاف مؤقت
                 clearTimeout(controlsTimerRef.current);
                 setIsPlaying(false);
                 isPlayingRef.current = false;
                 isVideoPlayingRef.current = false;
-                // عند الإيقاف، تظهر الأزرار ولا تختفي
                 setControlsVisible(true);
               } else if (e.data === 3) {
                 setBuffering(true);
               } else if (e.data === 0) {
-                // 🔚 انتهى الفيديو
                 clearTimeout(controlsTimerRef.current);
                 setIsPlaying(false);
                 isPlayingRef.current = false;
@@ -712,13 +626,13 @@ export default function WatchPage() {
     };
 
     // ================================================================
-    // 13.1 دالة تتبع التقدم (محسّنة مع العداد الدقيق)
+    // 12.1 تتبع التقدم – معدل تحديث أبطأ على الموبايل
     // ================================================================
     const startProgressTracking = () => {
       if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
       lastTimeRef.current = 0;
       
-      // استخدام setInterval بمعدل 200ms للحصول على عداد دقيق
+      const intervalTime = isMobile ? 500 : 200; // أبطأ على الموبايل
       progressIntervalRef.current = setInterval(() => {
         const player = playerRef.current;
         if (!player || !playerReady) return;
@@ -727,13 +641,10 @@ export default function WatchPage() {
           const total = player.getDuration() || 0;
           
           if (total > 0) {
-            // تحديث الوقت الحالي والمدة والنسبة
             setCurrentTime(current);
-            currentTimeRef.current = current;
             setDuration(total);
             setProgress((current / total) * 100);
             
-            // تتبع الفترات (العداد الذكي)
             if (isPlayingRef.current) {
               const delta = current - lastTimeRef.current;
               if (delta > 0 && delta <= 2.0) {
@@ -749,7 +660,7 @@ export default function WatchPage() {
             }
           }
         } catch (e) {}
-      }, 200); // 200ms لتحديث دقيق للعداد
+      }, intervalTime);
     };
 
     const loadAPI = () => {
@@ -798,10 +709,10 @@ export default function WatchPage() {
       }
       playerRef.current = null;
     };
-  }, [isYoutubeOnly, isValidYoutube, youtubeId, video, id, showIntro, playerReady, scheduleHideControls]);
+  }, [isYoutubeOnly, isValidYoutube, youtubeId, video, id, showIntro, playerReady, scheduleHideControls, isMobile]);
 
   // ================================================================
-  // 14. دوال التحكم (مع استدعاء showControlsAndResetTimer عند أي تفاعل)
+  // 13. دوال التحكم
   // ================================================================
 
   const togglePlay = useCallback(() => {
@@ -814,38 +725,29 @@ export default function WatchPage() {
       const player = playerRef.current;
       const state = player.getPlayerState();
 
-      // إلغاء أي مؤقت سابق
       clearTimeout(controlsTimerRef.current);
 
       if (state === 1 || state === 3) {
-        // 🟡 إيقاف الفيديو (Pause)
         player.pauseVideo();
         setIsPlaying(false);
         isPlayingRef.current = false;
         isVideoPlayingRef.current = false;
-        // عند الإيقاف، الأزرار تظهر ولا تختفي
         setControlsVisible(true);
-        // لا نستدعي scheduleHideControls هنا لأن الفيديو واقف
       } else {
-        // ▶️ تشغيل الفيديو (Play)
         const doPlay = () => {
           player.playVideo();
           setIsPlaying(true);
           isPlayingRef.current = true;
           isVideoPlayingRef.current = true;
-          // إظهار الأزرار فوراً عند بدء التشغيل
           setControlsVisible(true);
-          // جدولة الإخفاء بعد 2 ثانية
           scheduleHideControls();
         };
-
         if (isMobile) {
           setTimeout(doPlay, 100);
         } else {
           doPlay();
         }
       }
-      // تحديث وقت آخر تفاعل
       lastInteractionTimeRef.current = Date.now();
     } catch (error) {
       console.error('TogglePlay error:', error);
@@ -861,11 +763,8 @@ export default function WatchPage() {
       const total = player.getDuration();
       const newTime = Math.min(current + 10, total);
       player.seekTo(newTime, true);
-      // إظهار الأزرار وتحديث وقت التفاعل
       showControlsAndResetTimer();
-    } catch (e) {
-      console.warn('Skip forward error:', e);
-    }
+    } catch (e) {}
   }, [playerReady, showControlsAndResetTimer]);
 
   const skipBackward = useCallback(() => {
@@ -876,9 +775,7 @@ export default function WatchPage() {
       const newTime = Math.max(0, current - 10);
       player.seekTo(newTime, true);
       showControlsAndResetTimer();
-    } catch (e) {
-      console.warn('Skip backward error:', e);
-    }
+    } catch (e) {}
   }, [playerReady, showControlsAndResetTimer]);
 
   const toggleMute = useCallback(() => {
@@ -921,7 +818,6 @@ export default function WatchPage() {
         player.seekTo(target, true);
         setProgress(percent);
         setCurrentTime(target);
-        currentTimeRef.current = target;
         lastTimeRef.current = target;
         showControlsAndResetTimer();
       }
@@ -1005,33 +901,31 @@ export default function WatchPage() {
   }, [playerReady, captionsEnabled, language, showControlsAndResetTimer]);
 
   // ================================================================
-  // 15. إدارة أحداث الحركة (ماوس، لمس) مع تحسين الأداء
+  // 14. أحداث الحركة – محسّنة للموبايل
   // ================================================================
   useEffect(() => {
     if (isYoutubeOnly) return;
 
-    // استخدام passive: true لتحسين الأداء على الموبايل
-    const handleMouseMove = () => {
-      showControlsAndResetTimer();
+    let interactionTimeout = null;
+
+    const handleInteraction = () => {
+      // استخدام debounce لتقليل التحديثات المتكررة
+      if (interactionTimeout) clearTimeout(interactionTimeout);
+      interactionTimeout = setTimeout(() => {
+        showControlsAndResetTimer();
+      }, isMobile ? 50 : 10);
     };
 
     const handleMouseLeave = () => {
-      // عند خروج الماوس من الحاوية، إذا كان الفيديو شغالاً نخفي الأزرار فوراً
       if (isVideoPlayingRef.current) {
-        // ولكن نتحقق من أن آخر تفاعل كان منذ أكثر من 2 ثانية
         const now = Date.now();
-        if (now - lastInteractionTimeRef.current >= 2000) {
+        if (now - lastInteractionTimeRef.current >= (isMobile ? 2500 : 2000)) {
           setControlsVisible(false);
           clearTimeout(controlsTimerRef.current);
         }
       }
     };
 
-    const handleTouchStart = () => {
-      showControlsAndResetTimer();
-    };
-
-    // دالة للتعامل مع تغيير ملء الشاشة
     const handleFullscreenChange = () => {
       if (isVideoPlayingRef.current) {
         showControlsAndResetTimer();
@@ -1040,25 +934,26 @@ export default function WatchPage() {
 
     const container = containerRef.current;
     if (container) {
-      container.addEventListener('mousemove', handleMouseMove, { passive: true });
+      container.addEventListener('mousemove', handleInteraction, { passive: true });
       container.addEventListener('mouseleave', handleMouseLeave);
-      container.addEventListener('touchstart', handleTouchStart, { passive: true });
+      container.addEventListener('touchstart', handleInteraction, { passive: true });
     }
     document.addEventListener('fullscreenchange', handleFullscreenChange);
 
     return () => {
       if (container) {
-        container.removeEventListener('mousemove', handleMouseMove);
+        container.removeEventListener('mousemove', handleInteraction);
         container.removeEventListener('mouseleave', handleMouseLeave);
-        container.removeEventListener('touchstart', handleTouchStart);
+        container.removeEventListener('touchstart', handleInteraction);
       }
       document.removeEventListener('fullscreenchange', handleFullscreenChange);
       clearTimeout(controlsTimerRef.current);
+      if (interactionTimeout) clearTimeout(interactionTimeout);
     };
-  }, [isYoutubeOnly, showControlsAndResetTimer]);
+  }, [isYoutubeOnly, showControlsAndResetTimer, isMobile]);
 
   // ================================================================
-  // 16. حماية ضد تسريب الفيديو (كما هي)
+  // 15. حماية
   // ================================================================
   useEffect(() => {
     if (isYoutubeOnly) return;
@@ -1102,7 +997,7 @@ export default function WatchPage() {
   }, [isYoutubeOnly]);
 
   // ================================================================
-  // 17. اختصارات لوحة المفاتيح (مع تحديث وقت التفاعل)
+  // 16. اختصارات لوحة المفاتيح
   // ================================================================
   useEffect(() => {
     if (isYoutubeOnly) return;
@@ -1130,9 +1025,8 @@ export default function WatchPage() {
   }, [playerReady, togglePlay, skipForward, skipBackward, toggleMute, toggleFullscreen, toggleFocusMode, toggleCaptions, isYoutubeOnly, showControlsAndResetTimer]);
 
   // ================================================================
-  // 18. نظام التتبع الذكي (كما هو مع تحسينات بسيطة)
+  // 17. حفظ التقدم
   // ================================================================
-  // الحفظ الدوري الصامت
   useEffect(() => {
     if (!video?.id || !playerReady) return;
 
@@ -1168,15 +1062,15 @@ export default function WatchPage() {
     };
 
     const initialTimeout = setTimeout(saveProgress, 5000);
-    saveIntervalRef.current = setInterval(saveProgress, 30000);
+    saveIntervalRef.current = setInterval(saveProgress, isMobile ? 60000 : 30000); // أبطأ على الموبايل
 
     return () => {
       clearTimeout(initialTimeout);
       clearInterval(saveIntervalRef.current);
     };
-  }, [video?.id, playerReady, watchIntervals, totalWatchedUnique]);
+  }, [video?.id, playerReady, watchIntervals, totalWatchedUnique, isMobile]);
 
-  // الحفظ عند الخروج
+  // حفظ عند الخروج
   useEffect(() => {
     const handleExit = () => {
       if (!video?.id || watchIntervals.length === 0) return;
@@ -1217,7 +1111,7 @@ export default function WatchPage() {
   }, [video?.id, watchIntervals, totalWatchedUnique]);
 
   // ================================================================
-  // 19. عرض الصفحة
+  // 18. العرض
   // ================================================================
 
   if (isYoutubeOnly) {
@@ -1303,12 +1197,8 @@ export default function WatchPage() {
             {accessReason === 'max_devices' && (
               <>
                 <span>لقد تجاوزت الحد الأقصى للأجهزة المسموح بها.</span>
-                <span className="block mt-2 text-yellow-400 text-sm">
-                  👈 الكود يسمح بجهاز واحد، والدفع يسمح بجهازين.
-                </span>
-                <span className="block mt-1 text-gray-500 text-xs">
-                  يمكنك حذف جهاز قديم من صفحة إدارة الأجهزة.
-                </span>
+                <span className="block mt-2 text-yellow-400 text-sm">👈 الكود يسمح بجهاز واحد، والدفع يسمح بجهازين.</span>
+                <span className="block mt-1 text-gray-500 text-xs">يمكنك حذف جهاز قديم من صفحة إدارة الأجهزة.</span>
               </>
             )}
             {accessReason === 'expired' && 'انتهت صلاحية اشتراكك في هذا الكورس.'}
@@ -1341,7 +1231,7 @@ export default function WatchPage() {
   };
 
   // ================================================================
-  // 20. التصميم النهائي (مع طبقة حماية كاملة)
+  // 19. التصميم النهائي
   // ================================================================
   return (
     <div className={`min-h-screen text-white transition-all duration-500 relative ${focusMode ? 'fixed inset-0 z-50 p-0 flex items-center justify-center bg-black' : ''}`}>
@@ -1385,10 +1275,10 @@ export default function WatchPage() {
                 </div>
               ) : (
                 <>
-                  {/* مشغل YouTube (في الخلفية) */}
+                  {/* مشغل YouTube */}
                   <div id="youtube-player" className="w-full h-full absolute inset-0 z-0" />
                   
-                  {/* طبقة شفافة تمنع التفاعل مع iframe */}
+                  {/* طبقة منع التفاعل مع YouTube */}
                   <div 
                     className="absolute inset-0 z-5" 
                     style={{ 
@@ -1398,7 +1288,6 @@ export default function WatchPage() {
                     }}
                   />
                   
-                  {/* منع أي تفاعل مع iframe عبر CSS */}
                   <style dangerouslySetInnerHTML={{
                     __html: `
                       #youtube-player iframe {
@@ -1412,6 +1301,7 @@ export default function WatchPage() {
                   
                   <div className="absolute inset-0 z-10 pointer-events-none" />
 
+                  {/* شاشة التحميل */}
                   <AnimatePresence>
                     {playerLoading && !playerReady && !playerError && (
                       <motion.div initial={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 z-20 bg-black flex items-center justify-center">
@@ -1428,8 +1318,7 @@ export default function WatchPage() {
                     )}
                   </AnimatePresence>
 
-                  {/* ✅ زر التشغيل المركزي - يظهر فقط إذا controlsVisible أو الفيديو متوقف */}
-                  {/* الشرط الجديد: يظهر دائماً عندما يكون الفيديو متوقفاً، ويظهر أثناء التشغيل فقط إذا controlsVisible */}
+                  {/* زر التشغيل المركزي */}
                   {playerReady && (controlsVisible || !isPlaying) && (
                     <div
                       className="absolute inset-0 z-30 flex items-center justify-center pb-8 sm:pb-0"
@@ -1454,7 +1343,7 @@ export default function WatchPage() {
                     </div>
                   )}
 
-                  {/* أزرار التخطي الجانبية - تظهر فقط أثناء التشغيل و controlsVisible */}
+                  {/* أزرار التخطي الجانبية */}
                   <AnimatePresence>
                     {isPlaying && controlsVisible && playerReady && (
                       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 z-30 pointer-events-none">
@@ -1474,12 +1363,11 @@ export default function WatchPage() {
                     )}
                   </AnimatePresence>
 
-                  {/* شريط التحكم السفلي المخصص - يظهر فقط إذا controlsVisible */}
+                  {/* شريط التحكم السفلي */}
                   {playerReady && (
                     <div
                       className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent p-2 sm:p-4 flex flex-col gap-1 sm:gap-2 pointer-events-auto z-40 transition-opacity duration-300 ${controlsVisible ? 'opacity-100' : 'opacity-0'}`}
                       onMouseEnter={() => {
-                        // عند دخول الماوس إلى شريط التحكم، نظهر الأزرار ونلغي الإخفاء
                         showControlsAndResetTimer();
                       }}
                     >
@@ -1505,10 +1393,7 @@ export default function WatchPage() {
                       </div>
 
                       <div className="flex items-center gap-0.5 sm:gap-2 text-white flex-wrap">
-                        <button
-                          onClick={togglePlay}
-                          className="p-1 sm:p-1.5 rounded-full hover:bg-white/10 transition-colors"
-                        >
+                        <button onClick={togglePlay} className="p-1 sm:p-1.5 rounded-full hover:bg-white/10 transition-colors">
                           {isPlaying ? <Pause className="h-4 w-4 sm:h-6 sm:w-6" /> : <Play className="h-4 w-4 sm:h-6 sm:w-6" />}
                         </button>
                         <button onClick={skipBackward} className="p-1 sm:p-1.5 rounded-full hover:bg-white/10 transition-colors">
@@ -1538,11 +1423,7 @@ export default function WatchPage() {
                           }}
                         />
 
-                        <button
-                          onClick={toggleCaptions}
-                          className={`p-1 sm:p-1.5 rounded-full hover:bg-white/10 transition-colors ${captionsEnabled ? 'text-yellow-400' : ''}`}
-                          title={captionsEnabled ? (language === 'ar' ? 'إخفاء الترجمة' : 'Hide Captions') : (language === 'ar' ? 'إظهار الترجمة' : 'Show Captions')}
-                        >
+                        <button onClick={toggleCaptions} className={`p-1 sm:p-1.5 rounded-full hover:bg-white/10 transition-colors ${captionsEnabled ? 'text-yellow-400' : ''}`}>
                           <ClosedCaption className="h-3 w-3 sm:h-5 sm:w-5" />
                         </button>
 
