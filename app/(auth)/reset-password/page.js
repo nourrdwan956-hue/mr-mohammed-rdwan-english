@@ -1,11 +1,12 @@
+// app/(auth)/reset-password/page.js
 'use client';
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import * as Icons from 'lucide-react';
-import { supabase } from '@/lib/supabaseClient';
 import { toast } from 'react-hot-toast';
+import { supabase } from '@/lib/supabaseClient';
 
 export default function ResetPasswordPage() {
   const [email, setEmail] = useState('');
@@ -16,25 +17,52 @@ export default function ResetPasswordPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setSuccess(false);
+
     if (!email.trim()) {
       setError('يرجى إدخال البريد الإلكتروني');
       return;
     }
+
     setLoading(true);
+
     try {
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
+      // ✅ الرابط الأساسي للموقع من المتصفح (مضمون 100%)
+      const appUrl = window.location.origin;
       const redirectTo = `${appUrl}/update-password`;
-      
-      console.log('📧 إرسال رابط إعادة التعيين إلى:', email.trim());
+
+      console.log('📧 محاولة إرسال رابط الاستعادة إلى:', email.trim());
       console.log('🔗 رابط العودة:', redirectTo);
 
-      const { error: resetError } = await supabase.auth.resetPasswordForEmail(
+      // 🔹 المحاولة الأولى: استخدام Supabase Auth (قد يفشل إذا كانت إعدادات SMTP غير صحيحة)
+      const { error: supabaseError } = await supabase.auth.resetPasswordForEmail(
         email.trim(),
         { redirectTo }
       );
-      
-      if (resetError) throw resetError;
-      
+
+      // لو نجح Supabase، نعتبر المهمة تمت
+      if (!supabaseError) {
+        setSuccess(true);
+        toast.success('✅ تم إرسال رابط الاستعادة إلى بريدك الإلكتروني');
+        setLoading(false);
+        return;
+      }
+
+      // 🔹 إذا فشل Supabase، نستخدم Resend عبر API الخاص بنا
+      console.warn('⚠️ فشل Supabase reset، نحاول عبر Resend API:', supabaseError);
+
+      const response = await fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim(), redirectTo }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'فشل إرسال البريد عبر الخدمة البديلة');
+      }
+
       setSuccess(true);
       toast.success('✅ تم إرسال رابط الاستعادة بنجاح');
     } catch (err) {
@@ -48,6 +76,7 @@ export default function ResetPasswordPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#0b0e1a] px-4 relative overflow-hidden">
+      {/* خلفية زجاجية مع تأثيرات */}
       <div className="absolute inset-0 -z-10">
         <div className="absolute top-0 -left-20 w-[600px] h-[600px] bg-yellow-400/10 rounded-full blur-3xl animate-pulse" />
         <div className="absolute bottom-0 -right-20 w-[700px] h-[700px] bg-blue-500/10 rounded-full blur-3xl animate-pulse delay-1000" />
@@ -101,7 +130,11 @@ export default function ResetPasswordPage() {
                 </div>
 
                 {error && (
-                  <motion.div initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} className="text-red-400 text-sm bg-red-400/10 rounded-lg p-2">
+                  <motion.div
+                    initial={{ opacity: 0, y: -5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="text-red-400 text-sm bg-red-400/10 rounded-lg p-2"
+                  >
                     {error}
                   </motion.div>
                 )}
@@ -125,7 +158,9 @@ export default function ResetPasswordPage() {
                 </button>
 
                 <div className="text-center text-sm text-gray-400">
-                  <Link href="/login" className="text-yellow-400 hover:underline">العودة إلى تسجيل الدخول</Link>
+                  <Link href="/login" className="text-yellow-400 hover:underline">
+                    العودة إلى تسجيل الدخول
+                  </Link>
                 </div>
               </motion.form>
             ) : (
@@ -142,7 +177,10 @@ export default function ResetPasswordPage() {
                 >
                   📧
                 </motion.div>
-                <p className="text-gray-300 text-sm">تم إرسال رابط الاستعادة إلى <span className="text-yellow-400 font-bold">{email}</span></p>
+                <p className="text-gray-300 text-sm">
+                  تم إرسال رابط الاستعادة إلى{' '}
+                  <span className="text-yellow-400 font-bold">{email}</span>
+                </p>
                 <p className="text-xs text-gray-500">تفقد صندوق الوارد (والبريد غير المرغوب فيه أيضاً)</p>
                 <Link
                   href="/login"

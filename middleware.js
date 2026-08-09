@@ -6,6 +6,8 @@ export async function middleware(request) {
   const path = request.nextUrl.pathname;
 
   // ✅ مسارات عامة لا تحتاج تسجيل دخول
+  // ملاحظة: مسارات API (/api/*) لا تمر عبر هذا الميدل وير لأنها غير مدرجة في config.matcher،
+  // وبالتالي فهي عامة ولا تحتاج جلسة. لذا لا داعي لإضافتها هنا.
   const publicPaths = ['/', '/login', '/register', '/reset-password', '/update-password', '/assistant-login'];
   if (publicPaths.some(p => path === p) || path.startsWith('/api/')) {
     return NextResponse.next();

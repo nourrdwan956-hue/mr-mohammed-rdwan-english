@@ -1,6 +1,7 @@
+// app/update-password/page.js
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import * as Icons from 'lucide-react';
@@ -18,7 +19,10 @@ export default function UpdatePasswordPage() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [sessionReady, setSessionReady] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
-  const [retryCount, setRetryCount] = useState(0);
+  
+  // استخدام useRef لتتبع عدد المحاولات بدون إعادة التصيير
+  const retryCount = useRef(0);
+  const maxRetries = 5;
 
   useEffect(() => {
     const handleHash = async () => {
@@ -26,50 +30,78 @@ export default function UpdatePasswordPage() {
         const hash = window.location.hash;
         console.log('🔑 الـ hash المستلم:', hash);
 
+        // محاولة استخراج التوكين من hash
+        let accessToken = null;
+        let refreshToken = null;
+        let type = null;
+
         if (hash) {
           const params = new URLSearchParams(hash.substring(1));
-          const accessToken = params.get('access_token');
-          const refreshToken = params.get('refresh_token');
-          const type = params.get('type');
-
+          accessToken = params.get('access_token');
+          refreshToken = params.get('refresh_token');
+          type = params.get('type');
           console.log('📦 access_token:', accessToken ? 'موجود' : 'غير موجود');
           console.log('📦 type:', type);
+        }
 
-          if (accessToken) {
-            const { data, error } = await supabase.auth.setSession({
-              access_token: accessToken,
-              refresh_token: refreshToken || '',
-            });
+        // إذا كان هناك access_token، نحاول ضبط الجلسة
+        if (accessToken) {
+          const { data, error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken || '',
+          });
 
-            if (error) {
-              console.error('❌ خطأ في setSession:', error);
+          if (error) {
+            console.error('❌ خطأ في setSession:', error);
+            // نحاول إعادة المحاولة بعد تأخير (قد يكون التوكين جديد ولم يسجل بعد)
+            if (retryCount.current < maxRetries) {
+              retryCount.current += 1;
+              console.log(`🔄 محاولة إعادة setSession #${retryCount.current}`);
+              setTimeout(() => {
+                handleHash(); // إعادة المحاولة
+              }, 2000); // زيادة التأخير إلى 2 ثانية
+              return;
+            } else {
               setError('انتهت صلاحية الرابط أو أنه غير صالح. يرجى طلب رابط جديد.');
               setCheckingSession(false);
               return;
             }
-
-            console.log('✅ تم تثبيت الجلسة بنجاح');
-            setSessionReady(true);
-            setCheckingSession(false);
-            return;
-          } else {
-            console.warn('⚠️ الـ hash موجود لكن لا يحتوي على access_token');
-            setError('الرابط غير صحيح. يرجى طلب رابط جديد.');
-            setCheckingSession(false);
-            return;
           }
-        }
 
-        console.log('🔄 لا يوجد hash، نحاول استعادة الجلسة الحالية...');
-        const { data, error } = await supabase.auth.getSession();
-        if (error || !data?.session) {
-          console.error('❌ لا توجد جلسة صالحة:', error);
-          setError('لا توجد جلسة صالحة. يرجى طلب رابط جديد لإعادة تعيين كلمة المرور.');
-          setCheckingSession(false);
-        } else {
-          console.log('✅ تم استعادة الجلسة الحالية');
+          console.log('✅ تم تثبيت الجلسة بنجاح');
+          // ✅ تخزين التوكين في sessionStorage للرجوع إليه لو لزم
+          sessionStorage.setItem('recovery_token', accessToken);
           setSessionReady(true);
           setCheckingSession(false);
+          return;
+        } else {
+          // لا يوجد hash، نحاول استعادة الجلسة الحالية
+          console.log('🔄 لا يوجد hash، نحاول استعادة الجلسة الحالية...');
+          const { data, error } = await supabase.auth.getSession();
+          if (error || !data?.session) {
+            console.error('❌ لا توجد جلسة صالحة:', error);
+            // جرب نستعيد من sessionStorage لو موجود
+            const storedToken = sessionStorage.getItem('recovery_token');
+            if (storedToken) {
+              console.log('🔄 محاولة استعادة التوكين من sessionStorage');
+              const { error: setError } = await supabase.auth.setSession({
+                access_token: storedToken,
+                refresh_token: '',
+              });
+              if (!setError) {
+                console.log('✅ تم استعادة الجلسة من sessionStorage');
+                setSessionReady(true);
+                setCheckingSession(false);
+                return;
+              }
+            }
+            setError('لا توجد جلسة صالحة. يرجى طلب رابط جديد لإعادة تعيين كلمة المرور.');
+            setCheckingSession(false);
+          } else {
+            console.log('✅ تم استعادة الجلسة الحالية');
+            setSessionReady(true);
+            setCheckingSession(false);
+          }
         }
       } catch (err) {
         console.error('❌ خطأ غير متوقع:', err);
@@ -80,23 +112,6 @@ export default function UpdatePasswordPage() {
 
     handleHash();
   }, []);
-
-  useEffect(() => {
-    if (!checkingSession && !sessionReady && retryCount < 3) {
-      const timer = setTimeout(() => {
-        console.log(`🔄 محاولة إعادة التحقق #${retryCount + 1}`);
-        setRetryCount(prev => prev + 1);
-        supabase.auth.getSession().then(({ data, error }) => {
-          if (!error && data?.session) {
-            console.log('✅ تم استعادة الجلسة في المحاولة المتأخرة');
-            setSessionReady(true);
-            setCheckingSession(false);
-          }
-        });
-      }, 2000);
-      return () => clearTimeout(timer);
-    }
-  }, [checkingSession, sessionReady, retryCount]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -113,12 +128,34 @@ export default function UpdatePasswordPage() {
 
     setLoading(true);
     try {
+      // ✅ التأكد من أن الجلسة ما زالت صالحة
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData?.session) {
+        // حاول استعادة التوكين من sessionStorage
+        const storedToken = sessionStorage.getItem('recovery_token');
+        if (storedToken) {
+          console.log('🔄 استعادة التوكين من sessionStorage قبل التحديث');
+          const { error: setError } = await supabase.auth.setSession({
+            access_token: storedToken,
+            refresh_token: '',
+          });
+          if (setError) {
+            throw new Error('انتهت صلاحية الجلسة، يرجى طلب رابط جديد');
+          }
+        } else {
+          throw new Error('انتهت صلاحية الجلسة، يرجى طلب رابط جديد');
+        }
+      }
+
       const { error: updateError } = await supabase.auth.updateUser({ password });
       if (updateError) {
         console.error('❌ فشل تحديث كلمة المرور:', updateError);
         throw updateError;
       }
+
       toast.success('✅ تم تغيير كلمة المرور بنجاح');
+      // تنظيف sessionStorage
+      sessionStorage.removeItem('recovery_token');
       router.push('/login');
     } catch (err) {
       console.error('❌ خطأ في updateUser:', err);
@@ -128,6 +165,7 @@ export default function UpdatePasswordPage() {
     }
   };
 
+  // حالة التحقق من الجلسة
   if (checkingSession) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#0b0e1a]">
@@ -143,6 +181,7 @@ export default function UpdatePasswordPage() {
     );
   }
 
+  // حالة الخطأ (عند عدم وجود جلسة صالحة)
   if (error && !sessionReady) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#0b0e1a] px-4">
@@ -170,6 +209,7 @@ export default function UpdatePasswordPage() {
     );
   }
 
+  // ✅ الحالة الأساسية (عندما تكون الجلسة جاهزة)
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#0b0e1a] px-4 relative overflow-hidden">
       <div className="absolute inset-0 -z-10">
