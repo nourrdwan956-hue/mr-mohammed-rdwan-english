@@ -2,17 +2,26 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ================================================================
+   🏛️ BASE – أنماط أساسية موحدة وفاخرة
+   ================================================================ */
+
 @layer base {
-  /* ✅ حدود أكثر تحديداً لتجنب المشاكل */
-  .card, .input, .button, .modal, .sidebar {
+  /* حدود موحدة لجميع العناصر الرئيسية */
+  .card,
+  .input,
+  .button,
+  .modal,
+  .sidebar {
     border-color: var(--border-color);
   }
-  
+
   html {
-    @apply scroll-smooth;
+    scroll-behavior: smooth;
+    -webkit-tap-highlight-color: transparent;
   }
 
-  /* ✅ تحسين الطباعة */
+  /* تحسين الطباعة */
   @media print {
     body {
       background: white !important;
@@ -27,71 +36,100 @@
   }
 }
 
-/* ===== متغيرات الثيم ===== */
+/* ================================================================
+   🎨 VARIABLES – ثيم فاتح فاخر (افتراضي)
+   ================================================================ */
+
 :root {
-  /* خلفيات */
-  --bg-primary: #f9fafb;
+  /* ===== الخلفيات (فاتحة، دافئة، عصرية) ===== */
+  --bg-primary: #f8fafc;
   --bg-secondary: #ffffff;
   --bg-card: #ffffff;
-  --bg-input: #f3f4f6;
-  --bg-hover: #f3f4f6;
+  --bg-input: #f1f5f9;
+  --bg-hover: #f1f5f9;
+  --bg-gold-subtle: #fffbeb;
+  --bg-gold-intense: #fef3c7;
 
-  /* نصوص */
-  --text-primary: #111827;
-  --text-secondary: #4b5563;
-  --text-muted: #6b7280;
+  /* ===== النصوص ===== */
+  --text-primary: #0f172a;
+  --text-secondary: #334155;
+  --text-muted: #94a3b8;
   --text-inverse: #ffffff;
 
-  /* حدود */
-  --border-color: #e5e7eb;
-  --border-light: #f3f4f6;
+  /* ===== الحدود (ناعمة وأنيقة) ===== */
+  --border-color: #e2e8f0;
+  --border-light: #f1f5f9;
+  --border-gold: #fcd34d;
 
-  /* ظلال */
-  --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
-  --shadow: 0 1px 3px rgba(0,0,0,0.1);
-  --shadow-lg: 0 10px 15px rgba(0,0,0,0.1);
+  /* ===== الظلال (عميقة وفاخرة على الديسكتوب) ===== */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.07);
+  --shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.10);
+  --shadow-xl: 0 20px 50px rgba(0, 0, 0, 0.12);
+  --shadow-gold: 0 8px 30px rgba(251, 191, 36, 0.25);
 
-  /* ألوان خاصة */
-  --gold: #c9a84c;
+  /* ===== الذهبي (الهوية البصرية) ===== */
+  --gold: #d4a02b;
   --gold-light: #fbbf24;
-  --gold-dark: #b8962e;
+  --gold-dark: #b88a1e;
+  --gold-glow: rgba(251, 191, 36, 0.3);
 
-  /* خطوط */
-  --font-primary: 'Cairo', 'Inter', 'Segoe UI', sans-serif;
+  /* ===== الخطوط ===== */
+  --font-primary: 'Cairo', 'Inter', 'Segoe UI', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
 
-  /* RGB نسخ للخلفيات (للاستخدام مع rgba) */
-  --bg-primary-rgb: 249, 250, 251;
+  /* ===== RGB للاستخدام في rgba ===== */
+  --bg-primary-rgb: 248, 250, 252;
   --bg-secondary-rgb: 255, 255, 255;
   --bg-card-rgb: 255, 255, 255;
+
+  /* ===== البريق (للموبايل نطفئه) ===== */
+  --backdrop-blur: blur(12px);
+  --backdrop-blur-light: blur(6px);
 }
 
-/* ===== الوضع الداكن ===== */
-.dark {
-  --bg-primary: #0b0e1a;
-  --bg-secondary: #0f1326;
-  --bg-card: #0f1326;
-  --bg-input: #1a1f2e;
-  --bg-hover: #1a1f2e;
+/* ================================================================
+   🌙 DARK MODE – داكن أنيق مع تباين عالٍ
+   ================================================================ */
 
-  --text-primary: #f3f4f6;
-  --text-secondary: #9ca3af;
-  --text-muted: #6b7280;
-  --text-inverse: #111827;
+.dark {
+  --bg-primary: #0a0d1a;
+  --bg-secondary: #10142b;
+  --bg-card: #10142b;
+  --bg-input: #1a203a;
+  --bg-hover: #1a203a;
+  --bg-gold-subtle: #1e1a0a;
+  --bg-gold-intense: #2a220a;
+
+  --text-primary: #f1f5f9;
+  --text-secondary: #cbd5e1;
+  --text-muted: #64748b;
+  --text-inverse: #0f172a;
 
   --border-color: rgba(255, 255, 255, 0.08);
   --border-light: rgba(255, 255, 255, 0.04);
+  --border-gold: #fcd34d;
 
-  --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
-  --shadow: 0 1px 3px rgba(0,0,0,0.4);
-  --shadow-lg: 0 10px 15px rgba(0,0,0,0.5);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.6);
+  --shadow-xl: 0 20px 50px rgba(0, 0, 0, 0.7);
+  --shadow-gold: 0 8px 30px rgba(251, 191, 36, 0.15);
 
-  --bg-primary-rgb: 11, 14, 26;
-  --bg-secondary-rgb: 15, 19, 38;
-  --bg-card-rgb: 15, 19, 38;
+  --gold: #fbbf24;
+  --gold-light: #fcd34d;
+  --gold-dark: #d97706;
+  --gold-glow: rgba(251, 191, 36, 0.2);
+
+  --bg-primary-rgb: 10, 13, 26;
+  --bg-secondary-rgb: 16, 20, 43;
+  --bg-card-rgb: 16, 20, 43;
 }
 
-/* ===== تطبيق المتغيرات (بدون transition على الكل) ===== */
+/* ================================================================
+   🧩 GLOBAL BODY – تطبيق المتغيرات
+   ================================================================ */
+
 body {
   background-color: var(--bg-primary);
   color: var(--text-primary);
@@ -99,9 +137,13 @@ body {
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
-/* ===== الروابط ===== */
+/* ================================================================
+   🔗 LINKS – ذهبية وأنيقة
+   ================================================================ */
+
 a {
   color: var(--gold);
   text-decoration: none;
@@ -111,49 +153,102 @@ a:hover {
   color: var(--gold-light);
 }
 
-/* ===== الحقول ===== */
-input, textarea, select {
+/* ================================================================
+   📝 INPUTS – ناعمة وواضحة
+   ================================================================ */
+
+input,
+textarea,
+select {
   background-color: var(--bg-input);
   color: var(--text-primary);
   border-color: var(--border-color);
   transition: border-color 0.2s, box-shadow 0.2s;
 }
-input:focus, textarea:focus, select:focus {
+input:focus,
+textarea:focus,
+select:focus {
   border-color: var(--gold);
   outline: none;
-  box-shadow: 0 0 0 3px rgba(201, 168, 76, 0.15);
+  box-shadow: 0 0 0 4px var(--gold-glow);
 }
 
-/* ===== البطاقات ===== */
+/* ================================================================
+   🃏 CARDS – بطاقات فاخرة مع تأثير زجاجي (على الديسكتوب فقط)
+   ================================================================ */
+
 .card {
   background-color: var(--bg-card);
   border: 1px solid var(--border-color);
-  box-shadow: var(--shadow);
-  border-radius: 16px;
-  transition: box-shadow 0.2s;
+  border-radius: 20px;
+  box-shadow: var(--shadow-md);
+  transition: box-shadow 0.3s ease, transform 0.2s ease;
 }
 .card:hover {
   box-shadow: var(--shadow-lg);
+  transform: translateY(-2px);
 }
 
-/* ===== الأزرار ===== */
+/* ================================================================
+   🪄 GLASSMORPHISM – تأثير زجاجي فاخر (يُعطّل على الموبايل)
+   ================================================================ */
+
+.glass,
+.glass-card {
+  background: rgba(var(--bg-card-rgb), 0.65);
+  backdrop-filter: var(--backdrop-blur);
+  -webkit-backdrop-filter: var(--backdrop-blur);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: var(--shadow-lg);
+}
+.dark .glass,
+.dark .glass-card {
+  background: rgba(var(--bg-card-rgb), 0.55);
+  border-color: rgba(255, 255, 255, 0.06);
+}
+
+/* ================================================================
+   🟡 BUTTONS – أزرار ذهبية مع تأثيرات ناعمة
+   ================================================================ */
+
 .btn-primary {
   background: linear-gradient(135deg, var(--gold-light), var(--gold));
   color: var(--text-inverse);
   font-weight: 700;
-  padding: 10px 24px;
-  border-radius: 12px;
-  transition: transform 0.2s, box-shadow 0.2s;
+  padding: 12px 28px;
+  border-radius: 16px;
+  border: none;
+  box-shadow: var(--shadow-md), 0 0 0 1px rgba(255, 255, 255, 0.1);
+  transition: transform 0.2s, box-shadow 0.3s;
+  cursor: pointer;
 }
 .btn-primary:hover {
-  transform: scale(1.02);
-  box-shadow: 0 4px 20px rgba(201, 168, 76, 0.3);
+  transform: scale(1.03);
+  box-shadow: var(--shadow-gold), 0 0 0 2px rgba(255, 255, 255, 0.2);
 }
 .btn-primary:active {
-  transform: scale(0.98);
+  transform: scale(0.97);
 }
 
-/* ===== شريط التمرير العام ===== */
+.btn-secondary {
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  padding: 12px 28px;
+  border-radius: 16px;
+  font-weight: 600;
+  transition: all 0.2s;
+  cursor: pointer;
+}
+.btn-secondary:hover {
+  border-color: var(--gold);
+  box-shadow: var(--shadow-md);
+}
+
+/* ================================================================
+   📜 SCROLLBAR – شريط تمرير أنيق (فقط على الديسكتوب)
+   ================================================================ */
+
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -164,62 +259,255 @@ input:focus, textarea:focus, select:focus {
 ::-webkit-scrollbar-thumb {
   background: var(--gold);
   border-radius: 10px;
+  transition: background 0.2s;
 }
 ::-webkit-scrollbar-thumb:hover {
   background: var(--gold-dark);
 }
 
-/* ================================================================ */
-/* ✅ شريط التمرير الأفقي المخصص لصفحة الامتحان (يظهر دائماً) */
-/* ================================================================ */
+/* ================================================================
+   🧪 ANIMATIONS – حركات خفيفة وفاخرة (تُقلل على الموبايل)
+   ================================================================ */
 
-/* للـ WebKit (Chrome, Safari, Edge) */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+.shimmer {
+  background: linear-gradient(90deg, var(--bg-card) 25%, var(--bg-hover) 50%, var(--bg-card) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 2.5s infinite;
+}
+
+@keyframes breathe {
+  0%,
+  100% {
+    opacity: 0.7;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.02);
+  }
+}
+.animate-breathe {
+  animation: breathe 3s ease-in-out infinite;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-slide-up {
+  animation: slideUp 0.6s ease-out forwards;
+}
+
+/* ================================================================
+   📱 MOBILE FIRST – تعطيل كل ما يسبب تهنيج على الهواتف
+   ================================================================ */
+
+/* ===== كل ما دون 768px (تابلت صغير فما دون) ===== */
+@media (max-width: 767px) {
+  /* 1. تعطيل جميع تأثيرات backdrop-filter */
+  .glass,
+  .glass-card,
+  .backdrop-blur-sm,
+  .backdrop-blur-md,
+  .backdrop-blur-lg,
+  .backdrop-blur-xl,
+  .backdrop-blur-2xl,
+  .backdrop-blur-3xl,
+  [class*="backdrop-blur"] {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    background-color: var(--bg-card) !important;
+    border-color: var(--border-color) !important;
+  }
+
+  /* 2. تبسيط الظلال (تخفيف الحمل على GPU) */
+  .card,
+  .glass,
+  .glass-card {
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06) !important;
+  }
+  .card:hover,
+  .glass:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08) !important;
+    transform: none !important;
+  }
+
+  /* 3. تعطيل تحريك scale على الأزرار (hover) */
+  .btn-primary:hover,
+  .btn-secondary:hover {
+    transform: none !important;
+    box-shadow: var(--shadow-sm) !important;
+  }
+
+  /* 4. تقليل تعقيد الأنيميشن (إبطاء أو إيقاف) */
+  .animate-gradient {
+    animation-duration: 10s !important;
+  }
+  .animate-breathe {
+    animation-duration: 6s !important;
+  }
+  .animate-slide-up {
+    animation-duration: 0.4s !important;
+  }
+  .shimmer {
+    animation-duration: 4s !important;
+  }
+
+  /* 5. تقليل حجم شريط التمرير */
+  ::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+  ::-webkit-scrollbar-thumb {
+    border-radius: 6px;
+  }
+
+  /* 6. تقليل padding في البطاقات والكروت */
+  .card {
+    padding: 14px !important;
+    border-radius: 14px !important;
+  }
+
+  /* 7. منع أي transition غير ضروري */
+  * {
+    transition-duration: 0.1s !important;
+  }
+
+  /* 8. تعطيل أي تأثير transform معقد */
+  .hover\:scale-105:hover,
+  .hover\:scale-110:hover {
+    transform: none !important;
+  }
+}
+
+/* ================================================================
+   📱 شاشات صغيرة جداً (≤480px) – مزيد من التبسيط
+   ================================================================ */
+
+@media (max-width: 480px) {
+  .card {
+    padding: 10px !important;
+    border-radius: 12px !important;
+  }
+  .btn-primary,
+  .btn-secondary {
+    padding: 8px 16px !important;
+    font-size: 13px !important;
+    border-radius: 12px !important;
+  }
+  ::-webkit-scrollbar {
+    width: 3px;
+    height: 3px;
+  }
+}
+
+/* ================================================================
+   🖥️ DESKTOP – تعزيز الفخامة على الشاشات الكبيرة
+   ================================================================ */
+
+@media (min-width: 1024px) {
+  .card {
+    border-radius: 24px;
+    padding: 28px;
+  }
+  .glass,
+  .glass-card {
+    border-radius: 28px;
+    padding: 32px;
+  }
+  .btn-primary {
+    padding: 14px 36px;
+    border-radius: 20px;
+    font-size: 1.1rem;
+  }
+  .shadow-xl {
+    box-shadow: var(--shadow-xl);
+  }
+  .shadow-gold {
+    box-shadow: var(--shadow-gold);
+  }
+}
+
+/* ================================================================
+   🧩 UTILITIES – كلاسات مساعدة سريعة
+   ================================================================ */
+
+.border-gold {
+  border-color: var(--gold) !important;
+}
+.text-gold {
+  color: var(--gold) !important;
+}
+.bg-gold {
+  background-color: var(--gold) !important;
+}
+.bg-gold-subtle {
+  background-color: var(--bg-gold-subtle) !important;
+}
+
+/* ================================================================
+   📖 EXAM SCROLLBAR – خاص بصفحات الامتحانات (يُبقيها محافظة على الجمال)
+   ================================================================ */
+
 .exam-scrollbar::-webkit-scrollbar {
-  height: 10px;                 /* ارتفاع الشريط */
+  height: 10px;
   width: 10px;
 }
 .exam-scrollbar::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.05);
   border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.06);
 }
 .exam-scrollbar::-webkit-scrollbar-thumb {
   background: linear-gradient(to right, var(--gold-light), var(--gold));
   border-radius: 12px;
   border: 2px solid transparent;
   background-clip: padding-box;
-  box-shadow: 0 0 10px rgba(201, 168, 76, 0.2);
-  transition: all 0.3s ease;
+  box-shadow: 0 0 12px var(--gold-glow);
 }
 .exam-scrollbar::-webkit-scrollbar-thumb:hover {
   background: linear-gradient(to right, #fcd34d, var(--gold-dark));
-  box-shadow: 0 0 20px rgba(201, 168, 76, 0.4);
 }
-.exam-scrollbar::-webkit-scrollbar-corner {
-  background: transparent;
-}
-
-/* للـ Firefox */
 .exam-scrollbar {
   scrollbar-width: thin;
-  scrollbar-color: var(--gold) rgba(255, 255, 255, 0.06);
+  scrollbar-color: var(--gold) transparent;
 }
 
-/* ✅ نسخة للوضع الداكن مع تباين أعلى */
-.dark .exam-scrollbar::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+/* على الموبايل نُصغّر شريط الامتحان أيضاً */
+@media (max-width: 767px) {
+  .exam-scrollbar::-webkit-scrollbar {
+    height: 5px !important;
+    width: 5px !important;
+  }
+  .exam-scrollbar::-webkit-scrollbar-thumb {
+    border-radius: 6px !important;
+  }
 }
-.dark .exam-scrollbar::-webkit-scrollbar-thumb {
-  background: linear-gradient(to right, #fbbf24, #f59e0b);
-  box-shadow: 0 0 15px rgba(251, 191, 36, 0.15);
-}
-.dark .exam-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(to right, #fcd34d, #d97706);
-  box-shadow: 0 0 25px rgba(251, 191, 36, 0.3);
+@media (max-width: 480px) {
+  .exam-scrollbar::-webkit-scrollbar {
+    height: 3px !important;
+    width: 3px !important;
+  }
 }
 
-/* ===== أنماط إضافية لبيئة الامتحان ===== */
+/* ================================================================
+   🔒 FOCUS MODE – وضع التركيز (إخفاء العناصر المشتتة)
+   ================================================================ */
+
 .focus-mode .question-sidebar {
   display: none !important;
 }
@@ -231,126 +519,16 @@ input:focus, textarea:focus, select:focus {
   opacity: 1;
 }
 
-/* ===== تحسينات للوضع الفاتح ===== */
-:root {
-  --text-on-gold: #000000;
-}
-.dark {
-  --text-on-gold: #000000;
-}
+/* ================================================================
+   ⚡ PREFERS REDUCED MOTION – احترام تفضيلات المستخدم
+   ================================================================ */
 
-/* ===== أنيميشن الاهتزاز (لآخر 10 ثوانٍ) ===== */
-@keyframes shake {
-  0%, 100% { transform: translateX(0); }
-  25% { transform: translateX(-8px); }
-  75% { transform: translateX(8px); }
-}
-.animate-shake {
-  animation: shake 0.5s ease-in-out;
-}
-
-/* ===== أنيميشن التدرج (للعناوين) ===== */
-@keyframes gradient {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-}
-.animate-gradient {
-  background-size: 200% auto;
-  animation: gradient 4s ease infinite;
-}
-
-/* ================================================================ */
-/* ✅ تعطيل تأثيرات backdrop-blur على الموبايل (حتى 767px) */
-/* ================================================================ */
-@media (max-width: 767px) {
-  /* تعطيل جميع درجات backdrop-blur */
-  .backdrop-blur-sm,
-  .backdrop-blur-md,
-  .backdrop-blur-lg,
-  .backdrop-blur-xl,
-  .backdrop-blur-2xl,
-  .backdrop-blur-3xl {
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
-  }
-
-  /* تعويض الخلفية بلون شفاف بدلاً من التأثير */
-  .backdrop-blur-sm,
-  .backdrop-blur-md,
-  .backdrop-blur-lg,
-  .backdrop-blur-xl,
-  .backdrop-blur-2xl,
-  .backdrop-blur-3xl {
-    background-color: rgba(var(--bg-primary-rgb), 0.92) !important;
-  }
-
-  /* تعطيل أنيميشن دوران WaveBorderCard */
-  .wave-border-animation {
-    animation: none !important;
-  }
-
-  /* ===== 🆕 تحسينات إضافية خفيفة للموبايل (ما تلمسش الديسكتوب) ===== */
-  
-  /* 1. تقليل الظلال على الكروت عشان تخفيف GPU */
-  .card {
-    box-shadow: 0 1px 2px rgba(0,0,0,0.06) !important;
-  }
-  .card:hover {
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1) !important;
-  }
-
-  /* 2. إبطاء أنيميشن التدرج عشان تقليل الاستهلاك */
-  .animate-gradient {
-    animation-duration: 8s !important; /* بدلاً من 4s */
-  }
-
-  /* 3. منع حركة scale على الأزرار في hover عشان الموبايل ميعملش إعادة رسم */
-  .btn-primary:hover {
-    transform: none !important;
-    box-shadow: 0 2px 12px rgba(201, 168, 76, 0.2) !important;
-  }
-
-  /* 4. تصغير شريط التمرير المخصص عشان يقل الرندر */
-  .exam-scrollbar::-webkit-scrollbar {
-    height: 5px !important;
-    width: 5px !important;
-  }
-  .exam-scrollbar::-webkit-scrollbar-thumb {
-    border-radius: 6px !important;
-  }
-}
-
-/* ================================================================ */
-/* ✅ دعم الشاشات الصغيرة جداً */
-/* ================================================================ */
-@media (max-width: 640px) {
-  .card {
-    padding: 12px !important;
-    border-radius: 12px !important;
-  }
-  .btn-primary {
-    padding: 8px 16px;
-    font-size: 14px;
-  }
-  
-  /* ✅ تصغير شريط التمرير على الجوال */
-  .exam-scrollbar::-webkit-scrollbar {
-    height: 4px !important;
-  }
-}
-
-/* ✅ إضافة دعم للشاشات الصغيرة جداً (xs) */
-@media (max-width: 480px) {
-  .card {
-    padding: 10px !important;
-  }
-  .btn-primary {
-    padding: 6px 14px;
-    font-size: 13px;
-  }
-  
-  .exam-scrollbar::-webkit-scrollbar {
-    height: 3px !important;
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }
