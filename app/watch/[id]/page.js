@@ -1,8 +1,9 @@
 // ================================================================
 // 📁 المسار: app/watch/[id]/page.js
-// ✅ النسخة النهائية – إلغاء التهنيج تماماً على الموبايل
+// ✅ الإصدار النهائي – إلغاء التهنيج تماماً على الموبايل
 // ✅ إصلاح ظهور الأزرار في وضع ملء الشاشة (Fullscreen) على الموبايل
 // ✅ الحفاظ على التصميم الفاخر والمميزات الكاملة على الديسكتوب
+// ✅ إظهار الأزرار عند أي لمس على الشاشة (touchstart/touchmove/touchend)
 // ================================================================
 
 'use client';
@@ -289,7 +290,7 @@ const getGradientColor = (percent) => {
 };
 
 // ================================================================
-// 6. المكون الرئيسي – مع إلغاء التهنيج وإصلاح Fullscreen
+// 6. المكون الرئيسي – مع إلغاء التهنيج وإصلاح Fullscreen واللمس
 // ================================================================
 export default function WatchPage() {
   const params = useParams();
@@ -387,7 +388,7 @@ export default function WatchPage() {
   }, [isMobile]);
 
   // ================================================================
-  // 9. إظهار الأزرار عند التفاعل – يدعم Fullscreen
+  // 9. إظهار الأزرار عند التفاعل – يدعم Fullscreen واللمس
   // ================================================================
   const showControlsAndResetTimer = useCallback(() => {
     lastInteractionTimeRef.current = Date.now();
@@ -632,8 +633,6 @@ export default function WatchPage() {
       if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
       lastTimeRef.current = 0;
 
-      // على الموبايل: نحدّث الـ DOM مباشرة كل 200ms، ونحدّث React كل ثانية
-      // على الديسكتوب: نحدّث React كل 200ms (للدقة)
       const intervalTime = isMobile ? 200 : 200;
       let lastReactUpdate = 0;
 
@@ -644,7 +643,7 @@ export default function WatchPage() {
           const current = player.getCurrentTime() || 0;
           const total = player.getDuration() || 0;
           if (total > 0) {
-            // تحديث الـ DOM مباشرة (دون إعادة رسم React)
+            // تحديث الـ DOM مباشرة
             if (currentTimeDisplayRef.current) {
               currentTimeDisplayRef.current.textContent = formatTime(current);
             }
@@ -663,7 +662,7 @@ export default function WatchPage() {
               lastReactUpdate = now;
             }
 
-            // تتبع الفترات (للحفظ) – يحدث دائماً
+            // تتبع الفترات
             if (isPlayingRef.current) {
               const delta = current - lastTimeRef.current;
               if (delta > 0 && delta <= 2.0) {
@@ -875,7 +874,6 @@ export default function WatchPage() {
       } else {
         document.exitFullscreen();
       }
-      // في Fullscreen، نضطر لإظهار الأزرار فوراً
       showControlsAndResetTimer();
     } catch (e) {}
   }, [isYoutubeOnly, showControlsAndResetTimer]);
@@ -921,7 +919,7 @@ export default function WatchPage() {
   }, [playerReady, captionsEnabled, language, showControlsAndResetTimer]);
 
   // ================================================================
-  // 14. أحداث الحركة – تدعم Fullscreen والموبايل
+  // 14. أحداث الحركة – تدعم Fullscreen والموبايل واللمس
   // ================================================================
   useEffect(() => {
     if (isYoutubeOnly) return;
@@ -947,9 +945,7 @@ export default function WatchPage() {
 
     // مستمع خاص لـ Fullscreen على الموبايل (التشغيل بالإصبع)
     const handleFullscreenTouch = (e) => {
-      // نتحقق إذا كنا في وضع Fullscreen
       if (document.fullscreenElement) {
-        // نمنع تمرير الحدث للعناصر الداخلية
         e.preventDefault();
         showControlsAndResetTimer();
       }
@@ -957,10 +953,8 @@ export default function WatchPage() {
 
     const handleFullscreenChange = () => {
       if (document.fullscreenElement) {
-        // عند الدخول إلى Fullscreen، نظهر الأزرار فوراً
         showControlsAndResetTimer();
       } else {
-        // عند الخروج، نعيد ضبط الحالة
         setControlsVisible(true);
         clearTimeout(controlsTimerRef.current);
         if (isVideoPlayingRef.current) {
@@ -971,14 +965,17 @@ export default function WatchPage() {
 
     const container = containerRef.current;
     if (container) {
+      // أحداث الفأرة
       container.addEventListener('mousemove', handleInteraction, { passive: true });
       container.addEventListener('mouseleave', handleMouseLeave);
-      // مستمعات لمس للموبايل داخل الحاوية
+      
+      // ✅ أحداث اللمس – هذه هي المفتاح لإظهار الأزرار عند اللمس
       container.addEventListener('touchstart', handleInteraction, { passive: true });
+      container.addEventListener('touchmove', handleInteraction, { passive: true });
       container.addEventListener('touchend', handleInteraction, { passive: true });
     }
 
-    // مستمع عام للموبايل في Fullscreen (على الـ document)
+    // مستمع عام للموبايل في Fullscreen
     document.addEventListener('touchstart', handleFullscreenTouch, { passive: false });
     document.addEventListener('fullscreenchange', handleFullscreenChange);
 
@@ -987,6 +984,7 @@ export default function WatchPage() {
         container.removeEventListener('mousemove', handleInteraction);
         container.removeEventListener('mouseleave', handleMouseLeave);
         container.removeEventListener('touchstart', handleInteraction);
+        container.removeEventListener('touchmove', handleInteraction);
         container.removeEventListener('touchend', handleInteraction);
       }
       document.removeEventListener('touchstart', handleFullscreenTouch);
@@ -1275,7 +1273,7 @@ export default function WatchPage() {
   };
 
   // ================================================================
-  // 19. التصميم النهائي – مع دعم Fullscreen
+  // 19. التصميم النهائي – مع دعم Fullscreen واللمس
   // ================================================================
   return (
     <div className={`min-h-screen text-white transition-all duration-500 relative ${focusMode ? 'fixed inset-0 z-50 p-0 flex items-center justify-center bg-black' : ''}`}>
@@ -1411,7 +1409,7 @@ export default function WatchPage() {
                   {playerReady && (
                     <div
                       className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent p-2 sm:p-4 flex flex-col gap-1 sm:gap-2 pointer-events-auto z-40 transition-opacity duration-300 ${controlsVisible ? 'opacity-100' : 'opacity-0'}`}
-                      style={{ zIndex: 9999 }} // لضمان الظهور فوق كل شيء في Fullscreen
+                      style={{ zIndex: 9999 }}
                       onMouseEnter={() => {
                         showControlsAndResetTimer();
                       }}
