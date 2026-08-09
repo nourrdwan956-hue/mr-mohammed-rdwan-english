@@ -8,7 +8,6 @@ export async function POST(request) {
     const body = await request.json();
     const { email, redirectTo } = body;
 
-    // التحقق من وجود البريد
     if (!email || !email.trim()) {
       return NextResponse.json(
         { error: 'البريد الإلكتروني مطلوب' },
@@ -16,10 +15,17 @@ export async function POST(request) {
       );
     }
 
-    // استخدام عميل المسؤول في Supabase لتوليد رابط إعادة التعيين
+    // ✅ التحقق من وجود مفتاح Resend
+    if (!process.env.RESEND_API_KEY) {
+      console.error('❌ RESEND_API_KEY غير موجود في البيئة');
+      return NextResponse.json(
+        { error: 'خدمة البريد غير متاحة حالياً، يرجى المحاولة لاحقاً' },
+        { status: 503 }
+      );
+    }
+
     const supabaseAdmin = createAdminClient();
 
-    // إنشاء رابط استعادة باستخدام Admin API
     const { data, error } = await supabaseAdmin.auth.admin.generateLink({
       type: 'recovery',
       email: email.trim(),
@@ -36,7 +42,6 @@ export async function POST(request) {
       );
     }
 
-    // استخراج الرابط من الرد
     const resetLink = data?.properties?.action_link;
     if (!resetLink) {
       return NextResponse.json(
@@ -47,11 +52,10 @@ export async function POST(request) {
 
     console.log(`🔗 تم توليد رابط الاستعادة لـ ${email}:`, resetLink);
 
-    // إرسال البريد عبر Resend
     const { error: emailError } = await sendResetPasswordEmail(
       email.trim(),
       resetLink,
-      '' // يمكن إضافة اسم المستخدم لو موجود
+      ''
     );
 
     if (emailError) {
