@@ -1,10 +1,9 @@
 // app/dashboard/student/page.js
 // ================================================================
-// 🏛️ الصفحة الرئيسية للطالب – نسخة متوازنة: سرعة قصوى على الموبايل، فخامة على الديسكتوب
-// ✅ تحسين التخطيط لملء الفراغات وتوزيع العناصر بشكل مثالي
-// ✅ إبراز قسم الإعلانات وجعله بارزاً على الشاشات الكبيرة
-// ✅ تقليل الأنيميشن إلى الحد الأدنى على الموبايل (opacity/translate فقط)
-// ✅ استخدام تأثيرات زجاجية وحركات سلسة على الديسكتوب
+// 🏛️ الصفحة الرئيسية للطالب – نسخة محسّنة مع إبراز الإعلانات
+// ✅ نقل قسم الإعلانات إلى أعلى العمود الأيسر (تحت الإحصائيات مباشرة)
+// ✅ جعل الإعلانات بارزة على الشاشات الكبيرة (عرض كامل في العمود)
+// ✅ الحفاظ على سرعة الموبايل وإخفاء الحركات الزائدة
 // ================================================================
 
 'use client';
@@ -754,7 +753,7 @@ function setCachedData(data) {
 }
 
 // ================================================================
-// الصفحة الرئيسية
+// الصفحة الرئيسية – مع إعادة ترتيب الإعلانات
 // ================================================================
 export default function StudentDashboard() {
   const { theme, styles, language } = useTheme();
@@ -1135,6 +1134,11 @@ export default function StudentDashboard() {
               <StatCard icon={FileQuestion} label={language === 'ar' ? 'امتحانات' : 'Exams'} value={stats.totalExamsTaken} styles={styles} delay={0.1} />
             </div>
 
+            {/* ===== 🆕 قسم الإعلانات – ظاهر جداً على الديسكتوب ===== */}
+            <div className="w-full">
+              <AnnouncementsCard announcements={announcements} styles={styles} language={language} />
+            </div>
+
             {/* كورساتي النشطة */}
             <div>
               <div className="flex justify-between items-center mb-2 sm:mb-3">
@@ -1202,10 +1206,10 @@ export default function StudentDashboard() {
             </div>
           </div>
 
-          {/* العمود الأيمن */}
+          {/* العمود الأيمن – يحتوي فقط على الملاحظة */}
           <div className="space-y-4 sm:space-y-6">
             <NoteCard latestNote={latestNote} language={language} styles={styles} />
-            <AnnouncementsCard announcements={announcements} styles={styles} language={language} />
+            {/* تم نقل الإعلانات إلى العمود الأيسر */}
           </div>
         </div>
 
