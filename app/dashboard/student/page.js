@@ -1,9 +1,10 @@
 // app/dashboard/student/page.js
 // ================================================================
-// 🏛️ الصفحة الرئيسية للطالب – إصلاح أيقونات الوصول السريع
-// ✅ جعل الأيقونات والنصوص تظهر كاملة على جميع الشاشات
-// ✅ تحسين المسافات لتناسب الهواتف مع الحفاظ على سرعة التمرير
-// ✅ الحفاظ على التصميم الفاخر على الديسكتوب
+// 🏛️ الصفحة الرئيسية للطالب – تحسين الرؤية والتمرير
+// ✅ تكبير أيقونات الوصول السريع قليلاً مع ضمان ظهورها كاملة
+// ✅ تقليل المسافات العمودية لتقليل الحاجة للتمرير
+// ✅ تحسين التمرير ليكون سلساً وسريعاً
+// ✅ تنسيق متوازن للفراغات على جميع الأحجام
 // ================================================================
 
 'use client';
@@ -751,7 +752,7 @@ function setCachedData(data) {
 }
 
 // ================================================================
-// الصفحة الرئيسية – مع ضبط أيقونات الوصول السريع
+// الصفحة الرئيسية – تحسين الرؤية والتمرير
 // ================================================================
 export default function StudentDashboard() {
   const { theme, styles, language } = useTheme();
@@ -1209,8 +1210,8 @@ export default function StudentDashboard() {
           </div>
         </div>
 
-        {/* ===== روابط سريعة – معدلة لإظهار كل العناصر بالكامل ===== */}
-        <div className="grid grid-cols-3 sm:grid-cols-6 gap-1 xs:gap-1.5 sm:gap-3 lg:gap-4">
+        {/* ===== روابط سريعة – معدلة لظهور كامل ===== */}
+        <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5 xs:gap-2 sm:gap-3 lg:gap-4">
           {[
             { href: '/dashboard/student/courses', icon: Search, label: { ar: 'كورسات', en: 'Courses' } },
             { href: '/dashboard/student/support', icon: HelpCircle, label: { ar: 'دعم', en: 'Support' } },
@@ -1222,10 +1223,10 @@ export default function StudentDashboard() {
             <Link
               key={item.href}
               href={item.href}
-              className={`flex flex-col items-center justify-center gap-0.5 xs:gap-1 p-1.5 xs:p-2 sm:p-3 lg:p-4 rounded-lg border ${styles.border} ${styles.card} transition-all duration-200 group hover:border-blue-500/40 min-w-0`}
+              className="flex flex-col items-center justify-center gap-0.5 xs:gap-1 p-1.5 xs:p-2 sm:p-3 lg:p-4 rounded-lg border border-[var(--border-color)] bg-[var(--bg-card)] transition-all duration-200 group hover:border-blue-500/40 hover:shadow-md min-w-0"
             >
-              <item.icon className={`h-3.5 w-3.5 xs:h-4 xs:w-4 sm:h-5 sm:w-6 text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform flex-shrink-0`} />
-              <span className={`text-[6px] xs:text-[7px] sm:text-[10px] lg:text-sm font-bold ${styles.text} text-center break-words leading-tight max-w-full`}>
+              <item.icon className="h-4 w-4 xs:h-5 xs:w-5 sm:h-6 sm:w-6 text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform flex-shrink-0" />
+              <span className="text-[7px] xs:text-[8px] sm:text-[10px] lg:text-sm font-bold text-center break-words leading-tight max-w-full text-[var(--text-primary)]">
                 {item.label[language]}
               </span>
             </Link>
