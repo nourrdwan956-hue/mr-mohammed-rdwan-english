@@ -2,6 +2,7 @@
 // 📁 المسار: app/watch/[id]/page.js
 // ✅ الإصدار النهائي - حل مشكلة إخفاء الأزرار بعد 3 ثوانٍ مع الظهور عند الحركة
 // ✅ زر التشغيل المركزي يعمل تشغيل/إيقاف بكفاءة
+// ✅ العداد (مدة المشاهدة) يتقدم تلقائياً كل ثانية
 // ✅ جميع خصائص الأمان محفوظة بالكامل
 // ================================================================
 
@@ -325,7 +326,6 @@ export default function WatchPage() {
   const [buffering, setBuffering] = useState(false);
   
   // ==== حالة التحكم في ظهور الأزرار ====
-  // القيمة الافتراضية: تظهر دائماً (true) حتى يكون المستخدم قادراً على التحكم
   const [controlsVisible, setControlsVisible] = useState(true);
   
   const [showSpeedMenu, setShowSpeedMenu] = useState(false);
@@ -363,6 +363,8 @@ export default function WatchPage() {
   const isPlayingRef = useRef(false);
   // مرجع لتتبع ما إذا كان الفيديو في حالة تشغيل لتحديد إخفاء الأزرار
   const isVideoPlayingRef = useRef(false);
+  // مرجع لتخزين الوقت السابق لتتبع الفترات
+  const lastTimeRef = useRef(0);
 
   // ---- استخراج معلومات YouTube ----
   const youtubeId = useMemo(() => (video ? getYoutubeId(video.video_url) : null), [video]);
@@ -582,9 +584,10 @@ export default function WatchPage() {
               if (playerInstance) {
                 const dur = playerInstance.getDuration();
                 if (dur > 0) setDuration(dur);
+                // بدء تتبع التقدم بعد أن يصبح المشغل جاهزاً
+                startProgressTracking();
               }
               console.log('✅ YouTube Player ready');
-              startProgressTracking();
             },
             onStateChange: (e) => {
               if (e.data === 1) {
@@ -639,22 +642,54 @@ export default function WatchPage() {
       }
     };
 
+    // ================================================================
+    // 12.1 دالة تتبع التقدم (تم دمجها هنا لتكون متاحة)
+    // ================================================================
     const startProgressTracking = () => {
+      // إلغاء أي interval سابق
       if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
+      
+      // تهيئة lastTime
+      lastTimeRef.current = 0;
+      
+      // إنشاء interval جديد كل 500ms لتحديث الوقت والفترات
       progressIntervalRef.current = setInterval(() => {
         const player = playerRef.current;
-        if (player && playerReady && typeof player.getCurrentTime === 'function') {
-          try {
-            const current = player.getCurrentTime() || 0;
-            const total = player.getDuration() || 0;
-            if (total > 0) {
-              setCurrentTime(current);
-              setDuration(total);
-              setProgress((current / total) * 100);
+        if (!player || !playerReady) return;
+        try {
+          // جلب الوقت الحالي والمدة
+          const current = player.getCurrentTime() || 0;
+          const total = player.getDuration() || 0;
+          
+          if (total > 0) {
+            // تحديث currentTime و progress
+            setCurrentTime(current);
+            setDuration(total);
+            setProgress((current / total) * 100);
+            
+            // ---- تتبع الفترات (العداد الذكي) ----
+            // نستخدم lastTimeRef لتتبع الفرق
+            if (isPlayingRef.current) {
+              const delta = current - lastTimeRef.current;
+              // إذا كانت الزيادة موجبة وأقل من 2 ثانية (تجنب القفزات)
+              if (delta > 0 && delta <= 2.0) {
+                // نضيف الفترة الجديدة
+                setWatchIntervals(prev => {
+                  const newInterval = [lastTimeRef.current, current];
+                  const merged = mergeIntervals([...prev, newInterval]);
+                  const unique = merged.reduce((sum, [s, e]) => sum + (e - s), 0);
+                  setTotalWatchedUnique(unique);
+                  return merged;
+                });
+              }
+              // تحديث lastTime
+              lastTimeRef.current = current;
             }
-          } catch (e) {}
+          }
+        } catch (e) {
+          // تجاهل الأخطاء
         }
-      }, 200);
+      }, 500); // 500ms لتحديث الوقت والفترات معاً
     };
 
     const loadAPI = () => {
@@ -703,7 +738,7 @@ export default function WatchPage() {
       }
       playerRef.current = null;
     };
-  }, [isYoutubeOnly, isValidYoutube, youtubeId, video, id, showIntro, scheduleHideControls]);
+  }, [isYoutubeOnly, isValidYoutube, youtubeId, video, id, showIntro, playerReady, scheduleHideControls]);
 
   // ================================================================
   // 13. دوال التحكم
@@ -824,6 +859,8 @@ export default function WatchPage() {
         player.seekTo(target, true);
         setProgress(percent);
         setCurrentTime(target);
+        // تحديث lastTimeRef لتجنب قفزات في التتبع
+        lastTimeRef.current = target;
         setControlsVisible(true);
         scheduleHideControls();
       }
@@ -1052,50 +1089,11 @@ export default function WatchPage() {
   }, [playerReady, togglePlay, skipForward, skipBackward, toggleMute, toggleFullscreen, toggleFocusMode, toggleCaptions, isYoutubeOnly]);
 
   // ================================================================
-  // 17. نظام التتبع الذكي للمشاهدة
+  // 17. نظام التتبع الذكي للمشاهدة (تم دمجه في progressInterval)
   // ================================================================
+  // لم نعد بحاجة إلى useEffect منفصل لتتبع الفترات، حيث تم دمجه في startProgressTracking
 
-  // 17.1 تتبع التقدم الحقيقي
-  useEffect(() => {
-    if (!playerReady || !isPlaying || !playerRef.current) return;
-
-    let lastTime = 0;
-    try {
-      const player = playerRef.current;
-      if (typeof player.getCurrentTime === 'function') {
-        lastTime = player.getCurrentTime() || 0;
-      } else {
-        return;
-      }
-    } catch (e) {
-      return;
-    }
-
-    const interval = setInterval(() => {
-      try {
-        const player = playerRef.current;
-        if (!player || !playerReady || !isPlayingRef.current) return;
-        if (typeof player.getCurrentTime !== 'function') return;
-
-        const now = player.getCurrentTime();
-        const delta = now - lastTime;
-        if (delta > 0 && delta <= 2.0) {
-          setWatchIntervals(prev => {
-            const newInterval = [lastTime, now];
-            const merged = mergeIntervals([...prev, newInterval]);
-            const unique = merged.reduce((sum, [s, e]) => sum + (e - s), 0);
-            setTotalWatchedUnique(unique);
-            return merged;
-          });
-        }
-        lastTime = now;
-      } catch (e) {}
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [isPlaying, playerReady]);
-
-  // 17.2 الحفظ الدوري الصامت
+  // 17.1 الحفظ الدوري الصامت (يبقى كما هو)
   useEffect(() => {
     if (!video?.id || !playerReady) return;
 
@@ -1139,7 +1137,7 @@ export default function WatchPage() {
     };
   }, [video?.id, playerReady, watchIntervals, totalWatchedUnique]);
 
-  // 17.3 الحفظ عند الخروج
+  // 17.2 الحفظ عند الخروج (يبقى كما هو)
   useEffect(() => {
     const handleExit = () => {
       if (!video?.id || watchIntervals.length === 0) return;
@@ -1393,7 +1391,6 @@ export default function WatchPage() {
 
                   {/* ✅ زر التشغيل المركزي الأصفر - يعمل تشغيل/إيقاف */}
                   {/* الشرط: يظهر إذا كانت الأزرار ظاهرة (controlsVisible) أو الفيديو واقف (!isPlaying) */}
-                  {/* ملاحظة: عندما يكون الفيديو شغالاً وتكون controlsVisible = false، يختفي الزر */}
                   {playerReady && (controlsVisible || !isPlaying) && (
                     <div
                       className="absolute inset-0 z-30 flex items-center justify-center pb-8 sm:pb-0"
