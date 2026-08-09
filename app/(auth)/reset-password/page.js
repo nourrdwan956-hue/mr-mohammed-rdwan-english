@@ -28,7 +28,7 @@ export default function ResetPasswordPage() {
 
     try {
       // ✅ الرابط الأساسي للموقع من المتصفح (مضمون 100%)
-      const appUrl = window.location.origin;
+      const appUrl = 'https://mr-mohammed-rdwan-english.vercel.app';
       const redirectTo = `${appUrl}/update-password`;
 
       console.log('📧 محاولة إرسال رابط الاستعادة إلى:', email.trim());
