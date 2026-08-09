@@ -1,11 +1,10 @@
 // app/dashboard/student/courses/page.js
 // ================================================================
-// 🏛️ صفحة قائمة الكورسات – متجاوبة بالكامل ومضغوطة
-// ✅ تصغير الأحجام والهوامش
-// ✅ إضافة عرض محتوى الكورس (فيديوهات - امتحانات - كتب) قبل الشراء
-// ✅ منع التشغيل حتى الدفع
-// ✅ تحسينات الأداء: استيراد فردي للأيقونات، next/image، pagination حقيقي،
-//    تحسين WaveBorderCard للموبايل، React.memo، تعطيل الأسهم على الموبايل
+// 🏛️ صفحة قائمة الكورسات – نسخة فائقة السرعة والفخامة
+// ✅ إلغاء التهنيج على الموبايل تماماً (بدون backdrop-filter، تقليل الحركات)
+// ✅ أنيميشن فاخر على الديسكتوب (entrance animations، hover 3D، توهج)
+// ✅ تحسين الأداء باستخدام useMemo، useCallback، React.memo
+// ✅ تصميم متجاوب مع أحجام مثالية لكل شاشة
 // ================================================================
 
 'use client';
@@ -65,7 +64,7 @@ const getRandomColor = (exclude = []) => {
 };
 
 // ================================================================
-// 🌊 مكون الحدود الموجية المتطورة (Wave Border) – محسّن للموبايل
+// 🌊 مكون الحدود الموجية المتطورة – محسّن للموبايل بأنيميشن أخف
 // ================================================================
 const WaveBorderCard = ({ children, className = '', initialColor = 'blue', onColorChange, intensity = 1 }) => {
   const [color, setColor] = useState(CARD_COLORS.find(c => c.name === initialColor) || CARD_COLORS[0]);
@@ -90,8 +89,8 @@ const WaveBorderCard = ({ children, className = '', initialColor = 'blue', onCol
   }, [color]);
 
   useEffect(() => {
-    // ✅ تقليل سرعة التحديث على الموبايل
-    const intervalTime = isMobile ? 200 : 50 / intensity;
+    // ✅ على الموبايل: نبطئ الحركة جداً (كل 500ms) عشان نقلل الضغط
+    const intervalTime = isMobile ? 500 : 50 / intensity;
     const interval = setInterval(() => {
       if (!isMounted.current) return;
       setRotation(prev => {
@@ -129,10 +128,20 @@ const WaveBorderCard = ({ children, className = '', initialColor = 'blue', onCol
     maskComposite: 'exclude',
   };
 
+  // على الموبايل: نزيل backdrop-filter ونخلي البطاقة بسيطة
+  const cardStyle = {
+    backgroundColor: 'var(--bg-card)',
+    border: '1px solid var(--border-color)',
+    borderRadius: '1.5rem',
+    ...(isMobile ? {} : { backdropFilter: 'blur(6px)' }),
+  };
+
   return (
     <div className={`relative rounded-2xl overflow-hidden group ${className}`}>
-      <div className="absolute inset-0 rounded-2xl" style={gradientStyle} />
-      <div className="relative z-10 h-full w-full rounded-2xl backdrop-blur-sm bg-[var(--bg-card)] border border-[var(--border-color)] transition-all duration-300 group-hover:shadow-2xl">
+      {!isMobile && (
+        <div className="absolute inset-0 rounded-2xl" style={gradientStyle} />
+      )}
+      <div className="relative z-10 h-full w-full rounded-2xl bg-[var(--bg-card)] border border-[var(--border-color)] transition-all duration-300">
         {children}
       </div>
     </div>
@@ -174,8 +183,7 @@ function parseGrade(gradeText) {
 }
 
 // ================================================================
-// 🎴 بطاقة كورس – تصميم فاخر مع غلاف 16:9 ومحتوى الكورس المعروض
-// ✅ استخدام memo + next/image
+// 🎴 بطاقة كورس – تصميم فاخر مع أنيميشن متطور
 // ================================================================
 const CourseCard = memo(({
   course,
@@ -202,7 +210,7 @@ const CourseCard = memo(({
   const videosCount = course.videos_count || 0;
   const duration = course.duration || null;
 
-  // جلب محتوى الكورس (فيديوهات، امتحانات، كتب)
+  // جلب محتوى الكورس
   const fetchCourseContent = useCallback(async () => {
     if (courseContent) return;
     setLoadingContent(true);
@@ -375,20 +383,50 @@ const CourseCard = memo(({
     );
   };
 
+  // ===== تأثيرات الدخول والتفاعل ====
+  const cardVariants = {
+    hidden: { opacity: 0, y: 40, scale: 0.95 },
+    visible: { 
+      opacity: 1, 
+      y: 0, 
+      scale: 1,
+      transition: { 
+        type: 'spring', 
+        stiffness: 200, 
+        damping: 20,
+        duration: 0.5
+      }
+    },
+    hover: {
+      y: -8,
+      scale: 1.01,
+      transition: { duration: 0.3, ease: 'easeOut' }
+    }
+  };
+
+  // ===== كشف الموبايل لتخفيف الأنيميشن =====
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 640);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
   return (
     <motion.div
-      initial={{ opacity: 0, y: 30 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: '-50px' }}
-      whileHover={{ y: -4 }}
-      transition={{ duration: 0.4, type: 'spring', stiffness: 300, damping: 20 }}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
+      variants={cardVariants}
+      initial="hidden"
+      whileInView="visible"
+      viewport={{ once: true, margin: '-80px' }}
+      whileHover={!isMobile ? "hover" : undefined}
+      onMouseEnter={() => !isMobile && setIsHovered(true)}
+      onMouseLeave={() => !isMobile && setIsHovered(false)}
       className="w-full max-w-5xl mx-auto"
     >
       <WaveBorderCard initialColor={cardColor.name} onColorChange={handleColorChange} intensity={1}>
-        <div className="relative overflow-hidden rounded-2xl">
-          {/* غلاف 16:9 – باستخدام next/image */}
+        <div className="relative overflow-hidden rounded-2xl transition-all duration-500">
+          {/* غلاف 16:9 مع تأثير زوم عند hover */}
           <div className="relative w-full aspect-[16/9] bg-gradient-to-br from-gray-800/80 via-gray-900/60 to-gray-950/90 overflow-hidden">
             {course.cover_image ? (
               <>
@@ -398,7 +436,7 @@ const CourseCard = memo(({
                   width={640}
                   height={360}
                   loading="lazy"
-                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                  className={`w-full h-full object-cover transition-transform duration-700 ${isHovered && !isMobile ? 'scale-105' : 'scale-100'}`}
                   sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
@@ -409,16 +447,21 @@ const CourseCard = memo(({
               </div>
             )}
 
-            {/* شارة الحالة */}
+            {/* شارة الحالة مع تأثير نبض */}
             {isEnrolled && (
               <div className="absolute top-2 right-2 sm:top-3 sm:right-3 z-10">
-                <span className="px-2 py-1 sm:px-3 sm:py-1 rounded-full text-[8px] sm:text-[10px] font-bold bg-gradient-to-r from-blue-500/90 to-indigo-500/90 text-white backdrop-blur-md border border-blue-400/40 shadow-lg shadow-blue-500/30">
+                <motion.span
+                  initial={{ scale: 0.8, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ duration: 0.4, type: 'spring' }}
+                  className="px-2 py-1 sm:px-3 sm:py-1 rounded-full text-[8px] sm:text-[10px] font-bold bg-gradient-to-r from-blue-500/90 to-indigo-500/90 text-white backdrop-blur-md border border-blue-400/40 shadow-lg shadow-blue-500/30"
+                >
                   ✅ {language === 'ar' ? 'مشترك' : 'Enrolled'}
-                </span>
+                </motion.span>
               </div>
             )}
 
-            {/* شريط التقدم */}
+            {/* شريط التقدم مع أنيميشن */}
             {isEnrolled && progress > 0 && (
               <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-white/10 backdrop-blur-sm">
                 <motion.div
@@ -433,15 +476,15 @@ const CourseCard = memo(({
               </div>
             )}
 
-            {/* عنوان الكورس يظهر عند التمرير */}
+            {/* عنوان الكورس يظهر عند hover */}
             <div className="absolute bottom-2 left-2 right-14 sm:bottom-3 sm:left-3 sm:right-16 z-10">
-              <h3 className={`text-sm sm:text-base md:text-lg font-bold text-white drop-shadow-lg line-clamp-2 ${isHovered ? 'opacity-100' : 'opacity-0'} transition-opacity duration-500`}>
+              <h3 className={`text-sm sm:text-base md:text-lg font-bold text-white drop-shadow-lg line-clamp-2 transition-opacity duration-500 ${isHovered ? 'opacity-100' : 'opacity-0'}`}>
                 {course.title}
               </h3>
             </div>
           </div>
 
-          {/* ===== المحتوى السفلي – مضغوط ===== */}
+          {/* ===== المحتوى السفلي ===== */}
           <div className="p-3 sm:p-4 flex flex-col gap-3">
             {/* الصف العلوي: العنوان + السعر */}
             <div className="flex flex-wrap items-start justify-between gap-2">
@@ -476,22 +519,22 @@ const CourseCard = memo(({
                 )}
 
                 <div className="flex items-center gap-0.5">
-                  <button
+                  <motion.button
+                    whileHover={{ scale: 1.15 }}
+                    whileTap={{ scale: 0.9 }}
                     onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggleFavorite(course.id); }}
-                    className={`p-1.5 rounded-full transition-all duration-300 hover:scale-110 ${
-                      isFavorite ? 'bg-red-500/20' : 'hover:bg-white/10'
-                    }`}
+                    className={`p-1.5 rounded-full transition-all duration-300 ${isFavorite ? 'bg-red-500/20' : 'hover:bg-white/10'}`}
                   >
                     <Heart className={`h-3.5 w-3.5 transition-colors ${isFavorite ? 'fill-red-500 text-red-500' : 'text-gray-400'}`} />
-                  </button>
-                  <button
+                  </motion.button>
+                  <motion.button
+                    whileHover={{ scale: 1.15 }}
+                    whileTap={{ scale: 0.9 }}
                     onClick={(e) => { e.preventDefault(); e.stopPropagation(); onTogglePin(course.id); }}
-                    className={`p-1.5 rounded-full transition-all duration-300 hover:scale-110 ${
-                      isPinned ? 'bg-yellow-500/20' : 'hover:bg-white/10'
-                    }`}
+                    className={`p-1.5 rounded-full transition-all duration-300 ${isPinned ? 'bg-yellow-500/20' : 'hover:bg-white/10'}`}
                   >
                     <Pin className={`h-3.5 w-3.5 transition-colors ${isPinned ? 'fill-yellow-400 text-yellow-400' : 'text-gray-400'}`} />
-                  </button>
+                  </motion.button>
                 </div>
 
                 {isEnrolled ? (
@@ -519,7 +562,7 @@ const CourseCard = memo(({
               </div>
             </div>
 
-            {/* ===== قسم محتوى الكورس (جديد) ===== */}
+            {/* ===== قسم محتوى الكورس ===== */}
             <div className="border-t border-white/10 pt-2">
               <button
                 onClick={handleToggleContent}
@@ -558,7 +601,7 @@ const CourseCard = memo(({
           </div>
 
           {/* تأثير توهج عند hover */}
-          {isHovered && (
+          {isHovered && !isMobile && (
             <div className={`absolute inset-0 pointer-events-none bg-gradient-to-t from-${cardColor.name}-500/10 via-transparent to-transparent transition-opacity duration-500 rounded-2xl`} />
           )}
         </div>
@@ -570,9 +613,7 @@ const CourseCard = memo(({
 CourseCard.displayName = 'CourseCard';
 
 // ================================================================
-// الصفحة الرئيسية – مع أسهم تمرير في منتصف الشاشة (مضغوطة)
-// ✅ Pagination حقيقي مع Supabase range
-// ✅ تعطيل الأسهم على الموبايل
+// الصفحة الرئيسية – مع تحسينات الأداء والأنيميشن
 // ================================================================
 export default function StudentCoursesPage() {
   const router = useRouter();
@@ -595,7 +636,6 @@ export default function StudentCoursesPage() {
   const containerRef = useRef(null);
   const scrollTimeoutRef = useRef(null);
 
-  // 👇 ترقيم الصفحات
   const [totalCount, setTotalCount] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
 
@@ -603,7 +643,6 @@ export default function StudentCoursesPage() {
   const [showScrollDown, setShowScrollDown] = useState(true);
   const [hideArrows, setHideArrows] = useState(false);
 
-  // كشف الموبايل لتعطيل الأسهم
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
@@ -616,21 +655,20 @@ export default function StudentCoursesPage() {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // المفضلة
+  // المفضلة والتثبيتات (نفس الكود السابق)
   useEffect(() => {
     try { const stored = localStorage.getItem('studentFavorites'); if (stored) setFavorites(JSON.parse(stored)); } catch (e) {}
   }, []);
   const saveFavorites = (favs) => { setFavorites(favs); localStorage.setItem('studentFavorites', JSON.stringify(favs)); };
   const toggleFavorite = (id) => saveFavorites(favorites.includes(id) ? favorites.filter(i => i !== id) : [...favorites, id]);
 
-  // التثبيتات
   useEffect(() => {
     try { const stored = localStorage.getItem('studentPinnedCourses'); if (stored) setPinned(JSON.parse(stored)); } catch (e) {}
   }, []);
   const savePinned = (pinnedIds) => { setPinned(pinnedIds); localStorage.setItem('studentPinnedCourses', JSON.stringify(pinnedIds)); };
   const togglePin = (id) => savePinned(pinned.includes(id) ? pinned.filter(i => i !== id) : [...pinned, id]);
 
-  // جلب البيانات مع ترقيم الصفحات الحقيقي
+  // جلب البيانات مع ترقيم الصفحات (نفس الكود السابق)
   const fetchAllCourses = useCallback(async (page = 1, limit = COURSES_PER_PAGE) => {
     setLoading(true);
     setError('');
@@ -642,7 +680,6 @@ export default function StudentCoursesPage() {
       const gradeInfo = parseGrade(profile?.grade);
       setStudentGradeInfo(gradeInfo);
 
-      // ✅ Pagination حقيقي باستخدام range و count
       const from = (page - 1) * limit;
       const to = from + limit - 1;
 
@@ -651,9 +688,7 @@ export default function StudentCoursesPage() {
         .select('*, teacher:teacher_id(full_name)', { count: 'exact' })
         .eq('is_published', true);
 
-      // تطبيق عوامل التصفية على مستوى قاعدة البيانات حيثما أمكن
       if (!showAllCourses && gradeInfo.stageEn) {
-        // نطبق التصفية بالمرحلة إذا كانت متوفرة
         const stageFilter = gradeInfo.stageEn;
         query = query.or(`grade_stage.eq.${stageFilter},grade_stage.eq.${gradeInfo.stageAr}`);
         if (gradeInfo.level !== null) {
@@ -661,10 +696,8 @@ export default function StudentCoursesPage() {
         }
       }
 
-      // ترتيب
       query = query.order('created_at', { ascending: false });
 
-      // جلب البيانات مع العدد الإجمالي
       const { data, count, error } = await query.range(from, to);
 
       if (error) throw error;
@@ -673,7 +706,6 @@ export default function StudentCoursesPage() {
       setTotalCount(count || 0);
       setTotalPages(Math.ceil((count || 0) / limit));
 
-      // جلب التسجيلات
       const { data: enrolls } = await supabase.from('enrollments').select('course_id, progress').eq('student_id', user.id);
       const map = {};
       enrolls?.forEach(e => { map[e.course_id] = { enrolled: true, progress: e.progress }; });
@@ -687,13 +719,11 @@ export default function StudentCoursesPage() {
     }
   }, [language, showAllCourses]);
 
-  // استدعاء عند تغيير الصفحة أو الفلاتر
   useEffect(() => {
     if (!fetchedRef.current) return;
     fetchAllCourses(currentPage, COURSES_PER_PAGE);
   }, [currentPage, fetchAllCourses]);
 
-  // التحميل الأولي
   useEffect(() => {
     if (fetchedRef.current) return;
     fetchedRef.current = true;
@@ -755,31 +785,26 @@ export default function StudentCoursesPage() {
     setTimeout(() => setHideArrows(true), 1500);
   };
 
-  // فلترة وترتيب على العميل (للبحث والفلترة الإضافية)
+  // فلترة وترتيب (نفس الكود السابق)
   const filteredCourses = useMemo(() => {
     let result = allCourses;
 
-    // تطبيق البحث
     if (search.trim()) {
       const q = search.trim().toLowerCase();
       result = result.filter(c => c.title.toLowerCase().includes(q) || c.description?.toLowerCase().includes(q));
     }
 
-    // تطبيق فلتر مجاني/مدفوع
     if (filterFree === true) result = result.filter(c => c.is_free || c.price === 0);
     else if (filterFree === false) result = result.filter(c => !c.is_free && c.price > 0);
 
-    // تطبيق فلتر المرحلة (إذا لم يتم تطبيقه على قاعدة البيانات)
     if (filterStage) {
       result = result.filter(c => c.grade_stage === filterStage || GRADE_STAGES.find(s => s.id === filterStage)?.ar === c.grade_stage);
     }
 
-    // تطبيق فلتر الصف
     if (filterLevel) {
       result = result.filter(c => String(c.grade_level) === String(filterLevel));
     }
 
-    // ترتيب
     const pinnedIds = pinned || [];
     const pinnedCourses = [];
     const unpinnedCourses = [];
@@ -806,7 +831,6 @@ export default function StudentCoursesPage() {
     return [...pinnedCourses, ...unpinnedCourses];
   }, [allCourses, search, filterFree, filterStage, filterLevel, sort, pinned]);
 
-  // إعادة تعيين الصفحة عند تغيير الفلاتر
   useEffect(() => {
     setCurrentPage(1);
   }, [search, filterFree, filterStage, filterLevel, sort, showAllCourses]);
@@ -814,7 +838,6 @@ export default function StudentCoursesPage() {
   const stageDisplayName = studentGradeInfo.stageEn ? GRADE_STAGES.find(s => s.id === studentGradeInfo.stageEn)?.ar || '' : '';
   const totalCoursesCount = totalCount;
 
-  // التحميل
   if (loading) {
     return (
       <div className="h-full w-full flex items-center justify-center bg-[var(--bg-primary)]">
@@ -850,12 +873,12 @@ export default function StudentCoursesPage() {
         style={{ scrollBehavior: 'smooth' }}
       >
         <div className="max-w-5xl mx-auto px-3 sm:px-4 py-3 sm:py-4 pb-12 sm:pb-16">
-          {/* الهيدر – مضغوط */}
+          {/* الهيدر مع أنيميشن دخول */}
           {hasCourses && (
             <motion.div 
-              initial={{ opacity: 0, y: -15 }} 
+              initial={{ opacity: 0, y: -20 }} 
               animate={{ opacity: 1, y: 0 }} 
-              transition={{ duration: 0.5, type: 'spring', stiffness: 200 }}
+              transition={{ duration: 0.6, type: 'spring', stiffness: 200 }}
               className="mb-4 sm:mb-5 space-y-3 sm:space-y-4"
             >
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -899,7 +922,7 @@ export default function StudentCoursesPage() {
                 </button>
               </div>
 
-              {/* شريط البحث والفلترة – مضغوط */}
+              {/* شريط البحث والفلترة */}
               <div className="flex flex-col sm:flex-row gap-1.5 sm:gap-2 items-stretch">
                 <div className="relative flex-1 group">
                   <Search className="absolute left-2.5 sm:left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 sm:h-4 sm:w-4 text-gray-400 group-focus-within:text-blue-400 transition-colors" />
@@ -963,29 +986,22 @@ export default function StudentCoursesPage() {
           <div className="grid grid-cols-1 gap-4 sm:gap-5">
             {filteredCourses.length > 0 ? (
               filteredCourses.map((course, index) => (
-                <motion.div
+                <CourseCard
                   key={course.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true, margin: '-50px' }}
-                  transition={{ duration: 0.4, delay: index * 0.04 }}
-                >
-                  <CourseCard
-                    course={course}
-                    isEnrolled={enrollments[course.id]?.enrolled || false}
-                    progress={enrollments[course.id]?.progress || 0}
-                    isFavorite={favorites.includes(course.id)}
-                    isPinned={pinned.includes(course.id)}
-                    onToggleFavorite={toggleFavorite}
-                    onTogglePin={togglePin}
-                    onEnroll={(id) => {
-                      setEnrollments(prev => ({ ...prev, [id]: { enrolled: true, progress: 0 } }));
-                    }}
-                    onPayment={(id) => router.push(`/dashboard/student/courses/${id}/payment`)}
-                    styles={styles}
-                    language={language}
-                  />
-                </motion.div>
+                  course={course}
+                  isEnrolled={enrollments[course.id]?.enrolled || false}
+                  progress={enrollments[course.id]?.progress || 0}
+                  isFavorite={favorites.includes(course.id)}
+                  isPinned={pinned.includes(course.id)}
+                  onToggleFavorite={toggleFavorite}
+                  onTogglePin={togglePin}
+                  onEnroll={(id) => {
+                    setEnrollments(prev => ({ ...prev, [id]: { enrolled: true, progress: 0 } }));
+                  }}
+                  onPayment={(id) => router.push(`/dashboard/student/courses/${id}/payment`)}
+                  styles={styles}
+                  language={language}
+                />
               ))
             ) : (
               <motion.div 
@@ -1016,7 +1032,7 @@ export default function StudentCoursesPage() {
             )}
           </div>
 
-          {/* ترقيم الصفحات – باستخدام totalPages الحقيقي */}
+          {/* ترقيم الصفحات */}
           {totalPages > 1 && hasCourses && (
             <div className="flex justify-center items-center gap-1.5 sm:gap-2 mt-5 sm:mt-6 pb-4">
               <button 
@@ -1063,7 +1079,7 @@ export default function StudentCoursesPage() {
         </div>
       </div>
 
-      {/* أسهم التمرير – مضغوطة ومعطلة على الموبايل */}
+      {/* أسهم التمرير – معطلة على الموبايل */}
       <AnimatePresence>
         {showScrollUp && !hideArrows && !isMobile && (
           <motion.button
