@@ -27,44 +27,32 @@ export default function ResetPasswordPage() {
     setLoading(true);
 
     try {
-      // ✅ الرابط الأساسي للموقع من المتصفح (مضمون 100%)
-      const appUrl = 'https://mr-mohammed-rdwan-english.vercel.app';
-      const redirectTo = `${appUrl}/update-password`;
+      // ✅ استخدم الرابط الثابت للموقع
+      const redirectTo = 'https://mr-mohammed-rdwan-english.vercel.app/update-password';
 
       console.log('📧 محاولة إرسال رابط الاستعادة إلى:', email.trim());
       console.log('🔗 رابط العودة:', redirectTo);
 
-      // 🔹 المحاولة الأولى: استخدام Supabase Auth (قد يفشل إذا كانت إعدادات SMTP غير صحيحة)
+      // ✅ استخدام Supabase Auth فقط (بدون Resend)
       const { error: supabaseError } = await supabase.auth.resetPasswordForEmail(
         email.trim(),
         { redirectTo }
       );
 
-      // لو نجح Supabase، نعتبر المهمة تمت
-      if (!supabaseError) {
-        setSuccess(true);
-        toast.success('✅ تم إرسال رابط الاستعادة إلى بريدك الإلكتروني');
-        setLoading(false);
-        return;
-      }
-
-      // 🔹 إذا فشل Supabase، نستخدم Resend عبر API الخاص بنا
-      console.warn('⚠️ فشل Supabase reset، نحاول عبر Resend API:', supabaseError);
-
-      const response = await fetch('/api/auth/reset-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim(), redirectTo }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'فشل إرسال البريد عبر الخدمة البديلة');
+      if (supabaseError) {
+        console.error('❌ فشل Supabase reset:', supabaseError);
+        // عرض رسالة خطأ واضحة للمستخدم
+        if (supabaseError.message.includes('rate limit')) {
+          throw new Error('تم تجاوز عدد المحاولات المسموح بها، يرجى الانتظار دقيقة ثم المحاولة مرة أخرى');
+        } else if (supabaseError.message.includes('User not found')) {
+          throw new Error('لا يوجد حساب مسجل بهذا البريد الإلكتروني');
+        } else {
+          throw new Error(supabaseError.message || 'فشل إرسال رابط الاستعادة، حاول مرة أخرى');
+        }
       }
 
       setSuccess(true);
-      toast.success('✅ تم إرسال رابط الاستعادة بنجاح');
+      toast.success('✅ تم إرسال رابط الاستعادة إلى بريدك الإلكتروني (يرجى فحص البريد العشوائي/Spam)');
     } catch (err) {
       console.error('❌ فشل إرسال رابط الاستعادة:', err);
       setError(err.message || 'فشل إرسال رابط الاستعادة، تأكد من البريد الإلكتروني وحاول مرة أخرى');
