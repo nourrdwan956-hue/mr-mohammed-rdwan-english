@@ -2,8 +2,8 @@
 
 // ================================================================
 // 💬 المسار: app/dashboard/assistant/support/[id]/page.js
-// ✅ صفحة التفاصيل – تظهر فقط للمساعد المختص أو غير المعينة
-// إذا كانت معينة لمساعد آخر، تظهر رسالة "غير مصرح"
+// ✅ صفحة التفاصيل – تعرض التذكرة والردود لأي مساعد (لمنع تكرار الردود)
+// وتمنع الرد إذا كانت معينة لمساعد آخر
 // ================================================================
 
 import { AssistantLayout } from '@/components/AssistantLayout';
@@ -45,12 +45,12 @@ export default function AssistantSupportDetailPage() {
   const [sending, setSending] = useState(false);
   const [permissions, setPermissions] = useState([]);
   const [canReply, setCanReply] = useState(false);
-  const [isAuthorized, setIsAuthorized] = useState(true);
+  const [notFound, setNotFound] = useState(false);
   const messagesEndRef = useRef(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-    setIsAuthorized(true);
+    setNotFound(false);
     try {
       const stored = sessionStorage.getItem('assistantData');
       if (!stored) {
@@ -79,55 +79,92 @@ export default function AssistantSupportDetailPage() {
         return;
       }
 
-      // جلب التذكرة
-      const res = await fetch(`/api/assistant/support?id=${ticketId}`, {
-        headers: { 'x-assistant-id': assistantData.id },
-      });
-      
-      if (res.status === 403 || res.status === 404) {
-        // غير مصرح أو غير موجودة
-        setIsAuthorized(false);
+      // 1. جلب التذكرة (بدون فلترة صلاحية قاسية، نجيبها بالمعرف فقط)
+      const { data: ticketData, error: ticketError } = await supabase
+        .from('tickets')
+        .select('*, student:profiles!tickets_student_id_fkey(full_name, email), course:courses(title, teacher_id)')
+        .eq('id', ticketId)
+        .single();
+
+      if (ticketError || !ticketData) {
+        console.error('Ticket not found:', ticketError);
+        setNotFound(true);
         setLoading(false);
         return;
       }
 
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || 'فشل جلب التذكرة');
+      // التحقق من أن التذكرة تابعة للمعلم (عن طريق course_id أو student_id)
+      // نجيب teacher_id من جدول المساعد
+      const { data: teacherCheck } = await supabase
+        .from('assistants')
+        .select('teacher_id')
+        .eq('id', assistantData.id)
+        .single();
+
+      if (teacherCheck) {
+        // إذا كان للتذكرة course_id، نتحقق أن الكورس تابع للمعلم
+        if (ticketData.course_id) {
+          const { data: course } = await supabase
+            .from('courses')
+            .select('teacher_id')
+            .eq('id', ticketData.course_id)
+            .single();
+          if (course?.teacher_id !== teacherCheck.teacher_id) {
+            setNotFound(true);
+            setLoading(false);
+            return;
+          }
+        } else if (ticketData.student_id) {
+          // إذا لم يكن لها course، نتحقق أن الطالب تابع للمعلم
+          const { data: student } = await supabase
+            .from('profiles')
+            .select('teacher_id')
+            .eq('id', ticketData.student_id)
+            .single();
+          if (student?.teacher_id !== teacherCheck.teacher_id) {
+            setNotFound(true);
+            setLoading(false);
+            return;
+          }
+        } else {
+          // إذا لم يكن لها لا course ولا student، نقبلها فقط إذا كانت معينة للمعلم أو للمساعد الحالي أو غير معينة
+          const isAssignedToTeacher = ticketData.assigned_to === teacherCheck.teacher_id;
+          const isAssignedToAssistant = ticketData.assigned_to === assistantData.id;
+          const isUnassigned = ticketData.assigned_to === null;
+          if (!isAssignedToTeacher && !isAssignedToAssistant && !isUnassigned) {
+            setNotFound(true);
+            setLoading(false);
+            return;
+          }
+        }
       }
 
-      const data = await res.json();
-      if (!data.success) throw new Error('فشل جلب التذكرة');
-
-      const ticketsArray = data.tickets || [];
-      if (ticketsArray.length === 0) {
-        setIsAuthorized(false);
-        setLoading(false);
-        return;
-      }
-
-      const ticketData = ticketsArray[0];
       setTicket(ticketData);
 
-      // تحديد إمكانية الرد: إذا كانت معينة لمساعد آخر أو مغلقة، لا يمكن الرد
+      // تحديد إمكانية الرد:
+      // - إذا كانت معينة لمساعد آخر غير المعلم وغير المساعد الحالي → لا يمكن الرد
       const isAssignedToOther = ticketData.assigned_to !== null 
                                 && ticketData.assigned_to !== assistantData.id
-                                && ticketData.assigned_to !== assistantData.teacher_id;
+                                && ticketData.assigned_to !== teacherCheck?.teacher_id;
       setCanReply(!isAssignedToOther && ticketData.status !== 'closed');
 
-      // جلب الردود
-      const { data: repliesData } = await supabase
+      // 2. جلب الردود (دائماً)
+      const { data: repliesData, error: repliesError } = await supabase
         .from('ticket_replies')
         .select('*, sender:profiles(full_name)')
         .eq('ticket_id', ticketId)
         .order('created_at', { ascending: true });
-      setReplies(repliesData || []);
+
+      if (repliesError) {
+        console.error('Replies error:', repliesError);
+      } else {
+        setReplies(repliesData || []);
+      }
 
     } catch (err) {
       console.error('Fetch error:', err);
       toast.error(err.message || 'فشل تحميل التفاصيل');
-      // في حالة أي خطأ، نعتبر غير مصرح
-      setIsAuthorized(false);
+      setNotFound(true);
     } finally {
       setLoading(false);
     }
@@ -135,9 +172,9 @@ export default function AssistantSupportDetailPage() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  // Realtime للردود (فقط إذا كان مصرحاً)
+  // Realtime للردود (دائماً، بغض النظر عن الصلاحية)
   useEffect(() => {
-    if (!ticketId || !isAuthorized) return;
+    if (!ticketId) return;
     const channel = supabase
       .channel(`ticket-detail-${ticketId}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'ticket_replies', filter: `ticket_id=eq.${ticketId}` }, (payload) => {
@@ -149,7 +186,7 @@ export default function AssistantSupportDetailPage() {
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [ticketId, isAuthorized]);
+  }, [ticketId]);
 
   const handleSendReply = async (e) => {
     e?.preventDefault();
@@ -178,7 +215,6 @@ export default function AssistantSupportDetailPage() {
         if (ticket.status === 'open') {
           setTicket(prev => ({ ...prev, status: 'in_progress' }));
         }
-        // بعد الرد، التذكرة أصبحت معينة لهذا المساعد، لذا يمكنه الرد مرة أخرى
         setCanReply(true);
       }
 
@@ -211,7 +247,6 @@ export default function AssistantSupportDetailPage() {
 
   const formatDate = (date) => new Date(date).toLocaleDateString('ar-EG', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 
-  // حالة التحميل
   if (loading) {
     return (
       <AssistantLayout>
@@ -222,15 +257,14 @@ export default function AssistantSupportDetailPage() {
     );
   }
 
-  // إذا لم يكن مصرحاً
-  if (!isAuthorized || !ticket) {
+  if (notFound || !ticket) {
     return (
       <AssistantLayout>
         <div className={`min-h-screen ${styles.bg} ${styles.text} flex items-center justify-center p-4`}>
           <div className="text-center">
-            <Icons.Lock className="h-16 w-16 text-red-400 mx-auto mb-4" />
-            <h2 className="text-2xl font-bold mb-2">غير مصرح لك</h2>
-            <p className={`${styles.subtext} mb-6`}>هذه التذكرة معينة لمساعد آخر أو غير موجودة</p>
+            <Icons.TicketX className="h-16 w-16 text-red-400 mx-auto mb-4" />
+            <h2 className="text-2xl font-bold mb-2">التذكرة غير موجودة</h2>
+            <p className={`${styles.subtext} mb-6`}>قد تكون غير تابعة لكورسات هذا المعلم</p>
             <button
               onClick={() => router.push('/dashboard/assistant/support')}
               className="px-6 py-2 bg-yellow-400 text-black font-bold rounded-xl hover:scale-105 transition"
@@ -246,6 +280,11 @@ export default function AssistantSupportDetailPage() {
   const statusInfo = STATUS_MAP[ticket.status];
   const priorityInfo = PRIORITY_MAP[ticket.priority];
 
+  // التحقق إذا كانت معينة لمساعد آخر (لا يمكن الرد)
+  const isAssignedToOther = ticket.assigned_to !== null 
+                            && ticket.assigned_to !== assistant?.id
+                            && ticket.assigned_to !== assistant?.teacher_id;
+
   return (
     <AssistantLayout>
       <div className={`min-h-screen ${styles.bg} ${styles.text} flex flex-col`} dir="rtl">
@@ -254,10 +293,16 @@ export default function AssistantSupportDetailPage() {
           <button onClick={() => router.push('/dashboard/assistant/support')} className={`p-2 rounded-xl hover:bg-white/5 ${styles.subtext}`}><Icons.ArrowRight className="h-5 w-5" /></button>
           <div className="flex-1 min-w-0">
             <h1 className={`text-sm font-bold truncate ${styles.text}`}>{ticket.subject}</h1>
-            <div className="flex items-center gap-2 text-[10px] mt-0.5">
+            <div className="flex items-center gap-2 text-[10px] mt-0.5 flex-wrap">
               <span className={`px-1.5 py-0.5 rounded-full ${statusInfo.bg} ${statusInfo.color} ${statusInfo.border} border`}>{statusInfo.label}</span>
               <span className={priorityInfo.color}>{priorityInfo.label}</span>
               <span className={styles.subtext}>{ticket.support_type === 'technical' ? 'شكوى فنية' : 'سؤال أكاديمي'}</span>
+              {isAssignedToOther && (
+                <span className="text-[10px] bg-green-400/20 text-green-400 px-1.5 py-0.5 rounded-full">معينة لمساعد آخر</span>
+              )}
+              {!ticket.assigned_to && (
+                <span className="text-[10px] bg-yellow-400/20 text-yellow-400 px-1.5 py-0.5 rounded-full">غير مخصصة</span>
+              )}
             </div>
           </div>
           <button onClick={() => router.push('/dashboard/assistant')} className="px-3 py-1.5 bg-purple-500/20 text-purple-400 rounded-lg text-xs">لوحة التحكم</button>
@@ -342,7 +387,7 @@ export default function AssistantSupportDetailPage() {
             {!canReply && ticket.status !== 'closed' && (
               <div className={`${styles.card} border ${styles.border} rounded-2xl p-4 text-center ${styles.subtext}`}>
                 <Icons.Lock className="h-5 w-5 inline ml-2 text-yellow-400" />
-                هذه التذكرة معينة لمساعد آخر، لا يمكنك الرد عليها
+                هذه التذكرة معينة لمساعد آخر، لا يمكنك الرد عليها (يمكنك مشاهدة الردود فقط)
               </div>
             )}
           </div>
