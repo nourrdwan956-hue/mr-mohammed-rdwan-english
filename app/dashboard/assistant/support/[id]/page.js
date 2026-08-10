@@ -4,18 +4,6 @@
 // 💬 المسار: app/dashboard/assistant/support/[id]/page.js
 // صفحة تفاصيل الدعم – المحادثة الكاملة مع إجراءات المساعد المتكاملة
 // ================================================================
-// الميزات:
-// - عرض تفاصيل الطلب (شكوى/سؤال) مع معلومات الطالب والكورس والتصنيف.
-// - سلسلة ردود بتصميم فقاعات محادثة (المساعد يمين، الطالب يسار).
-// - إرسال ردود جديدة مع دعم Enter.
-// - Realtime: ظهور الردود الجديدة فوراً.
-// - تغيير حالة التذكرة (مفتوحة، قيد المعالجة، محلولة، مغلقة).
-// - تغيير الأولوية (منخفضة، متوسطة، عالية، عاجلة).
-// - حذف التذكرة (حسب الصلاحية).
-// - أزرار سريعة: مراسلة الطالب، إضافة ملاحظة، إرسال إعلان.
-// - عرض الصور المرفقة في الأسئلة الأكاديمية.
-// - تصميم فاخر متجاوب مع الثيم واللغة.
-// ================================================================
 
 import { AssistantLayout } from '@/components/AssistantLayout';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -25,7 +13,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import * as Icons from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { toast } from 'react-hot-toast';
-import { getCachedAssistantPermissions, hasPermission } from '@/lib/permissions';
+import { hasPermission } from '@/lib/permissions';
 import { useTheme } from '@/lib/hooks/useTheme';
 
 // ----- ثوابت الحالات والأولويات -----
@@ -49,47 +37,33 @@ export default function AssistantSupportDetailPage() {
   const ticketId = params.id;
   const { theme, styles } = useTheme();
 
-  const [user, setUser] = useState(null);
+  const [assistant, setAssistant] = useState(null);
   const [ticket, setTicket] = useState(null);
   const [replies, setReplies] = useState([]);
   const [newReply, setNewReply] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [updating, setUpdating] = useState(false);
-  const [permissions, setPermissions] = useState(null);
-  const [isAssistant, setIsAssistant] = useState(false);
+  const [permissions, setPermissions] = useState([]);
   const messagesEndRef = useRef(null);
 
   // ----- جلب البيانات -----
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      // ✅ إصلاح: استخدام supabase.auth.getUser()
-      const { data: { user: u }, error: userError } = await supabase.auth.getUser();
-      if (userError || !u) {
-        console.error('User error:', userError);
-        router.push('/login');
+      // ✅ قراءة بيانات المساعد من sessionStorage
+      const stored = sessionStorage.getItem('assistantData');
+      if (!stored) {
+        router.push('/assistant-login');
         return;
       }
-      setUser(u);
+      const assistantData = JSON.parse(stored);
+      setAssistant(assistantData);
 
-      // جلب الصلاحيات من الـ API
-      const permsRes = await fetch(`/api/assistant-data`, {
-        headers: { 'x-assistant-id': u.id }
-      });
-      const permsData = await permsRes.json();
-      
-      let perms = [];
-      if (permsData.success && permsData.assistant) {
-        setIsAssistant(true);
-        perms = permsData.permissions || [];
-        setPermissions(perms);
-      } else {
-        setIsAssistant(false);
-        toast.error('غير مصرح لك بالدخول كمساعد');
-        router.push('/dashboard/student');
-        return;
-      }
+      // قراءة الصلاحيات
+      const permsStored = sessionStorage.getItem('assistantPermissions');
+      const perms = permsStored ? JSON.parse(permsStored) : [];
+      setPermissions(perms);
 
       // التحقق من صلاحية عرض التذاكر
       const canView = hasPermission(perms, 'tickets', 'can_view');
@@ -107,7 +81,7 @@ export default function AssistantSupportDetailPage() {
         .single();
 
       if (ticketError) throw ticketError;
-      if (ticketData.assigned_to !== u.id) {
+      if (ticketData.assigned_to !== assistantData.id) {
         toast.error('غير مصرح لك بمشاهدة هذه التذكرة');
         router.push('/dashboard/assistant/support');
         return;
@@ -151,12 +125,12 @@ export default function AssistantSupportDetailPage() {
   // ----- إجراءات -----
   const handleSendReply = async (e) => {
     e?.preventDefault();
-    if (!newReply.trim() || !user) return;
+    if (!newReply.trim() || !assistant) return;
     setSending(true);
     try {
       const { error } = await supabase.from('ticket_replies').insert({
         ticket_id: ticketId,
-        sender_id: user.id,
+        sender_id: assistant.id,
         message: newReply.trim(),
         created_at: new Date().toISOString(),
       });
@@ -260,7 +234,7 @@ export default function AssistantSupportDetailPage() {
                   <p className={`text-xs ${styles.subtext} text-center py-8`}>لا توجد ردود بعد. كن أول من يرد!</p>
                 ) : (
                   replies.map(reply => {
-                    const isAssistantUser = reply.sender_id === user?.id;
+                    const isAssistantUser = reply.sender_id === assistant?.id;
                     return (
                       <motion.div key={reply.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
                         className={`flex ${isAssistantUser ? 'justify-end' : 'justify-start'}`}>
@@ -305,7 +279,7 @@ export default function AssistantSupportDetailPage() {
             <div className={`${styles.card} border ${styles.border} rounded-2xl p-4`}>
               <h4 className={`text-sm font-bold ${styles.text} mb-3`}>الإجراءات</h4>
               {/* تغيير الحالة */}
-              {(!isAssistant || hasPermission(permissions, 'tickets', 'can_edit')) && (
+              {(!assistant || hasPermission(permissions, 'tickets', 'can_edit')) && (
                 <div className="mb-4">
                   <label className="text-xs text-gray-400 mb-1 block">الحالة</label>
                   <select value={ticket.status} onChange={e => handleStatusChange(e.target.value)}
@@ -316,7 +290,7 @@ export default function AssistantSupportDetailPage() {
                 </div>
               )}
               {/* تغيير الأولوية */}
-              {(!isAssistant || hasPermission(permissions, 'tickets', 'can_edit')) && (
+              {(!assistant || hasPermission(permissions, 'tickets', 'can_edit')) && (
                 <div className="mb-4">
                   <label className="text-xs text-gray-400 mb-1 block">الأولوية</label>
                   <select value={ticket.priority} onChange={e => handlePriorityChange(e.target.value)}
@@ -328,7 +302,7 @@ export default function AssistantSupportDetailPage() {
               )}
 
               {/* حذف (إذا كان معلمًا أو لديه صلاحية can_delete) */}
-              {(!isAssistant || hasPermission(permissions, 'tickets', 'can_delete')) && (
+              {(!assistant || hasPermission(permissions, 'tickets', 'can_delete')) && (
                 <button onClick={handleDelete} className="w-full p-2 rounded-lg bg-red-500/10 text-red-400 text-sm mb-2">حذف التذكرة</button>
               )}
             </div>

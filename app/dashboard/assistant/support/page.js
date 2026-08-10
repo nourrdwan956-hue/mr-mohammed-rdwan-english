@@ -2,7 +2,7 @@
 
 // ================================================================
 // 🛡️ المسار: app/dashboard/assistant/support/page.js
-// مركز الدعم الشامل للمساعد – النسخة الأسطورية V3.0
+// مركز الدعم الشامل للمساعد – نسخة تعتمد على sessionStorage (بدون supabase.auth)
 // ================================================================
 
 import { AssistantLayout } from '@/components/AssistantLayout';
@@ -13,7 +13,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import * as Icons from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { toast } from 'react-hot-toast';
-import { getCachedAssistantPermissions, hasPermission } from '@/lib/permissions';
+import { hasPermission } from '@/lib/permissions';
 import { useTheme } from '@/lib/hooks/useTheme';
 
 // ===== عداد متحرك =====
@@ -51,10 +51,9 @@ const StatCard = ({ icon: Icon, label, value, color, styles, delay = 0, suffix =
 export default function AssistantSupportHubPage() {
   const router = useRouter();
   const { theme, styles } = useTheme();
-  const [user, setUser] = useState(null);
+  const [assistant, setAssistant] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [permissions, setPermissions] = useState(null);
-  const [isAssistant, setIsAssistant] = useState(false);
+  const [permissions, setPermissions] = useState([]);
 
   // بيانات حية
   const [technicalTickets, setTechnicalTickets] = useState([]);
@@ -70,33 +69,22 @@ export default function AssistantSupportHubPage() {
   const fetchInitialData = useCallback(async () => {
     setLoading(true);
     try {
-      // ✅ إصلاح: استخدام supabase.auth.getUser() بدلاً من sessionStorage
-      const { data: { user: u }, error: userError } = await supabase.auth.getUser();
-      if (userError || !u) {
-        console.error('User error:', userError);
-        router.push('/login');
+      // ✅ قراءة بيانات المساعد من sessionStorage
+      const stored = sessionStorage.getItem('assistantData');
+      if (!stored) {
+        router.push('/assistant-login');
         return;
       }
-      setUser(u);
+      const assistantData = JSON.parse(stored);
+      setAssistant(assistantData);
 
-      // جلب الصلاحيات من الـ API
-      const permsRes = await fetch(`/api/assistant-data`, {
-        headers: { 'x-assistant-id': u.id }
-      });
-      const permsData = await permsRes.json();
-      
-      if (permsData.success && permsData.assistant) {
-        setIsAssistant(true);
-        setPermissions(permsData.permissions || []);
-      } else {
-        setIsAssistant(false);
-        toast.error('غير مصرح لك بالدخول كمساعد');
-        router.push('/dashboard/student');
-        return;
-      }
+      // قراءة الصلاحيات من sessionStorage
+      const permsStored = sessionStorage.getItem('assistantPermissions');
+      const perms = permsStored ? JSON.parse(permsStored) : [];
+      setPermissions(perms);
 
       // التحقق من صلاحية عرض التذاكر
-      const canView = hasPermission(permsData.permissions || [], 'tickets', 'can_view');
+      const canView = hasPermission(perms, 'tickets', 'can_view');
       if (!canView) {
         toast.error('غير مصرح لك بمشاهدة هذه الصفحة');
         router.push('/dashboard/assistant');
@@ -107,7 +95,7 @@ export default function AssistantSupportHubPage() {
       const { data: techData, error: techError } = await supabase
         .from('tickets')
         .select('*, student:profiles!tickets_student_id_fkey(full_name, email), course:courses(title)')
-        .eq('assigned_to', u.id)
+        .eq('assigned_to', assistantData.id)
         .eq('support_type', 'technical')
         .order('created_at', { ascending: false });
 
@@ -117,7 +105,7 @@ export default function AssistantSupportHubPage() {
       const { data: acadData, error: acadError } = await supabase
         .from('tickets')
         .select('*, student:profiles!tickets_student_id_fkey(full_name, email), course:courses(title)')
-        .eq('assigned_to', u.id)
+        .eq('assigned_to', assistantData.id)
         .eq('support_type', 'academic')
         .order('created_at', { ascending: false });
 
@@ -165,10 +153,10 @@ export default function AssistantSupportHubPage() {
 
   // ===== Realtime اشتراك =====
   useEffect(() => {
-    if (!user) return;
+    if (!assistant) return;
     const ticketsChannel = supabase
       .channel('assistant-support-tickets')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'tickets', filter: `assigned_to=eq.${user.id}` }, 
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tickets', filter: `assigned_to=eq.${assistant.id}` }, 
         () => fetchInitialData()
       )
       .subscribe();
@@ -176,7 +164,7 @@ export default function AssistantSupportHubPage() {
     return () => {
       supabase.removeChannel(ticketsChannel);
     };
-  }, [user, fetchInitialData]);
+  }, [assistant, fetchInitialData]);
 
   const formatDate = (date) => new Date(date).toLocaleDateString('ar-EG', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 

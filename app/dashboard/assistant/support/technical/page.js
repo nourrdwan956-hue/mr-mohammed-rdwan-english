@@ -4,14 +4,6 @@
 // 🛠️ المسار: app/dashboard/assistant/support/technical/page.js
 // قائمة الشكاوى الفنية للمساعد – النسخة المتطورة V4.0
 // ================================================================
-// الميزات:
-// - عرض كل الشكاوى الفنية مع فلترة متقدمة (حالة، أولوية، كورس، بحث).
-// - إحصائيات حية: عدد الشكاوى المفتوحة، المعلقة، المحلولة.
-// - إجراءات سريعة لكل شكوى: تغيير الحالة، رد، حذف (حسب الصلاحية).
-// - دعم Realtime (تحديث مباشر عند تغير البيانات).
-// - روابط سريعة لملف الطالب والمراسلة.
-// - تصميم متجاوب مع الثيم الفاتح والداكن.
-// ================================================================
 
 import { AssistantLayout } from '@/components/AssistantLayout';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -21,7 +13,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import * as Icons from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { toast } from 'react-hot-toast';
-import { getCachedAssistantPermissions, hasPermission } from '@/lib/permissions';
+import { hasPermission } from '@/lib/permissions';
 import { useTheme } from '@/lib/hooks/useTheme';
 
 // ----- ثوابت الحالات والأولويات -----
@@ -42,12 +34,11 @@ const PRIORITY_MAP = {
 export default function AssistantTechnicalComplaintsPage() {
   const router = useRouter();
   const { theme, styles } = useTheme();
-  const [user, setUser] = useState(null);
+  const [assistant, setAssistant] = useState(null);
   const [loading, setLoading] = useState(true);
   const [complaints, setComplaints] = useState([]);
   const [courses, setCourses] = useState([]);
-  const [permissions, setPermissions] = useState(null);
-  const [isAssistant, setIsAssistant] = useState(false);
+  const [permissions, setPermissions] = useState([]);
 
   // فلترة وبحث
   const [search, setSearch] = useState('');
@@ -63,32 +54,19 @@ export default function AssistantTechnicalComplaintsPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      // ✅ إصلاح: استخدام supabase.auth.getUser()
-      const { data: { user: u }, error: userError } = await supabase.auth.getUser();
-      if (userError || !u) {
-        console.error('User error:', userError);
-        router.push('/login');
+      // ✅ قراءة بيانات المساعد من sessionStorage
+      const stored = sessionStorage.getItem('assistantData');
+      if (!stored) {
+        router.push('/assistant-login');
         return;
       }
-      setUser(u);
+      const assistantData = JSON.parse(stored);
+      setAssistant(assistantData);
 
-      // جلب الصلاحيات من الـ API
-      const permsRes = await fetch(`/api/assistant-data`, {
-        headers: { 'x-assistant-id': u.id }
-      });
-      const permsData = await permsRes.json();
-      
-      let perms = [];
-      if (permsData.success && permsData.assistant) {
-        setIsAssistant(true);
-        perms = permsData.permissions || [];
-        setPermissions(perms);
-      } else {
-        setIsAssistant(false);
-        toast.error('غير مصرح لك بالدخول كمساعد');
-        router.push('/dashboard/student');
-        return;
-      }
+      // قراءة الصلاحيات
+      const permsStored = sessionStorage.getItem('assistantPermissions');
+      const perms = permsStored ? JSON.parse(permsStored) : [];
+      setPermissions(perms);
 
       // التحقق من صلاحية عرض التذاكر
       const canView = hasPermission(perms, 'tickets', 'can_view');
@@ -102,7 +80,7 @@ export default function AssistantTechnicalComplaintsPage() {
       const { data: ticketData, error } = await supabase
         .from('tickets')
         .select('*, student:profiles!tickets_student_id_fkey(full_name, email), course:courses(title)')
-        .eq('assigned_to', u.id)
+        .eq('assigned_to', assistantData.id)
         .eq('support_type', 'technical')
         .order('created_at', { ascending: false });
 
@@ -111,8 +89,8 @@ export default function AssistantTechnicalComplaintsPage() {
       setComplaints(ticketData || []);
 
       // الكورسات للفلترة
-      if (permsData.assistant?.teacher_id) {
-        const { data: courseData } = await supabase.from('courses').select('id, title').eq('teacher_id', permsData.assistant.teacher_id);
+      if (assistantData.teacher_id) {
+        const { data: courseData } = await supabase.from('courses').select('id, title').eq('teacher_id', assistantData.teacher_id);
         setCourses(courseData || []);
       }
 
@@ -128,13 +106,13 @@ export default function AssistantTechnicalComplaintsPage() {
 
   // Realtime
   useEffect(() => {
-    if (!user) return;
+    if (!assistant) return;
     const channel = supabase
       .channel('assistant-tech-complaints')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'tickets', filter: `assigned_to=eq.${user.id}` }, () => fetchData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tickets', filter: `assigned_to=eq.${assistant.id}` }, () => fetchData())
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [user, fetchData]);
+  }, [assistant, fetchData]);
 
   // ----- إجراءات -----
   const handleStatusChange = async (id, newStatus) => {
@@ -272,14 +250,14 @@ export default function AssistantTechnicalComplaintsPage() {
                         </div>
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0" onClick={e => e.stopPropagation()}>
-                        {(!isAssistant || hasPermission(permissions, 'tickets', 'can_edit')) && (
+                        {(!assistant || hasPermission(permissions, 'tickets', 'can_edit')) && (
                           <select value={complaint.status} onChange={e => handleStatusChange(complaint.id, e.target.value)}
                             className={`text-xs p-1.5 ${styles.input} border ${styles.border} rounded-lg`}>
                             <option value="open">مفتوحة</option><option value="in_progress">قيد المعالجة</option>
                             <option value="resolved">محلولة</option><option value="closed">مغلقة</option>
                           </select>
                         )}
-                        {(!isAssistant || hasPermission(permissions, 'tickets', 'can_delete')) && (
+                        {(!assistant || hasPermission(permissions, 'tickets', 'can_delete')) && (
                           <button onClick={() => confirmAction('delete', complaint.id, complaint.subject)}
                             className="p-1.5 rounded-lg hover:bg-red-500/20 text-red-400"><Icons.Trash2 className="h-4 w-4" /></button>
                         )}
