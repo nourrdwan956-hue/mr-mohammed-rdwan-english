@@ -3,6 +3,7 @@
 // ================================================================
 // 💬 المسار: app/dashboard/assistant/support/[id]/page.js
 // صفحة تفاصيل الدعم – المحادثة الكاملة مع إجراءات المساعد
+// ✅ النسخة المعدلة – تسمح بالوصول للتذاكر المعينة للمعلم
 // ================================================================
 
 import { AssistantLayout } from '@/components/AssistantLayout';
@@ -47,6 +48,7 @@ export default function AssistantSupportDetailPage() {
   const [permissions, setPermissions] = useState([]);
   const messagesEndRef = useRef(null);
 
+  // ----- جلب البيانات -----
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
@@ -58,6 +60,7 @@ export default function AssistantSupportDetailPage() {
       const assistantData = JSON.parse(stored);
       setAssistant(assistantData);
 
+      // جلب الصلاحيات
       const permsRes = await fetch('/api/assistant-data', {
         headers: { 'x-assistant-id': assistantData.id },
       });
@@ -76,6 +79,7 @@ export default function AssistantSupportDetailPage() {
         return;
       }
 
+      // جلب التذكرة المحددة عبر API
       const res = await fetch(`/api/assistant/support?id=${ticketId}`, {
         headers: { 'x-assistant-id': assistantData.id },
       });
@@ -92,8 +96,15 @@ export default function AssistantSupportDetailPage() {
       }
       const ticketData = ticketsArray[0];
       
-      // السماح بالوصول إذا كانت غير معينة أو معينة لهذا المساعد
-      if (ticketData.assigned_to !== null && ticketData.assigned_to !== assistantData.id) {
+      // ✅ التحقق الموسع للصلاحية:
+      // - إذا كانت التذكرة معينة للمساعد نفسه (assigned_to = assistant.id)
+      // - أو غير معينة (assigned_to = null)
+      // - أو معينة للمعلم الذي يتبعه المساعد (assigned_to = assistant.teacher_id)
+      const isAssignedToAssistant = ticketData.assigned_to === assistantData.id;
+      const isUnassigned = ticketData.assigned_to === null;
+      const isAssignedToTeacher = ticketData.assigned_to === assistantData.teacher_id;
+
+      if (!isAssignedToAssistant && !isUnassigned && !isAssignedToTeacher) {
         toast.error('غير مصرح لك بمشاهدة هذه التذكرة');
         router.push('/dashboard/assistant/support');
         return;
@@ -101,6 +112,7 @@ export default function AssistantSupportDetailPage() {
 
       setTicket(ticketData);
 
+      // جلب الردود
       const { data: repliesData, error: repliesError } = await supabase
         .from('ticket_replies')
         .select('*, sender:profiles(full_name)')
@@ -218,6 +230,7 @@ export default function AssistantSupportDetailPage() {
               <span className={priorityInfo.color}>{priorityInfo.label}</span>
               <span className={styles.subtext}>{ticket.support_type === 'technical' ? 'شكوى فنية' : 'سؤال أكاديمي'}</span>
               {!ticket.assigned_to && <span className="text-[10px] bg-yellow-400/20 text-yellow-400 px-1.5 py-0.5 rounded-full">غير مخصصة</span>}
+              {ticket.assigned_to === assistant?.teacher_id && <span className="text-[10px] bg-blue-400/20 text-blue-400 px-1.5 py-0.5 rounded-full">معينة للمعلم</span>}
             </div>
           </div>
           <button onClick={() => router.push('/dashboard/assistant')} className="px-3 py-1.5 bg-purple-500/20 text-purple-400 rounded-lg text-xs">لوحة التحكم</button>
