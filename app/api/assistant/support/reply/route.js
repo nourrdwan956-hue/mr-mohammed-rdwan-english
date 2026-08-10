@@ -1,6 +1,6 @@
 // ================================================================
 // 📁 app/api/assistant/support/reply/route.js
-// ✅ إرسال رد – مع تخصيص التذكرة تلقائياً لأول مساعد يرد
+// ✅ إرسال رد – مع تخصيص التذكرة للمساعد فوراً (إذا كانت غير معينة أو معينة للمعلم)
 // ================================================================
 
 import { NextResponse } from 'next/server';
@@ -30,7 +30,7 @@ export async function POST(request) {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    // جلب بيانات المساعد
+    // جلب المساعد
     const { data: assistant, error: assistantError } = await supabaseAdmin
       .from('assistants')
       .select('*')
@@ -45,7 +45,7 @@ export async function POST(request) {
       return NextResponse.json({ error: 'الحساب غير مفعل' }, { status: 403 });
     }
 
-    // التحقق من صلاحية الرد
+    // صلاحية الرد
     const { data: permissions } = await supabaseAdmin
       .from('assistant_permissions')
       .select('module, can_edit, can_manage')
@@ -56,7 +56,7 @@ export async function POST(request) {
     );
 
     if (!canReply) {
-      return NextResponse.json({ error: 'غير مصرح لك بالرد على التذاكر' }, { status: 403 });
+      return NextResponse.json({ error: 'غير مصرح لك بالرد' }, { status: 403 });
     }
 
     // جلب التذكرة
@@ -70,39 +70,25 @@ export async function POST(request) {
       return NextResponse.json({ error: 'التذكرة غير موجودة' }, { status: 404 });
     }
 
-    // التحقق من أن التذكرة غير معينة لمساعد آخر
+    // منع الرد إذا كانت معينة لمساعد آخر (وليس للمعلم أو null أو لنفسه)
     const isAssignedToOther = ticket.assigned_to !== null 
                               && ticket.assigned_to !== assistantId 
                               && ticket.assigned_to !== assistant.teacher_id;
 
     if (isAssignedToOther) {
-      return NextResponse.json({ error: 'هذه التذكرة معينة لمساعد آخر' }, { status: 403 });
+      return NextResponse.json({ error: 'هذه التذكرة معينة لمساعد آخر، لا يمكنك الرد عليها' }, { status: 403 });
     }
 
-    // التحقق من الصلاحية على التذكرة
-    const isAssignedToAssistant = ticket.assigned_to === assistantId;
-    const isUnassigned = ticket.assigned_to === null;
-    const isAssignedToTeacher = ticket.assigned_to === assistant.teacher_id;
-
-    if (!isAssignedToAssistant && !isUnassigned && !isAssignedToTeacher) {
-      return NextResponse.json({ error: 'غير مصرح لك بالرد على هذه التذكرة' }, { status: 403 });
-    }
-
-    // ✅ تحديد sender_id (دائماً teacher_id لأن المعلم هو الوحيد في profiles)
+    // sender_id = teacher_id (المعلم هو الوحيد في profiles)
     const senderId = assistant.teacher_id;
-
-    // تأكد من وجود teacher_id في profiles
-    const { data: teacherProfile, error: teacherProfileError } = await supabaseAdmin
+    const { data: teacherProfile } = await supabaseAdmin
       .from('profiles')
-      .select('id, full_name')
+      .select('full_name')
       .eq('id', senderId)
       .single();
 
-    if (teacherProfileError || !teacherProfile) {
-      return NextResponse.json(
-        { error: 'المعلم غير موجود. تأكد من أن teacher_id صحيح.' },
-        { status: 500 }
-      );
+    if (!teacherProfile) {
+      return NextResponse.json({ error: 'المعلم غير موجود في profiles' }, { status: 500 });
     }
 
     // إدراج الرد
@@ -118,22 +104,19 @@ export async function POST(request) {
       .single();
 
     if (insertError) {
-      console.error('❌ خطأ في إدراج الرد:', insertError);
       return NextResponse.json({ error: 'فشل إدراج الرد: ' + insertError.message }, { status: 500 });
     }
 
     // 🆕 تخصيص التذكرة للمساعد الحالي (إذا كانت غير معينة أو معينة للمعلم)
+    // هذا يضمن أن التذكرة تصبح ملكاً له وحده
     if (ticket.assigned_to === null || ticket.assigned_to === assistant.teacher_id) {
       await supabaseAdmin
         .from('tickets')
-        .update({ 
-          assigned_to: assistantId,
-          updated_at: new Date().toISOString()
-        })
+        .update({ assigned_to: assistantId, updated_at: new Date().toISOString() })
         .eq('id', ticketId);
     }
 
-    // تحديث التذكرة (first_reply_at, status)
+    // تحديث first_reply_at و status
     const updates = {};
     if (!ticket.first_reply_at) {
       updates.first_reply_at = new Date().toISOString();
@@ -142,7 +125,6 @@ export async function POST(request) {
       updates.status = 'in_progress';
       updates.updated_at = new Date().toISOString();
     }
-
     if (Object.keys(updates).length > 0) {
       await supabaseAdmin
         .from('tickets')
@@ -150,14 +132,11 @@ export async function POST(request) {
         .eq('id', ticketId);
     }
 
-    // إرجاع الرد مع معلومات المساعد الذي رد
     return NextResponse.json({
       success: true,
       reply: {
         ...newReply,
-        sender: {
-          full_name: teacherProfile.full_name,
-        },
+        sender: { full_name: teacherProfile.full_name },
         replied_by_assistant: {
           id: assistant.id,
           full_name: assistant.display_name || assistant.full_name || 'مساعد',
