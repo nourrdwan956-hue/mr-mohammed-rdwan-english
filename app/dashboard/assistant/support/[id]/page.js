@@ -2,7 +2,8 @@
 
 // ================================================================
 // 💬 المسار: app/dashboard/assistant/support/[id]/page.js
-// ✅ صفحة التفاصيل – تعتمد على API وتسمح بالتذاكر الجديدة
+// ✅ صفحة التفاصيل – نسخة مبسطة تعرض التذكرة والردود لأي مساعد
+// وتمنع الرد إذا كانت معينة لمساعد آخر
 // ================================================================
 
 import { AssistantLayout } from '@/components/AssistantLayout';
@@ -78,44 +79,82 @@ export default function AssistantSupportDetailPage() {
         return;
       }
 
-      // ✅ استخدام API بدلاً من الفلترة المباشرة
-      const res = await fetch(`/api/assistant/support?id=${ticketId}`, {
-        headers: { 'x-assistant-id': assistantData.id },
-      });
+      // 1. جلب التذكرة مباشرة بدون فلترة معقدة
+      const { data: ticketData, error: ticketError } = await supabase
+        .from('tickets')
+        .select('*, student:profiles!tickets_student_id_fkey(full_name, email), course:courses(title, teacher_id)')
+        .eq('id', ticketId)
+        .single();
 
-      if (!res.ok) {
-        if (res.status === 403 || res.status === 404) {
-          setNotFound(true);
-          setLoading(false);
-          return;
-        }
-        const errorData = await res.json();
-        throw new Error(errorData.error || 'فشل جلب التذكرة');
-      }
-
-      const data = await res.json();
-      if (!data.success) {
-        throw new Error('فشل جلب التذكرة');
-      }
-
-      const ticketsArray = data.tickets || [];
-      if (ticketsArray.length === 0) {
+      if (ticketError || !ticketData) {
+        console.error('Ticket not found:', ticketError);
         setNotFound(true);
         setLoading(false);
         return;
       }
 
-      const ticketData = ticketsArray[0];
+      // 2. التحقق من أن التذكرة تابعة للمعلم (عن طريق course_id أو student_id أو assigned_to)
+      // نجيب teacher_id من جدول المساعد
+      const { data: assistantInfo } = await supabase
+        .from('assistants')
+        .select('teacher_id')
+        .eq('id', assistantData.id)
+        .single();
+
+      if (assistantInfo) {
+        const teacherId = assistantInfo.teacher_id;
+        let isTeacherTicket = false;
+
+        // فحص course_id
+        if (ticketData.course_id) {
+          const { data: course } = await supabase
+            .from('courses')
+            .select('teacher_id')
+            .eq('id', ticketData.course_id)
+            .single();
+          if (course?.teacher_id === teacherId) {
+            isTeacherTicket = true;
+          }
+        }
+
+        // فحص student_id
+        if (!isTeacherTicket && ticketData.student_id) {
+          const { data: student } = await supabase
+            .from('profiles')
+            .select('teacher_id')
+            .eq('id', ticketData.student_id)
+            .single();
+          if (student?.teacher_id === teacherId) {
+            isTeacherTicket = true;
+          }
+        }
+
+        // فحص assigned_to (إذا كانت معينة للمعلم نفسه أو للمساعد الحالي)
+        if (!isTeacherTicket) {
+          if (ticketData.assigned_to === teacherId || 
+              ticketData.assigned_to === assistantData.id || 
+              ticketData.assigned_to === null) {
+            isTeacherTicket = true;
+          }
+        }
+
+        if (!isTeacherTicket) {
+          setNotFound(true);
+          setLoading(false);
+          return;
+        }
+      }
+
       setTicket(ticketData);
 
       // تحديد إمكانية الرد:
-      // - إذا كانت معينة لمساعد آخر (غير المعلم وغير المساعد الحالي) → لا يمكن الرد
+      // - إذا كانت معينة لمساعد آخر غير المساعد الحالي وغير المعلم → لا يمكن الرد
       const isAssignedToOther = ticketData.assigned_to !== null 
                                 && ticketData.assigned_to !== assistantData.id
-                                && ticketData.assigned_to !== assistantData.teacher_id;
+                                && ticketData.assigned_to !== assistantInfo?.teacher_id;
       setCanReply(!isAssignedToOther && ticketData.status !== 'closed');
 
-      // جلب الردود (دائماً)
+      // 3. جلب الردود (دائماً)
       const { data: repliesData, error: repliesError } = await supabase
         .from('ticket_replies')
         .select('*, sender:profiles(full_name)')
@@ -247,6 +286,7 @@ export default function AssistantSupportDetailPage() {
   const statusInfo = STATUS_MAP[ticket.status];
   const priorityInfo = PRIORITY_MAP[ticket.priority];
 
+  // التحقق إذا كانت معينة لمساعد آخر (لا يمكن الرد)
   const isAssignedToOther = ticket.assigned_to !== null 
                             && ticket.assigned_to !== assistant?.id
                             && ticket.assigned_to !== assistant?.teacher_id;
@@ -268,6 +308,9 @@ export default function AssistantSupportDetailPage() {
               )}
               {!ticket.assigned_to && (
                 <span className="text-[10px] bg-yellow-400/20 text-yellow-400 px-1.5 py-0.5 rounded-full">غير مخصصة</span>
+              )}
+              {ticket.assigned_to === assistant?.id && (
+                <span className="text-[10px] bg-blue-400/20 text-blue-400 px-1.5 py-0.5 rounded-full">مخصصة لك</span>
               )}
             </div>
           </div>
@@ -328,7 +371,7 @@ export default function AssistantSupportDetailPage() {
               </div>
             </div>
 
-            {/* مربع الرد */}
+            {/* مربع الرد – يظهر فقط إذا كان يمكن الرد */}
             {canReply && ticket.status !== 'closed' && (
               <div className={`${styles.card} border ${styles.border} rounded-2xl p-4`}>
                 <form onSubmit={handleSendReply} className="flex items-end gap-3">
