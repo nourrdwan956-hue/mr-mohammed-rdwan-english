@@ -2,7 +2,7 @@
 
 // ================================================================
 // 🛠️ المسار: app/dashboard/assistant/support/technical/page.js
-// قائمة الشكاوى الفنية للمساعد – النسخة المتطورة V4.0
+// قائمة الشكاوى الفنية للمساعد – تشمل غير المخصصة
 // ================================================================
 
 import { AssistantLayout } from '@/components/AssistantLayout';
@@ -46,11 +46,10 @@ export default function AssistantTechnicalComplaintsPage() {
   const [filterPriority, setFilterPriority] = useState('all');
   const [filterCourse, setFilterCourse] = useState('all');
   const [sortBy, setSortBy] = useState('newest');
+  const [showUnassigned, setShowUnassigned] = useState(true);
 
-  // مودال التأكيد (حذف فقط)
   const [confirmModal, setConfirmModal] = useState(null);
 
-  // ----- جلب البيانات باستخدام الـ API الجديد -----
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
@@ -62,7 +61,6 @@ export default function AssistantTechnicalComplaintsPage() {
       const assistantData = JSON.parse(stored);
       setAssistant(assistantData);
 
-      // جلب الصلاحيات
       const permsRes = await fetch('/api/assistant-data', {
         headers: { 'x-assistant-id': assistantData.id },
       });
@@ -81,7 +79,7 @@ export default function AssistantTechnicalComplaintsPage() {
         return;
       }
 
-      // جلب الشكاوى الفنية
+      // جلب الشكاوى الفنية (تشمل غير المخصصة)
       const res = await fetch('/api/assistant/support?type=technical', {
         headers: { 'x-assistant-id': assistantData.id },
       });
@@ -92,9 +90,12 @@ export default function AssistantTechnicalComplaintsPage() {
       const data = await res.json();
       if (!data.success) throw new Error('فشل جلب الشكاوى');
 
-      setComplaints(data.tickets || []);
+      const processed = (data.tickets || []).map(t => ({
+        ...t,
+        isAssigned: t.assigned_to !== null,
+      }));
+      setComplaints(processed);
 
-      // جلب الكورسات للفلترة
       if (assistantData.teacher_id) {
         const { data: courseData } = await supabase
           .from('courses')
@@ -111,21 +112,19 @@ export default function AssistantTechnicalComplaintsPage() {
     }
   }, [router]);
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  useEffect(() => { fetchData(); }, [fetchData]);
 
-  // Realtime subscription
+  // Realtime
   useEffect(() => {
     if (!assistant) return;
     const channel = supabase
       .channel('assistant-tech-complaints')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'tickets', filter: `assigned_to=eq.${assistant.id}` }, () => fetchData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tickets' }, () => fetchData())
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [assistant, fetchData]);
 
-  // ----- إجراءات -----
+  // إجراءات
   const handleStatusChange = async (id, newStatus) => {
     const { error } = await supabase
       .from('tickets')
@@ -147,9 +146,12 @@ export default function AssistantTechnicalComplaintsPage() {
     setConfirmModal({ type, id, title });
   };
 
-  // ----- فلترة وبحث -----
+  // فلترة وبحث
   const filteredComplaints = useMemo(() => {
     let result = complaints;
+    if (!showUnassigned) {
+      result = result.filter(c => c.isAssigned);
+    }
     if (search) {
       const q = search.toLowerCase();
       result = result.filter(c => c.subject?.toLowerCase().includes(q) || c.student?.full_name?.toLowerCase().includes(q));
@@ -165,13 +167,14 @@ export default function AssistantTechnicalComplaintsPage() {
       result.sort((a, b) => (order[a.priority] || 2) - (order[b.priority] || 2));
     }
     return result;
-  }, [complaints, search, filterStatus, filterPriority, filterCourse, sortBy]);
+  }, [complaints, search, filterStatus, filterPriority, filterCourse, sortBy, showUnassigned]);
 
   const stats = useMemo(() => {
     const open = complaints.filter(c => c.status === 'open').length;
     const inProgress = complaints.filter(c => c.status === 'in_progress').length;
     const resolved = complaints.filter(c => c.status === 'resolved' || c.status === 'closed').length;
-    return { total: complaints.length, open, inProgress, resolved };
+    const unassigned = complaints.filter(c => !c.isAssigned).length;
+    return { total: complaints.length, open, inProgress, resolved, unassigned };
   }, [complaints]);
 
   const formatDate = (date) => new Date(date).toLocaleDateString('ar-EG', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
@@ -198,13 +201,14 @@ export default function AssistantTechnicalComplaintsPage() {
             </div>
           </div>
 
-          {/* إحصائيات سريعة */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+          {/* إحصائيات سريعة مع غير مخصصة */}
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
             {[
               { label: 'الإجمالي', value: stats.total, icon: Icons.Ticket, color: 'text-blue-400' },
               { label: 'مفتوحة', value: stats.open, icon: Icons.AlertCircle, color: 'text-red-400' },
               { label: 'قيد المعالجة', value: stats.inProgress, icon: Icons.Clock, color: 'text-yellow-400' },
               { label: 'محلولة', value: stats.resolved, icon: Icons.CheckCircle, color: 'text-green-400' },
+              { label: 'غير مخصصة', value: stats.unassigned, icon: Icons.Inbox, color: 'text-amber-400' },
             ].map((s, idx) => (
               <div key={idx} className={`${styles.card} border ${styles.border} rounded-xl p-3 flex items-center gap-2`}>
                 <s.icon className={`h-5 w-5 ${s.color}`} />
@@ -213,8 +217,8 @@ export default function AssistantTechnicalComplaintsPage() {
             ))}
           </div>
 
-          {/* فلترة وبحث */}
-          <div className="flex flex-col md:flex-row gap-3 mb-6">
+          {/* فلترة وبحث مع toggle غير مخصصة */}
+          <div className="flex flex-col md:flex-row gap-3 mb-6 flex-wrap">
             <div className="relative flex-1">
               <Icons.Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
               <input value={search} onChange={e => setSearch(e.target.value)} placeholder="ابحث عن طالب أو موضوع..." className={`w-full p-2.5 pr-10 ${styles.input} border ${styles.border} rounded-xl`} />
@@ -236,11 +240,15 @@ export default function AssistantTechnicalComplaintsPage() {
             <select value={sortBy} onChange={e => setSortBy(e.target.value)} className={`p-2.5 ${styles.input} border ${styles.border} rounded-xl`}>
               <option value="newest">الأحدث</option><option value="oldest">الأقدم</option><option value="priority">الأولوية</option>
             </select>
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={showUnassigned} onChange={e => setShowUnassigned(e.target.checked)} className="accent-yellow-400 w-4 h-4" />
+              عرض غير المخصصة
+            </label>
           </div>
 
           {/* قائمة الشكاوى */}
           {filteredComplaints.length === 0 ? (
-            <div className="text-center py-20"><Icons.Wrench className="h-16 w-16 text-gray-500 mx-auto mb-4" /><p className="text-lg">لا توجد شكاوى فنية</p></div>
+            <div className="text-center py-20"><Icons.Wrench className="h-16 w-16 text-gray-500 mx-auto mb-4" /><p className="text-lg">لا توجد شكاوى تطابق المعايير</p></div>
           ) : (
             <div className="space-y-3">
               {filteredComplaints.map(complaint => {
@@ -248,11 +256,12 @@ export default function AssistantTechnicalComplaintsPage() {
                 const priorityInfo = PRIORITY_MAP[complaint.priority];
                 return (
                   <motion.div key={complaint.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} whileHover={{ y: -2 }}
-                    className={`${styles.card} border ${styles.border} rounded-2xl p-4 transition cursor-pointer`}
+                    className={`${styles.card} border ${styles.border} rounded-2xl p-4 transition cursor-pointer ${!complaint.isAssigned ? 'border-yellow-400/40' : ''}`}
                     onClick={() => router.push(`/dashboard/assistant/support/${complaint.id}`)}>
                     <div className="flex flex-col md:flex-row md:items-center gap-3">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap mb-1">
+                          {!complaint.isAssigned && <span className="text-[10px] bg-yellow-400/20 text-yellow-400 px-2 py-0.5 rounded-full">غير مخصصة</span>}
                           <span className={`text-[10px] px-2 py-0.5 rounded-full border ${statusInfo.bg} ${statusInfo.color} ${statusInfo.border}`}>{statusInfo.label}</span>
                           <span className={`text-[10px] ${priorityInfo.color}`}>{priorityInfo.label}</span>
                           <span className="text-[10px] text-gray-500">{formatDate(complaint.created_at)}</span>
@@ -285,7 +294,7 @@ export default function AssistantTechnicalComplaintsPage() {
         </div>
       </div>
 
-      {/* مودال تأكيد الحذف فقط */}
+      {/* مودال تأكيد الحذف */}
       <AnimatePresence>
         {confirmModal && confirmModal.type === 'delete' && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}

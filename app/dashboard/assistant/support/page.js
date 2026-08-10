@@ -2,7 +2,7 @@
 
 // ================================================================
 // 📁 app/dashboard/assistant/support/page.js
-// ✅ النسخة النهائية المعدلة – تعتمد على الـ API الجديد
+// ✅ النسخة النهائية – تعرض التذاكر غير المخصصة أيضًا
 // ================================================================
 
 import { AssistantLayout } from '@/components/AssistantLayout';
@@ -58,14 +58,16 @@ export default function AssistantSupportHubPage() {
   // بيانات حية
   const [technicalTickets, setTechnicalTickets] = useState([]);
   const [academicTickets, setAcademicTickets] = useState([]);
+  const [unassignedTickets, setUnassignedTickets] = useState([]);
   const [stats, setStats] = useState({
     technicalOpen: 0,
     academicOpen: 0,
+    unassigned: 0,
     avgResponseHours: 0,
     resolvedToday: 0,
   });
 
-  // ===== جلب البيانات الأولية باستخدام الـ API الجديد =====
+  // ===== جلب البيانات =====
   const fetchInitialData = useCallback(async () => {
     setLoading(true);
     try {
@@ -77,7 +79,7 @@ export default function AssistantSupportHubPage() {
       const assistantData = JSON.parse(stored);
       setAssistant(assistantData);
 
-      // ✅ جلب الصلاحيات من API مباشرة
+      // جلب الصلاحيات
       const permsRes = await fetch('/api/assistant-data', {
         headers: { 'x-assistant-id': assistantData.id },
       });
@@ -89,7 +91,6 @@ export default function AssistantSupportHubPage() {
       }
       setPermissions(perms);
 
-      // التحقق من صلاحية العرض (tickets أو support)
       const canView = hasPermission(perms, 'tickets', 'can_view') || hasPermission(perms, 'support', 'can_view');
       if (!canView) {
         toast.error('غير مصرح لك بمشاهدة هذه الصفحة');
@@ -97,7 +98,7 @@ export default function AssistantSupportHubPage() {
         return;
       }
 
-      // جلب جميع التذاكر
+      // جلب جميع التذاكر عبر API المعدل
       const res = await fetch('/api/assistant/support', {
         headers: { 'x-assistant-id': assistantData.id },
       });
@@ -108,24 +109,27 @@ export default function AssistantSupportHubPage() {
       const data = await res.json();
       if (!data.success) throw new Error('فشل جلب البيانات');
 
-      // فصل التذاكر حسب النوع
       const tickets = data.tickets || [];
-      const techTickets = tickets.filter(t => t.support_type === 'technical');
-      const acadTickets = tickets.filter(t => t.support_type === 'academic');
+      
+      // فصل التذاكر حسب النوع والتعيين
+      const tech = tickets.filter(t => t.support_type === 'technical');
+      const acad = tickets.filter(t => t.support_type === 'academic');
+      const unassigned = tickets.filter(t => t.assigned_to === null);
 
-      setTechnicalTickets(techTickets);
-      setAcademicTickets(acadTickets);
+      setTechnicalTickets(tech);
+      setAcademicTickets(acad);
+      setUnassignedTickets(unassigned);
 
-      // الإحصائيات
+      // إحصائيات
       const now = new Date();
       const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
-      const technicalOpen = techTickets.filter(t => t.status === 'open' || t.status === 'in_progress').length;
-      const academicOpen = acadTickets.filter(t => t.status === 'open' || t.status === 'in_progress').length;
+      const technicalOpen = tech.filter(t => t.status === 'open' || t.status === 'in_progress').length;
+      const academicOpen = acad.filter(t => t.status === 'open' || t.status === 'in_progress').length;
       const resolvedToday = tickets.filter(t => 
         (t.status === 'resolved' || t.status === 'closed') && new Date(t.updated_at).toISOString() >= todayStart
       ).length || 0;
 
-      // حساب متوسط وقت الرد
+      // متوسط وقت الرد
       let totalResponseHours = 0, responseCount = 0;
       for (const ticket of tickets) {
         if (ticket.first_reply_at) {
@@ -138,6 +142,7 @@ export default function AssistantSupportHubPage() {
       setStats({
         technicalOpen,
         academicOpen,
+        unassigned: unassigned.length,
         avgResponseHours,
         resolvedToday,
       });
@@ -157,9 +162,7 @@ export default function AssistantSupportHubPage() {
     if (!assistant) return;
     const ticketsChannel = supabase
       .channel('assistant-support-tickets')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'tickets', filter: `assigned_to=eq.${assistant.id}` }, 
-        () => fetchInitialData()
-      )
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tickets' }, () => fetchInitialData())
       .subscribe();
 
     return () => {
@@ -193,10 +196,11 @@ export default function AssistantSupportHubPage() {
             </div>
           </motion.div>
 
-          {/* إحصائيات متقدمة */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+          {/* إحصائيات متقدمة (إضافة غير مخصصة) */}
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
             <StatCard icon={Icons.Wrench} label="شكاوى فنية مفتوحة" value={stats.technicalOpen} color="from-red-400 to-orange-600" styles={styles} delay={0} />
             <StatCard icon={Icons.BookOpen} label="أسئلة أكاديمية مفتوحة" value={stats.academicOpen} color="from-blue-400 to-indigo-600" styles={styles} delay={0.1} />
+            <StatCard icon={Icons.Inbox} label="غير مخصصة" value={stats.unassigned} color="from-yellow-400 to-amber-600" styles={styles} delay={0.15} />
             <StatCard icon={Icons.Clock} label="متوسط الرد (ساعة)" value={stats.avgResponseHours} color="from-green-400 to-emerald-600" styles={styles} delay={0.2} />
             <StatCard icon={Icons.CheckCircle} label="تم حلها اليوم" value={stats.resolvedToday} color="from-purple-400 to-violet-600" styles={styles} delay={0.3} />
           </div>
@@ -238,15 +242,43 @@ export default function AssistantSupportHubPage() {
             </Link>
           </div>
 
-          {/* آخر الشكاوى والأسئلة */}
+          {/* قسم التذاكر غير المخصصة */}
+          {unassignedTickets.length > 0 && (
+            <div className={`${styles.card} border ${styles.border} rounded-2xl p-5 mb-6`}>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className={`font-bold ${styles.text} flex items-center gap-2`}>
+                  <Icons.Inbox className="h-5 w-5 text-yellow-400" /> تذاكر غير مخصصة
+                </h3>
+                <span className="text-xs text-yellow-400">{unassignedTickets.length} تذكرة</span>
+              </div>
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {unassignedTickets.slice(0, 5).map(t => (
+                  <div key={t.id} className={`flex items-center justify-between p-2 hover:bg-white/5 rounded-lg text-sm`}>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium truncate">{t.subject}</p>
+                      <p className={`text-xs ${styles.subtext}`}>
+                        {t.support_type === 'technical' ? '🛠️ فنية' : '📚 أكاديمية'} • {t.student?.full_name} • {formatDate(t.created_at)}
+                      </p>
+                    </div>
+                    <Link href={`/dashboard/assistant/support/${t.id}`} className="text-yellow-400 text-xs ml-2">تولى</Link>
+                  </div>
+                ))}
+                {unassignedTickets.length > 5 && (
+                  <Link href="/dashboard/assistant/support/unassigned" className="text-yellow-400 text-xs block text-center mt-2">عرض الكل</Link>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* آخر الشكاوى والأسئلة (المخصصة) */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className={`${styles.card} border ${styles.border} rounded-2xl p-5`}>
               <div className="flex items-center justify-between mb-4">
-                <h3 className={`font-bold ${styles.text} flex items-center gap-2`}><Icons.AlertTriangle className="h-5 w-5 text-red-400" /> شكاوى فنية</h3>
+                <h3 className={`font-bold ${styles.text} flex items-center gap-2`}><Icons.AlertTriangle className="h-5 w-5 text-red-400" /> شكاوى فنية (مخصصة)</h3>
                 <Link href="/dashboard/assistant/support/technical" className="text-xs text-yellow-400">عرض الكل</Link>
               </div>
               <div className="space-y-2 max-h-64 overflow-y-auto">
-                {technicalTickets.slice(0, 5).map(t => (
+                {technicalTickets.filter(t => t.assigned_to !== null).slice(0, 5).map(t => (
                   <div key={t.id} className={`flex items-center justify-between p-2 hover:bg-white/5 rounded-lg text-sm`}>
                     <div className="flex-1 min-w-0">
                       <p className="font-medium truncate">{t.subject}</p>
@@ -255,17 +287,17 @@ export default function AssistantSupportHubPage() {
                     <Link href={`/dashboard/assistant/support/${t.id}`} className="text-yellow-400 text-xs ml-2">رد</Link>
                   </div>
                 ))}
-                {technicalTickets.length === 0 && <p className={`text-xs ${styles.subtext} text-center py-4`}>لا توجد شكاوى</p>}
+                {technicalTickets.filter(t => t.assigned_to !== null).length === 0 && <p className={`text-xs ${styles.subtext} text-center py-4`}>لا توجد شكاوى مخصصة</p>}
               </div>
             </div>
 
             <div className={`${styles.card} border ${styles.border} rounded-2xl p-5`}>
               <div className="flex items-center justify-between mb-4">
-                <h3 className={`font-bold ${styles.text} flex items-center gap-2`}><Icons.MessageCircle className="h-5 w-5 text-blue-400" /> أسئلة أكاديمية</h3>
+                <h3 className={`font-bold ${styles.text} flex items-center gap-2`}><Icons.MessageCircle className="h-5 w-5 text-blue-400" /> أسئلة أكاديمية (مخصصة)</h3>
                 <Link href="/dashboard/assistant/support/academic" className="text-xs text-yellow-400">عرض الكل</Link>
               </div>
               <div className="space-y-2 max-h-64 overflow-y-auto">
-                {academicTickets.slice(0, 5).map(t => (
+                {academicTickets.filter(t => t.assigned_to !== null).slice(0, 5).map(t => (
                   <div key={t.id} className={`flex items-center justify-between p-2 hover:bg-white/5 rounded-lg text-sm`}>
                     <div className="flex-1 min-w-0">
                       <p className="font-medium truncate">{t.subject}</p>
@@ -274,7 +306,7 @@ export default function AssistantSupportHubPage() {
                     <Link href={`/dashboard/assistant/support/${t.id}`} className="text-yellow-400 text-xs ml-2">رد</Link>
                   </div>
                 ))}
-                {academicTickets.length === 0 && <p className={`text-xs ${styles.subtext} text-center py-4`}>لا توجد أسئلة</p>}
+                {academicTickets.filter(t => t.assigned_to !== null).length === 0 && <p className={`text-xs ${styles.subtext} text-center py-4`}>لا توجد أسئلة مخصصة</p>}
               </div>
             </div>
           </div>

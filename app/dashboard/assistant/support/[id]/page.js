@@ -47,7 +47,6 @@ export default function AssistantSupportDetailPage() {
   const [permissions, setPermissions] = useState([]);
   const messagesEndRef = useRef(null);
 
-  // ----- جلب البيانات باستخدام الـ API الجديد -----
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
@@ -59,7 +58,6 @@ export default function AssistantSupportDetailPage() {
       const assistantData = JSON.parse(stored);
       setAssistant(assistantData);
 
-      // جلب الصلاحيات
       const permsRes = await fetch('/api/assistant-data', {
         headers: { 'x-assistant-id': assistantData.id },
       });
@@ -78,7 +76,6 @@ export default function AssistantSupportDetailPage() {
         return;
       }
 
-      // جلب التذكرة المحددة
       const res = await fetch(`/api/assistant/support?id=${ticketId}`, {
         headers: { 'x-assistant-id': assistantData.id },
       });
@@ -95,7 +92,8 @@ export default function AssistantSupportDetailPage() {
       }
       const ticketData = ticketsArray[0];
       
-      if (ticketData.assigned_to !== assistantData.id) {
+      // السماح بالوصول إذا كانت غير معينة أو معينة لهذا المساعد
+      if (ticketData.assigned_to !== null && ticketData.assigned_to !== assistantData.id) {
         toast.error('غير مصرح لك بمشاهدة هذه التذكرة');
         router.push('/dashboard/assistant/support');
         return;
@@ -103,7 +101,6 @@ export default function AssistantSupportDetailPage() {
 
       setTicket(ticketData);
 
-      // جلب الردود
       const { data: repliesData, error: repliesError } = await supabase
         .from('ticket_replies')
         .select('*, sender:profiles(full_name)')
@@ -220,6 +217,7 @@ export default function AssistantSupportDetailPage() {
               <span className={`px-1.5 py-0.5 rounded-full ${statusInfo.bg} ${statusInfo.color} ${statusInfo.border} border`}>{statusInfo.label}</span>
               <span className={priorityInfo.color}>{priorityInfo.label}</span>
               <span className={styles.subtext}>{ticket.support_type === 'technical' ? 'شكوى فنية' : 'سؤال أكاديمي'}</span>
+              {!ticket.assigned_to && <span className="text-[10px] bg-yellow-400/20 text-yellow-400 px-1.5 py-0.5 rounded-full">غير مخصصة</span>}
             </div>
           </div>
           <button onClick={() => router.push('/dashboard/assistant')} className="px-3 py-1.5 bg-purple-500/20 text-purple-400 rounded-lg text-xs">لوحة التحكم</button>

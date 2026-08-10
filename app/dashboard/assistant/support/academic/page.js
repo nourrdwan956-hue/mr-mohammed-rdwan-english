@@ -2,7 +2,7 @@
 
 // ================================================================
 // 🎓 المسار: app/dashboard/assistant/support/academic/page.js
-// قائمة الأسئلة الأكاديمية للمساعد – النسخة المتطورة V4.0
+// قائمة الأسئلة الأكاديمية للمساعد – تشمل غير المخصصة
 // ================================================================
 
 import { AssistantLayout } from '@/components/AssistantLayout';
@@ -42,7 +42,6 @@ const CATEGORY_MAP = {
   other: { label: 'أخرى', color: 'text-gray-400', icon: Icons.HelpCircle },
 };
 
-// ----- استخراج الوحدة/الدرس من الوصف -----
 const extractUnit = (description) => {
   if (!description) return null;
   const match = description.match(/\[الوحدة\/الدرس:\s*(.+?)\]/);
@@ -65,11 +64,10 @@ export default function AssistantAcademicQuestionsPage() {
   const [filterCourse, setFilterCourse] = useState('all');
   const [filterCategory, setFilterCategory] = useState('all');
   const [sortBy, setSortBy] = useState('newest');
+  const [showUnassigned, setShowUnassigned] = useState(true); // عرض غير المخصصة
 
-  // مودال التأكيد (حذف فقط)
   const [confirmModal, setConfirmModal] = useState(null);
 
-  // ----- جلب البيانات باستخدام الـ API الجديد -----
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
@@ -81,7 +79,6 @@ export default function AssistantAcademicQuestionsPage() {
       const assistantData = JSON.parse(stored);
       setAssistant(assistantData);
 
-      // جلب الصلاحيات
       const permsRes = await fetch('/api/assistant-data', {
         headers: { 'x-assistant-id': assistantData.id },
       });
@@ -100,7 +97,7 @@ export default function AssistantAcademicQuestionsPage() {
         return;
       }
 
-      // جلب الأسئلة الأكاديمية
+      // جلب الأسئلة الأكاديمية عبر API (يتضمن غير المخصصة)
       const res = await fetch('/api/assistant/support?type=academic', {
         headers: { 'x-assistant-id': assistantData.id },
       });
@@ -114,10 +111,10 @@ export default function AssistantAcademicQuestionsPage() {
       const processed = (data.tickets || []).map(t => ({
         ...t,
         unit: extractUnit(t.description),
+        isAssigned: t.assigned_to !== null,
       }));
       setQuestions(processed);
 
-      // جلب الكورسات للفلترة
       if (assistantData.teacher_id) {
         const { data: courseData } = await supabase
           .from('courses')
@@ -134,21 +131,19 @@ export default function AssistantAcademicQuestionsPage() {
     }
   }, [router]);
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  useEffect(() => { fetchData(); }, [fetchData]);
 
-  // Realtime subscription
+  // Realtime
   useEffect(() => {
     if (!assistant) return;
     const channel = supabase
       .channel('assistant-acad-questions')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'tickets', filter: `assigned_to=eq.${assistant.id}` }, () => fetchData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tickets' }, () => fetchData())
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [assistant, fetchData]);
 
-  // ----- إجراءات -----
+  // إجراءات
   const handleStatusChange = async (id, newStatus) => {
     const { error } = await supabase
       .from('tickets')
@@ -170,9 +165,12 @@ export default function AssistantAcademicQuestionsPage() {
     setConfirmModal({ type, id, title });
   };
 
-  // ----- فلترة وبحث -----
+  // فلترة وبحث
   const filteredQuestions = useMemo(() => {
     let result = questions;
+    if (!showUnassigned) {
+      result = result.filter(q => q.isAssigned);
+    }
     if (search) {
       const q = search.toLowerCase();
       result = result.filter(q => q.subject?.toLowerCase().includes(q) || q.student?.full_name?.toLowerCase().includes(q));
@@ -189,13 +187,14 @@ export default function AssistantAcademicQuestionsPage() {
       result.sort((a, b) => (order[a.priority] || 2) - (order[b.priority] || 2));
     }
     return result;
-  }, [questions, search, filterStatus, filterPriority, filterCourse, filterCategory, sortBy]);
+  }, [questions, search, filterStatus, filterPriority, filterCourse, filterCategory, sortBy, showUnassigned]);
 
   const stats = useMemo(() => {
     const open = questions.filter(q => q.status === 'open').length;
     const inProgress = questions.filter(q => q.status === 'in_progress').length;
     const resolved = questions.filter(q => q.status === 'resolved' || q.status === 'closed').length;
-    return { total: questions.length, open, inProgress, resolved };
+    const unassigned = questions.filter(q => !q.isAssigned).length;
+    return { total: questions.length, open, inProgress, resolved, unassigned };
   }, [questions]);
 
   const formatDate = (date) => new Date(date).toLocaleDateString('ar-EG', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
@@ -222,13 +221,14 @@ export default function AssistantAcademicQuestionsPage() {
             </div>
           </div>
 
-          {/* إحصائيات سريعة */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+          {/* إحصائيات سريعة مع غير مخصصة */}
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
             {[
               { label: 'الإجمالي', value: stats.total, icon: Icons.Ticket, color: 'text-blue-400' },
               { label: 'مفتوحة', value: stats.open, icon: Icons.AlertCircle, color: 'text-red-400' },
               { label: 'قيد المعالجة', value: stats.inProgress, icon: Icons.Clock, color: 'text-yellow-400' },
               { label: 'محلولة', value: stats.resolved, icon: Icons.CheckCircle, color: 'text-green-400' },
+              { label: 'غير مخصصة', value: stats.unassigned, icon: Icons.Inbox, color: 'text-amber-400' },
             ].map((s, idx) => (
               <div key={idx} className={`${styles.card} border ${styles.border} rounded-xl p-3 flex items-center gap-2`}>
                 <s.icon className={`h-5 w-5 ${s.color}`} />
@@ -237,7 +237,7 @@ export default function AssistantAcademicQuestionsPage() {
             ))}
           </div>
 
-          {/* فلترة وبحث (مع إضافة تصنيف) */}
+          {/* فلترة وبحث مع إضافة toggle غير مخصصة */}
           <div className="flex flex-col md:flex-row gap-3 mb-6 flex-wrap">
             <div className="relative flex-1 min-w-[200px]">
               <Icons.Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
@@ -264,11 +264,15 @@ export default function AssistantAcademicQuestionsPage() {
             <select value={sortBy} onChange={e => setSortBy(e.target.value)} className={`p-2.5 ${styles.input} border ${styles.border} rounded-xl`}>
               <option value="newest">الأحدث</option><option value="oldest">الأقدم</option><option value="priority">الأولوية</option>
             </select>
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={showUnassigned} onChange={e => setShowUnassigned(e.target.checked)} className="accent-yellow-400 w-4 h-4" />
+              عرض غير المخصصة
+            </label>
           </div>
 
           {/* قائمة الأسئلة */}
           {filteredQuestions.length === 0 ? (
-            <div className="text-center py-20"><Icons.BookOpen className="h-16 w-16 text-gray-500 mx-auto mb-4" /><p className="text-lg">لا توجد أسئلة أكاديمية</p></div>
+            <div className="text-center py-20"><Icons.BookOpen className="h-16 w-16 text-gray-500 mx-auto mb-4" /><p className="text-lg">لا توجد أسئلة تطابق المعايير</p></div>
           ) : (
             <div className="space-y-3">
               {filteredQuestions.map(question => {
@@ -278,11 +282,12 @@ export default function AssistantAcademicQuestionsPage() {
                 const CategoryIcon = categoryInfo.icon;
                 return (
                   <motion.div key={question.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} whileHover={{ y: -2 }}
-                    className={`${styles.card} border ${styles.border} rounded-2xl p-4 transition cursor-pointer`}
+                    className={`${styles.card} border ${styles.border} rounded-2xl p-4 transition cursor-pointer ${!question.isAssigned ? 'border-yellow-400/40' : ''}`}
                     onClick={() => router.push(`/dashboard/assistant/support/${question.id}`)}>
                     <div className="flex flex-col md:flex-row md:items-center gap-3">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap mb-1">
+                          {!question.isAssigned && <span className="text-[10px] bg-yellow-400/20 text-yellow-400 px-2 py-0.5 rounded-full">غير مخصصة</span>}
                           <span className={`text-[10px] px-2 py-0.5 rounded-full border ${statusInfo.bg} ${statusInfo.color} ${statusInfo.border}`}>{statusInfo.label}</span>
                           <span className={`text-[10px] ${priorityInfo.color}`}>{priorityInfo.label}</span>
                           <span className={`text-[10px] ${categoryInfo.color} flex items-center gap-0.5`}><CategoryIcon className="h-3 w-3" />{categoryInfo.label}</span>
@@ -317,7 +322,7 @@ export default function AssistantAcademicQuestionsPage() {
         </div>
       </div>
 
-      {/* مودال تأكيد الحذف فقط */}
+      {/* مودال تأكيد الحذف */}
       <AnimatePresence>
         {confirmModal && confirmModal.type === 'delete' && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
