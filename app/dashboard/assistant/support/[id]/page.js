@@ -47,7 +47,7 @@ export default function AssistantSupportDetailPage() {
   const [permissions, setPermissions] = useState([]);
   const messagesEndRef = useRef(null);
 
-  // ----- جلب البيانات (مع منطق الصلاحيات المتطور) -----
+  // ----- جلب البيانات باستخدام الـ API الجديد -----
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
@@ -98,7 +98,6 @@ export default function AssistantSupportDetailPage() {
       // 4. إذا ما زالت فارغة، نعطي صلاحيات افتراضية أو نعرض خطأ
       if (!perms || perms.length === 0) {
         toast.error('تعذر جلب الصلاحيات، يرجى تسجيل الخروج والدخول مرة أخرى');
-        // يمكن تعيين صلاحيات افتراضية هنا إن أردت، لكن الأفضل أن نمنع الوصول
       }
       setPermissions(perms);
 
@@ -110,14 +109,22 @@ export default function AssistantSupportDetailPage() {
         return;
       }
 
-      // 6. جلب التذكرة مع العلاقات
-      const { data: ticketData, error: ticketError } = await supabase
-        .from('tickets')
-        .select('*, student:profiles!tickets_student_id_fkey(full_name, email), course:courses(title)')
-        .eq('id', ticketId)
-        .single();
+      // 6. جلب التذكرة المحددة عبر API الجديد
+      const res = await fetch(`/api/assistant/support?id=${ticketId}`, {
+        headers: { 'x-assistant-id': assistantData.id },
+      });
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'فشل جلب التذكرة');
+      }
+      const data = await res.json();
+      if (!data.success) throw new Error('فشل جلب التذكرة');
 
-      if (ticketError) throw ticketError;
+      // API يعيد كائن واحد في data.tickets عند إرسال id
+      const ticketData = data.tickets;
+      if (!ticketData) throw new Error('التذكرة غير موجودة');
+      
+      // التأكد من أن التذكرة مخصصة لهذا المساعد (API يفعل ذلك، لكن للتأكيد)
       if (ticketData.assigned_to !== assistantData.id) {
         toast.error('غير مصرح لك بمشاهدة هذه التذكرة');
         router.push('/dashboard/assistant/support');
@@ -126,8 +133,9 @@ export default function AssistantSupportDetailPage() {
 
       setTicket(ticketData);
 
-      // 7. جلب الردود
-      const { data: repliesData } = await supabase.from('ticket_replies')
+      // 7. جلب الردود من Supabase مباشرة (يمكن توسيع API لتشملها)
+      const { data: repliesData } = await supabase
+        .from('ticket_replies')
         .select('*, sender:profiles(full_name)')
         .eq('ticket_id', ticketId)
         .order('created_at', { ascending: true });

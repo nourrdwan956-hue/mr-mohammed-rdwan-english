@@ -1,6 +1,6 @@
 // ================================================================
 // 📁 app/dashboard/assistant/support/page.js
-// ✅ النسخة النهائية المعدلة – تعتمد على sessionStorage مع fallback للـ API
+// ✅ النسخة النهائية المعدلة – تعتمد على الـ API الجديد
 // ================================================================
 
 'use client';
@@ -100,14 +100,11 @@ export default function AssistantSupportHubPage() {
 
     // 3. صلاحيات افتراضية (للحالات الطارئة)
     console.warn('⚠️ استخدام صلاحيات افتراضية');
-    // هنا يمكنك وضع صلاحيات افتراضية تسمح بقراءة التذاكر مثلاً
-    // لكن الأفضل أن تعطي صلاحيات فارغة وتوجيه المستخدم لتسجيل الخروج
-    // لتجنب أي مخاطر أمنية، نعطي صلاحيات فارغة ونطلب إعادة تسجيل الدخول
     toast.error('تعذر جلب الصلاحيات، يرجى تسجيل الخروج والدخول مرة أخرى');
     return [];
   }, []);
 
-  // ===== جلب البيانات الأولية =====
+  // ===== جلب البيانات الأولية باستخدام الـ API الجديد =====
   const fetchInitialData = useCallback(async () => {
     setLoading(true);
     try {
@@ -130,38 +127,36 @@ export default function AssistantSupportHubPage() {
         return;
       }
 
-      // جلب الشكاوى الفنية
-      const { data: techData, error: techError } = await supabase
-        .from('tickets')
-        .select('*, student:profiles!tickets_student_id_fkey(full_name, email), course:courses(title)')
-        .eq('assigned_to', assistantData.id)
-        .eq('support_type', 'technical')
-        .order('created_at', { ascending: false });
+      // جلب جميع التذاكر (بدون type) للحصول على الإحصائيات
+      const res = await fetch('/api/assistant/support', {
+        headers: { 'x-assistant-id': assistantData.id },
+      });
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'فشل جلب البيانات');
+      }
+      const data = await res.json();
+      if (!data.success) throw new Error('فشل جلب البيانات');
 
-      if (techError) throw techError;
+      // فصل التذاكر حسب النوع
+      const techTickets = data.tickets?.filter(t => t.support_type === 'technical') || [];
+      const acadTickets = data.tickets?.filter(t => t.support_type === 'academic') || [];
 
-      // جلب الأسئلة الأكاديمية
-      const { data: acadData, error: acadError } = await supabase
-        .from('tickets')
-        .select('*, student:profiles!tickets_student_id_fkey(full_name, email), course:courses(title)')
-        .eq('assigned_to', assistantData.id)
-        .eq('support_type', 'academic')
-        .order('created_at', { ascending: false });
+      setTechnicalTickets(techTickets);
+      setAcademicTickets(acadTickets);
 
-      if (acadError) throw acadError;
-
+      // الإحصائيات
       const now = new Date();
       const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
-
-      const technicalOpen = techData?.filter(t => t.status === 'open' || t.status === 'in_progress').length || 0;
-      const academicOpen = acadData?.filter(t => t.status === 'open' || t.status === 'in_progress').length || 0;
-      const resolvedToday = [...(techData || []), ...(acadData || [])].filter(t => 
+      const technicalOpen = techTickets.filter(t => t.status === 'open' || t.status === 'in_progress').length;
+      const academicOpen = acadTickets.filter(t => t.status === 'open' || t.status === 'in_progress').length;
+      const resolvedToday = data.tickets?.filter(t => 
         (t.status === 'resolved' || t.status === 'closed') && new Date(t.updated_at).toISOString() >= todayStart
-      ).length;
+      ).length || 0;
 
+      // حساب متوسط وقت الرد
       let totalResponseHours = 0, responseCount = 0;
-      const allTickets = [...(techData || []), ...(acadData || [])];
-      for (const ticket of allTickets) {
+      for (const ticket of data.tickets || []) {
         if (ticket.first_reply_at) {
           totalResponseHours += (new Date(ticket.first_reply_at) - new Date(ticket.created_at)) / (1000 * 60 * 60);
           responseCount++;
@@ -169,8 +164,6 @@ export default function AssistantSupportHubPage() {
       }
       const avgResponseHours = responseCount > 0 ? Math.round(totalResponseHours / responseCount) : 0;
 
-      setTechnicalTickets(techData || []);
-      setAcademicTickets(acadData || []);
       setStats({
         technicalOpen,
         academicOpen,
@@ -188,7 +181,7 @@ export default function AssistantSupportHubPage() {
 
   useEffect(() => { fetchInitialData(); }, [fetchInitialData]);
 
-  // Realtime اشتراك
+  // Realtime اشتراك (يستخدم supabase مباشرة، لكنه يستدعي fetchInitialData عند التغيير)
   useEffect(() => {
     if (!assistant) return;
     const ticketsChannel = supabase

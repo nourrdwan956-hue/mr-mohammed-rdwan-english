@@ -50,7 +50,7 @@ export default function AssistantTechnicalComplaintsPage() {
   // مودال التأكيد (حذف فقط)
   const [confirmModal, setConfirmModal] = useState(null);
 
-  // ----- جلب البيانات (مع منطق الصلاحيات المتطور) -----
+  // ----- جلب البيانات باستخدام الـ API الجديد -----
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
@@ -101,7 +101,6 @@ export default function AssistantTechnicalComplaintsPage() {
       // 4. إذا ما زالت فارغة، نعطي صلاحيات افتراضية أو نعرض خطأ
       if (!perms || perms.length === 0) {
         toast.error('تعذر جلب الصلاحيات، يرجى تسجيل الخروج والدخول مرة أخرى');
-        // يمكن تعيين صلاحيات افتراضية هنا إن أردت، لكن الأفضل أن نمنع الوصول
       }
       setPermissions(perms);
 
@@ -113,19 +112,20 @@ export default function AssistantTechnicalComplaintsPage() {
         return;
       }
 
-      // 6. جلب الشكاوى الفنية
-      const { data: ticketData, error } = await supabase
-        .from('tickets')
-        .select('*, student:profiles!tickets_student_id_fkey(full_name, email), course:courses(title)')
-        .eq('assigned_to', assistantData.id)
-        .eq('support_type', 'technical')
-        .order('created_at', { ascending: false });
+      // 6. جلب الشكاوى الفنية عبر API الجديد
+      const res = await fetch('/api/assistant/support?type=technical', {
+        headers: { 'x-assistant-id': assistantData.id },
+      });
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'فشل جلب الشكاوى');
+      }
+      const data = await res.json();
+      if (!data.success) throw new Error('فشل جلب الشكاوى');
 
-      if (error) throw error;
+      setComplaints(data.tickets || []);
 
-      setComplaints(ticketData || []);
-
-      // 7. جلب الكورسات للفلترة
+      // 7. جلب الكورسات للفلترة (نفس السابق)
       if (assistantData.teacher_id) {
         const { data: courseData } = await supabase
           .from('courses')
