@@ -1,6 +1,6 @@
 // ================================================================
 // 📁 app/api/assistant/support/reply/route.js
-// ✅ إرسال رد على تذكرة دعم – مع تصحيح sender_id
+// ✅ إرسال رد – باستخدام teacher_id كمرسل (الحل النهائي)
 // ================================================================
 
 import { NextResponse } from 'next/server';
@@ -62,7 +62,7 @@ export async function POST(request) {
       return NextResponse.json({ error: 'غير مصرح لك بالرد على التذاكر' }, { status: 403 });
     }
 
-    // 6. التأكد من وجود التذكرة وصلاحية الوصول
+    // 6. التأكد من وجود التذكرة
     const { data: ticket, error: ticketError } = await supabaseAdmin
       .from('tickets')
       .select('*')
@@ -73,7 +73,7 @@ export async function POST(request) {
       return NextResponse.json({ error: 'التذكرة غير موجودة' }, { status: 404 });
     }
 
-    // التحقق من أن التذكرة تابعة للمعلم أو المساعد نفسه
+    // 7. التحقق من صلاحية الوصول للتذكرة
     const isAssignedToAssistant = ticket.assigned_to === assistantId;
     const isUnassigned = ticket.assigned_to === null;
     const isAssignedToTeacher = ticket.assigned_to === assistant.teacher_id;
@@ -82,30 +82,31 @@ export async function POST(request) {
       return NextResponse.json({ error: 'غير مصرح لك بالرد على هذه التذكرة' }, { status: 403 });
     }
 
-    // ✅ تحديد sender_id المناسب
-    // نتحقق أولاً من وجود المساعد في جدول profiles (كمستخدم عادي)
-    const { data: profile, error: profileError } = await supabaseAdmin
+    // ✅ الحل النهائي: استخدام teacher_id كـ sender_id
+    // لأن المعلم هو الوحيد الموجود في جدول profiles
+    const senderId = assistant.teacher_id;
+
+    // تأكد من وجود teacher_id في profiles
+    const { data: teacherProfile, error: teacherProfileError } = await supabaseAdmin
       .from('profiles')
-      .select('id')
-      .eq('id', assistantId)
+      .select('id, full_name')
+      .eq('id', senderId)
       .single();
 
-    let senderId;
-    if (profileError || !profile) {
-      // المساعد ليس لديه ملف شخصي → نستخدم teacher_id (المعلم)
-      senderId = assistant.teacher_id;
-      console.log(`⚠️ المساعد ${assistantId} ليس له ملف شخصي، سيتم استخدام teacher_id كمرسل`);
-    } else {
-      // المساعد موجود في profiles → نستخدم معرفه
-      senderId = assistantId;
+    if (teacherProfileError || !teacherProfile) {
+      console.error('❌ المعلم غير موجود في profiles:', teacherProfileError);
+      return NextResponse.json(
+        { error: 'المعلم المرتبط بهذا المساعد غير موجود. تأكد من أن teacher_id صحيح.' },
+        { status: 500 }
+      );
     }
 
-    // 7. إدراج الرد في ticket_replies
+    // 8. إدراج الرد (باستخدام teacher_id)
     const { data: newReply, error: insertError } = await supabaseAdmin
       .from('ticket_replies')
       .insert({
         ticket_id: ticketId,
-        sender_id: senderId,  // ✅ استخدمنا sender_id الصحيح
+        sender_id: senderId, // ✅ دائماً teacher_id
         message: message.trim(),
         created_at: new Date().toISOString(),
       })
@@ -117,7 +118,7 @@ export async function POST(request) {
       return NextResponse.json({ error: 'فشل إدراج الرد: ' + insertError.message }, { status: 500 });
     }
 
-    // 8. تحديث التذكرة (first_reply_at, status)
+    // 9. تحديث التذكرة (first_reply_at, status)
     const updates = {};
     if (!ticket.first_reply_at) {
       updates.first_reply_at = new Date().toISOString();
@@ -134,22 +135,19 @@ export async function POST(request) {
         .eq('id', ticketId);
     }
 
-    // 9. جلب اسم المرسل لعرضه في الواجهة
-    const { data: senderProfile } = await supabaseAdmin
-      .from('profiles')
-      .select('full_name')
-      .eq('id', senderId)
-      .single();
-
-    const senderName = senderProfile?.full_name || (senderId === assistant.teacher_id ? 'المعلم' : 'مساعد');
-
-    // 10. إرجاع الرد الجديد
+    // 10. إرجاع الرد مع اسم المعلم (المرسل)
+    // بالإضافة إلى اسم المساعد الذي رد فعلاً (للـ UI فقط)
     return NextResponse.json({
       success: true,
       reply: {
         ...newReply,
         sender: {
-          full_name: senderName,
+          full_name: teacherProfile.full_name, // اسم المعلم (المرسل في قاعدة البيانات)
+        },
+        // ✅ إضافة معلومات المساعد الذي رد فعلاً (للعرض فقط)
+        replied_by_assistant: {
+          id: assistant.id,
+          full_name: assistant.display_name || assistant.full_name || 'مساعد',
         },
       },
     });

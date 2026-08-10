@@ -3,7 +3,7 @@
 // ================================================================
 // 💬 المسار: app/dashboard/assistant/support/[id]/page.js
 // صفحة تفاصيل الدعم – المحادثة الكاملة مع إجراءات المساعد
-// ✅ النسخة المعدلة – تسمح بالوصول للتذاكر المعينة للمعلم
+// ✅ النسخة النهائية – تدعم الردود بواسطة المساعدين باستخدام teacher_id كمرسل
 // ================================================================
 
 import { AssistantLayout } from '@/components/AssistantLayout';
@@ -96,10 +96,7 @@ export default function AssistantSupportDetailPage() {
       }
       const ticketData = ticketsArray[0];
       
-      // ✅ التحقق الموسع للصلاحية:
-      // - إذا كانت التذكرة معينة للمساعد نفسه (assigned_to = assistant.id)
-      // - أو غير معينة (assigned_to = null)
-      // - أو معينة للمعلم الذي يتبعه المساعد (assigned_to = assistant.teacher_id)
+      // التحقق الموسع للصلاحية
       const isAssignedToAssistant = ticketData.assigned_to === assistantData.id;
       const isUnassigned = ticketData.assigned_to === null;
       const isAssignedToTeacher = ticketData.assigned_to === assistantData.teacher_id;
@@ -151,13 +148,12 @@ export default function AssistantSupportDetailPage() {
   }, [ticketId]);
 
   // ----- إجراءات -----
-  // ✅ تم تعديل هذه الدالة لاستخدام API بدلاً من الكتابة المباشرة
   const handleSendReply = async (e) => {
     e?.preventDefault();
     if (!newReply.trim() || !assistant) return;
     setSending(true);
     try {
-      // استدعاء API بدلاً من الكتابة المباشرة
+      // استدعاء API
       const res = await fetch('/api/assistant/support/reply', {
         method: 'POST',
         headers: {
@@ -177,11 +173,13 @@ export default function AssistantSupportDetailPage() {
 
       // تحديث الواجهة بإضافة الرد الجديد
       if (data.reply) {
-        // جلب اسم المرسل (المساعد)
-        const senderName = assistant.display_name || assistant.full_name || 'مساعد';
+        // البيانات المرسلة من API تحتوي على sender (المعلم) وربما replied_by_assistant
         const newReplyObj = {
           ...data.reply,
-          sender: { full_name: senderName },
+          // إذا كان هناك replied_by_assistant، نضيفه كحقل إضافي للعرض
+          replied_by_assistant: data.reply.replied_by_assistant || null,
+          // نستخدم sender الموجود (وهو المعلم)
+          sender: data.reply.sender || { full_name: 'المعلم' },
         };
         setReplies(prev => [...prev, newReplyObj]);
         // تحديث حالة التذكرة إذا تغيرت
@@ -280,13 +278,37 @@ export default function AssistantSupportDetailPage() {
                 {replies.length === 0 ? (
                   <p className={`text-xs ${styles.subtext} text-center py-8`}>لا توجد ردود بعد. كن أول من يرد!</p>
                 ) : (
-                  replies.map(reply => {
-                    const isAssistantUser = reply.sender_id === assistant?.id;
+                  replies.map((reply) => {
+                    // تحديد ما إذا كان هذا الرد من المساعد الحالي (بناءً على replied_by_assistant)
+                    // أو من خلال sender_id (إذا كان يساوي assistant.id)
+                    const isAssistantReply = reply.replied_by_assistant?.id === assistant?.id;
+                    // إذا لم يكن هناك replied_by_assistant، نتحقق من sender_id
+                    const isSenderAssistant = reply.sender_id === assistant?.id;
+                    const isAssistantUser = isAssistantReply || isSenderAssistant;
+
+                    // اسم المرسل المعروض: إذا كان هناك مساعد رد، نعرض اسمه مع اسم المعلم
+                    let displayName = reply.sender?.full_name || 'المعلم';
+                    let assistantName = null;
+                    if (reply.replied_by_assistant) {
+                      assistantName = reply.replied_by_assistant.full_name;
+                      // نعرض اسم المساعد بدلاً من المعلم (لأن المساعد هو من كتب الرد فعلاً)
+                      displayName = assistantName;
+                    }
+
                     return (
                       <motion.div key={reply.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
                         className={`flex ${isAssistantUser ? 'justify-end' : 'justify-start'}`}>
                         <div className={`max-w-[85%] rounded-2xl p-4 ${isAssistantUser ? 'bg-gradient-to-br from-yellow-400/20 to-yellow-600/20 border border-[var(--border-color)]' : `${styles.card} border ${styles.border}`}`}>
-                          {!isAssistantUser && <p className="text-[10px] font-semibold text-blue-400 mb-1">{reply.sender?.full_name || 'طالب'}</p>}
+                          {!isAssistantUser && (
+                            <p className="text-[10px] font-semibold text-blue-400 mb-1">
+                              {displayName}
+                            </p>
+                          )}
+                          {isAssistantUser && reply.replied_by_assistant && (
+                            <p className="text-[10px] font-semibold text-yellow-400 mb-1">
+                              {displayName} (مساعد)
+                            </p>
+                          )}
                           <p className="text-sm whitespace-pre-wrap">{reply.message}</p>
                           <p className="text-[10px] mt-2 opacity-60">{formatDate(reply.created_at)}</p>
                         </div>
@@ -350,7 +372,7 @@ export default function AssistantSupportDetailPage() {
               )}
             </div>
 
-            {/* روابط سريعة */}
+            {/* روابط سريعة – يمكن تعطيلها مؤقتاً إذا كانت تسبب 404 */}
             <div className={`${styles.card} border ${styles.border} rounded-2xl p-4`}>
               <h4 className={`text-sm font-bold ${styles.text} mb-3`}>روابط سريعة</h4>
               <Link href={`/dashboard/assistant/messages/${ticket.student_id}`} className="flex items-center gap-2 p-2 rounded-lg hover:bg-white/5 text-sm mb-1">
