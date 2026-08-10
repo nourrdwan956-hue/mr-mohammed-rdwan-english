@@ -4,15 +4,6 @@
 // 🛡️ المسار: app/dashboard/assistant/support/page.js
 // مركز الدعم الشامل للمساعد – النسخة الأسطورية V3.0
 // ================================================================
-// الميزات الجبارة:
-// - Realtime: تحديث فوري للإحصائيات وقوائم الشكاوى والأسئلة.
-// - إحصائيات متقدمة: متوسط وقت الرد، نسبة الحل.
-// - أقسام منفصلة: الشكاوى الفنية، الأسئلة الأكاديمية.
-// - إجراءات سريعة: مراسلة طالب، إرسال إعلان، إضافة ملاحظة.
-// - روابط للإعلانات والمراسلات العامة من نفس اللوحة.
-// - دعم كامل للصلاحيات (معلم / مساعد).
-// - تصميم زجاجي فاخر مع تأثيرات حركية مبهرة.
-// ================================================================
 
 import { AssistantLayout } from '@/components/AssistantLayout';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -59,7 +50,7 @@ const StatCard = ({ icon: Icon, label, value, color, styles, delay = 0, suffix =
 
 export default function AssistantSupportHubPage() {
   const router = useRouter();
-  const { theme, styles } = useTheme(); // ✅ استخدام الثيم الموحد
+  const { theme, styles } = useTheme();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [permissions, setPermissions] = useState(null);
@@ -79,15 +70,34 @@ export default function AssistantSupportHubPage() {
   const fetchInitialData = useCallback(async () => {
     setLoading(true);
     try {
-      const { data: { user: u } } = await sessionStorage.getUser();
-      if (!u) { router.push('/login'); return; }
+      // ✅ إصلاح: استخدام supabase.auth.getUser() بدلاً من sessionStorage
+      const { data: { user: u }, error: userError } = await supabase.auth.getUser();
+      if (userError || !u) {
+        console.error('User error:', userError);
+        router.push('/login');
+        return;
+      }
       setUser(u);
 
-      const perms = await getCachedAssistantPermissions(u.id);
-      if (perms !== null) { setIsAssistant(true); setPermissions(perms); }
-      else setIsAssistant(false);
+      // جلب الصلاحيات من الـ API
+      const permsRes = await fetch(`/api/assistant-data`, {
+        headers: { 'x-assistant-id': u.id }
+      });
+      const permsData = await permsRes.json();
+      
+      if (permsData.success && permsData.assistant) {
+        setIsAssistant(true);
+        setPermissions(permsData.permissions || []);
+      } else {
+        setIsAssistant(false);
+        toast.error('غير مصرح لك بالدخول كمساعد');
+        router.push('/dashboard/student');
+        return;
+      }
 
-      if (isAssistant && !hasPermission(perms, 'tickets', 'can_view')) {
+      // التحقق من صلاحية عرض التذاكر
+      const canView = hasPermission(permsData.permissions || [], 'tickets', 'can_view');
+      if (!canView) {
         toast.error('غير مصرح لك بمشاهدة هذه الصفحة');
         router.push('/dashboard/assistant');
         return;
@@ -144,12 +154,12 @@ export default function AssistantSupportHubPage() {
       });
 
     } catch (err) {
-      console.error(err);
+      console.error('Fetch error:', err);
       toast.error('فشل جلب البيانات');
     } finally {
       setLoading(false);
     }
-  }, [router, isAssistant, permissions]);
+  }, [router]);
 
   useEffect(() => { fetchInitialData(); }, [fetchInitialData]);
 
@@ -239,7 +249,7 @@ export default function AssistantSupportHubPage() {
             </Link>
           </div>
 
-          {/* صف متعدد: آخر الشكاوى، آخر الأسئلة (بدون المحظورين) */}
+          {/* آخر الشكاوى والأسئلة */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* آخر الشكاوى */}
             <div className={`${styles.card} border ${styles.border} rounded-2xl p-5`}>
@@ -282,7 +292,7 @@ export default function AssistantSupportHubPage() {
             </div>
           </div>
 
-          {/* أزرار سريعة للإعلانات والمراسلات */}
+          {/* أزرار سريعة */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
             <Link href="/dashboard/assistant/announcements" className={`flex items-center gap-2 p-3 rounded-xl ${styles.card} border ${styles.border} hover:border-yellow-400/50 transition text-sm`}>
               <Icons.Megaphone className="h-5 w-5 text-yellow-400" /> الإعلانات

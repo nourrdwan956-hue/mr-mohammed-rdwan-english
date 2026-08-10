@@ -41,7 +41,7 @@ const PRIORITY_MAP = {
 
 export default function AssistantTechnicalComplaintsPage() {
   const router = useRouter();
-  const { theme, styles } = useTheme(); // ✅ استخدام الثيم الموحد
+  const { theme, styles } = useTheme();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [complaints, setComplaints] = useState([]);
@@ -57,21 +57,42 @@ export default function AssistantTechnicalComplaintsPage() {
   const [sortBy, setSortBy] = useState('newest');
 
   // مودال التأكيد (حذف فقط)
-  const [confirmModal, setConfirmModal] = useState(null); // { type, id, title }
+  const [confirmModal, setConfirmModal] = useState(null);
 
   // ----- جلب البيانات -----
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const { data: { user: u } } = await sessionStorage.getUser();
-      if (!u) { router.push('/login'); return; }
+      // ✅ إصلاح: استخدام supabase.auth.getUser()
+      const { data: { user: u }, error: userError } = await supabase.auth.getUser();
+      if (userError || !u) {
+        console.error('User error:', userError);
+        router.push('/login');
+        return;
+      }
       setUser(u);
 
-      const perms = await getCachedAssistantPermissions(u.id);
-      if (perms !== null) { setIsAssistant(true); setPermissions(perms); }
-      else setIsAssistant(false);
+      // جلب الصلاحيات من الـ API
+      const permsRes = await fetch(`/api/assistant-data`, {
+        headers: { 'x-assistant-id': u.id }
+      });
+      const permsData = await permsRes.json();
+      
+      let perms = [];
+      if (permsData.success && permsData.assistant) {
+        setIsAssistant(true);
+        perms = permsData.permissions || [];
+        setPermissions(perms);
+      } else {
+        setIsAssistant(false);
+        toast.error('غير مصرح لك بالدخول كمساعد');
+        router.push('/dashboard/student');
+        return;
+      }
 
-      if (isAssistant && !hasPermission(perms, 'tickets', 'can_view')) {
+      // التحقق من صلاحية عرض التذاكر
+      const canView = hasPermission(perms, 'tickets', 'can_view');
+      if (!canView) {
         toast.error('غير مصرح لك بمشاهدة هذه الصفحة');
         router.push('/dashboard/assistant');
         return;
@@ -90,8 +111,10 @@ export default function AssistantTechnicalComplaintsPage() {
       setComplaints(ticketData || []);
 
       // الكورسات للفلترة
-      const { data: courseData } = await supabase.from('courses').select('id, title').eq('teacher_id', u.id);
-      setCourses(courseData || []);
+      if (permsData.assistant?.teacher_id) {
+        const { data: courseData } = await supabase.from('courses').select('id, title').eq('teacher_id', permsData.assistant.teacher_id);
+        setCourses(courseData || []);
+      }
 
     } catch (err) {
       console.error(err);
@@ -99,7 +122,7 @@ export default function AssistantTechnicalComplaintsPage() {
     } finally {
       setLoading(false);
     }
-  }, [router, isAssistant, permissions]);
+  }, [router]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -249,7 +272,6 @@ export default function AssistantTechnicalComplaintsPage() {
                         </div>
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0" onClick={e => e.stopPropagation()}>
-                        {/* تغيير الحالة سريع (إذا كان لديه صلاحية التعديل) */}
                         {(!isAssistant || hasPermission(permissions, 'tickets', 'can_edit')) && (
                           <select value={complaint.status} onChange={e => handleStatusChange(complaint.id, e.target.value)}
                             className={`text-xs p-1.5 ${styles.input} border ${styles.border} rounded-lg`}>
@@ -257,7 +279,6 @@ export default function AssistantTechnicalComplaintsPage() {
                             <option value="resolved">محلولة</option><option value="closed">مغلقة</option>
                           </select>
                         )}
-                        {/* حذف (إذا كان لديه صلاحية الحذف أو معلم) */}
                         {(!isAssistant || hasPermission(permissions, 'tickets', 'can_delete')) && (
                           <button onClick={() => confirmAction('delete', complaint.id, complaint.subject)}
                             className="p-1.5 rounded-lg hover:bg-red-500/20 text-red-400"><Icons.Trash2 className="h-4 w-4" /></button>
