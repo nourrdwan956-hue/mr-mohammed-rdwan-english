@@ -1,6 +1,6 @@
 // ================================================================
 // 📁 app/api/assistant/support/route.js
-// ✅ النسخة النهائية – تشمل التذاكر غير المعينة (assigned_to = null)
+// ✅ نسخة معدلة – تجلب التذاكر المرتبطة بكورسات المعلم وغير المرتبطة
 // ================================================================
 
 import { NextResponse } from 'next/server';
@@ -57,28 +57,32 @@ export async function GET(request) {
     const type = searchParams.get('type');
     const ticketId = searchParams.get('id');
 
-    // جلب جميع كورسات المعلم (لتصفية التذاكر الخاصة به فقط)
+    // جلب جميع كورسات المعلم (قد تكون فارغة)
     const { data: teacherCourses } = await supabaseAdmin
       .from('courses')
       .select('id')
       .eq('teacher_id', assistant.teacher_id);
 
     const courseIds = teacherCourses?.map(c => c.id) || [];
-    if (courseIds.length === 0) {
-      // إذا لم يكن للمعلم أي كورسات، نعيد فارغ
-      return NextResponse.json({
-        success: true,
-        tickets: [],
-        stats: { open: 0, inProgress: 0, resolved: 0 },
-      });
-    }
 
-    // بناء الاستعلام الأساسي: التذاكر المعينة لهذا المساعد أو غير المعينة (null)
+    // بناء الاستعلام الأساسي:
+    // - إما التذكرة معينة لهذا المساعد (assigned_to = assistantId)
+    // - أو غير معينة (assigned_to = null)
+    // - و (course_id في قائمة كورسات المعلم OR course_id IS NULL)
     let query = supabaseAdmin
       .from('tickets')
       .select('*, student:profiles!tickets_student_id_fkey(full_name, email), course:courses(title, teacher_id)')
-      .in('course_id', courseIds)
       .or(`assigned_to.eq.${assistantId},assigned_to.is.null`);
+
+    // شرط الكورس: إما في القائمة أو null
+    if (courseIds.length > 0) {
+      // بناء شرط OR: course_id in (list) OR course_id is null
+      const courseInClause = courseIds.map(id => `'${id}'`).join(',');
+      query = query.or(`course_id.in.(${courseInClause}),course_id.is.null`);
+    } else {
+      // إذا لم يكن هناك كورسات، نجيب التذاكر التي ليس لها course_id فقط
+      query = query.is('course_id', null);
+    }
 
     if (type) {
       query = query.eq('support_type', type);
@@ -95,7 +99,6 @@ export async function GET(request) {
         return NextResponse.json({ error: 'التذكرة غير موجودة' }, { status: 404 });
       }
       const ticket = data[0];
-      // تأكد أن المساعد يملك صلاحية على هذه التذكرة (إذا كانت معينة لشخص آخر يمنع)
       if (ticket.assigned_to !== null && ticket.assigned_to !== assistantId) {
         return NextResponse.json({ error: 'غير مصرح لك بمشاهدة هذه التذكرة' }, { status: 403 });
       }
