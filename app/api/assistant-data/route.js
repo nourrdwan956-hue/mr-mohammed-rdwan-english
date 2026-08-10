@@ -1,5 +1,3 @@
-
-
 // ================================================================
 // 📁 app/api/assistant-data/route.js
 // 🔐 جلب بيانات المساعد والصلاحيات – نسخة محسنة
@@ -34,8 +32,7 @@ export async function GET(request) {
 
     // 2. تهيئة عميل Supabase باستخدام Service Role
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    // استخدام fallback لضمان وجود المفتاح
-    const supabaseSecretKey = process.env.SUPABASE_SERVICE_ROLE_KEY|| process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const supabaseSecretKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
     if (!supabaseUrl || !supabaseSecretKey) {
       console.error('❌ [assistant-data] مفاتيح Supabase غير مكتملة');
@@ -89,10 +86,7 @@ export async function GET(request) {
       );
     }
 
-    // 5. (اختياري) تحديث last_login – يمكن تفعيله حسب الحاجة
-    // هنا نقوم بتحديث وقت آخر دخول دون انتظار النتيجة (غير متزامن)
-    // يمكن إضافته في الخلفية لتحسين الأداء
-    // لكننا سنقوم بتحديثه بشكل متزامن لضمان الدقة
+    // 5. تحديث last_login
     try {
       await supabaseAdmin
         .from('assistants')
@@ -100,7 +94,6 @@ export async function GET(request) {
         .eq('id', assistantId);
       console.log(`✅ [assistant-data] تم تحديث last_login للمساعد ${assistantId}`);
     } catch (updateError) {
-      // لا نوقف التنفيذ إذا فشل التحديث، فقط نسجل الخطأ
       console.error('⚠️ [assistant-data] فشل تحديث last_login:', updateError);
     }
 
@@ -113,7 +106,6 @@ export async function GET(request) {
 
     if (permsError) {
       console.error('❌ [assistant-data] خطأ في جلب الصلاحيات:', permsError);
-      // نستمر ولا نوقف التنفيذ، نرجع صلاحيات فارغة
     }
 
     const permissionsCount = permissions?.length || 0;

@@ -1,9 +1,9 @@
+'use client';
+
 // ================================================================
 // 📁 app/dashboard/assistant/support/page.js
 // ✅ النسخة النهائية المعدلة – تعتمد على الـ API الجديد
 // ================================================================
-
-'use client';
 
 import { AssistantLayout } from '@/components/AssistantLayout';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -77,7 +77,7 @@ export default function AssistantSupportHubPage() {
       const assistantData = JSON.parse(stored);
       setAssistant(assistantData);
 
-      // ✅ جلب الصلاحيات من API مباشرة (بدون الاعتماد على sessionStorage)
+      // ✅ جلب الصلاحيات من API مباشرة
       const permsRes = await fetch('/api/assistant-data', {
         headers: { 'x-assistant-id': assistantData.id },
       });
@@ -89,14 +89,15 @@ export default function AssistantSupportHubPage() {
       }
       setPermissions(perms);
 
-      const canView = hasPermission(perms, 'tickets', 'can_view');
+      // التحقق من صلاحية العرض (tickets أو support)
+      const canView = hasPermission(perms, 'tickets', 'can_view') || hasPermission(perms, 'support', 'can_view');
       if (!canView) {
         toast.error('غير مصرح لك بمشاهدة هذه الصفحة');
         router.push('/dashboard/assistant');
         return;
       }
 
-      // جلب جميع التذاكر (بدون type) للحصول على الإحصائيات
+      // جلب جميع التذاكر
       const res = await fetch('/api/assistant/support', {
         headers: { 'x-assistant-id': assistantData.id },
       });
@@ -108,8 +109,9 @@ export default function AssistantSupportHubPage() {
       if (!data.success) throw new Error('فشل جلب البيانات');
 
       // فصل التذاكر حسب النوع
-      const techTickets = data.tickets?.filter(t => t.support_type === 'technical') || [];
-      const acadTickets = data.tickets?.filter(t => t.support_type === 'academic') || [];
+      const tickets = data.tickets || [];
+      const techTickets = tickets.filter(t => t.support_type === 'technical');
+      const acadTickets = tickets.filter(t => t.support_type === 'academic');
 
       setTechnicalTickets(techTickets);
       setAcademicTickets(acadTickets);
@@ -119,13 +121,13 @@ export default function AssistantSupportHubPage() {
       const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
       const technicalOpen = techTickets.filter(t => t.status === 'open' || t.status === 'in_progress').length;
       const academicOpen = acadTickets.filter(t => t.status === 'open' || t.status === 'in_progress').length;
-      const resolvedToday = data.tickets?.filter(t => 
+      const resolvedToday = tickets.filter(t => 
         (t.status === 'resolved' || t.status === 'closed') && new Date(t.updated_at).toISOString() >= todayStart
       ).length || 0;
 
       // حساب متوسط وقت الرد
       let totalResponseHours = 0, responseCount = 0;
-      for (const ticket of data.tickets || []) {
+      for (const ticket of tickets) {
         if (ticket.first_reply_at) {
           totalResponseHours += (new Date(ticket.first_reply_at) - new Date(ticket.created_at)) / (1000 * 60 * 60);
           responseCount++;
@@ -150,7 +152,7 @@ export default function AssistantSupportHubPage() {
 
   useEffect(() => { fetchInitialData(); }, [fetchInitialData]);
 
-  // Realtime اشتراك (يستخدم supabase مباشرة، لكنه يستدعي fetchInitialData عند التغيير)
+  // Realtime اشتراك
   useEffect(() => {
     if (!assistant) return;
     const ticketsChannel = supabase

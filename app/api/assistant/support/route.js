@@ -1,6 +1,6 @@
 // ================================================================
 // 📁 app/api/assistant/support/route.js
-// ✅ API جديد – جلب تذاكر الدعم الخاصة بالمساعد (مع التحقق من الصلاحية)
+// ✅ النسخة النهائية المعدلة – إصلاح صلاحيات وجلب التذكرة الفردية
 // ================================================================
 
 import { NextResponse } from 'next/server';
@@ -52,7 +52,7 @@ export async function GET(request) {
       );
     }
 
-    // 4. التحقق من صلاحية عرض التذاكر
+    // 4. التحقق من صلاحية عرض التذاكر (يدعم tickets و support)
     const { data: permissions, error: permsError } = await supabaseAdmin
       .from('assistant_permissions')
       .select('module, can_view, can_edit, can_delete, can_manage')
@@ -67,7 +67,7 @@ export async function GET(request) {
     }
 
     const canViewTickets = permissions?.some(
-      (p) => p.module === 'tickets' && (p.can_view || p.can_manage)
+      (p) => (p.module === 'tickets' || p.module === 'support') && (p.can_view || p.can_manage)
     );
 
     if (!canViewTickets) {
@@ -77,7 +77,7 @@ export async function GET(request) {
       );
     }
 
-    // 5. جلب التذاكر حسب النوع (من query param)
+    // 5. جلب التذاكر حسب النوع و/أو المعرف
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type'); // 'technical' أو 'academic'
     const ticketId = searchParams.get('id'); // اختياري لتفاصيل تذكرة معينة
@@ -92,12 +92,48 @@ export async function GET(request) {
     }
 
     if (ticketId) {
-      query = query.eq('id', ticketId).single();
-    } else {
-      query = query.order('created_at', { ascending: false });
+      // جلب تذكرة واحدة ولكن نرجعها كمصفوفة لتوحيد التعامل
+      const { data, error } = await query.eq('id', ticketId);
+
+      if (error) {
+        console.error('Ticket fetch error:', error);
+        if (error.code === 'PGRST116') {
+          return NextResponse.json(
+            { error: 'التذكرة غير موجودة' },
+            { status: 404 }
+          );
+        }
+        return NextResponse.json(
+          { error: 'فشل جلب التذكرة' },
+          { status: 500 }
+        );
+      }
+
+      if (!data || data.length === 0) {
+        return NextResponse.json(
+          { error: 'التذكرة غير موجودة' },
+          { status: 404 }
+        );
+      }
+
+      // تأكد من أن التذكرة مخصصة لهذا المساعد (تم بالفعل في الشرط)
+      const ticket = data[0];
+      if (ticket.assigned_to !== assistantId) {
+        return NextResponse.json(
+          { error: 'غير مصرح لك بمشاهدة هذه التذكرة' },
+          { status: 403 }
+        );
+      }
+
+      // نعيد كمصفوفة تحت مفتاح tickets
+      return NextResponse.json({
+        success: true,
+        tickets: [ticket],
+      });
     }
 
-    const { data: tickets, error: ticketsError } = await query;
+    // جلب جميع التذاكر
+    const { data: tickets, error: ticketsError } = await query.order('created_at', { ascending: false });
 
     if (ticketsError) {
       console.error('Tickets error:', ticketsError);
@@ -107,27 +143,17 @@ export async function GET(request) {
       );
     }
 
-    // 6. إحصائيات سريعة (مفتوحة، معلقة، محلولة)
-    let stats = {};
-    if (!ticketId) {
-      const allTickets = tickets || [];
-      const open = allTickets.filter((t) => t.status === 'open' || t.status === 'in_progress').length;
-      const resolved = allTickets.filter((t) => t.status === 'resolved' || t.status === 'closed').length;
-      stats = { open, inProgress: allTickets.filter((t) => t.status === 'in_progress').length, resolved };
-    }
+    // 6. إحصائيات سريعة
+    const allTickets = tickets || [];
+    const open = allTickets.filter((t) => t.status === 'open' || t.status === 'in_progress').length;
+    const inProgress = allTickets.filter((t) => t.status === 'in_progress').length;
+    const resolved = allTickets.filter((t) => t.status === 'resolved' || t.status === 'closed').length;
 
     // 7. الرد
     return NextResponse.json({
       success: true,
-      assistant: {
-        id: assistant.id,
-        full_name: assistant.full_name,
-        display_name: assistant.display_name,
-        role: assistant.role,
-        teacher_id: assistant.teacher_id,
-      },
-      tickets: ticketId ? tickets : tickets || [],
-      stats: ticketId ? undefined : stats,
+      tickets: allTickets,
+      stats: { open, inProgress, resolved },
     });
   } catch (error) {
     console.error('❌ API Error:', error);

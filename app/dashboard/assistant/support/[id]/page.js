@@ -47,11 +47,10 @@ export default function AssistantSupportDetailPage() {
   const [permissions, setPermissions] = useState([]);
   const messagesEndRef = useRef(null);
 
-  // ----- جلب البيانات باستخدام الـ API الجديد (مع صلاحيات من API مباشرة) -----
+  // ----- جلب البيانات باستخدام الـ API الجديد -----
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      // 1. قراءة بيانات المساعد
       const stored = sessionStorage.getItem('assistantData');
       if (!stored) {
         router.push('/assistant-login');
@@ -60,7 +59,7 @@ export default function AssistantSupportDetailPage() {
       const assistantData = JSON.parse(stored);
       setAssistant(assistantData);
 
-      // ✅ جلب الصلاحيات من API مباشرة (بدون الاعتماد على sessionStorage)
+      // جلب الصلاحيات
       const permsRes = await fetch('/api/assistant-data', {
         headers: { 'x-assistant-id': assistantData.id },
       });
@@ -72,14 +71,14 @@ export default function AssistantSupportDetailPage() {
       }
       setPermissions(perms);
 
-      const canView = hasPermission(perms, 'tickets', 'can_view');
+      const canView = hasPermission(perms, 'tickets', 'can_view') || hasPermission(perms, 'support', 'can_view');
       if (!canView) {
         toast.error('غير مصرح لك بمشاهدة هذه الصفحة');
         router.push('/dashboard/assistant');
         return;
       }
 
-      // 6. جلب التذكرة المحددة عبر API الجديد
+      // جلب التذكرة المحددة
       const res = await fetch(`/api/assistant/support?id=${ticketId}`, {
         headers: { 'x-assistant-id': assistantData.id },
       });
@@ -90,11 +89,12 @@ export default function AssistantSupportDetailPage() {
       const data = await res.json();
       if (!data.success) throw new Error('فشل جلب التذكرة');
 
-      // API يعيد كائن واحد في data.tickets عند إرسال id
-      const ticketData = data.tickets;
-      if (!ticketData) throw new Error('التذكرة غير موجودة');
+      const ticketsArray = data.tickets || [];
+      if (ticketsArray.length === 0) {
+        throw new Error('التذكرة غير موجودة');
+      }
+      const ticketData = ticketsArray[0];
       
-      // التأكد من أن التذكرة مخصصة لهذا المساعد (API يفعل ذلك، لكن للتأكيد)
       if (ticketData.assigned_to !== assistantData.id) {
         toast.error('غير مصرح لك بمشاهدة هذه التذكرة');
         router.push('/dashboard/assistant/support');
@@ -103,16 +103,20 @@ export default function AssistantSupportDetailPage() {
 
       setTicket(ticketData);
 
-      // 7. جلب الردود من Supabase مباشرة (يمكن توسيع API لتشملها)
-      const { data: repliesData } = await supabase
+      // جلب الردود
+      const { data: repliesData, error: repliesError } = await supabase
         .from('ticket_replies')
         .select('*, sender:profiles(full_name)')
         .eq('ticket_id', ticketId)
         .order('created_at', { ascending: true });
-      setReplies(repliesData || []);
+      if (repliesError) {
+        console.error('Replies error:', repliesError);
+      } else {
+        setReplies(repliesData || []);
+      }
 
     } catch (err) {
-      console.error(err);
+      console.error('Fetch error:', err);
       toast.error(err.message || 'فشل تحميل التفاصيل');
     } finally {
       setLoading(false);
@@ -162,6 +166,7 @@ export default function AssistantSupportDetailPage() {
       setNewReply('');
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     } catch (err) {
+      console.error(err);
       toast.error('فشل إرسال الرد');
     } finally {
       setSending(false);
@@ -290,7 +295,7 @@ export default function AssistantSupportDetailPage() {
           <div className="lg:col-span-1 space-y-4">
             <div className={`${styles.card} border ${styles.border} rounded-2xl p-4`}>
               <h4 className={`text-sm font-bold ${styles.text} mb-3`}>الإجراءات</h4>
-              {(!assistant || hasPermission(permissions, 'tickets', 'can_edit')) && (
+              {(!assistant || hasPermission(permissions, 'tickets', 'can_edit') || hasPermission(permissions, 'support', 'can_edit')) && (
                 <div className="mb-4">
                   <label className="text-xs text-gray-400 mb-1 block">الحالة</label>
                   <select value={ticket.status} onChange={e => handleStatusChange(e.target.value)}
@@ -300,7 +305,7 @@ export default function AssistantSupportDetailPage() {
                   </select>
                 </div>
               )}
-              {(!assistant || hasPermission(permissions, 'tickets', 'can_edit')) && (
+              {(!assistant || hasPermission(permissions, 'tickets', 'can_edit') || hasPermission(permissions, 'support', 'can_edit')) && (
                 <div className="mb-4">
                   <label className="text-xs text-gray-400 mb-1 block">الأولوية</label>
                   <select value={ticket.priority} onChange={e => handlePriorityChange(e.target.value)}
@@ -310,7 +315,7 @@ export default function AssistantSupportDetailPage() {
                   </select>
                 </div>
               )}
-              {(!assistant || hasPermission(permissions, 'tickets', 'can_delete')) && (
+              {(!assistant || hasPermission(permissions, 'tickets', 'can_delete') || hasPermission(permissions, 'support', 'can_delete')) && (
                 <button onClick={handleDelete} className="w-full p-2 rounded-lg bg-red-500/10 text-red-400 text-sm mb-2">حذف التذكرة</button>
               )}
             </div>

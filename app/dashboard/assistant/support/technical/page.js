@@ -50,11 +50,10 @@ export default function AssistantTechnicalComplaintsPage() {
   // مودال التأكيد (حذف فقط)
   const [confirmModal, setConfirmModal] = useState(null);
 
-  // ----- جلب البيانات باستخدام الـ API الجديد (صلاحيات من API مباشرة) -----
+  // ----- جلب البيانات باستخدام الـ API الجديد -----
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      // 1. قراءة بيانات المساعد
       const stored = sessionStorage.getItem('assistantData');
       if (!stored) {
         router.push('/assistant-login');
@@ -63,7 +62,7 @@ export default function AssistantTechnicalComplaintsPage() {
       const assistantData = JSON.parse(stored);
       setAssistant(assistantData);
 
-      // ✅ جلب الصلاحيات من API مباشرة
+      // جلب الصلاحيات
       const permsRes = await fetch('/api/assistant-data', {
         headers: { 'x-assistant-id': assistantData.id },
       });
@@ -75,14 +74,14 @@ export default function AssistantTechnicalComplaintsPage() {
       }
       setPermissions(perms);
 
-      const canView = hasPermission(perms, 'tickets', 'can_view');
+      const canView = hasPermission(perms, 'tickets', 'can_view') || hasPermission(perms, 'support', 'can_view');
       if (!canView) {
         toast.error('غير مصرح لك بمشاهدة هذه الصفحة');
         router.push('/dashboard/assistant');
         return;
       }
 
-      // 6. جلب الشكاوى الفنية عبر API الجديد
+      // جلب الشكاوى الفنية
       const res = await fetch('/api/assistant/support?type=technical', {
         headers: { 'x-assistant-id': assistantData.id },
       });
@@ -95,7 +94,7 @@ export default function AssistantTechnicalComplaintsPage() {
 
       setComplaints(data.tickets || []);
 
-      // 7. جلب الكورسات للفلترة (نفس السابق)
+      // جلب الكورسات للفلترة
       if (assistantData.teacher_id) {
         const { data: courseData } = await supabase
           .from('courses')
@@ -265,14 +264,14 @@ export default function AssistantTechnicalComplaintsPage() {
                         </div>
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0" onClick={e => e.stopPropagation()}>
-                        {(!assistant || hasPermission(permissions, 'tickets', 'can_edit')) && (
+                        {(!assistant || hasPermission(permissions, 'tickets', 'can_edit') || hasPermission(permissions, 'support', 'can_edit')) && (
                           <select value={complaint.status} onChange={e => handleStatusChange(complaint.id, e.target.value)}
                             className={`text-xs p-1.5 ${styles.input} border ${styles.border} rounded-lg`}>
                             <option value="open">مفتوحة</option><option value="in_progress">قيد المعالجة</option>
                             <option value="resolved">محلولة</option><option value="closed">مغلقة</option>
                           </select>
                         )}
-                        {(!assistant || hasPermission(permissions, 'tickets', 'can_delete')) && (
+                        {(!assistant || hasPermission(permissions, 'tickets', 'can_delete') || hasPermission(permissions, 'support', 'can_delete')) && (
                           <button onClick={() => confirmAction('delete', complaint.id, complaint.subject)}
                             className="p-1.5 rounded-lg hover:bg-red-500/20 text-red-400"><Icons.Trash2 className="h-4 w-4" /></button>
                         )}
