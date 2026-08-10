@@ -1,6 +1,6 @@
 // ================================================================
 // 📁 app/api/assistant/support/reply/route.js
-// ✅ إرسال رد – مع تخصيص التذكرة للمساعد فوراً (إذا كانت غير معينة أو معينة للمعلم)
+// ✅ إرسال رد – مع تخصيص التذكرة للمساعد فوراً
 // ================================================================
 
 import { NextResponse } from 'next/server';
@@ -70,16 +70,16 @@ export async function POST(request) {
       return NextResponse.json({ error: 'التذكرة غير موجودة' }, { status: 404 });
     }
 
-    // منع الرد إذا كانت معينة لمساعد آخر (وليس للمعلم أو null أو لنفسه)
+    // منع الرد إذا كانت معينة لمساعد آخر
     const isAssignedToOther = ticket.assigned_to !== null 
                               && ticket.assigned_to !== assistantId 
                               && ticket.assigned_to !== assistant.teacher_id;
 
     if (isAssignedToOther) {
-      return NextResponse.json({ error: 'هذه التذكرة معينة لمساعد آخر، لا يمكنك الرد عليها' }, { status: 403 });
+      return NextResponse.json({ error: 'هذه التذكرة معينة لمساعد آخر' }, { status: 403 });
     }
 
-    // sender_id = teacher_id (المعلم هو الوحيد في profiles)
+    // sender_id = teacher_id
     const senderId = assistant.teacher_id;
     const { data: teacherProfile } = await supabaseAdmin
       .from('profiles')
@@ -88,7 +88,7 @@ export async function POST(request) {
       .single();
 
     if (!teacherProfile) {
-      return NextResponse.json({ error: 'المعلم غير موجود في profiles' }, { status: 500 });
+      return NextResponse.json({ error: 'المعلم غير موجود' }, { status: 500 });
     }
 
     // إدراج الرد
@@ -107,8 +107,7 @@ export async function POST(request) {
       return NextResponse.json({ error: 'فشل إدراج الرد: ' + insertError.message }, { status: 500 });
     }
 
-    // 🆕 تخصيص التذكرة للمساعد الحالي (إذا كانت غير معينة أو معينة للمعلم)
-    // هذا يضمن أن التذكرة تصبح ملكاً له وحده
+    // تخصيص التذكرة للمساعد الحالي (إذا كانت غير معينة أو معينة للمعلم)
     if (ticket.assigned_to === null || ticket.assigned_to === assistant.teacher_id) {
       await supabaseAdmin
         .from('tickets')

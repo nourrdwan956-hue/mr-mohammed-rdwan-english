@@ -2,8 +2,7 @@
 
 // ================================================================
 // 💬 المسار: app/dashboard/assistant/support/[id]/page.js
-// ✅ صفحة التفاصيل – نسخة مبسطة تعرض التذكرة والردود لأي مساعد
-// وتمنع الرد إذا كانت معينة لمساعد آخر
+// ✅ صفحة التفاصيل – تعرض التذكرة لأي مساعد، وتمنع الرد إذا كانت معينة لآخر
 // ================================================================
 
 import { AssistantLayout } from '@/components/AssistantLayout';
@@ -79,7 +78,7 @@ export default function AssistantSupportDetailPage() {
         return;
       }
 
-      // 1. جلب التذكرة مباشرة بدون فلترة معقدة
+      // 1. جلب التذكرة
       const { data: ticketData, error: ticketError } = await supabase
         .from('tickets')
         .select('*, student:profiles!tickets_student_id_fkey(full_name, email), course:courses(title, teacher_id)')
@@ -93,7 +92,7 @@ export default function AssistantSupportDetailPage() {
         return;
       }
 
-      // 2. التحقق من أن التذكرة تابعة للمعلم (عن طريق course_id أو student_id أو assigned_to)
+      // 2. التحقق من صلاحية العرض (منطق بسيط)
       // نجيب teacher_id من جدول المساعد
       const { data: assistantInfo } = await supabase
         .from('assistants')
@@ -103,58 +102,20 @@ export default function AssistantSupportDetailPage() {
 
       if (assistantInfo) {
         const teacherId = assistantInfo.teacher_id;
-        let isTeacherTicket = false;
+        const assignedTo = ticketData.assigned_to;
 
-        // فحص course_id
-        if (ticketData.course_id) {
-          const { data: course } = await supabase
-            .from('courses')
-            .select('teacher_id')
-            .eq('id', ticketData.course_id)
-            .single();
-          if (course?.teacher_id === teacherId) {
-            isTeacherTicket = true;
-          }
-        }
+        // إذا كانت معينة لمساعد آخر (ليس المعلم، ليس المساعد الحالي، وليست null)
+        const isAssignedToOther = assignedTo !== null 
+                                  && assignedTo !== assistantData.id 
+                                  && assignedTo !== teacherId;
 
-        // فحص student_id
-        if (!isTeacherTicket && ticketData.student_id) {
-          const { data: student } = await supabase
-            .from('profiles')
-            .select('teacher_id')
-            .eq('id', ticketData.student_id)
-            .single();
-          if (student?.teacher_id === teacherId) {
-            isTeacherTicket = true;
-          }
-        }
-
-        // فحص assigned_to (إذا كانت معينة للمعلم نفسه أو للمساعد الحالي)
-        if (!isTeacherTicket) {
-          if (ticketData.assigned_to === teacherId || 
-              ticketData.assigned_to === assistantData.id || 
-              ticketData.assigned_to === null) {
-            isTeacherTicket = true;
-          }
-        }
-
-        if (!isTeacherTicket) {
-          setNotFound(true);
-          setLoading(false);
-          return;
-        }
+        // نسمح بعرض التذكرة دائماً، لكن نحدد إمكانية الرد
+        setCanReply(!isAssignedToOther && ticketData.status !== 'closed');
       }
 
       setTicket(ticketData);
 
-      // تحديد إمكانية الرد:
-      // - إذا كانت معينة لمساعد آخر غير المساعد الحالي وغير المعلم → لا يمكن الرد
-      const isAssignedToOther = ticketData.assigned_to !== null 
-                                && ticketData.assigned_to !== assistantData.id
-                                && ticketData.assigned_to !== assistantInfo?.teacher_id;
-      setCanReply(!isAssignedToOther && ticketData.status !== 'closed');
-
-      // 3. جلب الردود (دائماً)
+      // 3. جلب الردود
       const { data: repliesData, error: repliesError } = await supabase
         .from('ticket_replies')
         .select('*, sender:profiles(full_name)')
@@ -371,7 +332,7 @@ export default function AssistantSupportDetailPage() {
               </div>
             </div>
 
-            {/* مربع الرد – يظهر فقط إذا كان يمكن الرد */}
+            {/* مربع الرد */}
             {canReply && ticket.status !== 'closed' && (
               <div className={`${styles.card} border ${styles.border} rounded-2xl p-4`}>
                 <form onSubmit={handleSendReply} className="flex items-end gap-3">
