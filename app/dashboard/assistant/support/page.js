@@ -2,14 +2,14 @@
 
 // ================================================================
 // 🛡️ المسار: app/dashboard/assistant/support/page.js
-// مركز الدعم الشامل للمساعد – نسخة تعتمد على sessionStorage (بدون supabase.auth)
+// مركز الدعم الشامل للمساعد – جلب الصلاحيات من API
 // ================================================================
 
 import { AssistantLayout } from '@/components/AssistantLayout';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import * as Icons from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { toast } from 'react-hot-toast';
@@ -69,7 +69,7 @@ export default function AssistantSupportHubPage() {
   const fetchInitialData = useCallback(async () => {
     setLoading(true);
     try {
-      // ✅ قراءة بيانات المساعد من sessionStorage
+      // 1. قراءة بيانات المساعد من sessionStorage
       const stored = sessionStorage.getItem('assistantData');
       if (!stored) {
         router.push('/assistant-login');
@@ -78,12 +78,18 @@ export default function AssistantSupportHubPage() {
       const assistantData = JSON.parse(stored);
       setAssistant(assistantData);
 
-      // قراءة الصلاحيات من sessionStorage
-      const permsStored = sessionStorage.getItem('assistantPermissions');
-      const perms = permsStored ? JSON.parse(permsStored) : [];
+      // 2. جلب الصلاحيات من API
+      const permsRes = await fetch('/api/assistant-data', {
+        headers: { 'x-assistant-id': assistantData.id },
+      });
+      const permsData = await permsRes.json();
+      if (!permsRes.ok || !permsData.success) {
+        throw new Error(permsData.error || 'فشل جلب الصلاحيات');
+      }
+      const perms = permsData.permissions || [];
       setPermissions(perms);
 
-      // التحقق من صلاحية عرض التذاكر
+      // 3. التحقق من صلاحية عرض التذاكر
       const canView = hasPermission(perms, 'tickets', 'can_view');
       if (!canView) {
         toast.error('غير مصرح لك بمشاهدة هذه الصفحة');
@@ -91,7 +97,7 @@ export default function AssistantSupportHubPage() {
         return;
       }
 
-      // جلب الشكاوى الفنية (مفتوحة ومعلقة)
+      // 4. جلب الشكاوى الفنية
       const { data: techData, error: techError } = await supabase
         .from('tickets')
         .select('*, student:profiles!tickets_student_id_fkey(full_name, email), course:courses(title)')
@@ -101,7 +107,7 @@ export default function AssistantSupportHubPage() {
 
       if (techError) throw techError;
 
-      // جلب الأسئلة الأكاديمية
+      // 5. جلب الأسئلة الأكاديمية
       const { data: acadData, error: acadError } = await supabase
         .from('tickets')
         .select('*, student:profiles!tickets_student_id_fkey(full_name, email), course:courses(title)')
@@ -114,14 +120,12 @@ export default function AssistantSupportHubPage() {
       const now = new Date();
       const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
 
-      // حساب الإحصائيات
       const technicalOpen = techData?.filter(t => t.status === 'open' || t.status === 'in_progress').length || 0;
       const academicOpen = acadData?.filter(t => t.status === 'open' || t.status === 'in_progress').length || 0;
       const resolvedToday = [...(techData || []), ...(acadData || [])].filter(t => 
         (t.status === 'resolved' || t.status === 'closed') && new Date(t.updated_at).toISOString() >= todayStart
       ).length;
 
-      // متوسط وقت الرد (من وقت الإنشاء إلى أول رد للمعلم)
       let totalResponseHours = 0, responseCount = 0;
       const allTickets = [...(techData || []), ...(acadData || [])];
       for (const ticket of allTickets) {
@@ -143,7 +147,7 @@ export default function AssistantSupportHubPage() {
 
     } catch (err) {
       console.error('Fetch error:', err);
-      toast.error('فشل جلب البيانات');
+      toast.error(err.message || 'فشل جلب البيانات');
     } finally {
       setLoading(false);
     }
@@ -151,7 +155,7 @@ export default function AssistantSupportHubPage() {
 
   useEffect(() => { fetchInitialData(); }, [fetchInitialData]);
 
-  // ===== Realtime اشتراك =====
+  // Realtime اشتراك
   useEffect(() => {
     if (!assistant) return;
     const ticketsChannel = supabase
@@ -239,7 +243,6 @@ export default function AssistantSupportHubPage() {
 
           {/* آخر الشكاوى والأسئلة */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* آخر الشكاوى */}
             <div className={`${styles.card} border ${styles.border} rounded-2xl p-5`}>
               <div className="flex items-center justify-between mb-4">
                 <h3 className={`font-bold ${styles.text} flex items-center gap-2`}><Icons.AlertTriangle className="h-5 w-5 text-red-400" /> شكاوى فنية</h3>
@@ -259,7 +262,6 @@ export default function AssistantSupportHubPage() {
               </div>
             </div>
 
-            {/* آخر الأسئلة */}
             <div className={`${styles.card} border ${styles.border} rounded-2xl p-5`}>
               <div className="flex items-center justify-between mb-4">
                 <h3 className={`font-bold ${styles.text} flex items-center gap-2`}><Icons.MessageCircle className="h-5 w-5 text-blue-400" /> أسئلة أكاديمية</h3>

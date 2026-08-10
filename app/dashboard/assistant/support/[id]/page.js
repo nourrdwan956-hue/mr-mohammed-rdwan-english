@@ -2,14 +2,14 @@
 
 // ================================================================
 // 💬 المسار: app/dashboard/assistant/support/[id]/page.js
-// صفحة تفاصيل الدعم – المحادثة الكاملة مع إجراءات المساعد المتكاملة
+// صفحة تفاصيل الدعم – المحادثة الكاملة مع إجراءات المساعد
 // ================================================================
 
 import { AssistantLayout } from '@/components/AssistantLayout';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import * as Icons from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { toast } from 'react-hot-toast';
@@ -51,7 +51,7 @@ export default function AssistantSupportDetailPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      // ✅ قراءة بيانات المساعد من sessionStorage
+      // 1. قراءة بيانات المساعد
       const stored = sessionStorage.getItem('assistantData');
       if (!stored) {
         router.push('/assistant-login');
@@ -60,12 +60,18 @@ export default function AssistantSupportDetailPage() {
       const assistantData = JSON.parse(stored);
       setAssistant(assistantData);
 
-      // قراءة الصلاحيات
-      const permsStored = sessionStorage.getItem('assistantPermissions');
-      const perms = permsStored ? JSON.parse(permsStored) : [];
+      // 2. جلب الصلاحيات من API
+      const permsRes = await fetch('/api/assistant-data', {
+        headers: { 'x-assistant-id': assistantData.id },
+      });
+      const permsData = await permsRes.json();
+      if (!permsRes.ok || !permsData.success) {
+        throw new Error(permsData.error || 'فشل جلب الصلاحيات');
+      }
+      const perms = permsData.permissions || [];
       setPermissions(perms);
 
-      // التحقق من صلاحية عرض التذاكر
+      // 3. التحقق من صلاحية عرض التذاكر
       const canView = hasPermission(perms, 'tickets', 'can_view');
       if (!canView) {
         toast.error('غير مصرح لك بمشاهدة هذه الصفحة');
@@ -73,7 +79,7 @@ export default function AssistantSupportDetailPage() {
         return;
       }
 
-      // جلب التذكرة مع العلاقات
+      // 4. جلب التذكرة مع العلاقات
       const { data: ticketData, error: ticketError } = await supabase
         .from('tickets')
         .select('*, student:profiles!tickets_student_id_fkey(full_name, email), course:courses(title)')
@@ -89,7 +95,7 @@ export default function AssistantSupportDetailPage() {
 
       setTicket(ticketData);
 
-      // جلب الردود
+      // 5. جلب الردود
       const { data: repliesData } = await supabase.from('ticket_replies')
         .select('*, sender:profiles(full_name)')
         .eq('ticket_id', ticketId)
@@ -98,7 +104,7 @@ export default function AssistantSupportDetailPage() {
 
     } catch (err) {
       console.error(err);
-      toast.error('فشل تحميل التفاصيل');
+      toast.error(err.message || 'فشل تحميل التفاصيل');
     } finally {
       setLoading(false);
     }
@@ -136,11 +142,9 @@ export default function AssistantSupportDetailPage() {
       });
       if (error) throw error;
 
-      // تحديث first_reply_at إذا كان أول رد للمساعد
       if (!ticket.first_reply_at) {
         await supabase.from('tickets').update({ first_reply_at: new Date().toISOString() }).eq('id', ticketId);
       }
-      // تغيير الحالة إلى in_progress إن كانت open
       if (ticket.status === 'open') {
         await supabase.from('tickets').update({ status: 'in_progress', updated_at: new Date().toISOString() }).eq('id', ticketId);
         setTicket(prev => ({ ...prev, status: 'in_progress' }));
@@ -208,7 +212,6 @@ export default function AssistantSupportDetailPage() {
         </div>
 
         <div className="flex-1 max-w-7xl mx-auto w-full p-4 md:p-6 grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* العمود الرئيسي: المحادثة */}
           <div className="lg:col-span-3">
             {/* معلومات التذكرة */}
             <div className={`${styles.card} border ${styles.border} rounded-2xl p-5 mb-4`}>
@@ -278,7 +281,6 @@ export default function AssistantSupportDetailPage() {
           <div className="lg:col-span-1 space-y-4">
             <div className={`${styles.card} border ${styles.border} rounded-2xl p-4`}>
               <h4 className={`text-sm font-bold ${styles.text} mb-3`}>الإجراءات</h4>
-              {/* تغيير الحالة */}
               {(!assistant || hasPermission(permissions, 'tickets', 'can_edit')) && (
                 <div className="mb-4">
                   <label className="text-xs text-gray-400 mb-1 block">الحالة</label>
@@ -289,7 +291,6 @@ export default function AssistantSupportDetailPage() {
                   </select>
                 </div>
               )}
-              {/* تغيير الأولوية */}
               {(!assistant || hasPermission(permissions, 'tickets', 'can_edit')) && (
                 <div className="mb-4">
                   <label className="text-xs text-gray-400 mb-1 block">الأولوية</label>
@@ -300,8 +301,6 @@ export default function AssistantSupportDetailPage() {
                   </select>
                 </div>
               )}
-
-              {/* حذف (إذا كان معلمًا أو لديه صلاحية can_delete) */}
               {(!assistant || hasPermission(permissions, 'tickets', 'can_delete')) && (
                 <button onClick={handleDelete} className="w-full p-2 rounded-lg bg-red-500/10 text-red-400 text-sm mb-2">حذف التذكرة</button>
               )}

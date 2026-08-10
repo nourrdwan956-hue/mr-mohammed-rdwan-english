@@ -69,11 +69,10 @@ export default function AssistantAcademicQuestionsPage() {
   // مودال التأكيد (حذف فقط)
   const [confirmModal, setConfirmModal] = useState(null);
 
-  // ----- جلب البيانات -----
+  // ----- جلب البيانات (معدل) -----
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      // ✅ قراءة بيانات المساعد من sessionStorage
       const stored = sessionStorage.getItem('assistantData');
       if (!stored) {
         router.push('/assistant-login');
@@ -82,12 +81,17 @@ export default function AssistantAcademicQuestionsPage() {
       const assistantData = JSON.parse(stored);
       setAssistant(assistantData);
 
-      // قراءة الصلاحيات
-      const permsStored = sessionStorage.getItem('assistantPermissions');
-      const perms = permsStored ? JSON.parse(permsStored) : [];
+      // جلب الصلاحيات من API
+      const permsRes = await fetch('/api/assistant-data', {
+        headers: { 'x-assistant-id': assistantData.id },
+      });
+      const permsData = await permsRes.json();
+      if (!permsRes.ok || !permsData.success) {
+        throw new Error(permsData.error || 'فشل جلب الصلاحيات');
+      }
+      const perms = permsData.permissions || [];
       setPermissions(perms);
 
-      // التحقق من صلاحية عرض التذاكر
       const canView = hasPermission(perms, 'tickets', 'can_view');
       if (!canView) {
         toast.error('غير مصرح لك بمشاهدة هذه الصفحة');
@@ -111,7 +115,6 @@ export default function AssistantAcademicQuestionsPage() {
       }));
       setQuestions(processed);
 
-      // جلب الكورسات التي يدرسها المعلم (التابع للمساعد)
       if (assistantData.teacher_id) {
         const { data: courseData } = await supabase.from('courses').select('id, title').eq('teacher_id', assistantData.teacher_id);
         setCourses(courseData || []);
@@ -119,7 +122,7 @@ export default function AssistantAcademicQuestionsPage() {
 
     } catch (err) {
       console.error(err);
-      toast.error('فشل جلب الأسئلة');
+      toast.error(err.message || 'فشل جلب الأسئلة');
     } finally {
       setLoading(false);
     }
