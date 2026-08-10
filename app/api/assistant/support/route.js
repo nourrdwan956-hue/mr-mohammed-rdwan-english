@@ -1,6 +1,6 @@
 // ================================================================
 // 📁 app/api/assistant/support/route.js
-// ✅ النسخة النهائية – تجلب تذاكر المعلم والمساعد وغير المعينة
+// ✅ جلب التذاكر – تظهر فقط التذاكر المعينة للمساعد الحالي أو غير المعينة أو المعينة للمعلم
 // ================================================================
 
 import { NextResponse } from 'next/server';
@@ -8,13 +8,11 @@ import { createClient } from '@supabase/supabase-js';
 
 export async function GET(request) {
   try {
-    // 1. جلب assistantId من الهيدر
     const assistantId = request.headers.get('x-assistant-id');
     if (!assistantId) {
       return NextResponse.json({ error: 'معرف المساعد مطلوب' }, { status: 400 });
     }
 
-    // 2. تهيئة Supabase Admin
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseSecretKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
     if (!supabaseUrl || !supabaseSecretKey) {
@@ -25,7 +23,7 @@ export async function GET(request) {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    // 3. جلب بيانات المساعد
+    // جلب بيانات المساعد
     const { data: assistant, error: assistantError } = await supabaseAdmin
       .from('assistants')
       .select('*')
@@ -40,7 +38,7 @@ export async function GET(request) {
       return NextResponse.json({ error: 'الحساب غير مفعل' }, { status: 403 });
     }
 
-    // 4. التحقق من صلاحية العرض
+    // التحقق من صلاحية العرض
     const { data: permissions, error: permsError } = await supabaseAdmin
       .from('assistant_permissions')
       .select('module, can_view, can_manage')
@@ -54,15 +52,15 @@ export async function GET(request) {
       return NextResponse.json({ error: 'غير مصرح لك بمشاهدة التذاكر' }, { status: 403 });
     }
 
-    // 5. معاملات الطلب
+    // معاملات الطلب
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type');
     const ticketId = searchParams.get('id');
 
-    // 6. جلب التذاكر:
-    //    - المعينة للمساعد نفسه (assigned_to = assistantId)
-    //    - غير المعينة (assigned_to = null)
-    //    - المعينة للمعلم (assigned_to = assistant.teacher_id)  ← هذا هو التعديل الجوهري
+    // 🔑 الفلترة الأساسية:
+    // - التذاكر المعينة للمساعد الحالي (assigned_to = assistantId)
+    // - التذاكر غير المعينة (assigned_to = null)
+    // - التذاكر المعينة للمعلم (assigned_to = teacher_id) – تظهر لكل المساعدين
     let query = supabaseAdmin
       .from('tickets')
       .select('*, student:profiles!tickets_student_id_fkey(full_name, email), course:courses(title, teacher_id)')
@@ -85,7 +83,6 @@ export async function GET(request) {
       return NextResponse.json({ success: true, tickets: data });
     }
 
-    // جلب جميع التذاكر
     const { data: tickets, error: ticketsError } = await query.order('created_at', { ascending: false });
 
     if (ticketsError) {
@@ -93,8 +90,7 @@ export async function GET(request) {
       return NextResponse.json({ error: 'فشل جلب التذاكر: ' + ticketsError.message }, { status: 500 });
     }
 
-    // 7. تصفية إضافية للتأكد من أن التذاكر تابعة للمعلم (عن طريق course_id أو student_id)
-    // جلب قائمة الكورسات والطلاب التابعين للمعلم
+    // تصفية إضافية للتأكد من أن التذاكر تابعة للمعلم (عن طريق course_id أو student_id)
     const { data: teacherCourses } = await supabaseAdmin
       .from('courses')
       .select('id')
@@ -108,7 +104,6 @@ export async function GET(request) {
     const courseIds = new Set(teacherCourses?.map(c => c.id) || []);
     const studentIds = new Set(teacherStudents?.map(s => s.id) || []);
 
-    // تصفية التذاكر: يجب أن تكون مرتبطة بكورس من كورسات المعلم أو طالب من طلاب المعلم
     const filteredTickets = (tickets || []).filter(ticket => {
       if (ticket.course_id) {
         return courseIds.has(ticket.course_id);
@@ -116,11 +111,10 @@ export async function GET(request) {
       if (ticket.student_id) {
         return studentIds.has(ticket.student_id);
       }
-      // إذا لم يكن لها لا course ولا student، نقبلها إذا كانت assigned_to = المعلم أو المساعد (حالة عامة)
       return (ticket.assigned_to === assistant.teacher_id || ticket.assigned_to === assistantId);
     });
 
-    // 8. إحصائيات
+    // إحصائيات
     const open = filteredTickets.filter(t => t.status === 'open' || t.status === 'in_progress').length;
     const inProgress = filteredTickets.filter(t => t.status === 'in_progress').length;
     const resolved = filteredTickets.filter(t => t.status === 'resolved' || t.status === 'closed').length;

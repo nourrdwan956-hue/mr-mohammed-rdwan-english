@@ -1,6 +1,6 @@
 // ================================================================
 // 📁 app/api/assistant/support/reply/route.js
-// ✅ إرسال رد – باستخدام teacher_id كمرسل (الحل النهائي)
+// ✅ إرسال رد – مع تخصيص التذكرة تلقائياً لأول مساعد يرد
 // ================================================================
 
 import { NextResponse } from 'next/server';
@@ -8,13 +8,11 @@ import { createClient } from '@supabase/supabase-js';
 
 export async function POST(request) {
   try {
-    // 1. جلب assistantId من الهيدر
     const assistantId = request.headers.get('x-assistant-id');
     if (!assistantId) {
       return NextResponse.json({ error: 'معرف المساعد مطلوب' }, { status: 400 });
     }
 
-    // 2. جلب البيانات من الجسم
     const body = await request.json();
     const { ticketId, message } = body;
 
@@ -22,7 +20,6 @@ export async function POST(request) {
       return NextResponse.json({ error: 'معرف التذكرة والرسالة مطلوبان' }, { status: 400 });
     }
 
-    // 3. تهيئة Supabase Admin
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseSecretKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
     if (!supabaseUrl || !supabaseSecretKey) {
@@ -33,7 +30,7 @@ export async function POST(request) {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    // 4. جلب بيانات المساعد
+    // جلب بيانات المساعد
     const { data: assistant, error: assistantError } = await supabaseAdmin
       .from('assistants')
       .select('*')
@@ -48,7 +45,7 @@ export async function POST(request) {
       return NextResponse.json({ error: 'الحساب غير مفعل' }, { status: 403 });
     }
 
-    // 5. التحقق من صلاحية الرد
+    // التحقق من صلاحية الرد
     const { data: permissions } = await supabaseAdmin
       .from('assistant_permissions')
       .select('module, can_edit, can_manage')
@@ -62,7 +59,7 @@ export async function POST(request) {
       return NextResponse.json({ error: 'غير مصرح لك بالرد على التذاكر' }, { status: 403 });
     }
 
-    // 6. التأكد من وجود التذكرة
+    // جلب التذكرة
     const { data: ticket, error: ticketError } = await supabaseAdmin
       .from('tickets')
       .select('*')
@@ -73,7 +70,16 @@ export async function POST(request) {
       return NextResponse.json({ error: 'التذكرة غير موجودة' }, { status: 404 });
     }
 
-    // 7. التحقق من صلاحية الوصول للتذكرة
+    // التحقق من أن التذكرة غير معينة لمساعد آخر
+    const isAssignedToOther = ticket.assigned_to !== null 
+                              && ticket.assigned_to !== assistantId 
+                              && ticket.assigned_to !== assistant.teacher_id;
+
+    if (isAssignedToOther) {
+      return NextResponse.json({ error: 'هذه التذكرة معينة لمساعد آخر' }, { status: 403 });
+    }
+
+    // التحقق من الصلاحية على التذكرة
     const isAssignedToAssistant = ticket.assigned_to === assistantId;
     const isUnassigned = ticket.assigned_to === null;
     const isAssignedToTeacher = ticket.assigned_to === assistant.teacher_id;
@@ -82,8 +88,7 @@ export async function POST(request) {
       return NextResponse.json({ error: 'غير مصرح لك بالرد على هذه التذكرة' }, { status: 403 });
     }
 
-    // ✅ الحل النهائي: استخدام teacher_id كـ sender_id
-    // لأن المعلم هو الوحيد الموجود في جدول profiles
+    // ✅ تحديد sender_id (دائماً teacher_id لأن المعلم هو الوحيد في profiles)
     const senderId = assistant.teacher_id;
 
     // تأكد من وجود teacher_id في profiles
@@ -94,19 +99,18 @@ export async function POST(request) {
       .single();
 
     if (teacherProfileError || !teacherProfile) {
-      console.error('❌ المعلم غير موجود في profiles:', teacherProfileError);
       return NextResponse.json(
-        { error: 'المعلم المرتبط بهذا المساعد غير موجود. تأكد من أن teacher_id صحيح.' },
+        { error: 'المعلم غير موجود. تأكد من أن teacher_id صحيح.' },
         { status: 500 }
       );
     }
 
-    // 8. إدراج الرد (باستخدام teacher_id)
+    // إدراج الرد
     const { data: newReply, error: insertError } = await supabaseAdmin
       .from('ticket_replies')
       .insert({
         ticket_id: ticketId,
-        sender_id: senderId, // ✅ دائماً teacher_id
+        sender_id: senderId,
         message: message.trim(),
         created_at: new Date().toISOString(),
       })
@@ -118,7 +122,18 @@ export async function POST(request) {
       return NextResponse.json({ error: 'فشل إدراج الرد: ' + insertError.message }, { status: 500 });
     }
 
-    // 9. تحديث التذكرة (first_reply_at, status)
+    // 🆕 تخصيص التذكرة للمساعد الحالي (إذا كانت غير معينة أو معينة للمعلم)
+    if (ticket.assigned_to === null || ticket.assigned_to === assistant.teacher_id) {
+      await supabaseAdmin
+        .from('tickets')
+        .update({ 
+          assigned_to: assistantId,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', ticketId);
+    }
+
+    // تحديث التذكرة (first_reply_at, status)
     const updates = {};
     if (!ticket.first_reply_at) {
       updates.first_reply_at = new Date().toISOString();
@@ -135,16 +150,14 @@ export async function POST(request) {
         .eq('id', ticketId);
     }
 
-    // 10. إرجاع الرد مع اسم المعلم (المرسل)
-    // بالإضافة إلى اسم المساعد الذي رد فعلاً (للـ UI فقط)
+    // إرجاع الرد مع معلومات المساعد الذي رد
     return NextResponse.json({
       success: true,
       reply: {
         ...newReply,
         sender: {
-          full_name: teacherProfile.full_name, // اسم المعلم (المرسل في قاعدة البيانات)
+          full_name: teacherProfile.full_name,
         },
-        // ✅ إضافة معلومات المساعد الذي رد فعلاً (للعرض فقط)
         replied_by_assistant: {
           id: assistant.id,
           full_name: assistant.display_name || assistant.full_name || 'مساعد',
