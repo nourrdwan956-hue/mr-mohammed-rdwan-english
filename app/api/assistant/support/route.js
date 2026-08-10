@@ -1,6 +1,6 @@
 // ================================================================
 // 📁 app/api/assistant/support/route.js
-// ✅ نسخة مبسطة جداً – تجلب التذاكر وتفلتر في الذاكرة
+// ✅ النسخة النهائية – تجلب تذاكر المعلم والمساعد وغير المعينة
 // ================================================================
 
 import { NextResponse } from 'next/server';
@@ -59,11 +59,14 @@ export async function GET(request) {
     const type = searchParams.get('type');
     const ticketId = searchParams.get('id');
 
-    // 6. جلب التذاكر الأساسية (بدون فلترة معقدة)
+    // 6. جلب التذاكر:
+    //    - المعينة للمساعد نفسه (assigned_to = assistantId)
+    //    - غير المعينة (assigned_to = null)
+    //    - المعينة للمعلم (assigned_to = assistant.teacher_id)  ← هذا هو التعديل الجوهري
     let query = supabaseAdmin
       .from('tickets')
       .select('*, student:profiles!tickets_student_id_fkey(full_name, email), course:courses(title, teacher_id)')
-      .or(`assigned_to.eq.${assistantId},assigned_to.is.null`);
+      .or(`assigned_to.eq.${assistantId},assigned_to.is.null,assigned_to.eq.${assistant.teacher_id}`);
 
     if (type) {
       query = query.eq('support_type', type);
@@ -90,7 +93,7 @@ export async function GET(request) {
       return NextResponse.json({ error: 'فشل جلب التذاكر: ' + ticketsError.message }, { status: 500 });
     }
 
-    // 7. تصفية التذاكر لتكون تابعة للمعلم (عن طريق course أو student)
+    // 7. تصفية إضافية للتأكد من أن التذاكر تابعة للمعلم (عن طريق course_id أو student_id)
     // جلب قائمة الكورسات والطلاب التابعين للمعلم
     const { data: teacherCourses } = await supabaseAdmin
       .from('courses')
@@ -105,18 +108,16 @@ export async function GET(request) {
     const courseIds = new Set(teacherCourses?.map(c => c.id) || []);
     const studentIds = new Set(teacherStudents?.map(s => s.id) || []);
 
-    // تصفية التذاكر
+    // تصفية التذاكر: يجب أن تكون مرتبطة بكورس من كورسات المعلم أو طالب من طلاب المعلم
     const filteredTickets = (tickets || []).filter(ticket => {
-      // إذا كان للتذكرة course_id، تحقق أنه ضمن كورسات المعلم
       if (ticket.course_id) {
         return courseIds.has(ticket.course_id);
       }
-      // إذا لم يكن لها course_id، تحقق أن الطالب تابع للمعلم
       if (ticket.student_id) {
         return studentIds.has(ticket.student_id);
       }
-      // إذا لم يكن لها لا course ولا student، نستبعدها (أو نقبلها حسب السياسة)
-      return false;
+      // إذا لم يكن لها لا course ولا student، نقبلها إذا كانت assigned_to = المعلم أو المساعد (حالة عامة)
+      return (ticket.assigned_to === assistant.teacher_id || ticket.assigned_to === assistantId);
     });
 
     // 8. إحصائيات
