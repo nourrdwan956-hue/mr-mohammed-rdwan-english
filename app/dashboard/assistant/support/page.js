@@ -1,9 +1,9 @@
-'use client';
+// ================================================================
+// 📁 app/dashboard/assistant/support/page.js
+// ✅ النسخة النهائية المعدلة – تعتمد على sessionStorage مع fallback للـ API
+// ================================================================
 
-// ================================================================
-// 🛡️ المسار: app/dashboard/assistant/support/page.js
-// مركز الدعم الشامل للمساعد – جلب الصلاحيات من API
-// ================================================================
+'use client';
 
 import { AssistantLayout } from '@/components/AssistantLayout';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -65,11 +65,52 @@ export default function AssistantSupportHubPage() {
     resolvedToday: 0,
   });
 
+  // ===== جلب الصلاحيات من sessionStorage أو API =====
+  const fetchPermissions = useCallback(async (assistantId) => {
+    // 1. محاولة من sessionStorage
+    let perms = [];
+    const permsStored = sessionStorage.getItem('assistantPermissions');
+    if (permsStored) {
+      try {
+        perms = JSON.parse(permsStored);
+        if (Array.isArray(perms) && perms.length > 0) {
+          console.log('✅ صلاحيات من sessionStorage');
+          return perms;
+        }
+      } catch (e) {}
+    }
+
+    // 2. محاولة من API
+    try {
+      const res = await fetch('/api/assistant-data', {
+        headers: { 'x-assistant-id': assistantId },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && data.permissions) {
+          perms = data.permissions;
+          sessionStorage.setItem('assistantPermissions', JSON.stringify(perms));
+          console.log('✅ صلاحيات من API');
+          return perms;
+        }
+      }
+    } catch (err) {
+      console.warn('⚠️ فشل جلب الصلاحيات من API:', err);
+    }
+
+    // 3. صلاحيات افتراضية (للحالات الطارئة)
+    console.warn('⚠️ استخدام صلاحيات افتراضية');
+    // هنا يمكنك وضع صلاحيات افتراضية تسمح بقراءة التذاكر مثلاً
+    // لكن الأفضل أن تعطي صلاحيات فارغة وتوجيه المستخدم لتسجيل الخروج
+    // لتجنب أي مخاطر أمنية، نعطي صلاحيات فارغة ونطلب إعادة تسجيل الدخول
+    toast.error('تعذر جلب الصلاحيات، يرجى تسجيل الخروج والدخول مرة أخرى');
+    return [];
+  }, []);
+
   // ===== جلب البيانات الأولية =====
   const fetchInitialData = useCallback(async () => {
     setLoading(true);
     try {
-      // 1. قراءة بيانات المساعد من sessionStorage
       const stored = sessionStorage.getItem('assistantData');
       if (!stored) {
         router.push('/assistant-login');
@@ -78,18 +119,10 @@ export default function AssistantSupportHubPage() {
       const assistantData = JSON.parse(stored);
       setAssistant(assistantData);
 
-      // 2. جلب الصلاحيات من API
-      const permsRes = await fetch('/api/assistant-data', {
-        headers: { 'x-assistant-id': assistantData.id },
-      });
-      const permsData = await permsRes.json();
-      if (!permsRes.ok || !permsData.success) {
-        throw new Error(permsData.error || 'فشل جلب الصلاحيات');
-      }
-      const perms = permsData.permissions || [];
+      // جلب الصلاحيات
+      const perms = await fetchPermissions(assistantData.id);
       setPermissions(perms);
 
-      // 3. التحقق من صلاحية عرض التذاكر
       const canView = hasPermission(perms, 'tickets', 'can_view');
       if (!canView) {
         toast.error('غير مصرح لك بمشاهدة هذه الصفحة');
@@ -97,7 +130,7 @@ export default function AssistantSupportHubPage() {
         return;
       }
 
-      // 4. جلب الشكاوى الفنية
+      // جلب الشكاوى الفنية
       const { data: techData, error: techError } = await supabase
         .from('tickets')
         .select('*, student:profiles!tickets_student_id_fkey(full_name, email), course:courses(title)')
@@ -107,7 +140,7 @@ export default function AssistantSupportHubPage() {
 
       if (techError) throw techError;
 
-      // 5. جلب الأسئلة الأكاديمية
+      // جلب الأسئلة الأكاديمية
       const { data: acadData, error: acadError } = await supabase
         .from('tickets')
         .select('*, student:profiles!tickets_student_id_fkey(full_name, email), course:courses(title)')
@@ -151,7 +184,7 @@ export default function AssistantSupportHubPage() {
     } finally {
       setLoading(false);
     }
-  }, [router]);
+  }, [router, fetchPermissions]);
 
   useEffect(() => { fetchInitialData(); }, [fetchInitialData]);
 

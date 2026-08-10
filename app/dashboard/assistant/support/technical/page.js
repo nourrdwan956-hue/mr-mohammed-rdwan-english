@@ -50,10 +50,11 @@ export default function AssistantTechnicalComplaintsPage() {
   // مودال التأكيد (حذف فقط)
   const [confirmModal, setConfirmModal] = useState(null);
 
-  // ----- جلب البيانات (معدل) -----
+  // ----- جلب البيانات (مع منطق الصلاحيات المتطور) -----
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
+      // 1. قراءة بيانات المساعد
       const stored = sessionStorage.getItem('assistantData');
       if (!stored) {
         router.push('/assistant-login');
@@ -62,17 +63,49 @@ export default function AssistantTechnicalComplaintsPage() {
       const assistantData = JSON.parse(stored);
       setAssistant(assistantData);
 
-      // جلب الصلاحيات من API
-      const permsRes = await fetch('/api/assistant-data', {
-        headers: { 'x-assistant-id': assistantData.id },
-      });
-      const permsData = await permsRes.json();
-      if (!permsRes.ok || !permsData.success) {
-        throw new Error(permsData.error || 'فشل جلب الصلاحيات');
+      // 2. جلب الصلاحيات – محاولة من sessionStorage أولاً
+      let perms = [];
+      const permsStored = sessionStorage.getItem('assistantPermissions');
+      if (permsStored) {
+        try {
+          perms = JSON.parse(permsStored);
+          if (Array.isArray(perms) && perms.length > 0) {
+            console.log('✅ صلاحيات من sessionStorage (technical)');
+          } else {
+            perms = [];
+          }
+        } catch (e) {
+          perms = [];
+        }
       }
-      const perms = permsData.permissions || [];
+
+      // 3. إذا لم توجد صلاحيات، جلب من API
+      if (!perms || perms.length === 0) {
+        try {
+          const permsRes = await fetch('/api/assistant-data', {
+            headers: { 'x-assistant-id': assistantData.id },
+          });
+          if (permsRes.ok) {
+            const permsData = await permsRes.json();
+            if (permsData.success && permsData.permissions) {
+              perms = permsData.permissions;
+              sessionStorage.setItem('assistantPermissions', JSON.stringify(perms));
+              console.log('✅ صلاحيات من API (technical)');
+            }
+          }
+        } catch (err) {
+          console.warn('⚠️ فشل جلب الصلاحيات من API:', err);
+        }
+      }
+
+      // 4. إذا ما زالت فارغة، نعطي صلاحيات افتراضية أو نعرض خطأ
+      if (!perms || perms.length === 0) {
+        toast.error('تعذر جلب الصلاحيات، يرجى تسجيل الخروج والدخول مرة أخرى');
+        // يمكن تعيين صلاحيات افتراضية هنا إن أردت، لكن الأفضل أن نمنع الوصول
+      }
       setPermissions(perms);
 
+      // 5. التحقق من صلاحية العرض
       const canView = hasPermission(perms, 'tickets', 'can_view');
       if (!canView) {
         toast.error('غير مصرح لك بمشاهدة هذه الصفحة');
@@ -80,7 +113,7 @@ export default function AssistantTechnicalComplaintsPage() {
         return;
       }
 
-      // جلب الشكاوى الفنية
+      // 6. جلب الشكاوى الفنية
       const { data: ticketData, error } = await supabase
         .from('tickets')
         .select('*, student:profiles!tickets_student_id_fkey(full_name, email), course:courses(title)')
@@ -92,8 +125,12 @@ export default function AssistantTechnicalComplaintsPage() {
 
       setComplaints(ticketData || []);
 
+      // 7. جلب الكورسات للفلترة
       if (assistantData.teacher_id) {
-        const { data: courseData } = await supabase.from('courses').select('id, title').eq('teacher_id', assistantData.teacher_id);
+        const { data: courseData } = await supabase
+          .from('courses')
+          .select('id, title')
+          .eq('teacher_id', assistantData.teacher_id);
         setCourses(courseData || []);
       }
 
@@ -105,9 +142,11 @@ export default function AssistantTechnicalComplaintsPage() {
     }
   }, [router]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
-  // Realtime
+  // Realtime subscription
   useEffect(() => {
     if (!assistant) return;
     const channel = supabase
@@ -119,7 +158,10 @@ export default function AssistantTechnicalComplaintsPage() {
 
   // ----- إجراءات -----
   const handleStatusChange = async (id, newStatus) => {
-    const { error } = await supabase.from('tickets').update({ status: newStatus, updated_at: new Date().toISOString() }).eq('id', id);
+    const { error } = await supabase
+      .from('tickets')
+      .update({ status: newStatus, updated_at: new Date().toISOString() })
+      .eq('id', id);
     if (error) { toast.error('فشل تغيير الحالة'); return; }
     toast.success('تم تحديث الحالة');
     fetchData();

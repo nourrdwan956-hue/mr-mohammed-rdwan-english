@@ -47,7 +47,7 @@ export default function AssistantSupportDetailPage() {
   const [permissions, setPermissions] = useState([]);
   const messagesEndRef = useRef(null);
 
-  // ----- جلب البيانات -----
+  // ----- جلب البيانات (مع منطق الصلاحيات المتطور) -----
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
@@ -60,18 +60,49 @@ export default function AssistantSupportDetailPage() {
       const assistantData = JSON.parse(stored);
       setAssistant(assistantData);
 
-      // 2. جلب الصلاحيات من API
-      const permsRes = await fetch('/api/assistant-data', {
-        headers: { 'x-assistant-id': assistantData.id },
-      });
-      const permsData = await permsRes.json();
-      if (!permsRes.ok || !permsData.success) {
-        throw new Error(permsData.error || 'فشل جلب الصلاحيات');
+      // 2. جلب الصلاحيات – محاولة من sessionStorage أولاً
+      let perms = [];
+      const permsStored = sessionStorage.getItem('assistantPermissions');
+      if (permsStored) {
+        try {
+          perms = JSON.parse(permsStored);
+          if (Array.isArray(perms) && perms.length > 0) {
+            console.log('✅ صلاحيات من sessionStorage (detail)');
+          } else {
+            perms = [];
+          }
+        } catch (e) {
+          perms = [];
+        }
       }
-      const perms = permsData.permissions || [];
+
+      // 3. إذا لم توجد صلاحيات، جلب من API
+      if (!perms || perms.length === 0) {
+        try {
+          const permsRes = await fetch('/api/assistant-data', {
+            headers: { 'x-assistant-id': assistantData.id },
+          });
+          if (permsRes.ok) {
+            const permsData = await permsRes.json();
+            if (permsData.success && permsData.permissions) {
+              perms = permsData.permissions;
+              sessionStorage.setItem('assistantPermissions', JSON.stringify(perms));
+              console.log('✅ صلاحيات من API (detail)');
+            }
+          }
+        } catch (err) {
+          console.warn('⚠️ فشل جلب الصلاحيات من API:', err);
+        }
+      }
+
+      // 4. إذا ما زالت فارغة، نعطي صلاحيات افتراضية أو نعرض خطأ
+      if (!perms || perms.length === 0) {
+        toast.error('تعذر جلب الصلاحيات، يرجى تسجيل الخروج والدخول مرة أخرى');
+        // يمكن تعيين صلاحيات افتراضية هنا إن أردت، لكن الأفضل أن نمنع الوصول
+      }
       setPermissions(perms);
 
-      // 3. التحقق من صلاحية عرض التذاكر
+      // 5. التحقق من صلاحية العرض
       const canView = hasPermission(perms, 'tickets', 'can_view');
       if (!canView) {
         toast.error('غير مصرح لك بمشاهدة هذه الصفحة');
@@ -79,7 +110,7 @@ export default function AssistantSupportDetailPage() {
         return;
       }
 
-      // 4. جلب التذكرة مع العلاقات
+      // 6. جلب التذكرة مع العلاقات
       const { data: ticketData, error: ticketError } = await supabase
         .from('tickets')
         .select('*, student:profiles!tickets_student_id_fkey(full_name, email), course:courses(title)')
@@ -95,7 +126,7 @@ export default function AssistantSupportDetailPage() {
 
       setTicket(ticketData);
 
-      // 5. جلب الردود
+      // 7. جلب الردود
       const { data: repliesData } = await supabase.from('ticket_replies')
         .select('*, sender:profiles(full_name)')
         .eq('ticket_id', ticketId)
