@@ -151,32 +151,51 @@ export default function AssistantSupportDetailPage() {
   }, [ticketId]);
 
   // ----- إجراءات -----
+  // ✅ تم تعديل هذه الدالة لاستخدام API بدلاً من الكتابة المباشرة
   const handleSendReply = async (e) => {
     e?.preventDefault();
     if (!newReply.trim() || !assistant) return;
     setSending(true);
     try {
-      const { error } = await supabase.from('ticket_replies').insert({
-        ticket_id: ticketId,
-        sender_id: assistant.id,
-        message: newReply.trim(),
-        created_at: new Date().toISOString(),
+      // استدعاء API بدلاً من الكتابة المباشرة
+      const res = await fetch('/api/assistant/support/reply', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-assistant-id': assistant.id,
+        },
+        body: JSON.stringify({
+          ticketId: ticketId,
+          message: newReply.trim(),
+        }),
       });
-      if (error) throw error;
 
-      if (!ticket.first_reply_at) {
-        await supabase.from('tickets').update({ first_reply_at: new Date().toISOString() }).eq('id', ticketId);
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'فشل إرسال الرد');
       }
-      if (ticket.status === 'open') {
-        await supabase.from('tickets').update({ status: 'in_progress', updated_at: new Date().toISOString() }).eq('id', ticketId);
-        setTicket(prev => ({ ...prev, status: 'in_progress' }));
+
+      // تحديث الواجهة بإضافة الرد الجديد
+      if (data.reply) {
+        // جلب اسم المرسل (المساعد)
+        const senderName = assistant.display_name || assistant.full_name || 'مساعد';
+        const newReplyObj = {
+          ...data.reply,
+          sender: { full_name: senderName },
+        };
+        setReplies(prev => [...prev, newReplyObj]);
+        // تحديث حالة التذكرة إذا تغيرت
+        if (ticket.status === 'open') {
+          setTicket(prev => ({ ...prev, status: 'in_progress' }));
+        }
       }
 
       setNewReply('');
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      toast.success('تم إرسال الرد بنجاح');
     } catch (err) {
       console.error(err);
-      toast.error('فشل إرسال الرد');
+      toast.error(err.message || 'فشل إرسال الرد');
     } finally {
       setSending(false);
     }
