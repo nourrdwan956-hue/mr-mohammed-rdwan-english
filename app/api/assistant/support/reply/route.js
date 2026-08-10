@@ -1,6 +1,6 @@
 // ================================================================
 // 📁 app/api/assistant/support/reply/route.js
-// ✅ إرسال رد على تذكرة دعم (بصلاحيات Service Role)
+// ✅ إرسال رد على تذكرة دعم – مع تصحيح sender_id
 // ================================================================
 
 import { NextResponse } from 'next/server';
@@ -33,7 +33,7 @@ export async function POST(request) {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    // 4. جلب بيانات المساعد (للتحقق)
+    // 4. جلب بيانات المساعد
     const { data: assistant, error: assistantError } = await supabaseAdmin
       .from('assistants')
       .select('*')
@@ -48,7 +48,7 @@ export async function POST(request) {
       return NextResponse.json({ error: 'الحساب غير مفعل' }, { status: 403 });
     }
 
-    // 5. التحقق من صلاحية الرد على التذاكر
+    // 5. التحقق من صلاحية الرد
     const { data: permissions } = await supabaseAdmin
       .from('assistant_permissions')
       .select('module, can_edit, can_manage')
@@ -62,7 +62,7 @@ export async function POST(request) {
       return NextResponse.json({ error: 'غير مصرح لك بالرد على التذاكر' }, { status: 403 });
     }
 
-    // 6. التأكد من وجود التذكرة وأن المساعد يملك صلاحية الوصول إليها
+    // 6. التأكد من وجود التذكرة وصلاحية الوصول
     const { data: ticket, error: ticketError } = await supabaseAdmin
       .from('tickets')
       .select('*')
@@ -82,12 +82,30 @@ export async function POST(request) {
       return NextResponse.json({ error: 'غير مصرح لك بالرد على هذه التذكرة' }, { status: 403 });
     }
 
-    // 7. إدراج الرد في جدول ticket_replies
+    // ✅ تحديد sender_id المناسب
+    // نتحقق أولاً من وجود المساعد في جدول profiles (كمستخدم عادي)
+    const { data: profile, error: profileError } = await supabaseAdmin
+      .from('profiles')
+      .select('id')
+      .eq('id', assistantId)
+      .single();
+
+    let senderId;
+    if (profileError || !profile) {
+      // المساعد ليس لديه ملف شخصي → نستخدم teacher_id (المعلم)
+      senderId = assistant.teacher_id;
+      console.log(`⚠️ المساعد ${assistantId} ليس له ملف شخصي، سيتم استخدام teacher_id كمرسل`);
+    } else {
+      // المساعد موجود في profiles → نستخدم معرفه
+      senderId = assistantId;
+    }
+
+    // 7. إدراج الرد في ticket_replies
     const { data: newReply, error: insertError } = await supabaseAdmin
       .from('ticket_replies')
       .insert({
         ticket_id: ticketId,
-        sender_id: assistantId,
+        sender_id: senderId,  // ✅ استخدمنا sender_id الصحيح
         message: message.trim(),
         created_at: new Date().toISOString(),
       })
@@ -99,7 +117,7 @@ export async function POST(request) {
       return NextResponse.json({ error: 'فشل إدراج الرد: ' + insertError.message }, { status: 500 });
     }
 
-    // 8. تحديث التذكرة (أول رد → تعيين first_reply_at، تغيير الحالة إذا كانت open)
+    // 8. تحديث التذكرة (first_reply_at, status)
     const updates = {};
     if (!ticket.first_reply_at) {
       updates.first_reply_at = new Date().toISOString();
@@ -116,13 +134,22 @@ export async function POST(request) {
         .eq('id', ticketId);
     }
 
-    // 9. إرجاع الرد الجديد مع بيانات المرسل
+    // 9. جلب اسم المرسل لعرضه في الواجهة
+    const { data: senderProfile } = await supabaseAdmin
+      .from('profiles')
+      .select('full_name')
+      .eq('id', senderId)
+      .single();
+
+    const senderName = senderProfile?.full_name || (senderId === assistant.teacher_id ? 'المعلم' : 'مساعد');
+
+    // 10. إرجاع الرد الجديد
     return NextResponse.json({
       success: true,
       reply: {
         ...newReply,
         sender: {
-          full_name: assistant.display_name || assistant.full_name || 'مساعد',
+          full_name: senderName,
         },
       },
     });
