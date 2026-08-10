@@ -47,7 +47,7 @@ export default function AssistantSupportDetailPage() {
   const [permissions, setPermissions] = useState([]);
   const messagesEndRef = useRef(null);
 
-  // ----- جلب البيانات باستخدام الـ API الجديد -----
+  // ----- جلب البيانات باستخدام الـ API الجديد (مع صلاحيات من API مباشرة) -----
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
@@ -60,48 +60,18 @@ export default function AssistantSupportDetailPage() {
       const assistantData = JSON.parse(stored);
       setAssistant(assistantData);
 
-      // 2. جلب الصلاحيات – محاولة من sessionStorage أولاً
+      // ✅ جلب الصلاحيات من API مباشرة (بدون الاعتماد على sessionStorage)
+      const permsRes = await fetch('/api/assistant-data', {
+        headers: { 'x-assistant-id': assistantData.id },
+      });
+      const permsData = await permsRes.json();
       let perms = [];
-      const permsStored = sessionStorage.getItem('assistantPermissions');
-      if (permsStored) {
-        try {
-          perms = JSON.parse(permsStored);
-          if (Array.isArray(perms) && perms.length > 0) {
-            console.log('✅ صلاحيات من sessionStorage (detail)');
-          } else {
-            perms = [];
-          }
-        } catch (e) {
-          perms = [];
-        }
-      }
-
-      // 3. إذا لم توجد صلاحيات، جلب من API
-      if (!perms || perms.length === 0) {
-        try {
-          const permsRes = await fetch('/api/assistant-data', {
-            headers: { 'x-assistant-id': assistantData.id },
-          });
-          if (permsRes.ok) {
-            const permsData = await permsRes.json();
-            if (permsData.success && permsData.permissions) {
-              perms = permsData.permissions;
-              sessionStorage.setItem('assistantPermissions', JSON.stringify(perms));
-              console.log('✅ صلاحيات من API (detail)');
-            }
-          }
-        } catch (err) {
-          console.warn('⚠️ فشل جلب الصلاحيات من API:', err);
-        }
-      }
-
-      // 4. إذا ما زالت فارغة، نعطي صلاحيات افتراضية أو نعرض خطأ
-      if (!perms || perms.length === 0) {
-        toast.error('تعذر جلب الصلاحيات، يرجى تسجيل الخروج والدخول مرة أخرى');
+      if (permsRes.ok && permsData.success) {
+        perms = permsData.permissions || [];
+        sessionStorage.setItem('assistantPermissions', JSON.stringify(perms));
       }
       setPermissions(perms);
 
-      // 5. التحقق من صلاحية العرض
       const canView = hasPermission(perms, 'tickets', 'can_view');
       if (!canView) {
         toast.error('غير مصرح لك بمشاهدة هذه الصفحة');

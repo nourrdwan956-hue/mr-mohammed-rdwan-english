@@ -65,45 +65,6 @@ export default function AssistantSupportHubPage() {
     resolvedToday: 0,
   });
 
-  // ===== جلب الصلاحيات من sessionStorage أو API =====
-  const fetchPermissions = useCallback(async (assistantId) => {
-    // 1. محاولة من sessionStorage
-    let perms = [];
-    const permsStored = sessionStorage.getItem('assistantPermissions');
-    if (permsStored) {
-      try {
-        perms = JSON.parse(permsStored);
-        if (Array.isArray(perms) && perms.length > 0) {
-          console.log('✅ صلاحيات من sessionStorage');
-          return perms;
-        }
-      } catch (e) {}
-    }
-
-    // 2. محاولة من API
-    try {
-      const res = await fetch('/api/assistant-data', {
-        headers: { 'x-assistant-id': assistantId },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.success && data.permissions) {
-          perms = data.permissions;
-          sessionStorage.setItem('assistantPermissions', JSON.stringify(perms));
-          console.log('✅ صلاحيات من API');
-          return perms;
-        }
-      }
-    } catch (err) {
-      console.warn('⚠️ فشل جلب الصلاحيات من API:', err);
-    }
-
-    // 3. صلاحيات افتراضية (للحالات الطارئة)
-    console.warn('⚠️ استخدام صلاحيات افتراضية');
-    toast.error('تعذر جلب الصلاحيات، يرجى تسجيل الخروج والدخول مرة أخرى');
-    return [];
-  }, []);
-
   // ===== جلب البيانات الأولية باستخدام الـ API الجديد =====
   const fetchInitialData = useCallback(async () => {
     setLoading(true);
@@ -116,8 +77,16 @@ export default function AssistantSupportHubPage() {
       const assistantData = JSON.parse(stored);
       setAssistant(assistantData);
 
-      // جلب الصلاحيات
-      const perms = await fetchPermissions(assistantData.id);
+      // ✅ جلب الصلاحيات من API مباشرة (بدون الاعتماد على sessionStorage)
+      const permsRes = await fetch('/api/assistant-data', {
+        headers: { 'x-assistant-id': assistantData.id },
+      });
+      const permsData = await permsRes.json();
+      let perms = [];
+      if (permsRes.ok && permsData.success) {
+        perms = permsData.permissions || [];
+        sessionStorage.setItem('assistantPermissions', JSON.stringify(perms));
+      }
       setPermissions(perms);
 
       const canView = hasPermission(perms, 'tickets', 'can_view');
@@ -177,7 +146,7 @@ export default function AssistantSupportHubPage() {
     } finally {
       setLoading(false);
     }
-  }, [router, fetchPermissions]);
+  }, [router]);
 
   useEffect(() => { fetchInitialData(); }, [fetchInitialData]);
 
