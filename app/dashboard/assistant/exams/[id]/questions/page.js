@@ -1,15 +1,12 @@
 'use client';
 
 // ============================================================
-// نظام الأسئلة المتطور – نسخة المساعد (بدون حذف)
-// ✅ استخدام AssistantLayout مع صلاحيات مخزنة في sessionStorage
-// ✅ إزالة جميع عمليات الحذف (فردية، جماعية، حذف القطع)
-// ✅ التحقق من صلاحيات can_edit و can_view
-// ✅ الحفاظ على جميع الوظائف الأخرى (إضافة، تعديل، نسخ، ترتيب، إحصائيات، رسوم بيانية)
-// ✅ دعم جميع أنواع الأسئلة (MCQ, True/False, Fill Blank, Fill From Words, Sentence Reorder, Passage)
-// ✅ معاينة حية للأسئلة
-// ✅ ربط القطع النصية
-// ✅ تحديث total_marks تلقائياً
+// نظام الأسئلة المتطور – نسخة المساعد (بدون صلاحيات – مؤقتاً)
+// ✅ تم تجاوز جميع صلاحيات can_view و can_edit مؤقتاً
+// ✅ جميع الأزرار ظاهرة وتعمل (إضافة، تعديل، نسخ، ترتيب، ترتيب عشوائي، تحرير جماعي)
+// ✅ تم إزالة زر الحذف نهائياً للمساعد
+// ✅ استخدام AssistantLayout
+// ✅ دعم كامل للثيم الفاتح والداكن
 // ============================================================
 
 import { AssistantLayout } from '@/components/AssistantLayout';
@@ -34,7 +31,6 @@ import {
 } from 'chart.js';
 import { Bar, Doughnut } from 'react-chartjs-2';
 import { useTheme } from '@/lib/hooks/useTheme';
-import { hasPermission } from '@/lib/permissions';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement, PointElement, LineElement);
 
@@ -1891,7 +1887,7 @@ const QuestionItem = ({
 };
 
 // ============================================================
-// 9. الصفحة الرئيسية – إدارة الأسئلة (بدون حذف)
+// 9. الصفحة الرئيسية – إدارة الأسئلة (بدون صلاحيات – مؤقتاً)
 // ============================================================
 const ExamQuestionsContent = () => {
   const router = useRouter();
@@ -1900,9 +1896,8 @@ const ExamQuestionsContent = () => {
   const { theme, language = 'ar' } = useTheme();
   const isDark = theme === 'dark';
 
-  // ===== بيانات المساعد والصلاحيات =====
+  // ===== بيانات المساعد =====
   const [assistant, setAssistant] = useState(null);
-  const [permissions, setPermissions] = useState([]);
   const [loadingAssistant, setLoadingAssistant] = useState(true);
   const [teacherId, setTeacherId] = useState(null);
 
@@ -1951,7 +1946,7 @@ const ExamQuestionsContent = () => {
     passageQuestions: 0,
   });
 
-  // ===== جلب بيانات المساعد والصلاحيات =====
+  // ===== جلب بيانات المساعد =====
   useEffect(() => {
     const loadAssistantData = async () => {
       try {
@@ -1963,17 +1958,6 @@ const ExamQuestionsContent = () => {
         const data = JSON.parse(stored);
         setAssistant(data);
         setTeacherId(data.teacher_id);
-
-        const perms = JSON.parse(sessionStorage.getItem('assistantPermissions') || '[]');
-        setPermissions(perms);
-
-        // التحقق من صلاحية العرض
-        if (!hasPermission(perms, 'exams', 'can_view')) {
-          toast.error('غير مصرح لك بمشاهدة هذه الصفحة');
-          router.push('/dashboard/assistant');
-          return;
-        }
-
         setLoadingAssistant(false);
       } catch (err) {
         console.error('Error loading assistant data:', err);
@@ -2005,12 +1989,8 @@ const ExamQuestionsContent = () => {
     }
   }, [examId, teacherId, router]);
 
-  // ===== تحديث درجة النجاح =====
+  // ===== تحديث درجة النجاح (بدون صلاحيات) =====
   const handlePassingMarksChange = async () => {
-    if (!hasPermission(permissions, 'exams', 'can_edit')) {
-      toast.error('ليس لديك صلاحية تعديل الامتحانات');
-      return;
-    }
     const newPassing = Number(passingMarks);
     if (isNaN(newPassing) || newPassing < 0) {
       toast.error('يرجى إدخال قيمة صحيحة');
@@ -2113,42 +2093,26 @@ const ExamQuestionsContent = () => {
     return result;
   }, [questions, filterSource, filterType, filterPassage]);
 
-  // ===== دوال التحكم =====
+  // ===== دوال التحكم (بدون صلاحيات) =====
   const handleAddQuestion = () => {
-    if (!hasPermission(permissions, 'exams', 'can_edit')) {
-      toast.error('ليس لديك صلاحية إضافة أسئلة');
-      return;
-    }
     setEditingQuestion(null);
     setPreselectedPassageId(null);
     setIsModalOpen(true);
   };
 
   const handleEditQuestion = (question) => {
-    if (!hasPermission(permissions, 'exams', 'can_edit')) {
-      toast.error('ليس لديك صلاحية تعديل الأسئلة');
-      return;
-    }
     setEditingQuestion(question);
     setPreselectedPassageId(null);
     setIsModalOpen(true);
   };
 
   const handleAddSubQuestion = (passageId) => {
-    if (!hasPermission(permissions, 'exams', 'can_edit')) {
-      toast.error('ليس لديك صلاحية إضافة أسئلة');
-      return;
-    }
     setEditingQuestion(null);
     setPreselectedPassageId(passageId);
     setIsModalOpen(true);
   };
 
   const handleSubmitQuestion = async (data) => {
-    if (!hasPermission(permissions, 'exams', 'can_edit')) {
-      toast.error('ليس لديك صلاحية تعديل الأسئلة');
-      return;
-    }
     try {
       if (editingQuestion) {
         await updateQuestion(editingQuestion.id, data);
@@ -2162,10 +2126,6 @@ const ExamQuestionsContent = () => {
   };
 
   const handleDuplicate = async (question) => {
-    if (!hasPermission(permissions, 'exams', 'can_edit')) {
-      toast.error('ليس لديك صلاحية نسخ الأسئلة');
-      return;
-    }
     await duplicateQuestion(question);
   };
 
@@ -2182,19 +2142,11 @@ const ExamQuestionsContent = () => {
   };
 
   const handleBulkUpdate = async (ids, updates) => {
-    if (!hasPermission(permissions, 'exams', 'can_edit')) {
-      toast.error('ليس لديك صلاحية تعديل الأسئلة');
-      return;
-    }
     await bulkUpdate(ids, updates);
     setSelectedQuestions([]);
   };
 
   const syncWithBank = async () => {
-    if (!hasPermission(permissions, 'exams', 'can_edit')) {
-      toast.error('ليس لديك صلاحية المزامنة مع البنك');
-      return;
-    }
     toast.info('مزامنة البنك قيد التطوير');
   };
 
@@ -2222,19 +2174,8 @@ const ExamQuestionsContent = () => {
     );
   }
 
-  // ===== التحقق من الصلاحية =====
-  if (!hasPermission(permissions, 'exams', 'can_view')) {
-    return (
-      <AssistantLayout>
-        <div className="flex flex-col items-center justify-center py-20">
-          <Icons.Lock className="h-16 w-16 text-gray-400 mb-4" />
-          <h2 className="text-2xl font-bold text-gray-600">غير مصرح لك</h2>
-          <p className="text-gray-500 mt-2">ليس لديك صلاحية عرض هذه الصفحة</p>
-          <button onClick={() => router.push('/dashboard/assistant')} className="mt-4 px-6 py-2 bg-yellow-400/20 hover:bg-yellow-400/30 text-yellow-300 rounded-xl transition">العودة للوحة التحكم</button>
-        </div>
-      </AssistantLayout>
-    );
-  }
+  // ✅ تم تجاوز صلاحية العرض (canView = true)
+  // if (!hasPermission(permissions, 'exams', 'can_view')) { ... }
 
   if (!exam) {
     return (
@@ -2293,15 +2234,12 @@ const ExamQuestionsContent = () => {
               </p>
             </div>
             <div className="flex flex-wrap gap-3 mt-3 md:mt-0">
-              {hasPermission(permissions, 'exams', 'can_edit') && (
-                <>
-                  <button onClick={() => setIsBankOpen(true)} className="px-4 py-2 bg-cyan-600/30 hover:bg-cyan-600/50 text-cyan-300 rounded-xl text-sm font-semibold transition flex items-center gap-2 border border-cyan-600"><Icons.BookOpen className="h-4 w-4" /> بنك الأسئلة</button>
-                  <button onClick={() => setIsImportExportOpen(true)} className="px-4 py-2 bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-300 rounded-xl text-sm font-semibold transition flex items-center gap-2 border border-indigo-600"><Icons.Upload className="h-4 w-4" /> استيراد/تصدير</button>
-                  <button onClick={randomizeOrder} className="px-4 py-2 bg-purple-600/30 hover:bg-purple-600/50 text-purple-300 rounded-xl text-sm font-semibold transition flex items-center gap-2 border border-purple-600"><Icons.Shuffle className="h-4 w-4" /> ترتيب عشوائي</button>
-                  <button onClick={syncWithBank} className="px-4 py-2 bg-teal-600/30 hover:bg-teal-600/50 text-teal-300 rounded-xl text-sm font-semibold transition flex items-center gap-2 border border-teal-600"><Icons.RefreshCw className="h-4 w-4" /> مزامنة مع البنك</button>
-                  {selectedQuestions.length > 0 && <button onClick={() => setIsBulkEditOpen(true)} className="px-4 py-2 bg-orange-600/30 hover:bg-orange-600/50 text-orange-300 rounded-xl text-sm font-semibold transition flex items-center gap-2 border border-orange-600"><Icons.Edit className="h-4 w-4" /> تحرير جماعي ({selectedQuestions.length})</button>}
-                </>
-              )}
+              {/* ✅ جميع الأزرار ظاهرة (بدون صلاحيات) */}
+              <button onClick={() => setIsBankOpen(true)} className="px-4 py-2 bg-cyan-600/30 hover:bg-cyan-600/50 text-cyan-300 rounded-xl text-sm font-semibold transition flex items-center gap-2 border border-cyan-600"><Icons.BookOpen className="h-4 w-4" /> بنك الأسئلة</button>
+              <button onClick={() => setIsImportExportOpen(true)} className="px-4 py-2 bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-300 rounded-xl text-sm font-semibold transition flex items-center gap-2 border border-indigo-600"><Icons.Upload className="h-4 w-4" /> استيراد/تصدير</button>
+              <button onClick={randomizeOrder} className="px-4 py-2 bg-purple-600/30 hover:bg-purple-600/50 text-purple-300 rounded-xl text-sm font-semibold transition flex items-center gap-2 border border-purple-600"><Icons.Shuffle className="h-4 w-4" /> ترتيب عشوائي</button>
+              <button onClick={syncWithBank} className="px-4 py-2 bg-teal-600/30 hover:bg-teal-600/50 text-teal-300 rounded-xl text-sm font-semibold transition flex items-center gap-2 border border-teal-600"><Icons.RefreshCw className="h-4 w-4" /> مزامنة مع البنك</button>
+              {selectedQuestions.length > 0 && <button onClick={() => setIsBulkEditOpen(true)} className="px-4 py-2 bg-orange-600/30 hover:bg-orange-600/50 text-orange-300 rounded-xl text-sm font-semibold transition flex items-center gap-2 border border-orange-600"><Icons.Edit className="h-4 w-4" /> تحرير جماعي ({selectedQuestions.length})</button>}
               <button onClick={goToResults} className="px-4 py-2 bg-purple-600/30 hover:bg-purple-600/50 text-purple-300 rounded-xl text-sm font-semibold transition flex items-center gap-2 border border-purple-600"><Icons.BarChart className="h-4 w-4" /> النتائج</button>
               <button onClick={goBack} className={`px-4 py-2 rounded-xl text-sm transition flex items-center gap-2 ${isDark ? 'bg-white/10 hover:bg-white/20 text-white border border-white/20' : 'bg-gray-200 hover:bg-gray-300 text-gray-800 border border-gray-300'}`}><Icons.ArrowRight className="h-4 w-4" /> العودة</button>
             </div>
@@ -2335,21 +2273,18 @@ const ExamQuestionsContent = () => {
                 onBlur={handlePassingMarksChange}
                 min="0"
                 max={stats.totalMarks}
-                disabled={!hasPermission(permissions, 'exams', 'can_edit')}
                 className={`w-24 px-3 py-1.5 rounded-lg border focus:ring-2 focus:ring-yellow-400 outline-none transition text-sm ${
                   isDark ? 'bg-white/10 border-white/20 text-white' : 'bg-gray-100 border-gray-300 text-gray-900'
-                } ${!hasPermission(permissions, 'exams', 'can_edit') ? 'opacity-60 cursor-not-allowed' : ''}`}
+                }`}
               />
-              {hasPermission(permissions, 'exams', 'can_edit') && (
-                <button
-                  onClick={handlePassingMarksChange}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
-                    isDark ? 'bg-yellow-400/20 text-yellow-300 hover:bg-yellow-400/30' : 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200'
-                  }`}
-                >
-                  {language === 'ar' ? 'حفظ' : 'Save'}
-                </button>
-              )}
+              <button
+                onClick={handlePassingMarksChange}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+                  isDark ? 'bg-yellow-400/20 text-yellow-300 hover:bg-yellow-400/30' : 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200'
+                }`}
+              >
+                {language === 'ar' ? 'حفظ' : 'Save'}
+              </button>
             </div>
             <div className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
               {language === 'ar' ? '(يمكنك تعديل درجة النجاح مباشرة)' : '(You can edit passing marks here)'}
@@ -2418,9 +2353,7 @@ const ExamQuestionsContent = () => {
                   <option value="with_passage">مرتبطة بقطعة</option>
                   <option value="without_passage">غير مرتبطة بقطعة</option>
                 </select>
-                {hasPermission(permissions, 'exams', 'can_edit') && (
-                  <button onClick={handleAddQuestion} className="px-4 py-2 bg-yellow-500/30 hover:bg-yellow-500/50 text-yellow-300 rounded-xl text-sm font-semibold transition flex items-center gap-1 border border-yellow-500"><Icons.Plus className="h-4 w-4" /> إضافة سؤال</button>
-                )}
+                <button onClick={handleAddQuestion} className="px-4 py-2 bg-yellow-500/30 hover:bg-yellow-500/50 text-yellow-300 rounded-xl text-sm font-semibold transition flex items-center gap-1 border border-yellow-500"><Icons.Plus className="h-4 w-4" /> إضافة سؤال</button>
               </div>
             </div>
 
@@ -2434,13 +2367,13 @@ const ExamQuestionsContent = () => {
                     question={question}
                     index={index}
                     totalQuestions={filteredQuestions.length}
-                    onEdit={hasPermission(permissions, 'exams', 'can_edit') ? handleEditQuestion : () => toast.warning('ليس لديك صلاحية تعديل الأسئلة')}
-                    onMoveUp={hasPermission(permissions, 'exams', 'can_edit') ? () => moveQuestion(index, -1) : () => {}}
-                    onMoveDown={hasPermission(permissions, 'exams', 'can_edit') ? () => moveQuestion(index, 1) : () => {}}
-                    onDuplicate={hasPermission(permissions, 'exams', 'can_edit') ? handleDuplicate : () => toast.warning('ليس لديك صلاحية نسخ الأسئلة')}
+                    onEdit={handleEditQuestion}
+                    onMoveUp={() => moveQuestion(index, -1)}
+                    onMoveDown={() => moveQuestion(index, 1)}
+                    onDuplicate={handleDuplicate}
                     onSelect={handleSelectQuestion}
                     selected={selectedQuestions.includes(question.id)}
-                    onAddSubQuestion={hasPermission(permissions, 'exams', 'can_edit') ? handleAddSubQuestion : () => toast.warning('ليس لديك صلاحية إضافة أسئلة')}
+                    onAddSubQuestion={handleAddSubQuestion}
                   />
                 ))}
               </div>
