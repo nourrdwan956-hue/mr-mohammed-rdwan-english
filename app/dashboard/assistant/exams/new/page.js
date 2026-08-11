@@ -1,18 +1,12 @@
 // ============================================================
 // app/dashboard/assistant/exams/new/page.js
-// إنشاء امتحان جديد – نسخة المساعد (بدون حذف)
-// ✅ استخدام AssistantLayout مع صلاحيات مخزنة في sessionStorage
-// ✅ إزالة حقل total_marks من النموذج - يُحسب تلقائياً من الأسئلة المستوردة
-// ✅ ضبط التواريخ مع المنطقة الزمنية لمصر (UTC+2/+3)
-// ✅ دعم بنك الأسئلة والاستيراد
-// ✅ معاينة جانبية للإعدادات
-// ✅ تباين عالٍ في الوضعين الفاتح والداكن
-// ✅ ربط الكورسات والصلاحيات
-// ✅ منع صلاحية الحذف (غير موجودة أصلاً في هذه الصفحة)
+// إنشاء امتحان جديد – نسخة المساعد (مع Suspense)
+// ✅ إضافة Suspense boundary لحل خطأ useSearchParams في البناء
 // ============================================================
 
 'use client';
 
+import { Suspense } from 'react'; // ✅ إضافة import
 import { AssistantLayout } from '@/components/AssistantLayout';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
@@ -50,7 +44,10 @@ const toEgyptTime = (date) => {
   return new Date(`${year}-${month}-${day}T${hour}:${minute}:${second}+02:00`);
 };
 
-export default function AssistantNewExamPage() {
+// ============================================================
+// المكون الرئيسي (المحتوى الفعلي)
+// ============================================================
+function AssistantNewExamPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const courseIdParam = searchParams.get('course_id');
@@ -914,5 +911,20 @@ export default function AssistantNewExamPage() {
         />
       </div>
     </AssistantLayout>
+  );
+}
+
+// ============================================================
+// التصدير مع Suspense boundary
+// ============================================================
+export default function AssistantNewExamPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-screen bg-[#0b0e1a]">
+        <div className="w-12 h-12 border-4 border-yellow-400/30 border-t-yellow-400 rounded-full animate-spin" />
+      </div>
+    }>
+      <AssistantNewExamPageContent />
+    </Suspense>
   );
 }
