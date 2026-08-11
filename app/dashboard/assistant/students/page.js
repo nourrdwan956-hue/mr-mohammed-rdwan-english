@@ -2,13 +2,10 @@
 
 // ============================================================
 // app/dashboard/assistant/students/page.js
-// إدارة الطلاب – نسخة المساعد المتكاملة V8
-// ✅ استخدام AssistantLayout
-// ✅ استخدام useAssistantData للحصول على assistant و permissions و teacherId
-// ✅ التحقق من صلاحية can_view
-// ✅ إزالة زر إلغاء التسجيل (غير مسموح للمساعد)
-// ✅ تغيير مسارات التنقل إلى /dashboard/assistant/
-// ✅ دعم كامل للثيم الفاتح والداكن
+// إدارة الطلاب – نسخة المساعد المتكاملة V9 (مع جلب مباشر للصلاحيات)
+// ✅ جلب الصلاحيات مباشرة من الخادم عند تحميل الصفحة
+// ✅ تحديث sessionStorage بالصلاحيات الجديدة
+// ✅ استخدام useMemo لحساب canView ديناميكياً
 // ============================================================
 
 import { AssistantLayout } from '@/components/AssistantLayout';
@@ -19,8 +16,6 @@ import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import * as Icons from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { toast } from 'react-hot-toast';
-import { useAssistantData } from '@/lib/hooks/useAssistantData';
-import { hasPermission } from '@/lib/permissions';
 import { useTheme } from '@/lib/hooks/useTheme';
 
 // ============================================================
@@ -184,7 +179,7 @@ const getStudentStatus = (progress, completedAt) => {
 };
 
 // ============================================================
-// 5. بطاقة الطالب (مضخمة – بدون زر إلغاء التسجيل)
+// 5. بطاقة الطالب (بدون زر إلغاء التسجيل)
 // ============================================================
 
 const StudentCard = ({
@@ -292,7 +287,7 @@ const StudentCard = ({
               >
                 <Icons.Mail className="h-3 w-3" />
               </button>
-              {/* ❌ تم إزالة زر إلغاء التسجيل للمساعد */}
+              {/* ❌ تم إزالة زر إلغاء التسجيل */}
             </div>
           </div>
         </div>
@@ -317,7 +312,7 @@ const StudentCard = ({
 };
 
 // ============================================================
-// 6. الصفحة الرئيسية – إدارة الطلاب للمساعد
+// 6. الصفحة الرئيسية – إدارة الطلاب للمساعد (مع جلب مباشر للصلاحيات)
 // ============================================================
 
 export default function AssistantStudentsPage() {
@@ -328,15 +323,16 @@ export default function AssistantStudentsPage() {
   // ✅ استخدام الثيم المركزي
   const { theme, styles } = useTheme();
 
-  // ✅ استخدام بيانات المساعد والصلاحيات
-  const { assistant, permissions, loading: assistantLoading } = useAssistantData();
-  const teacherId = assistant?.teacher_id;
-
   // ===== حالات عامة =====
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+
+  // ===== صلاحيات (تُجلب مباشرة من الخادم) =====
+  const [permissions, setPermissions] = useState([]);
+  const [permissionsLoading, setPermissionsLoading] = useState(true);
+  const [assistantId, setAssistantId] = useState(null);
 
   // ===== فلترة وبحث =====
   const [searchQuery, setSearchQuery] = useState('');
@@ -355,8 +351,70 @@ export default function AssistantStudentsPage() {
 
   // ===== قائمة الكورسات للفلترة =====
   const [courseOptions, setCourseOptions] = useState([]);
+  const [teacherId, setTeacherId] = useState(null);
 
-  // ===== جلب البيانات =====
+  // ===== 1. جلب بيانات المساعد والصلاحيات من الخادم مباشرة =====
+  useEffect(() => {
+    const fetchAssistantAndPermissions = async () => {
+      try {
+        const sessionData = sessionStorage.getItem('assistantData');
+        if (!sessionData) {
+          router.push('/assistant-login');
+          return;
+        }
+        const parsed = JSON.parse(sessionData);
+        setAssistantId(parsed.id);
+        setTeacherId(parsed.teacher_id);
+
+        // جلب الصلاحيات من الخادم
+        const res = await fetch('/api/assistant-data', {
+          headers: { 'x-assistant-id': parsed.id },
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          const perms = data.permissions || [];
+          setPermissions(perms);
+          // تحديث sessionStorage بالصلاحيات الجديدة
+          sessionStorage.setItem('assistantPermissions', JSON.stringify(perms));
+        } else {
+          // في حالة فشل الجلب، نحاول استخدام sessionStorage كاحتياط
+          const cached = sessionStorage.getItem('assistantPermissions');
+          if (cached) {
+            try {
+              const perms = JSON.parse(cached);
+              setPermissions(perms);
+            } catch (e) {
+              setPermissions([]);
+            }
+          }
+        }
+      } catch (err) {
+        console.error('❌ فشل جلب الصلاحيات:', err);
+        // استخدام البيانات المخزنة مؤقتاً
+        const cached = sessionStorage.getItem('assistantPermissions');
+        if (cached) {
+          try {
+            const perms = JSON.parse(cached);
+            setPermissions(perms);
+          } catch (e) {
+            setPermissions([]);
+          }
+        }
+      } finally {
+        setPermissionsLoading(false);
+      }
+    };
+
+    fetchAssistantAndPermissions();
+  }, [router]);
+
+  // ===== التحقق من الصلاحية باستخدام useMemo =====
+  const canView = useMemo(() => {
+    if (permissionsLoading) return false;
+    return permissions.some(p => p.module === 'students' && (p.can_view || p.can_manage));
+  }, [permissions, permissionsLoading]);
+
+  // ===== 2. جلب بيانات الطلاب =====
   const fetchStudents = useCallback(async () => {
     if (!teacherId) {
       setLoading(false);
@@ -364,7 +422,7 @@ export default function AssistantStudentsPage() {
     }
     setLoading(true);
     try {
-      // 1. جلب جميع الكورسات الخاصة بالمعلم
+      // جلب الكورسات
       const { data: coursesData, error: coursesError } = await supabase
         .from('courses')
         .select('id, title')
@@ -381,7 +439,7 @@ export default function AssistantStudentsPage() {
         return;
       }
 
-      // 2. جلب جميع التسجيلات لهذه الكورسات مع بيانات الطالب
+      // جلب التسجيلات
       let query = supabase
         .from('enrollments')
         .select(`
@@ -400,10 +458,9 @@ export default function AssistantStudentsPage() {
       }
 
       const { data: enrollmentsData, error: enrollError } = await query;
-
       if (enrollError) throw enrollError;
 
-      // 3. تجميع البيانات لكل طالب
+      // تجميع الطلاب
       const studentMap = {};
       enrollmentsData?.forEach(en => {
         const studentId = en.student_id;
@@ -438,7 +495,7 @@ export default function AssistantStudentsPage() {
 
       const studentIds = Object.keys(studentMap);
 
-      // 4. جلب محاولات الامتحانات لهؤلاء الطلاب
+      // جلب محاولات الامتحانات
       if (studentIds.length > 0) {
         const { data: attemptsData } = await supabase
           .from('exam_attempts')
@@ -464,7 +521,7 @@ export default function AssistantStudentsPage() {
 
       const studentsList = Object.values(studentMap);
 
-      // 6. حساب الإحصائيات
+      // حساب الإحصائيات
       const total = studentsList.length;
       const completed = studentsList.filter(s => s.completedAt).length;
       const active = studentsList.filter(s => !s.completedAt && s.avgProgress > 0).length;
@@ -550,10 +607,8 @@ export default function AssistantStudentsPage() {
     { id: 5, label: 'متوسط التقدم', value: stats.avgProgress, suffix: '%', icon: Icons.TrendingUp, color: 'from-purple-400 to-purple-600', delay: 0.4 },
   ];
 
-  // ===== التحقق من الصلاحية =====
-  const canView = hasPermission(permissions, 'students', 'can_view') || hasPermission(permissions, 'students', 'can_manage');
-
-  if (assistantLoading || loading) {
+  // ===== حالة التحميل =====
+  if (permissionsLoading || loading) {
     return (
       <AssistantLayout>
         <div className={`flex items-center justify-center py-20 ${styles.bg}`}>
@@ -563,6 +618,7 @@ export default function AssistantStudentsPage() {
     );
   }
 
+  // ===== التحقق من الصلاحية =====
   if (!canView) {
     return (
       <AssistantLayout>
