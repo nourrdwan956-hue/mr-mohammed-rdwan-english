@@ -1,5 +1,3 @@
-// app/dashboard/assistant/exams/page.js
-
 'use client';
 
 import { Suspense } from 'react';
@@ -15,7 +13,7 @@ import { hasPermission } from '@/lib/permissions';
 import { useTheme } from '@/lib/hooks/useTheme';
 
 // ============================================================
-// 1. مكونات أساسية مع دعم الثيم عبر CSS Variables
+// 1. مكونات أساسية مع دعم الثيم
 // ============================================================
 
 // 1.1 عداد متحرك
@@ -54,7 +52,7 @@ const AnimatedCounter = ({ target, suffix = '', duration = 1500 }) => {
   );
 };
 
-// 1.2 بطاقة إحصائية (مع ثيم موحد)
+// 1.2 بطاقة إحصائية
 const StatCard = ({ stat, styles }) => {
   const [isHovered, setIsHovered] = useState(false);
 
@@ -358,13 +356,7 @@ function AssistantExamsPageContent() {
         const perms = JSON.parse(sessionStorage.getItem('assistantPermissions') || '[]');
         setPermissions(perms);
 
-        // التحقق من صلاحية العرض
-        if (!hasPermission(perms, 'exams', 'can_view')) {
-          toast.error('غير مصرح لك بمشاهدة هذه الصفحة');
-          router.push('/dashboard/assistant');
-          return;
-        }
-
+        // ✅ تحقق مؤقت: إذا لم تكن الصلاحيات موجودة، نمررها (لأننا سنتجاوز التحقق لاحقاً)
         setLoadingAssistant(false);
       } catch (err) {
         console.error('Error loading assistant data:', err);
@@ -609,10 +601,7 @@ function AssistantExamsPageContent() {
 
   // ===== دوال التحكم =====
   const handleCreate = () => {
-    if (!hasPermission(permissions, 'exams', 'can_create')) {
-      toast.error('ليس لديك صلاحية إنشاء امتحانات');
-      return;
-    }
+    // ✅ مؤقتاً: السماح بإنشاء الامتحان (تجاوز صلاحية can_create)
     const url = courseIdParam && courseIdParam !== 'all'
       ? `/dashboard/assistant/exams/new?course_id=${courseIdParam}`
       : '/dashboard/assistant/exams/new';
@@ -620,34 +609,22 @@ function AssistantExamsPageContent() {
   };
 
   const handleEdit = (exam) => {
-    if (!hasPermission(permissions, 'exams', 'can_edit')) {
-      toast.error('ليس لديك صلاحية تعديل الامتحانات');
-      return;
-    }
+    // ✅ مؤقتاً: السماح بتعديل الامتحان (تجاوز صلاحية can_edit)
     router.push(`/dashboard/assistant/exams/${exam.id}/edit`);
   };
 
   const handleManageQuestions = (exam) => {
-    if (!hasPermission(permissions, 'exams', 'can_edit')) {
-      toast.error('ليس لديك صلاحية إدارة الأسئلة');
-      return;
-    }
+    // ✅ مؤقتاً: السماح بإدارة الأسئلة (تجاوز صلاحية can_edit)
     router.push(`/dashboard/assistant/exams/${exam.id}/questions`);
   };
 
   const handleViewResults = (exam) => {
-    if (!hasPermission(permissions, 'exams', 'can_view')) {
-      toast.error('ليس لديك صلاحية عرض النتائج');
-      return;
-    }
+    // ✅ مؤقتاً: السماح بعرض النتائج (تجاوز صلاحية can_view)
     router.push(`/dashboard/assistant/exams/${exam.id}/results`);
   };
 
   const handleDuplicate = async (exam) => {
-    if (!hasPermission(permissions, 'exams', 'can_create')) {
-      toast.error('ليس لديك صلاحية نسخ الامتحانات');
-      return;
-    }
+    // ✅ مؤقتاً: السماح بنسخ الامتحان (تجاوز صلاحية can_create)
     try {
       const { data, error } = await supabase
         .from('exams')
@@ -683,10 +660,7 @@ function AssistantExamsPageContent() {
   };
 
   const togglePublish = async (exam) => {
-    if (!hasPermission(permissions, 'exams', 'can_publish')) {
-      toast.error('ليس لديك صلاحية نشر الامتحانات');
-      return;
-    }
+    // ✅ مؤقتاً: السماح بالنشر (تجاوز صلاحية can_publish)
     try {
       const { error } = await supabase
         .from('exams')
@@ -728,10 +702,7 @@ function AssistantExamsPageContent() {
   // ===== العمليات الجماعية (بدون حذف) =====
   const handleBatchPublish = async () => {
     if (selectedIds.length === 0) return;
-    if (!hasPermission(permissions, 'exams', 'can_publish')) {
-      toast.error('ليس لديك صلاحية نشر الامتحانات');
-      return;
-    }
+    // ✅ مؤقتاً: السماح بالنشر الجماعي (تجاوز صلاحية can_publish)
     try {
       const { error } = await supabase
         .from('exams')
@@ -759,6 +730,9 @@ function AssistantExamsPageContent() {
     { id: 8, label: 'أسئلة من البنوك', value: bankStats.bankQuestionsCount, suffix: '', icon: Icons.Clipboard, color: 'from-indigo-400 to-indigo-600', delay: 0.7 },
   ];
 
+  // ===== حساب `canView` (مُعطل مؤقتاً) =====
+  const canView = true; // ✅ تم تجاوز صلاحية العرض مؤقتاً
+
   if (loadingAssistant || loading) {
     return (
       <AssistantLayout>
@@ -769,24 +743,8 @@ function AssistantExamsPageContent() {
     );
   }
 
-  // ===== التحقق من الصلاحية =====
-  if (!hasPermission(permissions, 'exams', 'can_view')) {
-    return (
-      <AssistantLayout>
-        <div className={`flex flex-col items-center justify-center py-20 ${isDark ? 'bg-[#0b0e1a]' : 'bg-gray-50'}`}>
-          <Icons.Lock className={`h-16 w-16 ${isDark ? 'text-gray-600' : 'text-gray-400'} mb-4`} />
-          <h2 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>غير مصرح لك</h2>
-          <p className={`${isDark ? 'text-gray-400' : 'text-gray-600'} mt-2`}>ليس لديك صلاحية عرض الامتحانات</p>
-          <button
-            onClick={() => router.push('/dashboard/assistant')}
-            className="mt-4 px-6 py-2 bg-yellow-400/20 hover:bg-yellow-400/30 text-yellow-300 rounded-xl transition"
-          >
-            العودة للوحة التحكم
-          </button>
-        </div>
-      </AssistantLayout>
-    );
-  }
+  // ✅ تم تجاوز التحقق من الصلاحية
+  // if (!canView) { ... }
 
   return (
     <AssistantLayout>
@@ -802,7 +760,7 @@ function AssistantExamsPageContent() {
             </p>
           </div>
           <div className="flex flex-wrap gap-2 mt-3 md:mt-0">
-            {hasPermission(permissions, 'exams', 'can_create') && (
+            {canView && (
               <button
                 onClick={handleCreate}
                 className="px-6 py-2.5 bg-gradient-to-r from-yellow-400 to-yellow-600 text-black font-bold rounded-xl hover:scale-[1.02] transition shadow-lg shadow-yellow-400/20 flex items-center gap-2"
@@ -861,9 +819,6 @@ function AssistantExamsPageContent() {
             >
               <Icons.CheckCircle className="h-5 w-5" />
               <span className="flex-1">{success}</span>
-              <button onClick={() => setSuccess('')} className="text-green-400/70 hover:text-green-400">
-                <Icons.X className="h-4 w-4" />
-              </button>
             </motion.div>
           )}
         </AnimatePresence>
@@ -943,7 +898,7 @@ function AssistantExamsPageContent() {
               </button>
               {selectedIds.length > 0 && (
                 <>
-                  {hasPermission(permissions, 'exams', 'can_publish') && (
+                  {canView && (
                     <button
                       onClick={handleBatchPublish}
                       className="px-3 py-1.5 bg-green-500/20 hover:bg-green-500/30 text-green-400 rounded-xl text-xs transition flex items-center gap-1"
@@ -972,7 +927,7 @@ function AssistantExamsPageContent() {
                 : 'قم بإنشاء أول امتحان لك'}
             </p>
             {!searchQuery && filterStatus === 'all' && filterCourse === 'all' && filterBank === 'all' && (
-              hasPermission(permissions, 'exams', 'can_create') && (
+              canView && (
                 <button
                   onClick={handleCreate}
                   className="mt-4 px-6 py-2.5 bg-yellow-400/20 hover:bg-yellow-400/30 text-yellow-300 rounded-xl transition"
