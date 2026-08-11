@@ -2,18 +2,21 @@
 
 // ================================================================
 // 📁 app/dashboard/assistant/page.js
-// 🎯 لوحة تحكم المساعد الرئيسية – النسخة المتطورة V3
+// 🎯 لوحة تحكم المساعد الرئيسية – النسخة المتطورة V4
 // ================================================================
-// - دعم كامل للثيم (فاتح/داكن) عبر CSS Variables
-// - استخدام ThemeProvider و useTheme
-// - إحصائيات متحركة، رسم بياني، نشاطات، إجراءات سريعة
-// - تصميم Glassmorphism فاخر مع أنيميشن متقدمة
+// - دعم كامل للثيم (فاتح/داكن)
+// - إحصائيات حقيقية من API مع أعداد غير صفرية
+// - رسم بياني متقدم (Bar Chart) مع تفاعل
+// - آخر النشاطات مع توقيت
+// - إجراءات سريعة لكل وحدة
+// - إشعارات حقيقية (عدد التذاكر المفتوحة، الرسائل غير المقروءة)
+// - تحسين الأداء للأجهزة الصغيرة
 // ================================================================
 
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import * as Icons from 'lucide-react';
 import {
   LayoutDashboard,
@@ -29,13 +32,15 @@ import {
   Zap,
   Shield,
   ChevronLeft,
-  Sun,
-  Moon,
   HelpCircle,
   Megaphone,
   Mail,
   StickyNote,
   Grid,
+  TrendingUp,
+  Award,
+  AlertCircle,
+  CheckCircle,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Bar } from 'react-chartjs-2';
@@ -49,7 +54,6 @@ import {
   Legend,
   ArcElement,
 } from 'chart.js';
-// ✅ استيراد useTheme من المسار الموحد
 import { useTheme } from '@/lib/hooks/useTheme';
 
 // ================================================================
@@ -66,7 +70,7 @@ ChartJS.register(
 );
 
 // ================================================================
-// 🧮 مكون عداد متحرك
+// 🧮 مكون عداد متحرك محسّن
 // ================================================================
 const AnimatedCounter = ({ target, suffix = '', duration = 1500, prefix = '' }) => {
   const [count, setCount] = useState(0);
@@ -110,32 +114,30 @@ const AnimatedCounter = ({ target, suffix = '', duration = 1500, prefix = '' }) 
 };
 
 // ================================================================
-// 📊 بطاقة الإحصاء (معدلة لاستخدام styles)
+// 📊 بطاقة الإحصاء (معدلة لاستخدام styles مع أنيميشن)
 // ================================================================
-const StatCard = ({ stat, styles }) => {
+const StatCard = React.memo(({ stat, styles }) => {
   const [hover, setHover] = useState(false);
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: stat.delay || 0 }}
-      whileHover={{ y: -6, scale: 1.02 }}
+      transition={{ delay: stat.delay || 0, type: 'spring', damping: 20 }}
+      whileHover={{ y: -6, scale: 1.03 }}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
-      className={`relative rounded-2xl p-5 transition-all duration-300 ${styles.card} border ${styles.border} hover:border-yellow-400/50`}
+      className={`relative rounded-2xl p-5 transition-all duration-300 ${styles.card} border ${styles.border} hover:border-yellow-400/50 hover:shadow-2xl hover:shadow-yellow-400/10`}
     >
       <div className="flex items-start justify-between">
         <div>
-          <p className={`text-sm ${styles.subtext}`}>
-            {stat.label}
-          </p>
+          <p className={`text-sm ${styles.subtext}`}>{stat.label}</p>
           <p className={`text-2xl font-extrabold mt-1 ${styles.text}`}>
             <AnimatedCounter target={stat.value} />
           </p>
         </div>
         <div
-          className={`p-3 rounded-xl bg-gradient-to-br ${stat.color} bg-opacity-20 flex-shrink-0`}
+          className={`p-3 rounded-xl bg-gradient-to-br ${stat.color} bg-opacity-20 flex-shrink-0 shadow-lg`}
         >
           <stat.icon className="w-5 h-5 text-white" />
         </div>
@@ -154,12 +156,13 @@ const StatCard = ({ stat, styles }) => {
       </div>
     </motion.div>
   );
-};
+});
+StatCard.displayName = 'StatCard';
 
 // ================================================================
 // ⚡ الإجراء السريع (معدل لاستخدام styles)
 // ================================================================
-const QuickAction = ({ action, styles, onClick }) => {
+const QuickAction = React.memo(({ action, styles, onClick }) => {
   const [hover, setHover] = useState(false);
 
   return (
@@ -171,34 +174,31 @@ const QuickAction = ({ action, styles, onClick }) => {
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       onClick={() => onClick(action.path)}
-      className={`relative rounded-2xl p-5 cursor-pointer transition-all duration-300 overflow-hidden ${styles.card} border ${styles.border} hover:border-yellow-400/50 hover:shadow-lg hover:shadow-yellow-400/10`}
+      className={`relative rounded-2xl p-5 cursor-pointer transition-all duration-300 overflow-hidden ${styles.card} border ${styles.border} hover:border-yellow-400/50 hover:shadow-2xl hover:shadow-yellow-400/10`}
     >
       <div className="flex items-center gap-4">
         <div
-          className={`p-3 rounded-xl bg-gradient-to-br ${action.color} bg-opacity-20 flex-shrink-0`}
+          className={`p-3 rounded-xl bg-gradient-to-br ${action.color} bg-opacity-20 flex-shrink-0 shadow-lg`}
         >
           <action.icon className="w-6 h-6 text-white" />
         </div>
         <div className="flex-1">
-          <h3 className={`text-base font-bold ${styles.text}`}>
-            {action.label}
-          </h3>
-          <p className={`text-sm ${styles.subtext}`}>
-            {action.description}
-          </p>
+          <h3 className={`text-base font-bold ${styles.text}`}>{action.label}</h3>
+          <p className={`text-sm ${styles.subtext}`}>{action.description}</p>
         </div>
         <ChevronLeft
           className={`w-5 h-5 ${styles.subtext} transition-transform duration-300 ${hover ? 'translate-x-1' : ''}`}
         />
       </div>
-      {action.count !== undefined && (
-        <div className="absolute top-3 right-3 text-xs bg-yellow-400/20 text-yellow-400 px-2 py-1 rounded-full">
+      {action.count !== undefined && action.count > 0 && (
+        <div className="absolute top-3 right-3 text-xs bg-yellow-400/20 text-yellow-400 px-2 py-1 rounded-full shadow-lg">
           {action.count}
         </div>
       )}
     </motion.div>
   );
-};
+});
+QuickAction.displayName = 'QuickAction';
 
 // ================================================================
 // 📄 الصفحة الرئيسية
@@ -207,14 +207,23 @@ export default function AssistantDashboardPage() {
   const router = useRouter();
   const { theme, styles } = useTheme();
 
-  // حالات الصفحة
   const [loading, setLoading] = useState(true);
   const [assistant, setAssistant] = useState(null);
   const [permissions, setPermissions] = useState([]);
   const [stats, setStats] = useState({});
   const [logs, setLogs] = useState([]);
   const [chartData, setChartData] = useState(null);
+  const [unreadCounts, setUnreadCounts] = useState({});
+  const [isMobile, setIsMobile] = useState(false);
   const fetched = useRef(false);
+
+  // كشف الشاشات الصغيرة
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // ===== جلب البيانات =====
   useEffect(() => {
@@ -230,6 +239,9 @@ export default function AssistantDashboardPage() {
         }
 
         const parsed = JSON.parse(sessionData);
+        setAssistant(parsed);
+
+        // جلب بيانات لوحة التحكم
         const res = await fetch('/api/assistant/dashboard-data', {
           headers: { 'x-assistant-id': parsed.id },
         });
@@ -238,42 +250,55 @@ export default function AssistantDashboardPage() {
         if (!res.ok) throw new Error(data.error || 'فشل جلب البيانات');
         if (!data.success) throw new Error('فشل جلب البيانات');
 
-        setAssistant(data.assistant);
         setPermissions(data.permissions || []);
         setStats(data.stats || {});
         setLogs(data.logs || []);
+        setUnreadCounts(data.unreadCounts || {});
+
         sessionStorage.setItem('assistantData', JSON.stringify(data.assistant));
 
         // ===== إعداد الرسم البياني =====
+        const s = data.stats || {};
         const labels = [];
         const values = [];
-        const s = data.stats || {};
-        if (s.courses > 0) { labels.push('كورسات'); values.push(s.courses); }
-        if (s.videos > 0) { labels.push('فيديوهات'); values.push(s.videos); }
-        if (s.exams > 0) { labels.push('امتحانات'); values.push(s.exams); }
-        if (s.books > 0) { labels.push('كتب'); values.push(s.books); }
-        if (s.questionBanks > 0) { labels.push('بنوك أسئلة'); values.push(s.questionBanks); }
-        if (s.support > 0) { labels.push('دعم'); values.push(s.support); }
+        const colors = [
+          'rgba(59, 130, 246, 0.8)',
+          'rgba(168, 85, 247, 0.8)',
+          'rgba(239, 68, 68, 0.8)',
+          'rgba(34, 197, 94, 0.8)',
+          'rgba(251, 146, 60, 0.8)',
+          'rgba(6, 182, 212, 0.8)',
+          'rgba(236, 72, 153, 0.8)',
+        ];
+
+        const map = [
+          { key: 'courses', label: 'كورسات', icon: '📚' },
+          { key: 'videos', label: 'فيديوهات', icon: '🎬' },
+          { key: 'exams', label: 'امتحانات', icon: '📝' },
+          { key: 'books', label: 'كتب', icon: '📖' },
+          { key: 'questionBanks', label: 'بنوك أسئلة', icon: '🗂️' },
+          { key: 'students', label: 'طلاب', icon: '👨‍🎓' },
+          { key: 'support', label: 'دعم', icon: '💬' },
+        ];
+
+        let idx = 0;
+        map.forEach(item => {
+          if (s[item.key] > 0) {
+            labels.push(`${item.icon} ${item.label}`);
+            values.push(s[item.key]);
+            idx++;
+          }
+        });
 
         if (labels.length > 0) {
-          const colors = [
-            'rgba(59, 130, 246, 0.8)',
-            'rgba(168, 85, 247, 0.8)',
-            'rgba(239, 68, 68, 0.8)',
-            'rgba(34, 197, 94, 0.8)',
-            'rgba(251, 146, 60, 0.8)',
-            'rgba(6, 182, 212, 0.8)',
-          ];
           setChartData({
             labels,
             datasets: [
               {
                 label: 'المحتوى التعليمي',
                 data: values,
-                backgroundColor: colors.slice(0, values.length),
-                borderColor: colors
-                  .slice(0, values.length)
-                  .map((c) => c.replace('0.8', '1')),
+                backgroundColor: colors.slice(0, labels.length).map(c => c.replace('0.8', '0.7')),
+                borderColor: colors.slice(0, labels.length).map(c => c.replace('0.8', '1')),
                 borderWidth: 2,
                 borderRadius: 8,
               },
@@ -293,166 +318,161 @@ export default function AssistantDashboardPage() {
   }, [router]);
 
   // ===== دوال التحقق من الصلاحيات =====
-  const hasView = (module) => {
+  const hasView = useCallback((module) => {
     const perm = permissions.find((p) => p.module === module);
     return perm?.can_view || perm?.can_manage || false;
-  };
+  }, [permissions]);
 
-  // ===== تجهيز بيانات الإحصائيات (باستخدام الوحدات الجديدة) =====
+  // ===== تجهيز بيانات الإحصائيات =====
   const statsData = useMemo(() => {
     const items = [];
-    if (hasView('courses'))
-      items.push({
-        label: 'الكورسات',
-        value: stats.courses || 0,
-        icon: BookOpen,
-        color: 'from-blue-400 to-blue-600',
-        delay: 0,
-        max: 50,
-      });
-    if (hasView('videos'))
-      items.push({
-        label: 'الفيديوهات',
-        value: stats.videos || 0,
-        icon: Video,
-        color: 'from-purple-400 to-purple-600',
-        delay: 0.1,
-        max: 50,
-      });
-    if (hasView('exams'))
-      items.push({
-        label: 'الامتحانات',
-        value: stats.exams || 0,
-        icon: FileText,
-        color: 'from-red-400 to-red-600',
-        delay: 0.2,
-        max: 50,
-      });
-    if (hasView('books'))
-      items.push({
-        label: 'الكتب',
-        value: stats.books || 0,
-        icon: Book,
-        color: 'from-green-400 to-green-600',
-        delay: 0.3,
-        max: 50,
-      });
-    if (hasView('question_bank'))
-      items.push({
-        label: 'بنوك الأسئلة',
-        value: stats.questionBanks || 0,
-        icon: Database,
-        color: 'from-orange-400 to-orange-600',
-        delay: 0.4,
-        max: 50,
-      });
-    if (hasView('support') || hasView('tickets'))
-      items.push({
-        label: 'دعم (غير مردود)', // ✅ تم تعديل التسمية لتوضيح المعنى
-        value: stats.support || 0,
-        icon: HelpCircle,
-        color: 'from-yellow-400 to-yellow-600',
-        delay: 0.5,
-        max: 50,
-      });
+    const s = stats;
+    if (hasView('courses')) items.push({
+      label: 'الكورسات',
+      value: s.courses || 0,
+      icon: BookOpen,
+      color: 'from-blue-400 to-blue-600',
+      delay: 0,
+      max: 50,
+    });
+    if (hasView('videos')) items.push({
+      label: 'الفيديوهات',
+      value: s.videos || 0,
+      icon: Video,
+      color: 'from-purple-400 to-purple-600',
+      delay: 0.1,
+      max: 50,
+    });
+    if (hasView('exams')) items.push({
+      label: 'الامتحانات',
+      value: s.exams || 0,
+      icon: FileText,
+      color: 'from-red-400 to-red-600',
+      delay: 0.2,
+      max: 50,
+    });
+    if (hasView('books')) items.push({
+      label: 'الكتب',
+      value: s.books || 0,
+      icon: Book,
+      color: 'from-green-400 to-green-600',
+      delay: 0.3,
+      max: 50,
+    });
+    if (hasView('question_bank')) items.push({
+      label: 'بنوك الأسئلة',
+      value: s.questionBanks || 0,
+      icon: Database,
+      color: 'from-orange-400 to-orange-600',
+      delay: 0.4,
+      max: 50,
+    });
+    if (hasView('students')) items.push({
+      label: 'الطلاب',
+      value: s.students || 0,
+      icon: Users,
+      color: 'from-indigo-400 to-indigo-600',
+      delay: 0.5,
+      max: 100,
+    });
+    if (hasView('support') || hasView('tickets')) items.push({
+      label: 'دعم (مفتوح)',
+      value: unreadCounts.support || s.supportOpen || 0,
+      icon: HelpCircle,
+      color: 'from-yellow-400 to-yellow-600',
+      delay: 0.6,
+      max: 20,
+    });
     return items;
-  }, [permissions, stats]);
+  }, [permissions, stats, unreadCounts, hasView]);
 
-  // ===== الإجراءات السريعة (باستخدام الوحدات الجديدة) =====
+  // ===== الإجراءات السريعة =====
   const quickActions = useMemo(() => {
     const actions = [];
-    if (hasView('courses'))
-      actions.push({
-        label: 'الكورسات',
-        description: 'إدارة الكورسات',
-        icon: BookOpen,
-        color: 'from-blue-400 to-blue-600',
-        path: '/dashboard/assistant/courses',
-        delay: 0,
-        count: stats.courses || 0,
-      });
-    if (hasView('videos'))
-      actions.push({
-        label: 'الفيديوهات',
-        description: 'إدارة الفيديوهات',
-        icon: Video,
-        color: 'from-purple-400 to-purple-600',
-        path: '/dashboard/assistant/videos',
-        delay: 0.1,
-        count: stats.videos || 0,
-      });
-    if (hasView('exams'))
-      actions.push({
-        label: 'الامتحانات',
-        description: 'إدارة الامتحانات',
-        icon: FileText,
-        color: 'from-red-400 to-red-600',
-        path: '/dashboard/assistant/exams',
-        delay: 0.2,
-        count: stats.exams || 0,
-      });
-    if (hasView('books'))
-      actions.push({
-        label: 'الكتب',
-        description: 'إدارة الكتب',
-        icon: Book,
-        color: 'from-green-400 to-green-600',
-        path: '/dashboard/assistant/books',
-        delay: 0.3,
-        count: stats.books || 0,
-      });
-    if (hasView('question_bank'))
-      actions.push({
-        label: 'بنوك الأسئلة',
-        description: 'إدارة بنوك الأسئلة',
-        icon: Database,
-        color: 'from-orange-400 to-orange-600',
-        path: '/dashboard/assistant/question-bank',
-        delay: 0.4,
-        count: stats.questionBanks || 0,
-      });
-    if (hasView('support') || hasView('tickets'))
-      actions.push({
-        label: 'الدعم',
-        description: 'الشكاوى والأسئلة',
-        icon: HelpCircle,
-        color: 'from-yellow-400 to-yellow-600',
-        path: '/dashboard/assistant/support',
-        delay: 0.5,
-        count: stats.support || 0,
-      });
-    if (hasView('announcements'))
-      actions.push({
-        label: 'الإعلانات',
-        description: 'إدارة الإعلانات',
-        icon: Megaphone,
-        color: 'from-pink-400 to-pink-600',
-        path: '/dashboard/assistant/announcements',
-        delay: 0.6,
-        count: stats.announcements || 0,
-      });
-    if (hasView('messages'))
-      actions.push({
-        label: 'المراسلات',
-        description: 'الرسائل الخاصة',
-        icon: Mail,
-        color: 'from-emerald-400 to-emerald-600',
-        path: '/dashboard/assistant/messages',
-        delay: 0.7,
-        count: stats.messages || 0,
-      });
-    if (hasView('notes'))
-      actions.push({
-        label: 'الملاحظات',
-        description: 'ملاحظات المعلم',
-        icon: StickyNote,
-        color: 'from-amber-400 to-amber-600',
-        path: '/dashboard/assistant/notes',
-        delay: 0.8,
-        count: stats.notes || 0,
-      });
+    const s = stats;
+    if (hasView('courses')) actions.push({
+      label: 'الكورسات',
+      description: 'إدارة الكورسات',
+      icon: BookOpen,
+      color: 'from-blue-400 to-blue-600',
+      path: '/dashboard/assistant/courses',
+      delay: 0,
+      count: s.courses || 0,
+    });
+    if (hasView('videos')) actions.push({
+      label: 'الفيديوهات',
+      description: 'إدارة الفيديوهات',
+      icon: Video,
+      color: 'from-purple-400 to-purple-600',
+      path: '/dashboard/assistant/videos',
+      delay: 0.1,
+      count: s.videos || 0,
+    });
+    if (hasView('exams')) actions.push({
+      label: 'الامتحانات',
+      description: 'إدارة الامتحانات',
+      icon: FileText,
+      color: 'from-red-400 to-red-600',
+      path: '/dashboard/assistant/exams',
+      delay: 0.2,
+      count: s.exams || 0,
+    });
+    if (hasView('books')) actions.push({
+      label: 'الكتب',
+      description: 'إدارة الكتب',
+      icon: Book,
+      color: 'from-green-400 to-green-600',
+      path: '/dashboard/assistant/books',
+      delay: 0.3,
+      count: s.books || 0,
+    });
+    if (hasView('question_bank')) actions.push({
+      label: 'بنوك الأسئلة',
+      description: 'إدارة بنوك الأسئلة',
+      icon: Database,
+      color: 'from-orange-400 to-orange-600',
+      path: '/dashboard/assistant/question-bank',
+      delay: 0.4,
+      count: s.questionBanks || 0,
+    });
+    if (hasView('students')) actions.push({
+      label: 'الطلاب',
+      description: 'إدارة الطلاب',
+      icon: Users,
+      color: 'from-indigo-400 to-indigo-600',
+      path: '/dashboard/assistant/students',
+      delay: 0.5,
+      count: s.students || 0,
+    });
+    if (hasView('support') || hasView('tickets')) actions.push({
+      label: 'الدعم',
+      description: 'الشكاوى والأسئلة',
+      icon: HelpCircle,
+      color: 'from-yellow-400 to-yellow-600',
+      path: '/dashboard/assistant/support',
+      delay: 0.6,
+      count: unreadCounts.support || s.supportOpen || 0,
+    });
+    if (hasView('announcements')) actions.push({
+      label: 'الإعلانات',
+      description: 'إدارة الإعلانات',
+      icon: Megaphone,
+      color: 'from-pink-400 to-pink-600',
+      path: '/dashboard/assistant/announcements',
+      delay: 0.7,
+      count: s.announcements || 0,
+    });
+    if (hasView('messages')) actions.push({
+      label: 'المراسلات',
+      description: 'الرسائل الخاصة',
+      icon: Mail,
+      color: 'from-emerald-400 to-emerald-600',
+      path: '/dashboard/assistant/messages',
+      delay: 0.8,
+      count: unreadCounts.messages || 0,
+    });
     return actions;
-  }, [permissions, stats]);
+  }, [permissions, stats, unreadCounts, hasView]);
 
   // ===== خيارات الرسم البياني (يعتمد على الثيم) =====
   const isDark = theme === 'dark';
@@ -468,6 +488,11 @@ export default function AssistantDashboardPage() {
             font: { size: 11, family: 'Cairo' },
             padding: 15,
           },
+        },
+        tooltip: {
+          backgroundColor: isDark ? 'rgba(0,0,0,0.8)' : 'rgba(255,255,255,0.9)',
+          titleColor: isDark ? '#fff' : '#000',
+          bodyColor: isDark ? '#ddd' : '#333',
         },
       },
       scales: {
@@ -485,22 +510,25 @@ export default function AssistantDashboardPage() {
         x: {
           ticks: {
             color: isDark ? '#9ca3af' : '#6b7280',
-            font: { size: 10 },
+            font: { size: 9 },
           },
           grid: { display: false },
         },
       },
+      animation: {
+        duration: isMobile ? 0 : 800, // تعطيل الأنيميشن على الموبايل
+      },
     }),
-    [isDark]
+    [isDark, isMobile]
   );
 
   // ===== التنقل =====
-  const navigate = (path) => router.push(path);
+  const navigate = useCallback((path) => router.push(path), [router]);
 
   // ===== حالة التحميل =====
   if (loading) {
     return (
-      <div className={`min-h-screen flex items-center justify-center ${styles.bg} ${styles.text}`}>
+      <div className={`min-h-screen flex items-center justify-center ${styles.bg}`}>
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-yellow-400 border-t-transparent rounded-full animate-spin mx-auto" />
           <p className={`mt-4 text-sm ${styles.subtext}`}>جاري تحميل لوحة التحكم...</p>
@@ -514,29 +542,34 @@ export default function AssistantDashboardPage() {
     <div className={`min-h-screen ${styles.bg} ${styles.text} transition-colors duration-300`}>
       <div className="max-w-7xl mx-auto px-4 md:px-6 py-6">
         {/* ===== الهيدر ===== */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between mb-8">
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex flex-col md:flex-row md:items-center justify-between mb-8"
+        >
           <div>
-            <h1 className="text-2xl md:text-3xl font-extrabold">لوحة التحكم</h1>
-            <p className={`text-sm ${styles.subtext}`}>
+            <h1 className="text-2xl md:text-3xl font-extrabold flex items-center gap-2">
+              <LayoutDashboard className="h-8 w-8 text-yellow-400" />
+              لوحة التحكم
+            </h1>
+            <p className={`text-sm ${styles.subtext} mt-1`}>
               مرحباً {assistant?.display_name || assistant?.full_name || 'المساعد'}
+              {assistant?.role && ` • ${assistant.role}`}
             </p>
           </div>
-          <button
-            onClick={() => { /* toggleTheme ستأتي من الـ Layout */ }}
-            className={`mt-3 md:mt-0 p-2.5 rounded-xl transition-all ${styles.card} border ${styles.border} hover:border-yellow-400/50`}
-            aria-label="تبديل الثيم"
-          >
-            {isDark ? (
-              <Sun className="w-5 h-5 text-yellow-400" />
-            ) : (
-              <Moon className="w-5 h-5 text-gray-600" />
-            )}
-          </button>
-        </div>
+          <div className="flex items-center gap-3 mt-3 md:mt-0">
+            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full ${styles.card} border ${styles.border}`}>
+              <TrendingUp className="w-4 h-4 text-green-400" />
+              <span className={`text-sm ${styles.subtext}`}>
+                آخر تحديث: {new Date().toLocaleTimeString()}
+              </span>
+            </div>
+          </div>
+        </motion.div>
 
         {/* ===== الإحصائيات ===== */}
         {statsData.length > 0 ? (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-8">
             {statsData.map((stat) => (
               <StatCard key={stat.label} stat={stat} styles={styles} />
             ))}
@@ -552,7 +585,11 @@ export default function AssistantDashboardPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
           {/* الرسم البياني */}
           {chartData ? (
-            <div className={`lg:col-span-2 rounded-2xl p-5 ${styles.card} border ${styles.border}`}>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className={`lg:col-span-2 rounded-2xl p-5 ${styles.card} border ${styles.border}`}
+            >
               <h3 className="text-base font-bold mb-3 flex items-center gap-2">
                 <BarChart3 className="w-5 h-5 text-yellow-400" />
                 توزيع المحتوى
@@ -560,7 +597,7 @@ export default function AssistantDashboardPage() {
               <div className="h-56">
                 <Bar data={chartData} options={barOptions} />
               </div>
-            </div>
+            </motion.div>
           ) : (
             <div className={`lg:col-span-2 rounded-2xl p-8 text-center ${styles.card} border ${styles.border}`}>
               <BarChart3 className="w-12 h-12 mx-auto mb-3 text-gray-400" />
@@ -569,7 +606,11 @@ export default function AssistantDashboardPage() {
           )}
 
           {/* النشاطات الأخيرة */}
-          <div className={`rounded-2xl p-5 ${styles.card} border ${styles.border}`}>
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className={`rounded-2xl p-5 ${styles.card} border ${styles.border}`}
+          >
             <h3 className="text-base font-bold mb-3 flex items-center gap-2">
               <Clock className="w-5 h-5 text-yellow-400" />
               آخر النشاطات
@@ -580,94 +621,118 @@ export default function AssistantDashboardPage() {
                 <p className={`text-sm ${styles.subtext}`}>لا توجد نشاطات حديثة</p>
               </div>
             ) : (
-              <div className="space-y-2 max-h-56 overflow-y-auto">
-                {logs.map((log) => (
-                  <div
+              <div className="space-y-2 max-h-56 overflow-y-auto custom-scrollbar">
+                {logs.slice(0, 8).map((log) => (
+                  <motion.div
                     key={log.id}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
                     className={`flex items-center gap-3 p-2 rounded-xl ${styles.hoverBg || 'hover:bg-white/5'}`}
                   >
-                    <div className="w-8 h-8 rounded-full bg-yellow-400/10 flex items-center justify-center">
-                      <History className="w-4 h-4 text-yellow-400" />
+                    <div className="w-8 h-8 rounded-full bg-yellow-400/10 flex items-center justify-center flex-shrink-0">
+                      {log.type === 'exam' && <FileText className="w-4 h-4 text-red-400" />}
+                      {log.type === 'support' && <HelpCircle className="w-4 h-4 text-yellow-400" />}
+                      {log.type === 'course' && <BookOpen className="w-4 h-4 text-blue-400" />}
+                      {!log.type && <History className="w-4 h-4 text-yellow-400" />}
                     </div>
-                    <div className="flex-1">
-                      <p className="text-sm">{log.action}</p>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm truncate">{log.action}</p>
                       <p className={`text-[10px] ${styles.subtext}`}>
-                        {new Date(log.created_at).toLocaleString()}
+                        {new Date(log.created_at).toLocaleString('ar-EG')}
                       </p>
                     </div>
-                  </div>
+                  </motion.div>
                 ))}
               </div>
             )}
-            {logs.length > 0 && (
+            {logs.length > 5 && (
               <Link
                 href="/dashboard/assistant/logs"
-                className="text-xs text-yellow-400 hover:underline block mt-2 text-center"
+                className="text-xs text-yellow-400 hover:underline block mt-2 text-center transition"
               >
                 عرض الكل →
               </Link>
             )}
-          </div>
+          </motion.div>
         </div>
 
         {/* ===== الخدمات الرئيسية ===== */}
-        <div className="mb-8">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-8"
+        >
           <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
             <Grid className="w-5 h-5 text-yellow-400" />
             الخدمات الرئيسية
           </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
               { 
                 label: 'الدعم', 
                 icon: HelpCircle, 
                 desc: 'إدارة الشكاوى والأسئلة', 
                 path: '/dashboard/assistant/support', 
-                color: 'from-yellow-400 to-orange-500' 
+                color: 'from-yellow-400 to-orange-500',
+                count: unreadCounts.support || 0,
               },
               { 
                 label: 'المراسلات', 
                 icon: Mail, 
                 desc: 'الرسائل الخاصة مع الطلاب', 
                 path: '/dashboard/assistant/messages', 
-                color: 'from-emerald-400 to-teal-500' 
+                color: 'from-emerald-400 to-teal-500',
+                count: unreadCounts.messages || 0,
               },
               { 
                 label: 'الإعلانات', 
                 icon: Megaphone, 
                 desc: 'إرسال الإعلانات للطلاب', 
                 path: '/dashboard/assistant/announcements', 
-                color: 'from-pink-400 to-rose-500' 
+                color: 'from-pink-400 to-rose-500',
+                count: stats.announcements || 0,
               },
               { 
-                label: 'الملاحظات', 
-                icon: StickyNote, 
-                desc: 'ملاحظات خاصة عن الطلاب', 
-                path: '/dashboard/assistant/notes', 
-                color: 'from-amber-400 to-yellow-500' 
+                label: 'الطلاب', 
+                icon: Users, 
+                desc: 'إدارة الطلاب المسجلين', 
+                path: '/dashboard/assistant/students', 
+                color: 'from-indigo-400 to-purple-500',
+                count: stats.students || 0,
               },
             ].map((item) => (
               <Link key={item.path} href={item.path}>
                 <motion.div
-                  whileHover={{ scale: 1.03, y: -4 }}
-                  className={`relative rounded-2xl p-6 ${styles.card} border ${styles.border} hover:border-yellow-400/50 transition-all duration-300 cursor-pointer overflow-hidden group`}
+                  whileHover={{ scale: 1.05, y: -4 }}
+                  whileTap={{ scale: 0.95 }}
+                  className={`relative rounded-2xl p-5 ${styles.card} border ${styles.border} hover:border-yellow-400/50 transition-all duration-300 cursor-pointer overflow-hidden group`}
                 >
                   <div className={`absolute inset-0 bg-gradient-to-br ${item.color} opacity-0 group-hover:opacity-10 transition-opacity duration-500`} />
                   <div className="relative z-10 flex flex-col items-center text-center">
-                    <div className={`p-4 rounded-2xl bg-gradient-to-br ${item.color} bg-opacity-20 mb-3`}>
-                      <item.icon className="w-8 h-8 text-white" />
+                    <div className={`p-3 rounded-2xl bg-gradient-to-br ${item.color} bg-opacity-20 mb-2 shadow-lg`}>
+                      <item.icon className="w-6 h-6 text-white" />
                     </div>
-                    <h3 className={`text-lg font-bold ${styles.text}`}>{item.label}</h3>
-                    <p className={`text-sm ${styles.subtext} mt-1`}>{item.desc}</p>
+                    <h3 className={`text-base font-bold ${styles.text}`}>{item.label}</h3>
+                    <p className={`text-xs ${styles.subtext} mt-1`}>{item.desc}</p>
+                    {item.count > 0 && (
+                      <span className="mt-2 text-xs bg-red-500/20 text-red-400 px-2 py-0.5 rounded-full">
+                        {item.count} جديدة
+                      </span>
+                    )}
                   </div>
                 </motion.div>
               </Link>
             ))}
           </div>
-        </div>
+        </motion.div>
 
         {/* ===== الإجراءات السريعة ===== */}
-        <div className="mb-8">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="mb-8"
+        >
           <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
             <Zap className="w-5 h-5 text-yellow-400" />
             الإجراءات السريعة
@@ -689,8 +754,30 @@ export default function AssistantDashboardPage() {
               ))}
             </div>
           )}
+        </motion.div>
+
+        {/* ===== تذييل ===== */}
+        <div className={`text-center text-xs ${styles.subtext} border-t ${styles.border} pt-4`}>
+          منصة محمد رضوان التعليمية v4.0 – نظام إدارة المساعدين
         </div>
       </div>
+
+      {/* أنماط CSS مخصصة للتمرير */}
+      <style jsx>{`
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: rgba(250, 204, 21, 0.3);
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: rgba(250, 204, 21, 0.5);
+        }
+      `}</style>
     </div>
   );
 }
