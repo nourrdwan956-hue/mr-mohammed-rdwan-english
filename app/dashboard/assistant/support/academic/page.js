@@ -64,7 +64,7 @@ export default function AssistantAcademicQuestionsPage() {
   const [filterCourse, setFilterCourse] = useState('all');
   const [filterCategory, setFilterCategory] = useState('all');
   const [sortBy, setSortBy] = useState('newest');
-  const [showUnassigned, setShowUnassigned] = useState(true); // عرض غير المخصصة
+  const [showUnassigned, setShowUnassigned] = useState(true);
 
   const [confirmModal, setConfirmModal] = useState(null);
 
@@ -97,7 +97,6 @@ export default function AssistantAcademicQuestionsPage() {
         return;
       }
 
-      // جلب الأسئلة الأكاديمية عبر API (يتضمن غير المخصصة)
       const res = await fetch('/api/assistant/support?type=academic', {
         headers: { 'x-assistant-id': assistantData.id },
       });
@@ -112,6 +111,10 @@ export default function AssistantAcademicQuestionsPage() {
         ...t,
         unit: extractUnit(t.description),
         isAssigned: t.assigned_to !== null,
+        // نضيف هذه الخصائص من API الجديد
+        assigned_to_name: t.assigned_to_name || null,
+        is_assigned_to_me: t.is_assigned_to_me || false,
+        can_reply: t.can_reply || false,
       }));
       setQuestions(processed);
 
@@ -221,7 +224,7 @@ export default function AssistantAcademicQuestionsPage() {
             </div>
           </div>
 
-          {/* إحصائيات سريعة مع غير مخصصة */}
+          {/* إحصائيات سريعة */}
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
             {[
               { label: 'الإجمالي', value: stats.total, icon: Icons.Ticket, color: 'text-blue-400' },
@@ -237,7 +240,7 @@ export default function AssistantAcademicQuestionsPage() {
             ))}
           </div>
 
-          {/* فلترة وبحث مع إضافة toggle غير مخصصة */}
+          {/* فلترة وبحث */}
           <div className="flex flex-col md:flex-row gap-3 mb-6 flex-wrap">
             <div className="relative flex-1 min-w-[200px]">
               <Icons.Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
@@ -288,6 +291,8 @@ export default function AssistantAcademicQuestionsPage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap mb-1">
                           {!question.isAssigned && <span className="text-[10px] bg-yellow-400/20 text-yellow-400 px-2 py-0.5 rounded-full">غير مخصصة</span>}
+                          {/* ✅ جديد: عرض "مخصصة لي" */}
+                          {question.is_assigned_to_me && <span className="text-[10px] bg-blue-400/20 text-blue-400 px-2 py-0.5 rounded-full">مخصصة لي</span>}
                           <span className={`text-[10px] px-2 py-0.5 rounded-full border ${statusInfo.bg} ${statusInfo.color} ${statusInfo.border}`}>{statusInfo.label}</span>
                           <span className={`text-[10px] ${priorityInfo.color}`}>{priorityInfo.label}</span>
                           <span className={`text-[10px] ${categoryInfo.color} flex items-center gap-0.5`}><CategoryIcon className="h-3 w-3" />{categoryInfo.label}</span>
@@ -295,9 +300,13 @@ export default function AssistantAcademicQuestionsPage() {
                           <span className="text-[10px] text-gray-500">{formatDate(question.created_at)}</span>
                         </div>
                         <p className="font-bold truncate">{question.subject}</p>
-                        <div className="flex items-center gap-3 text-xs mt-1">
+                        <div className="flex items-center gap-3 text-xs mt-1 flex-wrap">
                           <span className={styles.subtext}><Icons.User className="h-3 w-3 inline ml-1" />{question.student?.full_name}</span>
                           {question.course?.title && <span className={styles.subtext}><Icons.Book className="h-3 w-3 inline ml-1" />{question.course.title}</span>}
+                          {/* ✅ جديد: عرض اسم المساعد المخصص */}
+                          {question.assigned_to_name && (
+                            <span className={styles.subtext}><Icons.UserCheck className="h-3 w-3 inline ml-1" />المساعد: {question.assigned_to_name}</span>
+                          )}
                         </div>
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0" onClick={e => e.stopPropagation()}>

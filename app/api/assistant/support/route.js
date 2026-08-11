@@ -1,6 +1,6 @@
 // ================================================================
 // 📁 app/api/assistant/support/route.js
-// ✅ نسخة مبسطة – تجلب التذاكر بناءً على assigned_to فقط
+// ✅ النسخة المُصحَّحة – إزالة تضارب اسم المتغير
 // ================================================================
 
 import { NextResponse } from 'next/server';
@@ -23,10 +23,10 @@ export async function GET(request) {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    // جلب بيانات المساعد
+    // جلب بيانات المساعد الحالي
     const { data: assistant, error: assistantError } = await supabaseAdmin
       .from('assistants')
-      .select('*')
+      .select('*, teacher:teacher_id(full_name)')
       .eq('id', assistantId)
       .single();
 
@@ -55,17 +55,34 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type');
     const ticketId = searchParams.get('id');
+    const status = searchParams.get('status');
+    const assignedToMeFilter = searchParams.get('assignedToMe') === 'true'; // ✅ تغيير الاسم
 
-    // ✅ الفلترة الأساسية: assigned_to = assistant.id أو null أو teacher_id
+    // 🔹 نجلب جميع التذاكر (بدون فلترة assigned_to) مع معلومات الطالب والكورس
     let query = supabaseAdmin
       .from('tickets')
-      .select('*, student:profiles!tickets_student_id_fkey(full_name, email), course:courses(title, teacher_id)')
-      .or(`assigned_to.eq.${assistantId},assigned_to.is.null,assigned_to.eq.${assistant.teacher_id}`);
+      .select(`
+        *,
+        student:profiles!tickets_student_id_fkey(full_name, email),
+        course:courses(title, teacher_id)
+      `);
 
+    // فلترة حسب النوع
     if (type) {
       query = query.eq('support_type', type);
     }
 
+    // فلترة حسب الحالة
+    if (status) {
+      query = query.eq('status', status);
+    }
+
+    // فلترة حسب التخصيص للمساعد الحالي
+    if (assignedToMeFilter) {
+      query = query.eq('assigned_to', assistantId);
+    }
+
+    // جلب تذكرة معينة بالمعرف
     if (ticketId) {
       query = query.eq('id', ticketId);
       const { data, error } = await query;
@@ -75,24 +92,96 @@ export async function GET(request) {
       if (!data || data.length === 0) {
         return NextResponse.json({ error: 'التذكرة غير موجودة' }, { status: 404 });
       }
-      return NextResponse.json({ success: true, tickets: data });
+
+      // جلب الردود مع معلومات المرسل
+      const { data: replies, error: repliesError } = await supabaseAdmin
+        .from('ticket_replies')
+        .select(`
+          *,
+          sender:profiles(full_name)
+        `)
+        .eq('ticket_id', ticketId)
+        .order('created_at', { ascending: true });
+
+      if (repliesError) {
+        console.warn('⚠️ فشل جلب الردود:', repliesError.message);
+      }
+
+      // إضافة اسم المساعد المخصص (إن وجد)
+      let assignedToName = null;
+      if (data[0].assigned_to) {
+        const { data: assistantData } = await supabaseAdmin
+          .from('assistants')
+          .select('full_name, display_name')
+          .eq('id', data[0].assigned_to)
+          .single();
+        assignedToName = assistantData?.display_name || assistantData?.full_name || 'مساعد';
+      }
+
+      const enhancedTicket = {
+        ...data[0],
+        assigned_to_name: assignedToName,
+        replies: replies || [],
+      };
+
+      return NextResponse.json({
+        success: true,
+        tickets: [enhancedTicket],
+      });
     }
 
-    const { data: tickets, error: ticketsError } = await query.order('created_at', { ascending: false });
+    // جلب جميع التذاكر (مع الترتيب حسب الأولوية ثم الأحدث)
+    const { data: tickets, error: ticketsError } = await query
+      .order('priority', { ascending: false })
+      .order('created_at', { ascending: false });
 
     if (ticketsError) {
       return NextResponse.json({ error: 'فشل جلب التذاكر: ' + ticketsError.message }, { status: 500 });
     }
 
-    // إحصائيات
+    // جلب أسماء المساعدين المخصصين لكل تذكرة
+    const assignedToIds = tickets
+      .map(t => t.assigned_to)
+      .filter(id => id !== null);
+    
+    let assistantsMap = {};
+    if (assignedToIds.length > 0) {
+      const { data: assistantsData } = await supabaseAdmin
+        .from('assistants')
+        .select('id, full_name, display_name')
+        .in('id', assignedToIds);
+      
+      assistantsData?.forEach(a => {
+        assistantsMap[a.id] = a.display_name || a.full_name || 'مساعد';
+      });
+    }
+
+    // تجهيز التذاكر مع معلومات إضافية
+    const enhancedTickets = tickets.map(ticket => ({
+      ...ticket,
+      assigned_to_name: ticket.assigned_to ? (assistantsMap[ticket.assigned_to] || 'مساعد') : null,
+      is_assigned_to_me: ticket.assigned_to === assistantId,
+      can_reply: (ticket.assigned_to === null || ticket.assigned_to === assistantId || ticket.assigned_to === assistant.teacher_id) && ticket.status !== 'closed',
+    }));
+
+    // إحصائيات عامة
     const open = tickets.filter(t => t.status === 'open' || t.status === 'in_progress').length;
     const inProgress = tickets.filter(t => t.status === 'in_progress').length;
     const resolved = tickets.filter(t => t.status === 'resolved' || t.status === 'closed').length;
+    const unassigned = tickets.filter(t => t.assigned_to === null).length;
+    const assignedToMeCount = tickets.filter(t => t.assigned_to === assistantId).length; // ✅ تغيير الاسم
 
     return NextResponse.json({
       success: true,
-      tickets: tickets || [],
-      stats: { open, inProgress, resolved },
+      tickets: enhancedTickets || [],
+      stats: {
+        open,
+        inProgress,
+        resolved,
+        unassigned,
+        assignedToMe: assignedToMeCount, // ✅ الاسم الجديد للقيمة المُرجَعة
+        total: tickets.length,
+      },
     });
   } catch (error) {
     console.error('❌ خطأ عام:', error);

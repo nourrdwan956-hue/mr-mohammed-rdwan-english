@@ -2,7 +2,7 @@
 
 // ================================================================
 // 💬 المسار: app/dashboard/assistant/support/[id]/page.js
-// ✅ صفحة التفاصيل – تعتمد على API الموحد لجلب التذكرة والردود
+// ✅ النسخة المحسّنة – عرض جميع الردود مع اسم المساعد، شريط جانبي، منع الرد لمساعد آخر
 // ================================================================
 
 import { AssistantLayout } from '@/components/AssistantLayout';
@@ -46,6 +46,7 @@ export default function AssistantSupportDetailPage() {
   const [canReply, setCanReply] = useState(false);
   const [notFound, setNotFound] = useState(false);
   const messagesEndRef = useRef(null);
+  const [assistantsMap, setAssistantsMap] = useState({}); // ✅ لتخزين أسماء المساعدين
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -78,7 +79,7 @@ export default function AssistantSupportDetailPage() {
         return;
       }
 
-      // ✅ استخدام API الموحد لجلب التذكرة (نفس منطق قائمة الدعم)
+      // ✅ استخدام API الموحد مع إضافة الردود
       const res = await fetch(`/api/assistant/support?id=${ticketId}`, {
         headers: { 'x-assistant-id': assistantData.id },
       });
@@ -107,27 +108,46 @@ export default function AssistantSupportDetailPage() {
       const ticketData = ticketsArray[0];
       setTicket(ticketData);
 
-      // تحديد إمكانية الرد بناءً على assigned_to
-      // إذا كانت معينة للمساعد الحالي أو للمعلم أو غير معينة → يمكن الرد
+      // استخراج الردود من البيانات (إن وجدت)
+      const repliesData = ticketData.replies || [];
+      setReplies(repliesData);
+
+      // تحديد إمكانية الرد
       const isAssignedToAssistant = ticketData.assigned_to === assistantData.id;
       const isAssignedToTeacher = ticketData.assigned_to === assistantData.teacher_id;
       const isUnassigned = ticketData.assigned_to === null;
       const isClosed = ticketData.status === 'closed';
+      const isAssignedToOther = ticketData.assigned_to !== null && ticketData.assigned_to !== assistantData.id && ticketData.assigned_to !== assistantData.teacher_id;
 
-      setCanReply((isAssignedToAssistant || isAssignedToTeacher || isUnassigned) && !isClosed);
+      setCanReply((isAssignedToAssistant || isAssignedToTeacher || isUnassigned) && !isClosed && !isAssignedToOther);
 
-      // جلب الردود
-      const { data: repliesData, error: repliesError } = await supabase
-        .from('ticket_replies')
-        .select('*, sender:profiles(full_name)')
-        .eq('ticket_id', ticketId)
-        .order('created_at', { ascending: true });
+      // ✅ جلب أسماء المساعدين (للعرض في الردود)
+      // سنجلب أسماء المساعدين الذين ردوا (إذا كان لدينا حقل replied_by_assistant_id)
+      // لكننا سنعتمد على sender_id + معرفة إذا كان sender_id هو معلم (teacher_id) أم لا.
+      // سنضيف منطقاً لتمييز الردود من المساعدين.
 
-      if (repliesError) {
-        console.error('Replies error:', repliesError);
-      } else {
-        setReplies(repliesData || []);
-      }
+      // إذا كانت الردود تحتوي على replied_by_assistant (من API) فسنستخدمه، وإلا سنحاول جلب أسماء المساعدين.
+      // لكننا سنعتمد على البيانات الموجودة.
+
+      // نضيف اسم المساعد إلى كل رد إذا كان هناك replied_by_assistant
+      const repliesWithNames = repliesData.map(reply => {
+        if (reply.replied_by_assistant) {
+          return {
+            ...reply,
+            senderName: reply.replied_by_assistant.full_name || 'مساعد',
+            isAssistant: true,
+          };
+        } else {
+          // إذا كان sender_id هو teacher_id، فهو المعلم
+          const isTeacher = reply.sender_id === assistantData.teacher_id;
+          return {
+            ...reply,
+            senderName: reply.sender?.full_name || (isTeacher ? 'المعلم' : 'طالب'),
+            isAssistant: false,
+          };
+        }
+      });
+      setReplies(repliesWithNames);
 
     } catch (err) {
       console.error('Fetch error:', err);
@@ -145,16 +165,42 @@ export default function AssistantSupportDetailPage() {
     if (!ticketId) return;
     const channel = supabase
       .channel(`ticket-detail-${ticketId}`)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'ticket_replies', filter: `ticket_id=eq.${ticketId}` }, (payload) => {
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'ticket_replies', filter: `ticket_id=eq.${ticketId}` }, async (payload) => {
         const newReply = payload.new;
-        supabase.from('profiles').select('full_name').eq('id', newReply.sender_id).single().then(({ data }) => {
-          setReplies(prev => [...prev, { ...newReply, sender: data }]);
-          setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
-        });
+        // جلب اسم المرسل
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('full_name')
+          .eq('id', newReply.sender_id)
+          .single();
+        
+        // محاولة معرفة إذا كان المرسل مساعداً (عن طريق التحقق من وجوده في جدول assistants)
+        let isAssistant = false;
+        let assistantName = null;
+        if (newReply.sender_id !== assistant?.teacher_id) {
+          const { data: assistantData } = await supabase
+            .from('assistants')
+            .select('display_name, full_name')
+            .eq('teacher_id', newReply.sender_id)
+            .single();
+          if (assistantData) {
+            isAssistant = true;
+            assistantName = assistantData.display_name || assistantData.full_name;
+          }
+        }
+
+        const replyWithName = {
+          ...newReply,
+          sender: profile,
+          senderName: assistantName || profile?.full_name || (newReply.sender_id === assistant?.teacher_id ? 'المعلم' : 'طالب'),
+          isAssistant,
+        };
+        setReplies(prev => [...prev, replyWithName]);
+        setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [ticketId]);
+  }, [ticketId, assistant]);
 
   const handleSendReply = async (e) => {
     e?.preventDefault();
@@ -174,17 +220,23 @@ export default function AssistantSupportDetailPage() {
       if (!res.ok) throw new Error(data.error || 'فشل إرسال الرد');
 
       if (data.reply) {
+        // إضافة الرد إلى القائمة محلياً (سيتم إضافته عبر Realtime أيضاً، لكننا نضيفه فوراً)
+        const reply = data.reply;
+        const senderName = reply.replied_by_assistant?.full_name || reply.sender?.full_name || 'المعلم';
         const newReplyObj = {
-          ...data.reply,
-          sender: data.reply.sender || { full_name: 'المعلم' },
-          replied_by_assistant: data.reply.replied_by_assistant || null,
+          ...reply,
+          senderName,
+          isAssistant: !!reply.replied_by_assistant,
         };
         setReplies(prev => [...prev, newReplyObj]);
         if (ticket.status === 'open') {
           setTicket(prev => ({ ...prev, status: 'in_progress' }));
         }
-        // بعد الرد، نضمن أن التذكرة أصبحت معينة لهذا المساعد
-        setCanReply(true);
+        // تحديث canReply إذا تغيرت الحالة أو التخصيص
+        if (data.reply.assigned_to_changed) {
+          setTicket(prev => ({ ...prev, assigned_to: assistant.id }));
+          setCanReply(true);
+        }
       }
 
       setNewReply('');
@@ -249,12 +301,17 @@ export default function AssistantSupportDetailPage() {
   const statusInfo = STATUS_MAP[ticket.status];
   const priorityInfo = PRIORITY_MAP[ticket.priority];
 
+  // تحديد من المساعد المخصص
+  const assignedToName = ticket.assigned_to_name || (ticket.assigned_to === assistant?.id ? 'أنت' : (ticket.assigned_to === assistant?.teacher_id ? 'المعلم' : (ticket.assigned_to ? 'مساعد آخر' : 'غير مخصصة')));
+
   return (
     <AssistantLayout>
       <div className={`min-h-screen ${styles.bg} ${styles.text} flex flex-col`} dir="rtl">
         {/* الهيدر */}
         <div className={`sticky top-0 z-20 ${styles.card} border-b ${styles.border} backdrop-blur-md px-4 py-3 flex items-center gap-3`}>
-          <button onClick={() => router.push('/dashboard/assistant/support')} className={`p-2 rounded-xl hover:bg-white/5 ${styles.subtext}`}><Icons.ArrowRight className="h-5 w-5" /></button>
+          <button onClick={() => router.push('/dashboard/assistant/support')} className={`p-2 rounded-xl hover:bg-white/5 ${styles.subtext}`}>
+            <Icons.ArrowRight className="h-5 w-5" />
+          </button>
           <div className="flex-1 min-w-0">
             <h1 className={`text-sm font-bold truncate ${styles.text}`}>{ticket.subject}</h1>
             <div className="flex items-center gap-2 text-[10px] mt-0.5 flex-wrap">
@@ -301,14 +358,13 @@ export default function AssistantSupportDetailPage() {
                   <p className={`text-xs ${styles.subtext} text-center py-8`}>لا توجد ردود بعد. كن أول من يرد!</p>
                 ) : (
                   replies.map((reply) => {
-                    const isAssistantReply = reply.replied_by_assistant?.id === assistant?.id;
-                    const isSenderAssistant = reply.sender_id === assistant?.id;
-                    const isMyReply = isAssistantReply || isSenderAssistant;
+                    // تحديد ما إذا كان الرد مني (مساعد حالي) أم لا
+                    const isMyReply = reply.sender_id === assistant?.id || reply.replied_by_assistant?.id === assistant?.id;
+                    // أو إذا كان sender_id هو teacher_id للمساعد (أي المعلم) – نعتبره رد من المعلم
+                    const isTeacherReply = reply.sender_id === assistant?.teacher_id;
 
-                    let displayName = reply.sender?.full_name || 'المعلم';
-                    if (reply.replied_by_assistant) {
-                      displayName = reply.replied_by_assistant.full_name;
-                    }
+                    let displayName = reply.senderName || reply.sender?.full_name || 'المعلم';
+                    let isAssistantReply = reply.isAssistant || false;
 
                     return (
                       <motion.div key={reply.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
@@ -316,7 +372,8 @@ export default function AssistantSupportDetailPage() {
                         <div className={`max-w-[85%] rounded-2xl p-4 ${isMyReply ? 'bg-gradient-to-br from-yellow-400/20 to-yellow-600/20 border border-[var(--border-color)]' : `${styles.card} border ${styles.border}`}`}>
                           <p className="text-[10px] font-semibold text-blue-400 mb-1">
                             {displayName}
-                            {reply.replied_by_assistant && ' (مساعد)'}
+                            {isAssistantReply && ' (مساعد)'}
+                            {isTeacherReply && ' (المعلم)'}
                           </p>
                           <p className="text-sm whitespace-pre-wrap">{reply.message}</p>
                           <p className="text-[10px] mt-2 opacity-60">{formatDate(reply.created_at)}</p>
@@ -354,7 +411,9 @@ export default function AssistantSupportDetailPage() {
             {!canReply && ticket.status !== 'closed' && (
               <div className={`${styles.card} border ${styles.border} rounded-2xl p-4 text-center ${styles.subtext}`}>
                 <Icons.Lock className="h-5 w-5 inline ml-2 text-yellow-400" />
-                هذه التذكرة معينة لمساعد آخر، لا يمكنك الرد عليها (يمكنك مشاهدة الردود فقط)
+                {ticket.assigned_to && ticket.assigned_to !== assistant?.id && ticket.assigned_to !== assistant?.teacher_id
+                  ? 'هذه التذكرة معينة لمساعد آخر، لا يمكنك الرد عليها (يمكنك مشاهدة الردود فقط)'
+                  : 'لا يمكنك الرد على هذه التذكرة حالياً'}
               </div>
             )}
           </div>
@@ -362,19 +421,36 @@ export default function AssistantSupportDetailPage() {
           {/* العمود الجانبي */}
           <div className="lg:col-span-1 space-y-4">
             <div className={`${styles.card} border ${styles.border} rounded-2xl p-4`}>
+              <h4 className={`text-sm font-bold ${styles.text} mb-3`}>معلومات التذكرة</h4>
+              <div className="space-y-2 text-sm">
+                <div><span className="text-gray-400">المساعد المسؤول:</span> <span className={styles.text}>{assignedToName}</span></div>
+                <div><span className="text-gray-400">الحالة:</span> <span className={statusInfo.color}>{statusInfo.label}</span></div>
+                <div><span className="text-gray-400">الأولوية:</span> <span className={priorityInfo.color}>{priorityInfo.label}</span></div>
+                <div><span className="text-gray-400">النوع:</span> <span>{ticket.support_type === 'technical' ? 'فنية' : 'أكاديمية'}</span></div>
+                <div><span className="text-gray-400">تاريخ الإنشاء:</span> <span>{formatDate(ticket.created_at)}</span></div>
+                {ticket.first_reply_at && <div><span className="text-gray-400">أول رد:</span> <span>{formatDate(ticket.first_reply_at)}</span></div>}
+                <div><span className="text-gray-400">عدد الردود:</span> <span>{replies.length}</span></div>
+              </div>
+            </div>
+
+            <div className={`${styles.card} border ${styles.border} rounded-2xl p-4`}>
               <h4 className={`text-sm font-bold ${styles.text} mb-3`}>الإجراءات</h4>
               {hasPermission(permissions, 'tickets', 'can_edit') && (
                 <div className="mb-4">
-                  <label className="text-xs text-gray-400 mb-1 block">الحالة</label>
+                  <label className="text-xs text-gray-400 mb-1 block">تغيير الحالة</label>
                   <select value={ticket.status} onChange={e => handleStatusChange(e.target.value)}
                     className={`w-full p-2 ${styles.input} border ${styles.border} rounded-lg text-sm`}>
-                    <option value="open">مفتوحة</option><option value="in_progress">قيد المعالجة</option>
-                    <option value="resolved">محلولة</option><option value="closed">مغلقة</option>
+                    <option value="open">مفتوحة</option>
+                    <option value="in_progress">قيد المعالجة</option>
+                    <option value="resolved">محلولة</option>
+                    <option value="closed">مغلقة</option>
                   </select>
                 </div>
               )}
               {hasPermission(permissions, 'tickets', 'can_delete') && (
-                <button onClick={handleDelete} className="w-full p-2 rounded-lg bg-red-500/10 text-red-400 text-sm">حذف التذكرة</button>
+                <button onClick={handleDelete} className="w-full p-2 rounded-lg bg-red-500/10 text-red-400 text-sm hover:bg-red-500/20 transition">
+                  حذف التذكرة
+                </button>
               )}
             </div>
           </div>

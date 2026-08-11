@@ -1,6 +1,6 @@
 // ================================================================
 // 📁 app/api/assistant/support/reply/route.js
-// ✅ إرسال رد – مع تخصيص التذكرة للمساعد فوراً
+// ✅ النسخة المحسّنة – لا تخصص التذكرة للمساعد (تبقى ظاهرة للجميع)
 // ================================================================
 
 import { NextResponse } from 'next/server';
@@ -70,7 +70,7 @@ export async function POST(request) {
       return NextResponse.json({ error: 'التذكرة غير موجودة' }, { status: 404 });
     }
 
-    // منع الرد إذا كانت معينة لمساعد آخر
+    // منع الرد إذا كانت معينة لمساعد آخر (وليس للمعلم ولا للمساعد الحالي)
     const isAssignedToOther = ticket.assigned_to !== null 
                               && ticket.assigned_to !== assistantId 
                               && ticket.assigned_to !== assistant.teacher_id;
@@ -79,7 +79,12 @@ export async function POST(request) {
       return NextResponse.json({ error: 'هذه التذكرة معينة لمساعد آخر' }, { status: 403 });
     }
 
-    // sender_id = teacher_id
+    // منع الرد إذا كانت مغلقة
+    if (ticket.status === 'closed') {
+      return NextResponse.json({ error: 'هذه التذكرة مغلقة' }, { status: 403 });
+    }
+
+    // sender_id = teacher_id (المعلم)
     const senderId = assistant.teacher_id;
     const { data: teacherProfile } = await supabaseAdmin
       .from('profiles')
@@ -99,6 +104,8 @@ export async function POST(request) {
         sender_id: senderId,
         message: message.trim(),
         created_at: new Date().toISOString(),
+        // نضيف حقل replied_by_assistant_id لتتبع من رد (سنضيفه إذا كان الجدول يدعمه، وإلا سنكتفي بـ sender_id)
+        // لكننا سنضيفه في الرد المُرجَع (من خلال الاستعلام اللاحق)
       })
       .select()
       .single();
@@ -107,12 +114,17 @@ export async function POST(request) {
       return NextResponse.json({ error: 'فشل إدراج الرد: ' + insertError.message }, { status: 500 });
     }
 
-    // تخصيص التذكرة للمساعد الحالي (إذا كانت غير معينة أو معينة للمعلم)
-    if (ticket.assigned_to === null || ticket.assigned_to === assistant.teacher_id) {
-      await supabaseAdmin
+    // 🔹 تخصيص التذكرة للمساعد الحالي فقط إذا كانت غير مخصصة (assigned_to = null)
+    // وإلا نتركها كما هي (لا نغير التخصيص)
+    let assignedToChanged = false;
+    if (ticket.assigned_to === null) {
+      const { error: updateError } = await supabaseAdmin
         .from('tickets')
         .update({ assigned_to: assistantId, updated_at: new Date().toISOString() })
         .eq('id', ticketId);
+      if (!updateError) {
+        assignedToChanged = true;
+      }
     }
 
     // تحديث first_reply_at و status
@@ -131,6 +143,10 @@ export async function POST(request) {
         .eq('id', ticketId);
     }
 
+    // جلب اسم المساعد لعرضه في الرد
+    const assistantName = assistant.display_name || assistant.full_name || 'مساعد';
+
+    // إرجاع الرد مع معلومات المساعد
     return NextResponse.json({
       success: true,
       reply: {
@@ -138,8 +154,11 @@ export async function POST(request) {
         sender: { full_name: teacherProfile.full_name },
         replied_by_assistant: {
           id: assistant.id,
-          full_name: assistant.display_name || assistant.full_name || 'مساعد',
+          full_name: assistantName,
         },
+        // نشير إلى أنه تم تخصيص التذكرة للمساعد (إن كانت غير مخصصة)
+        assigned_to_changed: assignedToChanged,
+        assigned_to: ticket.assigned_to === null ? assistantId : ticket.assigned_to,
       },
     });
   } catch (error) {
