@@ -44,10 +44,9 @@ export async function GET(request) {
       .select('*')
       .eq('assistant_id', assistantId);
 
-    // ===== إحصائيات المحتوى (حسب الصلاحيات) =====
+    // ===== إحصائيات المحتوى =====
     const stats = {};
 
-    // الكورسات
     if (permissions.some(p => p.module === 'courses' && (p.can_view || p.can_manage))) {
       const { count } = await supabaseAdmin
         .from('courses')
@@ -56,7 +55,6 @@ export async function GET(request) {
       stats.courses = count || 0;
     }
 
-    // الفيديوهات
     if (permissions.some(p => p.module === 'videos' && (p.can_view || p.can_manage))) {
       const { count } = await supabaseAdmin
         .from('videos')
@@ -65,7 +63,6 @@ export async function GET(request) {
       stats.videos = count || 0;
     }
 
-    // الامتحانات
     if (permissions.some(p => p.module === 'exams' && (p.can_view || p.can_manage))) {
       const { count } = await supabaseAdmin
         .from('exams')
@@ -74,7 +71,6 @@ export async function GET(request) {
       stats.exams = count || 0;
     }
 
-    // الكتب
     if (permissions.some(p => p.module === 'books' && (p.can_view || p.can_manage))) {
       const { count } = await supabaseAdmin
         .from('books')
@@ -83,7 +79,6 @@ export async function GET(request) {
       stats.books = count || 0;
     }
 
-    // بنك الأسئلة
     if (permissions.some(p => p.module === 'question_bank' && (p.can_view || p.can_manage))) {
       const { count } = await supabaseAdmin
         .from('questions')
@@ -92,31 +87,79 @@ export async function GET(request) {
       stats.questionBanks = count || 0;
     }
 
-    // ===== الدعم: عدد التذاكر التي لم يتم الرد عليها (غير مخصصة أو مفتوحة بدون رد) =====
+    // ===== الدعم: عدد التذاكر غير المردود عليها =====
     if (permissions.some(p => (p.module === 'support' || p.module === 'tickets') && (p.can_view || p.can_manage))) {
-      // ✅ 1- التذاكر غير المخصصة (assigned_to IS NULL) والمفتوحة أو قيد المعالجة
-      const { count: unassignedOpen } = await supabaseAdmin
+      // 1. جلب جميع مساعدي المعلم (بما فيهم المساعد الحالي)
+      const { data: allAssistants } = await supabaseAdmin
+        .from('assistants')
+        .select('id')
+        .eq('teacher_id', assistant.teacher_id);
+
+      const assistantIds = allAssistants?.map(a => a.id) || [];
+      // نضيف معرف المعلم نفسه (كـ "مساعد" خاص)
+      const assignableIds = [assistant.teacher_id, ...assistantIds];
+
+      // 2. جلب التذاكر المفتوحة/قيد المعالجة المرتبطة بهذا المعلم (عن طريق assigned_to أو عبر الكورس)
+      //    - التذاكر التي assigned_to في قائمة assignableIds (معلم أو مساعديه)
+      //    - أو التذاكر غير المخصصة (assigned_to IS NULL) ولكن مرتبطة بكورس لهذا المعلم
+      
+      // 2.a التذاكر المخصصة لأحدهم
+      const { data: assignedTickets, error: err1 } = await supabaseAdmin
         .from('tickets')
-        .select('*', { count: 'exact', head: true })
-        .eq('teacher_id', assistant.teacher_id) // افتراض وجود teacher_id في tickets
+        .select('id')
+        .in('assigned_to', assignableIds)
+        .in('status', ['open', 'in_progress']);
+
+      if (err1) console.error('err1', err1);
+      const assignedIds = assignedTickets?.map(t => t.id) || [];
+
+      // 2.b التذاكر غير المخصصة ولكن مرتبطة بكورس لهذا المعلم
+      const { data: unassignedTickets, error: err2 } = await supabaseAdmin
+        .from('tickets')
+        .select('id, course_id')
         .is('assigned_to', null)
         .in('status', ['open', 'in_progress']);
 
-      // ✅ 2- التذاكر المخصصة ولكن لم يرد عليها بعد (first_reply_at IS NULL)
-      const { count: noReply } = await supabaseAdmin
-        .from('tickets')
-        .select('*', { count: 'exact', head: true })
-        .eq('teacher_id', assistant.teacher_id)
-        .not('assigned_to', 'is', null)
-        .is('first_reply_at', null)
-        .in('status', ['open', 'in_progress']);
+      if (err2) console.error('err2', err2);
+      
+      // فلترة التذاكر غير المخصصة التي تتبع كورسات المعلم
+      let courseIds = [];
+      if (unassignedTickets && unassignedTickets.length > 0) {
+        const courseIdList = unassignedTickets.map(t => t.course_id).filter(id => id !== null);
+        if (courseIdList.length > 0) {
+          const { data: teacherCourses } = await supabaseAdmin
+            .from('courses')
+            .select('id')
+            .eq('teacher_id', assistant.teacher_id)
+            .in('id', courseIdList);
+          courseIds = teacherCourses?.map(c => c.id) || [];
+        }
+      }
+      
+      const unassignedValidIds = unassignedTickets
+        ?.filter(t => courseIds.includes(t.course_id))
+        .map(t => t.id) || [];
 
-      stats.support = (unassignedOpen || 0) + (noReply || 0);
+      // دمج المعرفات
+      const allTicketIds = [...assignedIds, ...unassignedValidIds];
+
+      // 3. من بين هذه التذاكر، احسب التي ليس لها رد (first_reply_at IS NULL)
+      let pendingCount = 0;
+      if (allTicketIds.length > 0) {
+        const { count } = await supabaseAdmin
+          .from('tickets')
+          .select('*', { count: 'exact', head: true })
+          .in('id', allTicketIds)
+          .is('first_reply_at', null);
+        pendingCount = count || 0;
+      }
+
+      stats.support = pendingCount;
     } else {
       stats.support = 0;
     }
 
-    // ===== إحصائيات إضافية: الإعلانات، المراسلات، الملاحظات =====
+    // ===== إحصائيات إضافية =====
     if (permissions.some(p => p.module === 'announcements' && (p.can_view || p.can_manage))) {
       const { count } = await supabaseAdmin
         .from('announcements')
@@ -139,15 +182,19 @@ export async function GET(request) {
       stats.notes = count || 0;
     }
 
-    // ===== آخر النشاطات (آخر 5 تذاكر أو أحداث) =====
-    const { data: logs } = await supabaseAdmin
-      .from('tickets')
-      .select('id, subject, status, created_at, updated_at, assigned_to')
-      .eq('teacher_id', assistant.teacher_id)
-      .order('updated_at', { ascending: false })
-      .limit(5);
+    // ===== آخر النشاطات (آخر 5 تذاكر) =====
+    let ticketsForLogs = [];
+    if (allTicketIds && allTicketIds.length > 0) {
+      const { data: logsData } = await supabaseAdmin
+        .from('tickets')
+        .select('id, subject, status, updated_at, created_at')
+        .in('id', allTicketIds.slice(0, 20)) // نأخذ عينة
+        .order('updated_at', { ascending: false })
+        .limit(5);
+      ticketsForLogs = logsData || [];
+    }
 
-    const formattedLogs = (logs || []).map(log => ({
+    const formattedLogs = ticketsForLogs.map(log => ({
       id: log.id,
       action: `تذكرة: ${log.subject}`,
       created_at: log.updated_at || log.created_at,

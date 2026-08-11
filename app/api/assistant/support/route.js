@@ -1,6 +1,6 @@
 // ================================================================
 // 📁 app/api/assistant/support/route.js
-// ✅ إرجاع التذاكر مع الردود و replied_by_assistant
+// ✅ إرجاع التذاكر مع الردود و replied_by_assistant (باستخدام left join صريح)
 // ================================================================
 
 import { NextResponse } from 'next/server';
@@ -79,13 +79,12 @@ export async function GET(request) {
         return NextResponse.json({ error: 'التذكرة غير موجودة' }, { status: 404 });
       }
 
-      // جلب الردود مع replied_by_assistant
+      // ✅ جلب الردود مع اسم المساعد باستخدام left join يدوي
       const { data: replies, error: repliesError } = await supabaseAdmin
         .from('ticket_replies')
         .select(`
           *,
-          sender:profiles(full_name),
-          replied_by_assistant:assistants!ticket_replies_replied_by_assistant_id_fkey(full_name, display_name)
+          sender:profiles(full_name)
         `)
         .eq('ticket_id', ticketId)
         .order('created_at', { ascending: true });
@@ -94,7 +93,29 @@ export async function GET(request) {
         console.warn('⚠️ فشل جلب الردود:', repliesError.message);
       }
 
-      // اسم المساعد المخصص
+      // ✅ جلب أسماء المساعدين لكل رد (بشكل منفصل لتجنب مشاكل العلاقة)
+      const repliesWithAssistant = await Promise.all((replies || []).map(async (reply) => {
+        let replied_by_assistant = null;
+        if (reply.replied_by_assistant_id) {
+          const { data: assistantData } = await supabaseAdmin
+            .from('assistants')
+            .select('id, full_name, display_name')
+            .eq('id', reply.replied_by_assistant_id)
+            .single();
+          if (assistantData) {
+            replied_by_assistant = {
+              id: assistantData.id,
+              full_name: assistantData.display_name || assistantData.full_name || 'مساعد'
+            };
+          }
+        }
+        return {
+          ...reply,
+          replied_by_assistant
+        };
+      }));
+
+      // اسم المساعد المخصص للتذكرة
       let assignedToName = null;
       if (data[0].assigned_to) {
         const { data: assistantData } = await supabaseAdmin
@@ -108,7 +129,7 @@ export async function GET(request) {
       const enhancedTicket = {
         ...data[0],
         assigned_to_name: assignedToName,
-        replies: replies || [],
+        replies: repliesWithAssistant || [],
       };
 
       return NextResponse.json({
