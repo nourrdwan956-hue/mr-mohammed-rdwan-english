@@ -4,6 +4,7 @@
 // 📁 app/dashboard/assistant/support/page.js
 // ✅ النسخة المحسّنة – تبويبات، عرض اسم المساعد، فلترة متقدمة
 // ================================================================
+import React from 'react';
 
 import { AssistantLayout } from '@/components/AssistantLayout';
 import { motion, AnimatePresence } from 'framer-motion';

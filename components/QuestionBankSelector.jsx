@@ -4,7 +4,7 @@
 // مودال اختيار الأسئلة من بنك الأسئلة
 // النسخة العملاقة V2 – متوافقة مع المعلم والمساعد
 // ============================================================
-
+import React from 'react'
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import * as Icons from 'lucide-react';

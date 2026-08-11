@@ -4,6 +4,7 @@
 // 💬 المسار: app/dashboard/assistant/support/[id]/page.js
 // ✅ عرض الردود مع اسم المساعد الحقيقي
 // ================================================================
+import React from 'react';
 
 import { AssistantLayout } from '@/components/AssistantLayout';
 import { motion } from 'framer-motion';

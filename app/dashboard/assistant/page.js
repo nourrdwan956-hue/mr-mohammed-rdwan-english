@@ -12,6 +12,7 @@
 // - إشعارات حقيقية (عدد التذاكر المفتوحة، الرسائل غير المقروءة)
 // - تحسين الأداء للأجهزة الصغيرة
 // ================================================================
+import React from 'react';
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';

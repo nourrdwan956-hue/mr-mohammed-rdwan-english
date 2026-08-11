@@ -4,6 +4,7 @@
 // 🛠️ المسار: app/dashboard/assistant/support/technical/page.js
 // قائمة الشكاوى الفنية للمساعد – تشمل غير المخصصة
 // ================================================================
+import React from 'react';
 
 import { AssistantLayout } from '@/components/AssistantLayout';
 import { motion, AnimatePresence } from 'framer-motion';

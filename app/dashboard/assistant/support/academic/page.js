@@ -4,6 +4,7 @@
 // 🎓 المسار: app/dashboard/assistant/support/academic/page.js
 // قائمة الأسئلة الأكاديمية للمساعد – تشمل غير المخصصة
 // ================================================================
+import React from 'react';
 
 import { AssistantLayout } from '@/components/AssistantLayout';
 import { motion, AnimatePresence } from 'framer-motion';
