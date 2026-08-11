@@ -1,6 +1,6 @@
 // ================================================================
 // 📁 app/api/assistant/support/route.js
-// ✅ إرجاع التذاكر مع الردود و replied_by_assistant (باستخدام left join صريح)
+// ✅ إرجاع التذاكر مع الردود واسم المساعد الحقيقي
 // ================================================================
 
 import { NextResponse } from 'next/server';
@@ -25,7 +25,7 @@ export async function GET(request) {
 
     const { data: assistant, error: assistantError } = await supabaseAdmin
       .from('assistants')
-      .select('*, teacher:teacher_id(full_name)')
+      .select('*')
       .eq('id', assistantId)
       .single();
 
@@ -79,7 +79,7 @@ export async function GET(request) {
         return NextResponse.json({ error: 'التذكرة غير موجودة' }, { status: 404 });
       }
 
-      // ✅ جلب الردود مع اسم المساعد باستخدام left join يدوي
+      // جلب الردود مع اسم المساعد
       const { data: replies, error: repliesError } = await supabaseAdmin
         .from('ticket_replies')
         .select(`
@@ -93,7 +93,7 @@ export async function GET(request) {
         console.warn('⚠️ فشل جلب الردود:', repliesError.message);
       }
 
-      // ✅ جلب أسماء المساعدين لكل رد (بشكل منفصل لتجنب مشاكل العلاقة)
+      // جلب أسماء المساعدين لكل رد
       const repliesWithAssistant = await Promise.all((replies || []).map(async (reply) => {
         let replied_by_assistant = null;
         if (reply.replied_by_assistant_id) {
