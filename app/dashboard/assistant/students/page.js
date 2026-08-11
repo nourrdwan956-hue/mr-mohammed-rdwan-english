@@ -2,10 +2,11 @@
 
 // ============================================================
 // app/dashboard/assistant/students/page.js
-// إدارة الطلاب – نسخة المساعد (مع تجاوز مؤقت للصلاحية)
-// ✅ تم تجاوز صلاحية students مؤقتاً للاختبار
+// إدارة الطلاب – نسخة المساعد (مع Suspense لحل خطأ البناء)
+// ✅ إضافة Suspense boundary لحل خطأ useSearchParams في البناء
 // ============================================================
 
+import { Suspense } from 'react';
 import { AssistantLayout } from '@/components/AssistantLayout';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
@@ -133,7 +134,12 @@ const StatCard = ({ stat, styles }) => {
         </div>
       </div>
       <div className="mt-4 h-1 w-full bg-white/5 rounded-full overflow-hidden">
-        <motion.div className={`h-full bg-gradient-to-r ${stat.color} rounded-full`} initial={{ width: 0 }} animate={{ width: isHovered ? '100%' : '70%' }} transition={{ duration: 0.8 }} />
+        <motion.div
+          className={`h-full bg-gradient-to-r ${stat.color} rounded-full`}
+          initial={{ width: 0 }}
+          animate={{ width: isHovered ? '100%' : '70%' }}
+          transition={{ duration: 0.8 }}
+        />
       </div>
     </motion.div>
   );
@@ -158,7 +164,13 @@ const StudentCard = ({ student, onViewProfile, index, styles }) => {
   const avatarColors = ['from-blue-400 to-blue-600', 'from-green-400 to-green-600', 'from-purple-400 to-purple-600', 'from-pink-400 to-pink-600', 'from-orange-400 to-orange-600', 'from-teal-400 to-teal-600', 'from-red-400 to-red-600', 'from-indigo-400 to-indigo-600'];
   const avatarColor = avatarColors[index % avatarColors.length];
   return (
-    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.05 }} whileHover={{ y: -4 }} onMouseEnter={() => setIsHovered(true)} onMouseLeave={() => setIsHovered(false)}
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.05 }}
+      whileHover={{ y: -4 }}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
       className={`group relative ${styles.card} border ${styles.border} rounded-2xl overflow-hidden hover:border-yellow-400/50 transition-all duration-500 hover:shadow-2xl hover:shadow-yellow-400/10`}
     >
       <div className={`absolute inset-0 bg-gradient-to-br from-yellow-400/5 via-purple-500/5 to-transparent rounded-2xl transition-opacity duration-500 ${isHovered ? 'opacity-100' : 'opacity-0'}`} />
@@ -208,13 +220,14 @@ const StudentCard = ({ student, onViewProfile, index, styles }) => {
 };
 
 // ============================================================
-// 6. الصفحة الرئيسية – إدارة الطلاب للمساعد (مع تجاوز الصلاحية)
+// 6. المكون الرئيسي (محتوى الصفحة)
 // ============================================================
-export default function AssistantStudentsPage() {
+function AssistantStudentsPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const courseIdParam = searchParams.get('courseId');
   const { theme, styles } = useTheme();
+  const isDark = theme === 'dark';
 
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -231,7 +244,7 @@ export default function AssistantStudentsPage() {
   const [stats, setStats] = useState({ total: 0, active: 0, completed: 0, notStarted: 0, avgProgress: 0 });
   const [courseOptions, setCourseOptions] = useState([]);
 
-  // ✅ جلب بيانات المساعد والصلاحيات من sessionStorage مباشرة (بدون API)
+  // ✅ جلب بيانات المساعد والصلاحيات من sessionStorage
   useEffect(() => {
     try {
       const sessionData = sessionStorage.getItem('assistantData');
@@ -481,5 +494,20 @@ export default function AssistantStudentsPage() {
         </div>
       </div>
     </AssistantLayout>
+  );
+}
+
+// ============================================================
+// التصدير مع Suspense boundary
+// ============================================================
+export default function AssistantStudentsPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-screen bg-[#0b0e1a]">
+        <div className="w-12 h-12 border-4 border-yellow-400/30 border-t-yellow-400 rounded-full animate-spin" />
+      </div>
+    }>
+      <AssistantStudentsPageContent />
+    </Suspense>
   );
 }
