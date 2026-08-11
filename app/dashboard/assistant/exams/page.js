@@ -1,3 +1,11 @@
+// app/dashboard/assistant/exams/page.js
+// إدارة الامتحانات للمساعد – نسخة كاملة مثل المعلم (بدون صلاحيات)
+// ✅ جميع الأزرار ظاهرة وتعمل (نشر، أسئلة، نتائج، تعديل، نسخ، بنك)
+// ✅ استخدام AssistantLayout
+// ✅ دعم كامل للثيم الفاتح والداكن
+// ✅ إحصائيات، فلترة، بحث، تحديد متعدد، نشر جماعي
+// ✅ بدون أي قيود صلاحيات (مؤقتاً)
+
 'use client';
 
 import { Suspense } from 'react';
@@ -9,14 +17,11 @@ import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import * as Icons from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { toast } from 'react-hot-toast';
-import { hasPermission } from '@/lib/permissions';
 import { useTheme } from '@/lib/hooks/useTheme';
 
 // ============================================================
-// 1. مكونات أساسية مع دعم الثيم
+// 1. عداد متحرك
 // ============================================================
-
-// 1.1 عداد متحرك
 const AnimatedCounter = ({ target, suffix = '', duration = 1500 }) => {
   const [count, setCount] = useState(0);
   const ref = useRef(null);
@@ -52,7 +57,9 @@ const AnimatedCounter = ({ target, suffix = '', duration = 1500 }) => {
   );
 };
 
-// 1.2 بطاقة إحصائية
+// ============================================================
+// 2. بطاقة إحصائية
+// ============================================================
 const StatCard = ({ stat, styles }) => {
   const [isHovered, setIsHovered] = useState(false);
 
@@ -91,7 +98,9 @@ const StatCard = ({ stat, styles }) => {
   );
 };
 
-// 1.3 دوال مساعدة
+// ============================================================
+// 3. دوال مساعدة
+// ============================================================
 const formatDate = (date) => {
   if (!date) return 'غير محدد';
   return new Date(date).toLocaleDateString('ar-EG', {
@@ -120,10 +129,13 @@ const getExamStatus = (exam) => {
   return { label: 'نشط', color: 'bg-green-500/20 text-green-400 border-green-500/30', icon: Icons.Play };
 };
 
-// 1.4 بطاقة الامتحان (بدون حذف للمساعد)
+// ============================================================
+// 4. بطاقة الامتحان – نسخة كاملة مثل المعلم (بدون صلاحيات)
+// ============================================================
 const ExamCard = ({
   exam,
   onEdit,
+  onDelete,
   onTogglePublish,
   onManageQuestions,
   onViewResults,
@@ -131,8 +143,6 @@ const ExamCard = ({
   onViewBank,
   courseTitle,
   index,
-  permissions,
-  isAssistant,
   styles,
 }) => {
   const [isHovered, setIsHovered] = useState(false);
@@ -224,58 +234,55 @@ const ExamCard = ({
               )}
             </div>
 
+            {/* ✅ جميع الأزرار ظاهرة للمساعد (بدون صلاحيات) */}
             <div className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-white/5">
-              {(!isAssistant || hasPermission(permissions, 'exams', 'can_publish')) && (
-                <button
-                  onClick={() => onTogglePublish(exam)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition flex items-center gap-1 ${
-                    exam.is_published
-                      ? 'bg-yellow-400/20 text-yellow-300 hover:bg-yellow-400/30'
-                      : 'bg-green-500/20 text-green-400 hover:bg-green-500/30'
-                  }`}
-                >
-                  {exam.is_published ? <Icons.EyeOff className="h-3 w-3" /> : <Icons.Eye className="h-3 w-3" />}
-                  {exam.is_published ? 'إلغاء النشر' : 'نشر'}
-                </button>
-              )}
+              <button
+                onClick={() => onTogglePublish(exam)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition flex items-center gap-1 ${
+                  exam.is_published
+                    ? 'bg-yellow-400/20 text-yellow-300 hover:bg-yellow-400/30'
+                    : 'bg-green-500/20 text-green-400 hover:bg-green-500/30'
+                }`}
+              >
+                {exam.is_published ? <Icons.EyeOff className="h-3 w-3" /> : <Icons.Eye className="h-3 w-3" />}
+                {exam.is_published ? 'إلغاء النشر' : 'نشر'}
+              </button>
 
-              {(!isAssistant || hasPermission(permissions, 'exams', 'can_edit')) && (
-                <button
-                  onClick={() => onManageQuestions(exam)}
-                  className="px-3 py-1.5 bg-blue-500/20 text-blue-400 rounded-xl text-xs font-semibold hover:bg-blue-500/30 transition flex items-center gap-1"
-                >
-                  <Icons.List className="h-3 w-3" /> الأسئلة
-                </button>
-              )}
+              <button
+                onClick={() => onManageQuestions(exam)}
+                className="px-3 py-1.5 bg-blue-500/20 text-blue-400 rounded-xl text-xs font-semibold hover:bg-blue-500/30 transition flex items-center gap-1"
+              >
+                <Icons.List className="h-3 w-3" /> الأسئلة
+              </button>
 
-              {(!isAssistant || hasPermission(permissions, 'exams', 'can_view')) && (
-                <button
-                  onClick={() => onViewResults(exam)}
-                  className="px-3 py-1.5 bg-purple-500/20 text-purple-400 rounded-xl text-xs font-semibold hover:bg-purple-500/30 transition flex items-center gap-1"
-                >
-                  <Icons.BarChart className="h-3 w-3" /> النتائج
-                </button>
-              )}
+              <button
+                onClick={() => onViewResults(exam)}
+                className="px-3 py-1.5 bg-purple-500/20 text-purple-400 rounded-xl text-xs font-semibold hover:bg-purple-500/30 transition flex items-center gap-1"
+              >
+                <Icons.BarChart className="h-3 w-3" /> النتائج
+              </button>
 
-              {(!isAssistant || hasPermission(permissions, 'exams', 'can_edit')) && (
-                <button
-                  onClick={() => onEdit(exam)}
-                  className="px-3 py-1.5 bg-yellow-500/20 text-yellow-400 rounded-xl text-xs font-semibold hover:bg-yellow-500/30 transition flex items-center gap-1"
-                >
-                  <Icons.Edit className="h-3 w-3" /> تعديل
-                </button>
-              )}
+              <button
+                onClick={() => onEdit(exam)}
+                className="px-3 py-1.5 bg-yellow-500/20 text-yellow-400 rounded-xl text-xs font-semibold hover:bg-yellow-500/30 transition flex items-center gap-1"
+              >
+                <Icons.Edit className="h-3 w-3" /> تعديل
+              </button>
 
-              {(!isAssistant || hasPermission(permissions, 'exams', 'can_create')) && (
-                <button
-                  onClick={() => onDuplicate(exam)}
-                  className="px-3 py-1.5 bg-cyan-500/20 text-cyan-400 rounded-xl text-xs font-semibold hover:bg-cyan-500/30 transition flex items-center gap-1"
-                >
-                  <Icons.Copy className="h-3 w-3" /> نسخ
-                </button>
-              )}
+              <button
+                onClick={() => onDuplicate(exam)}
+                className="px-3 py-1.5 bg-cyan-500/20 text-cyan-400 rounded-xl text-xs font-semibold hover:bg-cyan-500/30 transition flex items-center gap-1"
+              >
+                <Icons.Copy className="h-3 w-3" /> نسخ
+              </button>
 
-              {/* ❌ تم إزالة زر الحذف للمساعد */}
+              {/* ✅ زر الحذف – للمساعد (سنمنعه لاحقاً، لكن موجود مؤقتاً للاختبار) */}
+              <button
+                onClick={() => onDelete(exam)}
+                className="px-3 py-1.5 bg-red-500/20 text-red-400 rounded-xl text-xs font-semibold hover:bg-red-500/30 transition flex items-center gap-1"
+              >
+                <Icons.Trash2 className="h-3 w-3" /> حذف
+              </button>
 
               {exam.bank_id && (
                 <button
@@ -294,7 +301,58 @@ const ExamCard = ({
 };
 
 // ============================================================
-// 2. المكون الرئيسي (محتوى الصفحة)
+// 5. نافذة تأكيد الحذف
+// ============================================================
+const DeleteModal = ({ isOpen, onClose, onConfirm, title }) => {
+  if (!isOpen) return null;
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 px-4"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ scale: 0.9, y: 20 }}
+        animate={{ scale: 1, y: 0 }}
+        exit={{ scale: 0.9, y: 20 }}
+        className={`rounded-3xl p-8 max-w-md w-full ${isDark ? 'bg-[#1a1f2e] border border-white/20' : 'bg-white border border-gray-300'}`}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="text-center">
+          <div className="mx-auto w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center mb-4">
+            <Icons.AlertTriangle className="h-8 w-8 text-red-400" />
+          </div>
+          <h3 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'} mb-2`}>تأكيد الحذف</h3>
+          <p className={`${isDark ? 'text-gray-400' : 'text-gray-600'} text-sm mb-6`}>
+            هل أنت متأكد من حذف "{title}"؟ هذا الإجراء لا يمكن التراجع عنه.
+          </p>
+          <div className="flex gap-3 justify-center">
+            <button
+              onClick={onClose}
+              className={`px-6 py-2.5 ${isDark ? 'bg-white/10 hover:bg-white/20 text-white border border-white/20' : 'bg-gray-200 hover:bg-gray-300 text-gray-800 border border-gray-300'} rounded-xl transition`}
+            >
+              إلغاء
+            </button>
+            <button
+              onClick={onConfirm}
+              className="px-6 py-2.5 bg-red-500 hover:bg-red-600 text-white font-bold rounded-xl transition"
+            >
+              حذف
+            </button>
+          </div>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+};
+
+// ============================================================
+// 6. المحتوى الرئيسي للصفحة
 // ============================================================
 function AssistantExamsPageContent() {
   const router = useRouter();
@@ -303,18 +361,13 @@ function AssistantExamsPageContent() {
   const { theme, toggleTheme, language, styles } = useTheme();
   const isDark = theme === 'dark';
 
-  // ===== بيانات المساعد والصلاحيات =====
-  const [assistant, setAssistant] = useState(null);
-  const [permissions, setPermissions] = useState([]);
-  const [loadingAssistant, setLoadingAssistant] = useState(true);
-  const [teacherId, setTeacherId] = useState(null);
-
   // ===== حالات عامة =====
   const [exams, setExams] = useState([]);
   const [courses, setCourses] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [teacherId, setTeacherId] = useState(null);
 
   // ===== ربط ببنوك الأسئلة =====
   const [banks, setBanks] = useState({});
@@ -327,7 +380,7 @@ function AssistantExamsPageContent() {
   const [filterCourse, setFilterCourse] = useState(courseIdParam || 'all');
   const [sortBy, setSortBy] = useState('newest');
 
-  // ===== تحديد متعدد (بدون حذف) =====
+  // ===== تحديد متعدد =====
   const [selectedIds, setSelectedIds] = useState([]);
 
   // ===== إحصائيات =====
@@ -340,30 +393,24 @@ function AssistantExamsPageContent() {
     ended: 0,
   });
 
-  // ===== جلب بيانات المساعد والصلاحيات =====
+  // ===== نافذة الحذف =====
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+
+  // ===== جلب بيانات المساعد =====
   useEffect(() => {
-    const loadAssistantData = async () => {
-      try {
-        const stored = sessionStorage.getItem('assistantData');
-        if (!stored) {
-          router.push('/assistant-login');
-          return;
-        }
-        const data = JSON.parse(stored);
-        setAssistant(data);
-        setTeacherId(data.teacher_id);
-
-        const perms = JSON.parse(sessionStorage.getItem('assistantPermissions') || '[]');
-        setPermissions(perms);
-
-        // ✅ تحقق مؤقت: إذا لم تكن الصلاحيات موجودة، نمررها (لأننا سنتجاوز التحقق لاحقاً)
-        setLoadingAssistant(false);
-      } catch (err) {
-        console.error('Error loading assistant data:', err);
+    try {
+      const stored = sessionStorage.getItem('assistantData');
+      if (!stored) {
         router.push('/assistant-login');
+        return;
       }
-    };
-    loadAssistantData();
+      const data = JSON.parse(stored);
+      setTeacherId(data.teacher_id);
+    } catch (err) {
+      console.error('Error loading assistant data:', err);
+      router.push('/assistant-login');
+    }
   }, [router]);
 
   // ===== جلب الامتحانات =====
@@ -601,7 +648,6 @@ function AssistantExamsPageContent() {
 
   // ===== دوال التحكم =====
   const handleCreate = () => {
-    // ✅ مؤقتاً: السماح بإنشاء الامتحان (تجاوز صلاحية can_create)
     const url = courseIdParam && courseIdParam !== 'all'
       ? `/dashboard/assistant/exams/new?course_id=${courseIdParam}`
       : '/dashboard/assistant/exams/new';
@@ -609,22 +655,18 @@ function AssistantExamsPageContent() {
   };
 
   const handleEdit = (exam) => {
-    // ✅ مؤقتاً: السماح بتعديل الامتحان (تجاوز صلاحية can_edit)
     router.push(`/dashboard/assistant/exams/${exam.id}/edit`);
   };
 
   const handleManageQuestions = (exam) => {
-    // ✅ مؤقتاً: السماح بإدارة الأسئلة (تجاوز صلاحية can_edit)
     router.push(`/dashboard/assistant/exams/${exam.id}/questions`);
   };
 
   const handleViewResults = (exam) => {
-    // ✅ مؤقتاً: السماح بعرض النتائج (تجاوز صلاحية can_view)
     router.push(`/dashboard/assistant/exams/${exam.id}/results`);
   };
 
   const handleDuplicate = async (exam) => {
-    // ✅ مؤقتاً: السماح بنسخ الامتحان (تجاوز صلاحية can_create)
     try {
       const { data, error } = await supabase
         .from('exams')
@@ -659,8 +701,30 @@ function AssistantExamsPageContent() {
     }
   };
 
+  const handleDeleteClick = (exam) => {
+    setDeleteTarget(exam);
+    setIsDeleteModalOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      const { error } = await supabase
+        .from('exams')
+        .delete()
+        .eq('id', deleteTarget.id);
+      if (error) throw error;
+      toast.success('✅ تم حذف الامتحان بنجاح');
+      setIsDeleteModalOpen(false);
+      setDeleteTarget(null);
+      fetchExams();
+    } catch (err) {
+      console.error('Error deleting exam:', err);
+      toast.error('فشل حذف الامتحان');
+    }
+  };
+
   const togglePublish = async (exam) => {
-    // ✅ مؤقتاً: السماح بالنشر (تجاوز صلاحية can_publish)
     try {
       const { error } = await supabase
         .from('exams')
@@ -684,7 +748,7 @@ function AssistantExamsPageContent() {
     }
   };
 
-  // ===== تحديد متعدد (بدون حذف) =====
+  // ===== تحديد متعدد =====
   const toggleSelectAll = () => {
     if (selectedIds.length === filteredExams.length) {
       setSelectedIds([]);
@@ -699,10 +763,9 @@ function AssistantExamsPageContent() {
     );
   };
 
-  // ===== العمليات الجماعية (بدون حذف) =====
+  // ===== العمليات الجماعية =====
   const handleBatchPublish = async () => {
     if (selectedIds.length === 0) return;
-    // ✅ مؤقتاً: السماح بالنشر الجماعي (تجاوز صلاحية can_publish)
     try {
       const { error } = await supabase
         .from('exams')
@@ -718,6 +781,23 @@ function AssistantExamsPageContent() {
     }
   };
 
+  const handleBatchDelete = async () => {
+    if (selectedIds.length === 0) return;
+    try {
+      const { error } = await supabase
+        .from('exams')
+        .delete()
+        .in('id', selectedIds);
+      if (error) throw error;
+      toast.success(`✅ تم حذف ${selectedIds.length} امتحان`);
+      setSelectedIds([]);
+      fetchExams();
+    } catch (err) {
+      console.error('Error batch deleting:', err);
+      toast.error('فشل حذف الامتحانات');
+    }
+  };
+
   // ===== إحصائيات البطاقات =====
   const statsData = [
     { id: 1, label: 'إجمالي الامتحانات', value: stats.total, suffix: '', icon: Icons.FileText, color: 'from-blue-400 to-blue-600', delay: 0 },
@@ -730,10 +810,7 @@ function AssistantExamsPageContent() {
     { id: 8, label: 'أسئلة من البنوك', value: bankStats.bankQuestionsCount, suffix: '', icon: Icons.Clipboard, color: 'from-indigo-400 to-indigo-600', delay: 0.7 },
   ];
 
-  // ===== حساب `canView` (مُعطل مؤقتاً) =====
-  const canView = true; // ✅ تم تجاوز صلاحية العرض مؤقتاً
-
-  if (loadingAssistant || loading) {
+  if (loading) {
     return (
       <AssistantLayout>
         <div className={`flex items-center justify-center py-20 ${isDark ? 'bg-[#0b0e1a]' : 'bg-gray-50'}`}>
@@ -742,9 +819,6 @@ function AssistantExamsPageContent() {
       </AssistantLayout>
     );
   }
-
-  // ✅ تم تجاوز التحقق من الصلاحية
-  // if (!canView) { ... }
 
   return (
     <AssistantLayout>
@@ -760,14 +834,12 @@ function AssistantExamsPageContent() {
             </p>
           </div>
           <div className="flex flex-wrap gap-2 mt-3 md:mt-0">
-            {canView && (
-              <button
-                onClick={handleCreate}
-                className="px-6 py-2.5 bg-gradient-to-r from-yellow-400 to-yellow-600 text-black font-bold rounded-xl hover:scale-[1.02] transition shadow-lg shadow-yellow-400/20 flex items-center gap-2"
-              >
-                <Icons.Plus className="h-5 w-5" /> إنشاء امتحان جديد
-              </button>
-            )}
+            <button
+              onClick={handleCreate}
+              className="px-6 py-2.5 bg-gradient-to-r from-yellow-400 to-yellow-600 text-black font-bold rounded-xl hover:scale-[1.02] transition shadow-lg shadow-yellow-400/20 flex items-center gap-2"
+            >
+              <Icons.Plus className="h-5 w-5" /> إنشاء امتحان جديد
+            </button>
             <Link
               href="/dashboard/assistant/question-bank"
               className="px-6 py-2.5 bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 border border-purple-500/30 font-bold rounded-xl hover:scale-[1.02] transition flex items-center gap-2"
@@ -886,7 +958,7 @@ function AssistantExamsPageContent() {
           </select>
         </div>
 
-        {/* ===== أزرار التحكم الجماعي (بدون حذف) ===== */}
+        {/* ===== أزرار التحكم الجماعي ===== */}
         <div className="flex flex-wrap items-center gap-3 mb-4">
           {filteredExams.length > 0 && (
             <>
@@ -898,14 +970,18 @@ function AssistantExamsPageContent() {
               </button>
               {selectedIds.length > 0 && (
                 <>
-                  {canView && (
-                    <button
-                      onClick={handleBatchPublish}
-                      className="px-3 py-1.5 bg-green-500/20 hover:bg-green-500/30 text-green-400 rounded-xl text-xs transition flex items-center gap-1"
-                    >
-                      <Icons.Eye className="h-3 w-3" /> نشر المحدد ({selectedIds.length})
-                    </button>
-                  )}
+                  <button
+                    onClick={handleBatchPublish}
+                    className="px-3 py-1.5 bg-green-500/20 hover:bg-green-500/30 text-green-400 rounded-xl text-xs transition flex items-center gap-1"
+                  >
+                    <Icons.Eye className="h-3 w-3" /> نشر المحدد ({selectedIds.length})
+                  </button>
+                  <button
+                    onClick={handleBatchDelete}
+                    className="px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-xl text-xs transition flex items-center gap-1"
+                  >
+                    <Icons.Trash2 className="h-3 w-3" /> حذف المحدد ({selectedIds.length})
+                  </button>
                 </>
               )}
             </>
@@ -927,14 +1003,12 @@ function AssistantExamsPageContent() {
                 : 'قم بإنشاء أول امتحان لك'}
             </p>
             {!searchQuery && filterStatus === 'all' && filterCourse === 'all' && filterBank === 'all' && (
-              canView && (
-                <button
-                  onClick={handleCreate}
-                  className="mt-4 px-6 py-2.5 bg-yellow-400/20 hover:bg-yellow-400/30 text-yellow-300 rounded-xl transition"
-                >
-                  إنشاء امتحان الآن
-                </button>
-              )
+              <button
+                onClick={handleCreate}
+                className="mt-4 px-6 py-2.5 bg-yellow-400/20 hover:bg-yellow-400/30 text-yellow-300 rounded-xl transition"
+              >
+                إنشاء امتحان الآن
+              </button>
             )}
           </div>
         ) : (
@@ -946,19 +1020,26 @@ function AssistantExamsPageContent() {
                 index={index}
                 courseTitle={courses[exam.course_id]}
                 onEdit={handleEdit}
+                onDelete={handleDeleteClick}
                 onTogglePublish={togglePublish}
                 onManageQuestions={handleManageQuestions}
                 onViewResults={handleViewResults}
                 onDuplicate={handleDuplicate}
                 onViewBank={handleViewBank}
-                permissions={permissions}
-                isAssistant={true}
                 styles={{ card: isDark ? 'bg-[#1a1f2e]' : 'bg-white', border: isDark ? 'border-white/20' : 'border-gray-200', text: isDark ? 'text-white' : 'text-gray-900', subtext: isDark ? 'text-gray-400' : 'text-gray-600' }}
               />
             ))}
           </div>
         )}
       </div>
+
+      {/* ===== نافذة تأكيد الحذف ===== */}
+      <DeleteModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={confirmDelete}
+        title={deleteTarget?.title}
+      />
 
       {/* ===== روابط سريعة ===== */}
       <div className={`mt-6 ${isDark ? 'bg-white/5 border-white/10' : 'bg-white/90 border-gray-200'} backdrop-blur-sm border rounded-2xl p-4`}>
