@@ -205,7 +205,7 @@ const QuickAction = ({ action, styles, onClick }) => {
 // ================================================================
 export default function AssistantDashboardPage() {
   const router = useRouter();
-  const { theme, styles } = useTheme(); // ✅ استخدام الثيم الموحد
+  const { theme, styles } = useTheme();
 
   // حالات الصفحة
   const [loading, setLoading] = useState(true);
@@ -346,9 +346,9 @@ export default function AssistantDashboardPage() {
         delay: 0.4,
         max: 50,
       });
-    if (hasView('support'))
+    if (hasView('support') || hasView('tickets'))
       items.push({
-        label: 'الدعم',
+        label: 'دعم (غير مردود)', // ✅ تم تعديل التسمية لتوضيح المعنى
         value: stats.support || 0,
         icon: HelpCircle,
         color: 'from-yellow-400 to-yellow-600',
@@ -411,7 +411,7 @@ export default function AssistantDashboardPage() {
         delay: 0.4,
         count: stats.questionBanks || 0,
       });
-    if (hasView('support'))
+    if (hasView('support') || hasView('tickets'))
       actions.push({
         label: 'الدعم',
         description: 'الشكاوى والأسئلة',
@@ -610,7 +610,7 @@ export default function AssistantDashboardPage() {
           </div>
         </div>
 
-        {/* ===== الخدمات الرئيسية (بطاقات مميزة للوحدات الأربع الجديدة) ===== */}
+        {/* ===== الخدمات الرئيسية ===== */}
         <div className="mb-8">
           <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
             <Grid className="w-5 h-5 text-yellow-400" />

@@ -1,7 +1,11 @@
+// ================================================================
+// 📁 app/api/assistant/dashboard-data/route.js
+// ✅ إرجاع إحصائيات لوحة التحكم، بما فيها عدد التذاكر غير المردود عليها
+// ================================================================
 
-// app/api/assistant/dashboard-data/route.js
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+
 export async function GET(request) {
   try {
     const assistantId = request.headers.get('x-assistant-id');
@@ -9,13 +13,17 @@ export async function GET(request) {
       return NextResponse.json({ error: 'معرف المساعد مطلوب' }, { status: 400 });
     }
 
-    const supabaseAdmin = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.SUPABASE_SERVICE_ROLE_KEY|| process.env.SUPABASE_SERVICE_ROLE_KEY,
-      { auth: { autoRefreshToken: false, persistSession: false } }
-    );
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseSecretKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!supabaseUrl || !supabaseSecretKey) {
+      return NextResponse.json({ error: 'تكوين الخادم غير مكتمل' }, { status: 500 });
+    }
 
-    // 1. جلب بيانات المساعد
+    const supabaseAdmin = createClient(supabaseUrl, supabaseSecretKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+
+    // جلب بيانات المساعد
     const { data: assistant, error: assistantError } = await supabaseAdmin
       .from('assistants')
       .select('*')
@@ -27,88 +35,138 @@ export async function GET(request) {
     }
 
     if (!assistant.is_active) {
-      return NextResponse.json({ error: 'الحساب غير نشط' }, { status: 403 });
+      return NextResponse.json({ error: 'الحساب غير مفعل' }, { status: 403 });
     }
 
-    // تحديث last_login
-    await supabaseAdmin
-      .from('assistants')
-      .update({ last_login: new Date().toISOString() })
-      .eq('id', assistantId);
-
-    // 2. جلب الصلاحيات
-    const { data: permissions, error: permsError } = await supabaseAdmin
+    // جلب الصلاحيات
+    const { data: permissions } = await supabaseAdmin
       .from('assistant_permissions')
       .select('*')
       .eq('assistant_id', assistantId);
 
-    const perms = permissions || [];
-
-    // 3. جلب الإحصائيات
-    const teacherId = assistant.teacher_id;
+    // ===== إحصائيات المحتوى (حسب الصلاحيات) =====
     const stats = {};
 
-    const countTable = async (table, field = 'teacher_id') => {
-      const { count, error } = await supabaseAdmin
-        .from(table)
-        .select('*', { count: 'exact', head: true })
-        .eq(field, teacherId);
-      if (error) return 0;
-      return count || 0;
-    };
-
-    stats.courses = await countTable('courses');
-    stats.videos = await countTable('videos');
-    stats.exams = await countTable('exams');
-    stats.books = await countTable('books');
-    stats.questionBanks = await countTable('question_banks');
-
-    // عدد الطلاب: enrollments عبر course_ids
-    const { data: courseIdsData } = await supabaseAdmin
-      .from('courses')
-      .select('id')
-      .eq('teacher_id', teacherId);
-    const courseIds = courseIdsData?.map(c => c.id) || [];
-    let studentsCount = 0;
-    if (courseIds.length > 0) {
+    // الكورسات
+    if (permissions.some(p => p.module === 'courses' && (p.can_view || p.can_manage))) {
       const { count } = await supabaseAdmin
-        .from('enrollments')
-        .select('student_id', { count: 'exact', head: true })
-        .in('course_id', courseIds);
-      studentsCount = count || 0;
+        .from('courses')
+        .select('*', { count: 'exact', head: true })
+        .eq('teacher_id', assistant.teacher_id);
+      stats.courses = count || 0;
     }
-    stats.students = studentsCount;
 
-    // 4. جلب آخر النشاطات (اختياري)
-    const { data: logs, error: logsError } = await supabaseAdmin
-      .from('assistant_logs')
-      .select('*')
-      .eq('assistant_id', assistantId)
-      .order('created_at', { ascending: false })
-      .limit(6);
+    // الفيديوهات
+    if (permissions.some(p => p.module === 'videos' && (p.can_view || p.can_manage))) {
+      const { count } = await supabaseAdmin
+        .from('videos')
+        .select('*', { count: 'exact', head: true })
+        .eq('teacher_id', assistant.teacher_id);
+      stats.videos = count || 0;
+    }
 
-    // استجابة موحدة
+    // الامتحانات
+    if (permissions.some(p => p.module === 'exams' && (p.can_view || p.can_manage))) {
+      const { count } = await supabaseAdmin
+        .from('exams')
+        .select('*', { count: 'exact', head: true })
+        .eq('teacher_id', assistant.teacher_id);
+      stats.exams = count || 0;
+    }
+
+    // الكتب
+    if (permissions.some(p => p.module === 'books' && (p.can_view || p.can_manage))) {
+      const { count } = await supabaseAdmin
+        .from('books')
+        .select('*', { count: 'exact', head: true })
+        .eq('teacher_id', assistant.teacher_id);
+      stats.books = count || 0;
+    }
+
+    // بنك الأسئلة
+    if (permissions.some(p => p.module === 'question_bank' && (p.can_view || p.can_manage))) {
+      const { count } = await supabaseAdmin
+        .from('questions')
+        .select('*', { count: 'exact', head: true })
+        .eq('teacher_id', assistant.teacher_id);
+      stats.questionBanks = count || 0;
+    }
+
+    // ===== الدعم: عدد التذاكر التي لم يتم الرد عليها (غير مخصصة أو مفتوحة بدون رد) =====
+    if (permissions.some(p => (p.module === 'support' || p.module === 'tickets') && (p.can_view || p.can_manage))) {
+      // ✅ 1- التذاكر غير المخصصة (assigned_to IS NULL) والمفتوحة أو قيد المعالجة
+      const { count: unassignedOpen } = await supabaseAdmin
+        .from('tickets')
+        .select('*', { count: 'exact', head: true })
+        .eq('teacher_id', assistant.teacher_id) // افتراض وجود teacher_id في tickets
+        .is('assigned_to', null)
+        .in('status', ['open', 'in_progress']);
+
+      // ✅ 2- التذاكر المخصصة ولكن لم يرد عليها بعد (first_reply_at IS NULL)
+      const { count: noReply } = await supabaseAdmin
+        .from('tickets')
+        .select('*', { count: 'exact', head: true })
+        .eq('teacher_id', assistant.teacher_id)
+        .not('assigned_to', 'is', null)
+        .is('first_reply_at', null)
+        .in('status', ['open', 'in_progress']);
+
+      stats.support = (unassignedOpen || 0) + (noReply || 0);
+    } else {
+      stats.support = 0;
+    }
+
+    // ===== إحصائيات إضافية: الإعلانات، المراسلات، الملاحظات =====
+    if (permissions.some(p => p.module === 'announcements' && (p.can_view || p.can_manage))) {
+      const { count } = await supabaseAdmin
+        .from('announcements')
+        .select('*', { count: 'exact', head: true })
+        .eq('teacher_id', assistant.teacher_id);
+      stats.announcements = count || 0;
+    }
+    if (permissions.some(p => p.module === 'messages' && (p.can_view || p.can_manage))) {
+      const { count } = await supabaseAdmin
+        .from('messages')
+        .select('*', { count: 'exact', head: true })
+        .eq('teacher_id', assistant.teacher_id);
+      stats.messages = count || 0;
+    }
+    if (permissions.some(p => p.module === 'notes' && (p.can_view || p.can_manage))) {
+      const { count } = await supabaseAdmin
+        .from('notes')
+        .select('*', { count: 'exact', head: true })
+        .eq('teacher_id', assistant.teacher_id);
+      stats.notes = count || 0;
+    }
+
+    // ===== آخر النشاطات (آخر 5 تذاكر أو أحداث) =====
+    const { data: logs } = await supabaseAdmin
+      .from('tickets')
+      .select('id, subject, status, created_at, updated_at, assigned_to')
+      .eq('teacher_id', assistant.teacher_id)
+      .order('updated_at', { ascending: false })
+      .limit(5);
+
+    const formattedLogs = (logs || []).map(log => ({
+      id: log.id,
+      action: `تذكرة: ${log.subject}`,
+      created_at: log.updated_at || log.created_at,
+    }));
+
     return NextResponse.json({
       success: true,
       assistant: {
-        id: assistant.id,
-        full_name: assistant.full_name,
-        display_name: assistant.display_name,
-        role: assistant.role,
-        teacher_id: assistant.teacher_id,
-        access_code: assistant.access_code,
-        is_active: assistant.is_active,
-        created_at: assistant.created_at,
-        last_login: assistant.last_login,
+        ...assistant,
+        permissions,
       },
-      permissions: perms,
+      permissions,
       stats,
-      logs: logs || [],
+      logs: formattedLogs,
     });
-  } catch (err) {
-    console.error('❌ Dashboard data error:', err);
+  } catch (error) {
+    console.error('❌ Dashboard data error:', error);
     return NextResponse.json(
-      { error: 'حدث خطأ في الخادم' },
+      { error: 'فشل جلب بيانات لوحة التحكم', details: error.message },
       { status: 500 }
     );
   }
