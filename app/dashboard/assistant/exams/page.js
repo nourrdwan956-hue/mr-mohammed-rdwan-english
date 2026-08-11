@@ -1,13 +1,8 @@
-// ============================================================
 // app/dashboard/assistant/exams/page.js
-// إدارة الامتحانات – نسخة المساعد (بدون حذف)
-// ✅ تم منع صلاحية الحذف تماماً (فردي/جماعي)
-// ✅ استخدام AssistantLayout مع صلاحيات مخزنة في sessionStorage
-// ✅ نفس التصميم والوظائف مع إخفاء أزرار الحذف
-// ============================================================
 
 'use client';
 
+import { Suspense } from 'react';
 import { AssistantLayout } from '@/components/AssistantLayout';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
@@ -16,13 +11,14 @@ import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import * as Icons from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { toast } from 'react-hot-toast';
-import { useTheme } from '@/lib/hooks/useTheme';
 import { hasPermission } from '@/lib/permissions';
+import { useTheme } from '@/lib/hooks/useTheme';
 
 // ============================================================
-// 1. مكونات أساسية مع دعم الثيم (نفس ملف المعلم)
+// 1. مكونات أساسية مع دعم الثيم عبر CSS Variables
 // ============================================================
 
+// 1.1 عداد متحرك
 const AnimatedCounter = ({ target, suffix = '', duration = 1500 }) => {
   const [count, setCount] = useState(0);
   const ref = useRef(null);
@@ -58,9 +54,8 @@ const AnimatedCounter = ({ target, suffix = '', duration = 1500 }) => {
   );
 };
 
-const StatCard = ({ stat }) => {
-  const { theme } = useTheme();
-  const isDark = theme === 'dark';
+// 1.2 بطاقة إحصائية (مع ثيم موحد)
+const StatCard = ({ stat, styles }) => {
   const [isHovered, setIsHovered] = useState(false);
 
   return (
@@ -71,21 +66,16 @@ const StatCard = ({ stat }) => {
       whileHover={{ y: -6, scale: 1.02 }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      className="relative rounded-2xl p-5 transition-all duration-300 hover:shadow-2xl overflow-hidden group"
-      style={{
-        backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.9)',
-        borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(200,200,200,0.6)',
-        borderWidth: '1px',
-        borderStyle: 'solid',
-      }}
+      className={`relative ${styles.card} border ${styles.border} rounded-2xl p-5 hover:border-yellow-400/50 transition-all duration-300 hover:shadow-2xl hover:shadow-yellow-400/10 overflow-hidden group`}
     >
       <div className={`absolute inset-0 bg-gradient-to-br ${stat.color} opacity-0 group-hover:opacity-10 transition-opacity duration-500`} />
       <div className="relative z-10 flex items-start justify-between">
         <div>
-          <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{stat.label}</p>
-          <p className={`text-3xl font-extrabold mt-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+          <p className={`${styles.subtext} text-sm`}>{stat.label}</p>
+          <p className={`text-3xl font-extrabold ${styles.text} mt-1`}>
             <AnimatedCounter target={stat.value} suffix={stat.suffix || ''} />
           </p>
+          {stat.sub && <p className={`text-xs ${styles.subtext} mt-1`}>{stat.sub}</p>}
         </div>
         <div className={`p-3 rounded-xl bg-gradient-to-br ${stat.color} bg-opacity-20`}>
           <stat.icon className="h-6 w-6 text-white" />
@@ -103,6 +93,7 @@ const StatCard = ({ stat }) => {
   );
 };
 
+// 1.3 دوال مساعدة
 const formatDate = (date) => {
   if (!date) return 'غير محدد';
   return new Date(date).toLocaleDateString('ar-EG', {
@@ -131,7 +122,7 @@ const getExamStatus = (exam) => {
   return { label: 'نشط', color: 'bg-green-500/20 text-green-400 border-green-500/30', icon: Icons.Play };
 };
 
-// ===== بطاقة الامتحان (بدون حذف) =====
+// 1.4 بطاقة الامتحان (بدون حذف للمساعد)
 const ExamCard = ({
   exam,
   onEdit,
@@ -144,9 +135,8 @@ const ExamCard = ({
   index,
   permissions,
   isAssistant,
+  styles,
 }) => {
-  const { theme } = useTheme();
-  const isDark = theme === 'dark';
   const [isHovered, setIsHovered] = useState(false);
   const status = getExamStatus(exam);
   const StatusIcon = status.icon;
@@ -159,13 +149,7 @@ const ExamCard = ({
       whileHover={{ y: -4 }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      className="group relative rounded-2xl overflow-hidden transition-all duration-500 hover:shadow-2xl"
-      style={{
-        backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.9)',
-        borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(200,200,200,0.6)',
-        borderWidth: '1px',
-        borderStyle: 'solid',
-      }}
+      className={`group relative ${styles.card} border ${styles.border} rounded-2xl overflow-hidden hover:border-yellow-400/50 transition-all duration-500 hover:shadow-2xl hover:shadow-yellow-400/10`}
     >
       <div className={`absolute inset-0 bg-gradient-to-br from-yellow-400/5 via-purple-500/5 to-transparent rounded-2xl transition-opacity duration-500 ${isHovered ? 'opacity-100' : 'opacity-0'}`} />
 
@@ -190,11 +174,11 @@ const ExamCard = ({
           <div className="flex-1 min-w-0">
             <div className="flex items-start justify-between flex-wrap gap-2">
               <div>
-                <h3 className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'} group-hover:text-yellow-300 transition-colors cursor-pointer`}>
+                <h3 className={`text-lg font-bold ${styles.text} group-hover:text-yellow-300 transition-colors cursor-pointer`}>
                   {exam.title}
                 </h3>
                 {courseTitle && (
-                  <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'} flex items-center gap-1 mt-0.5`}>
+                  <p className={`text-xs ${styles.subtext} flex items-center gap-1 mt-0.5`}>
                     <Icons.Book className="h-3 w-3" /> {courseTitle}
                   </p>
                 )}
@@ -202,36 +186,36 @@ const ExamCard = ({
                   <p className="text-xs text-yellow-400/80 flex items-center gap-1 mt-0.5">
                     <Icons.Database className="h-3 w-3" />
                     مستورد من: {exam.bank_title}
-                    <span className={`${isDark ? 'text-gray-400' : 'text-gray-500'} mr-1`}>({exam.bank_questions_count || 0} سؤال)</span>
+                    <span className={`${styles.subtext} mr-1`}>({exam.bank_questions_count || 0} سؤال)</span>
                   </p>
                 )}
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-sm font-extrabold text-yellow-400">{exam.total_marks || 0} درجة</span>
                 {exam.passing_marks && (
-                  <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>(نجاح: {exam.passing_marks})</span>
+                  <span className={`text-xs ${styles.subtext}`}>(نجاح: {exam.passing_marks})</span>
                 )}
               </div>
             </div>
 
-            <p className={`${isDark ? 'text-gray-400' : 'text-gray-600'} text-sm mt-1 line-clamp-2`}>
+            <p className={`${styles.subtext} text-sm mt-1 line-clamp-2`}>
               {exam.description || 'لا يوجد وصف'}
             </p>
 
             <div className="flex flex-wrap items-center gap-3 mt-3 text-xs">
-              <span className={`flex items-center gap-1.5 ${isDark ? 'bg-white/5' : 'bg-gray-100'} px-3 py-1 rounded-full ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+              <span className={`flex items-center gap-1.5 ${styles.card} px-3 py-1 rounded-full ${styles.subtext}`}>
                 <Icons.Clock className="h-3.5 w-3.5" />
                 {exam.duration_minutes || 0} د
               </span>
-              <span className={`flex items-center gap-1.5 ${isDark ? 'bg-white/5' : 'bg-gray-100'} px-3 py-1 rounded-full ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+              <span className={`flex items-center gap-1.5 ${styles.card} px-3 py-1 rounded-full ${styles.subtext}`}>
                 <Icons.Calendar className="h-3.5 w-3.5" />
                 {formatDate(exam.start_date)}
               </span>
-              <span className={`flex items-center gap-1.5 ${isDark ? 'bg-white/5' : 'bg-gray-100'} px-3 py-1 rounded-full ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+              <span className={`flex items-center gap-1.5 ${styles.card} px-3 py-1 rounded-full ${styles.subtext}`}>
                 <Icons.Users className="h-3.5 w-3.5" />
                 {exam.attempts_count || 0}
               </span>
-              <span className={`flex items-center gap-1.5 ${isDark ? 'bg-white/5' : 'bg-gray-100'} px-3 py-1 rounded-full ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+              <span className={`flex items-center gap-1.5 ${styles.card} px-3 py-1 rounded-full ${styles.subtext}`}>
                 <Icons.HelpCircle className="h-3.5 w-3.5" />
                 {exam.questions_count || 0}
               </span>
@@ -293,7 +277,7 @@ const ExamCard = ({
                 </button>
               )}
 
-              {/* ✅ تم إزالة زر الحذف تماماً للمساعد */}
+              {/* ❌ تم إزالة زر الحذف للمساعد */}
 
               {exam.bank_id && (
                 <button
@@ -312,15 +296,20 @@ const ExamCard = ({
 };
 
 // ============================================================
-// 2. الصفحة الرئيسية للمساعد – إدارة الامتحانات
+// 2. المكون الرئيسي (محتوى الصفحة)
 // ============================================================
-
-export default function AssistantExamsPage() {
+function AssistantExamsPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const courseIdParam = searchParams.get('courseId');
-  const { theme, toggleTheme, language } = useTheme();
+  const { theme, toggleTheme, language, styles } = useTheme();
   const isDark = theme === 'dark';
+
+  // ===== بيانات المساعد والصلاحيات =====
+  const [assistant, setAssistant] = useState(null);
+  const [permissions, setPermissions] = useState([]);
+  const [loadingAssistant, setLoadingAssistant] = useState(true);
+  const [teacherId, setTeacherId] = useState(null);
 
   // ===== حالات عامة =====
   const [exams, setExams] = useState([]);
@@ -353,40 +342,51 @@ export default function AssistantExamsPage() {
     ended: 0,
   });
 
-  // ===== صلاحيات المساعد =====
-  const [permissions, setPermissions] = useState(null);
-  const [isAssistant, setIsAssistant] = useState(true); // دائمًا true للمساعد
-  const [assistantData, setAssistantData] = useState(null);
+  // ===== جلب بيانات المساعد والصلاحيات =====
+  useEffect(() => {
+    const loadAssistantData = async () => {
+      try {
+        const stored = sessionStorage.getItem('assistantData');
+        if (!stored) {
+          router.push('/assistant-login');
+          return;
+        }
+        const data = JSON.parse(stored);
+        setAssistant(data);
+        setTeacherId(data.teacher_id);
+
+        const perms = JSON.parse(sessionStorage.getItem('assistantPermissions') || '[]');
+        setPermissions(perms);
+
+        // التحقق من صلاحية العرض
+        if (!hasPermission(perms, 'exams', 'can_view')) {
+          toast.error('غير مصرح لك بمشاهدة هذه الصفحة');
+          router.push('/dashboard/assistant');
+          return;
+        }
+
+        setLoadingAssistant(false);
+      } catch (err) {
+        console.error('Error loading assistant data:', err);
+        router.push('/assistant-login');
+      }
+    };
+    loadAssistantData();
+  }, [router]);
 
   // ===== جلب الامتحانات =====
   const fetchExams = useCallback(async () => {
+    if (!teacherId) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
-      // جلب بيانات المساعد من sessionStorage
-      const stored = sessionStorage.getItem('assistantData');
-      if (!stored) {
-        router.push('/assistant-login');
-        return;
-      }
-      const assistant = JSON.parse(stored);
-      setAssistantData(assistant);
-
-      // جلب الصلاحيات
-      const perms = JSON.parse(sessionStorage.getItem('assistantPermissions') || '[]');
-      setPermissions(perms);
-
-      // التحقق من صلاحية العرض
-      if (!hasPermission(perms, 'exams', 'can_view')) {
-        toast.error('غير مصرح لك بمشاهدة هذه الصفحة');
-        router.push('/dashboard/assistant');
-        return;
-      }
-
-      // 1. جلب جميع الكورسات التابعة للمعلم (من teacher_id في بيانات المساعد)
+      // 1. جلب جميع الكورسات التابعة للمعلم
       const { data: coursesData } = await supabase
         .from('courses')
         .select('id, title')
-        .eq('teacher_id', assistant.teacher_id);
+        .eq('teacher_id', teacherId);
 
       const courseMap = {};
       (coursesData || []).forEach(c => { courseMap[c.id] = c.title; });
@@ -396,7 +396,7 @@ export default function AssistantExamsPage() {
       let query = supabase
         .from('exams')
         .select('*')
-        .eq('teacher_id', assistant.teacher_id)
+        .eq('teacher_id', teacherId)
         .order('created_at', { ascending: false });
 
       if (courseIdParam && courseIdParam !== 'all') {
@@ -443,7 +443,6 @@ export default function AssistantExamsPage() {
 
       // 4. جلب معلومات البنوك المصدر للامتحانات
       let bankMap = {};
-      let bankQuestionsCount = {};
       let bankUsageCount = {};
 
       if (examIds.length > 0) {
@@ -538,11 +537,11 @@ export default function AssistantExamsPage() {
     } finally {
       setLoading(false);
     }
-  }, [courseIdParam, router]);
+  }, [courseIdParam, teacherId]);
 
   useEffect(() => {
-    fetchExams();
-  }, [fetchExams]);
+    if (teacherId) fetchExams();
+  }, [teacherId, fetchExams]);
 
   // ===== الفلترة والبحث =====
   const filteredExams = useMemo(() => {
@@ -650,12 +649,6 @@ export default function AssistantExamsPage() {
       return;
     }
     try {
-      const teacherId = assistantData?.teacher_id;
-      if (!teacherId) {
-        toast.error('لا يمكن تحديد المعلم');
-        return;
-      }
-
       const { data, error } = await supabase
         .from('exams')
         .insert({
@@ -754,7 +747,7 @@ export default function AssistantExamsPage() {
     }
   };
 
-  // ===== إحصائيات البطاقات (بدون حذف) =====
+  // ===== إحصائيات البطاقات =====
   const statsData = [
     { id: 1, label: 'إجمالي الامتحانات', value: stats.total, suffix: '', icon: Icons.FileText, color: 'from-blue-400 to-blue-600', delay: 0 },
     { id: 2, label: 'منشور', value: stats.published, suffix: '', icon: Icons.CheckCircle, color: 'from-green-400 to-green-600', delay: 0.1 },
@@ -766,7 +759,7 @@ export default function AssistantExamsPage() {
     { id: 8, label: 'أسئلة من البنوك', value: bankStats.bankQuestionsCount, suffix: '', icon: Icons.Clipboard, color: 'from-indigo-400 to-indigo-600', delay: 0.7 },
   ];
 
-  if (loading) {
+  if (loadingAssistant || loading) {
     return (
       <AssistantLayout>
         <div className={`flex items-center justify-center py-20 ${isDark ? 'bg-[#0b0e1a]' : 'bg-gray-50'}`}>
@@ -776,9 +769,28 @@ export default function AssistantExamsPage() {
     );
   }
 
+  // ===== التحقق من الصلاحية =====
+  if (!hasPermission(permissions, 'exams', 'can_view')) {
+    return (
+      <AssistantLayout>
+        <div className={`flex flex-col items-center justify-center py-20 ${isDark ? 'bg-[#0b0e1a]' : 'bg-gray-50'}`}>
+          <Icons.Lock className={`h-16 w-16 ${isDark ? 'text-gray-600' : 'text-gray-400'} mb-4`} />
+          <h2 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>غير مصرح لك</h2>
+          <p className={`${isDark ? 'text-gray-400' : 'text-gray-600'} mt-2`}>ليس لديك صلاحية عرض الامتحانات</p>
+          <button
+            onClick={() => router.push('/dashboard/assistant')}
+            className="mt-4 px-6 py-2 bg-yellow-400/20 hover:bg-yellow-400/30 text-yellow-300 rounded-xl transition"
+          >
+            العودة للوحة التحكم
+          </button>
+        </div>
+      </AssistantLayout>
+    );
+  }
+
   return (
     <AssistantLayout>
-      <div className="relative" style={{ backgroundColor: isDark ? '#0b0e1a' : '#f3f4f6' }}>
+      <div className={`relative ${isDark ? 'bg-[#0b0e1a]' : 'bg-gray-50'}`}>
         {/* ===== رأس الصفحة ===== */}
         <div className="flex flex-col md:flex-row md:items-center justify-between mb-6">
           <div>
@@ -859,7 +871,7 @@ export default function AssistantExamsPage() {
         {/* ===== الإحصائيات ===== */}
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4 mb-6">
           {statsData.map((stat) => (
-            <StatCard key={stat.id} stat={stat} />
+            <StatCard key={stat.id} stat={stat} styles={{ card: isDark ? 'bg-[#1a1f2e]' : 'bg-white', border: isDark ? 'border-white/20' : 'border-gray-200', text: isDark ? 'text-white' : 'text-gray-900', subtext: isDark ? 'text-gray-400' : 'text-gray-600' }} />
           ))}
         </div>
 
@@ -985,7 +997,8 @@ export default function AssistantExamsPage() {
                 onDuplicate={handleDuplicate}
                 onViewBank={handleViewBank}
                 permissions={permissions}
-                isAssistant={isAssistant}
+                isAssistant={true}
+                styles={{ card: isDark ? 'bg-[#1a1f2e]' : 'bg-white', border: isDark ? 'border-white/20' : 'border-gray-200', text: isDark ? 'text-white' : 'text-gray-900', subtext: isDark ? 'text-gray-400' : 'text-gray-600' }}
               />
             ))}
           </div>
@@ -1007,5 +1020,20 @@ export default function AssistantExamsPage() {
         </div>
       </div>
     </AssistantLayout>
+  );
+}
+
+// ============================================================
+// التصدير مع Suspense boundary
+// ============================================================
+export default function AssistantExamsPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-screen bg-[#0b0e1a]">
+        <div className="w-12 h-12 border-4 border-yellow-400/30 border-t-yellow-400 rounded-full animate-spin" />
+      </div>
+    }>
+      <AssistantExamsPageContent />
+    </Suspense>
   );
 }
