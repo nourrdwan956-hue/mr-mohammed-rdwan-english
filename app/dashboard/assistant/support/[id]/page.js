@@ -2,7 +2,7 @@
 
 // ================================================================
 // 💬 المسار: app/dashboard/assistant/support/[id]/page.js
-// ✅ النسخة المحسّنة – عرض جميع الردود مع اسم المساعد، شريط جانبي، منع الرد لمساعد آخر
+// ✅ عرض الردود مع اسم المساعد الحقيقي
 // ================================================================
 
 import { AssistantLayout } from '@/components/AssistantLayout';
@@ -46,7 +46,6 @@ export default function AssistantSupportDetailPage() {
   const [canReply, setCanReply] = useState(false);
   const [notFound, setNotFound] = useState(false);
   const messagesEndRef = useRef(null);
-  const [assistantsMap, setAssistantsMap] = useState({}); // ✅ لتخزين أسماء المساعدين
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -79,7 +78,7 @@ export default function AssistantSupportDetailPage() {
         return;
       }
 
-      // ✅ استخدام API الموحد مع إضافة الردود
+      // ✅ جلب التذكرة مع الردود من API الموحد
       const res = await fetch(`/api/assistant/support?id=${ticketId}`, {
         headers: { 'x-assistant-id': assistantData.id },
       });
@@ -108,7 +107,7 @@ export default function AssistantSupportDetailPage() {
       const ticketData = ticketsArray[0];
       setTicket(ticketData);
 
-      // استخراج الردود من البيانات (إن وجدت)
+      // ✅ الردود تأتي مع replied_by_assistant من API
       const repliesData = ticketData.replies || [];
       setReplies(repliesData);
 
@@ -120,35 +119,6 @@ export default function AssistantSupportDetailPage() {
       const isAssignedToOther = ticketData.assigned_to !== null && ticketData.assigned_to !== assistantData.id && ticketData.assigned_to !== assistantData.teacher_id;
 
       setCanReply((isAssignedToAssistant || isAssignedToTeacher || isUnassigned) && !isClosed && !isAssignedToOther);
-
-      // ✅ جلب أسماء المساعدين (للعرض في الردود)
-      // سنجلب أسماء المساعدين الذين ردوا (إذا كان لدينا حقل replied_by_assistant_id)
-      // لكننا سنعتمد على sender_id + معرفة إذا كان sender_id هو معلم (teacher_id) أم لا.
-      // سنضيف منطقاً لتمييز الردود من المساعدين.
-
-      // إذا كانت الردود تحتوي على replied_by_assistant (من API) فسنستخدمه، وإلا سنحاول جلب أسماء المساعدين.
-      // لكننا سنعتمد على البيانات الموجودة.
-
-      // نضيف اسم المساعد إلى كل رد إذا كان هناك replied_by_assistant
-      const repliesWithNames = repliesData.map(reply => {
-        if (reply.replied_by_assistant) {
-          return {
-            ...reply,
-            senderName: reply.replied_by_assistant.full_name || 'مساعد',
-            isAssistant: true,
-          };
-        } else {
-          // إذا كان sender_id هو teacher_id، فهو المعلم
-          const isTeacher = reply.sender_id === assistantData.teacher_id;
-          return {
-            ...reply,
-            senderName: reply.sender?.full_name || (isTeacher ? 'المعلم' : 'طالب'),
-            isAssistant: false,
-          };
-        }
-      });
-      setReplies(repliesWithNames);
-
     } catch (err) {
       console.error('Fetch error:', err);
       toast.error(err.message || 'فشل تحميل التفاصيل');
@@ -167,40 +137,37 @@ export default function AssistantSupportDetailPage() {
       .channel(`ticket-detail-${ticketId}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'ticket_replies', filter: `ticket_id=eq.${ticketId}` }, async (payload) => {
         const newReply = payload.new;
-        // جلب اسم المرسل
+        // جلب اسم المرسل (المعلم أو الطالب)
         const { data: profile } = await supabase
           .from('profiles')
           .select('full_name')
           .eq('id', newReply.sender_id)
           .single();
         
-        // محاولة معرفة إذا كان المرسل مساعداً (عن طريق التحقق من وجوده في جدول assistants)
-        let isAssistant = false;
-        let assistantName = null;
-        if (newReply.sender_id !== assistant?.teacher_id) {
+        // جلب اسم المساعد (إن وجد)
+        let assistantReply = null;
+        if (newReply.replied_by_assistant_id) {
           const { data: assistantData } = await supabase
             .from('assistants')
             .select('display_name, full_name')
-            .eq('teacher_id', newReply.sender_id)
+            .eq('id', newReply.replied_by_assistant_id)
             .single();
           if (assistantData) {
-            isAssistant = true;
-            assistantName = assistantData.display_name || assistantData.full_name;
+            assistantReply = assistantData;
           }
         }
 
-        const replyWithName = {
+        const replyWithExtra = {
           ...newReply,
           sender: profile,
-          senderName: assistantName || profile?.full_name || (newReply.sender_id === assistant?.teacher_id ? 'المعلم' : 'طالب'),
-          isAssistant,
+          replied_by_assistant: assistantReply,
         };
-        setReplies(prev => [...prev, replyWithName]);
+        setReplies(prev => [...prev, replyWithExtra]);
         setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [ticketId, assistant]);
+  }, [ticketId]);
 
   const handleSendReply = async (e) => {
     e?.preventDefault();
@@ -220,19 +187,11 @@ export default function AssistantSupportDetailPage() {
       if (!res.ok) throw new Error(data.error || 'فشل إرسال الرد');
 
       if (data.reply) {
-        // إضافة الرد إلى القائمة محلياً (سيتم إضافته عبر Realtime أيضاً، لكننا نضيفه فوراً)
-        const reply = data.reply;
-        const senderName = reply.replied_by_assistant?.full_name || reply.sender?.full_name || 'المعلم';
-        const newReplyObj = {
-          ...reply,
-          senderName,
-          isAssistant: !!reply.replied_by_assistant,
-        };
-        setReplies(prev => [...prev, newReplyObj]);
+        // إضافة الرد فوراً (Realtime سيجيء بعده، لكن نضيفه للسرعة)
+        setReplies(prev => [...prev, data.reply]);
         if (ticket.status === 'open') {
           setTicket(prev => ({ ...prev, status: 'in_progress' }));
         }
-        // تحديث canReply إذا تغيرت الحالة أو التخصيص
         if (data.reply.assigned_to_changed) {
           setTicket(prev => ({ ...prev, assigned_to: assistant.id }));
           setCanReply(true);
@@ -300,8 +259,6 @@ export default function AssistantSupportDetailPage() {
 
   const statusInfo = STATUS_MAP[ticket.status];
   const priorityInfo = PRIORITY_MAP[ticket.priority];
-
-  // تحديد من المساعد المخصص
   const assignedToName = ticket.assigned_to_name || (ticket.assigned_to === assistant?.id ? 'أنت' : (ticket.assigned_to === assistant?.teacher_id ? 'المعلم' : (ticket.assigned_to ? 'مساعد آخر' : 'غير مخصصة')));
 
   return (
@@ -358,13 +315,19 @@ export default function AssistantSupportDetailPage() {
                   <p className={`text-xs ${styles.subtext} text-center py-8`}>لا توجد ردود بعد. كن أول من يرد!</p>
                 ) : (
                   replies.map((reply) => {
-                    // تحديد ما إذا كان الرد مني (مساعد حالي) أم لا
-                    const isMyReply = reply.sender_id === assistant?.id || reply.replied_by_assistant?.id === assistant?.id;
-                    // أو إذا كان sender_id هو teacher_id للمساعد (أي المعلم) – نعتبره رد من المعلم
-                    const isTeacherReply = reply.sender_id === assistant?.teacher_id;
+                    // ✅ تحديد اسم المرسل الحقيقي
+                    let displayName = reply.sender?.full_name || 'المعلم';
+                    let isAssistantReply = false;
+                    if (reply.replied_by_assistant) {
+                      displayName = reply.replied_by_assistant.display_name || reply.replied_by_assistant.full_name || 'مساعد';
+                      isAssistantReply = true;
+                    } else if (reply.replied_by_assistant_id) {
+                      displayName = 'مساعد';
+                      isAssistantReply = true;
+                    }
 
-                    let displayName = reply.senderName || reply.sender?.full_name || 'المعلم';
-                    let isAssistantReply = reply.isAssistant || false;
+                    // تحديد جهة العرض (يمين/يسار) للمساعد الحالي
+                    const isMyReply = reply.replied_by_assistant?.id === assistant?.id || reply.sender_id === assistant?.id;
 
                     return (
                       <motion.div key={reply.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
@@ -373,7 +336,6 @@ export default function AssistantSupportDetailPage() {
                           <p className="text-[10px] font-semibold text-blue-400 mb-1">
                             {displayName}
                             {isAssistantReply && ' (مساعد)'}
-                            {isTeacherReply && ' (المعلم)'}
                           </p>
                           <p className="text-sm whitespace-pre-wrap">{reply.message}</p>
                           <p className="text-[10px] mt-2 opacity-60">{formatDate(reply.created_at)}</p>

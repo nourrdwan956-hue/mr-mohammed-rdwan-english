@@ -1,7 +1,7 @@
 'use client';
 // ================================================================
 // 🎓 المسار: app/dashboard/student/support/academic/page.js
-// صفحة السؤال الأكاديمي – نسخة فاخرة مع Wave Border وألوان متغيرة
+// صفحة السؤال الأكاديمي – بدون رفع الصور
 // ================================================================
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
@@ -105,7 +105,6 @@ const QUESTION_CATEGORIES = [
 ];
 
 const MAX_DESC_LENGTH = 1000;
-const MAX_FILE_SIZE = 5 * 1024 * 1024;
 
 // ================================================================
 // المكون الرئيسي
@@ -128,8 +127,6 @@ export default function NewAcademicQuestionPage() {
   const [selectedCourse, setSelectedCourse] = useState('');
   const [unit, setUnit] = useState('');
   const [description, setDescription] = useState('');
-  const [image, setImage] = useState(null);
-  const [imagePreview, setImagePreview] = useState(null);
 
   // ألوان متغيرة للبطاقات
   const [headerColor, setHeaderColor] = useState(CARD_COLORS[0]);
@@ -140,8 +137,6 @@ export default function NewAcademicQuestionPage() {
   const [descColor, setDescColor] = useState(CARD_COLORS[1]);
   const [previewColor, setPreviewColor] = useState(CARD_COLORS[4]);
   const [tipsColor, setTipsColor] = useState(CARD_COLORS[5]);
-
-  const fileInputRef = useRef(null);
 
   // ---------- جلب بيانات المستخدم والكورسات ----------
   const fetchInitialData = useCallback(async () => {
@@ -179,26 +174,6 @@ export default function NewAcademicQuestionPage() {
 
   useEffect(() => { fetchInitialData(); }, [fetchInitialData]);
 
-  // ---------- دوال الصورة ----------
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    if (file.size > MAX_FILE_SIZE) {
-      toast.error(isArabic ? 'حجم الصورة كبير جداً (الحد 5MB)' : 'Image too large (max 5MB)');
-      return;
-    }
-    setImage(file);
-    const reader = new FileReader();
-    reader.onloadend = () => setImagePreview(reader.result);
-    reader.readAsDataURL(file);
-  };
-
-  const removeImage = () => {
-    setImage(null);
-    setImagePreview(null);
-    if (fileInputRef.current) fileInputRef.current.value = '';
-  };
-
   // ---------- التحقق من صحة النموذج (الكورس إجباري) ----------
   const isValid = useMemo(() => {
     return subject.trim().length >= 5 && 
@@ -206,37 +181,13 @@ export default function NewAcademicQuestionPage() {
            selectedCourse !== '';
   }, [subject, description, selectedCourse]);
 
-  // ---------- رفع الصورة إلى Supabase Storage ----------
-  const uploadImage = async (file) => {
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${user.id}/${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
-    const { data, error } = await supabase.storage
-      .from('question_images')
-      .upload(fileName, file, { cacheControl: '3600', upsert: false });
-
-    if (error) throw error;
-    const { data: urlData } = supabase.storage.from('question_images').getPublicUrl(fileName);
-    return urlData?.publicUrl;
-  };
-
-  // ---------- إرسال السؤال ----------
+  // ---------- إرسال السؤال (بدون صورة) ----------
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (isBanned || !isValid || !user) return;
 
     setSubmitting(true);
     try {
-      let imageUrl = null;
-      if (image) {
-        try {
-          imageUrl = await uploadImage(image);
-        } catch (imgErr) {
-          toast.error(isArabic ? 'فشل رفع الصورة' : 'Failed to upload image');
-          setSubmitting(false);
-          return;
-        }
-      }
-
       const course = courses.find(c => c.id === selectedCourse);
       if (!course?.teacher_id) {
         toast.error(isArabic ? 'لا يمكن تحديد المعلم المسؤول' : 'Cannot determine teacher');
@@ -246,7 +197,6 @@ export default function NewAcademicQuestionPage() {
 
       let finalDescription = description.trim();
       if (unit) finalDescription = `[الوحدة/الدرس: ${unit}]\n\n${finalDescription}`;
-      if (imageUrl) finalDescription += `\n\n[صورة مرفقة: ${imageUrl}]`;
 
       const payload = {
         student_id: user.id,
@@ -426,7 +376,7 @@ export default function NewAcademicQuestionPage() {
                 </div>
               </WaveBorderCard>
 
-              {/* وصف السؤال + رفع صورة */}
+              {/* وصف السؤال (بدون رفع صورة) */}
               <WaveBorderCard initialColor={descColor.name} onColorChange={setDescColor}>
                 <div className="p-6">
                   <label className={`block text-base font-bold ${styles.label} mb-2`}>
@@ -448,33 +398,7 @@ export default function NewAcademicQuestionPage() {
                     <span className={`text-sm ${description.length >= MAX_DESC_LENGTH ? 'text-red-500' : styles.subtext}`}>
                       {description.length}/{MAX_DESC_LENGTH} {isArabic ? 'حرف' : 'characters'}
                     </span>
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className={`flex items-center gap-2 text-sm px-4 py-2 rounded-xl ${styles.card} border ${styles.border} hover:border-blue-500 transition`}
-                    >
-                      <Icons.Image className="h-5 w-5 text-blue-500" />
-                      {isArabic ? 'رفع صورة' : 'Attach Image'}
-                    </button>
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/*"
-                      onChange={handleImageChange}
-                      className="hidden"
-                    />
                   </div>
-                  {imagePreview && (
-                    <div className="mt-4 relative rounded-xl overflow-hidden border border-[var(--border-color)]">
-                      <img src={imagePreview} alt="Preview" className="max-h-56 w-full object-contain" />
-                      <button
-                        onClick={removeImage}
-                        className="absolute top-2 right-2 p-1.5 rounded-full bg-red-500/80 text-white hover:bg-red-600 transition"
-                      >
-                        <Icons.X className="h-5 w-5" />
-                      </button>
-                    </div>
-                  )}
                 </div>
               </WaveBorderCard>
 
@@ -528,12 +452,6 @@ export default function NewAcademicQuestionPage() {
                         <span className={`text-sm ${styles.subtext}`}>{isArabic ? 'التفاصيل:' : 'Details:'}</span>
                         <p className={`${styles.text} whitespace-pre-wrap leading-relaxed`}>{description || '—'}</p>
                       </div>
-                      {imagePreview && (
-                        <div>
-                          <span className={`text-sm ${styles.subtext}`}>{isArabic ? 'صورة مرفقة' : 'Attached image'}</span>
-                          <img src={imagePreview} alt="Attach" className="mt-2 rounded-xl max-h-48 border" />
-                        </div>
-                      )}
                     </div>
                   ) : (
                     <p className={`text-base ${styles.subtext}`}>
@@ -543,7 +461,7 @@ export default function NewAcademicQuestionPage() {
                 </div>
               </WaveBorderCard>
 
-              {/* نصائح - تم تعديل النص */}
+              {/* نصائح - تم تحديث النص (بدون ذكر الصورة) */}
               <WaveBorderCard initialColor={tipsColor.name} onColorChange={setTipsColor}>
                 <div className="p-6">
                   <p className={`text-base font-bold ${styles.text} flex items-center gap-2 mb-3`}>
@@ -553,7 +471,7 @@ export default function NewAcademicQuestionPage() {
                   <ul className={`text-sm ${styles.subtext} space-y-2 list-disc pr-5`}>
                     <li>{isArabic ? 'اذكر القاعدة أو المثال الذي يسبب الحيرة.' : 'Mention the rule or example causing confusion.'}</li>
                     <li>{isArabic ? 'حدد الجزء الذي فهمته والجزء الغامض.' : 'Specify what you understood and what is unclear.'}</li>
-                    <li>{isArabic ? 'عشان مستر محمد يقدر يساعدك: لازم تكتب مشكلتك بشكل سليم يا بطل' : 'So Mr. Muhammad can help you:'}</li>
+                    <li>{isArabic ? 'عشان مستر محمد يقدر يساعدك: لازم تكتب مشكلتك بشكل سليم يا بطل' : 'So Mr. Muhammad can help you: write your problem clearly, champion!'}</li>
                   </ul>
                 </div>
               </WaveBorderCard>

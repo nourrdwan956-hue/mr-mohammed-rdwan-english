@@ -1,7 +1,7 @@
 'use client';
 // ================================================================
 // 🗨️ المسار: app/dashboard/student/support/[id]/page.js
-// صفحة تفاصيل طلب الدعم – نسخة فاخرة مع Wave Border
+// صفحة تفاصيل طلب الدعم – مع إمكانية تعديل/حذف الردود الخاصة بالطالب
 // ================================================================
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
@@ -13,7 +13,7 @@ import { toast } from 'react-hot-toast';
 import { useTheme } from '@/lib/hooks/useTheme';
 
 // ================================================================
-// ألوان البطاقات المتغيرة (نفس نظام الرئيسية)
+// ألوان البطاقات المتغيرة
 // ================================================================
 const CARD_COLORS = [
   { name: 'blue', text: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-500/10 dark:bg-blue-400/10', border: 'border-blue-400/30 dark:border-blue-400/20' },
@@ -118,6 +118,11 @@ export default function StudentSupportDetailPage() {
   const [sending, setSending] = useState(false);
   const messagesEndRef = useRef(null);
 
+  // حالات التعديل
+  const [editingReplyId, setEditingReplyId] = useState(null);
+  const [editMessage, setEditMessage] = useState('');
+  const [editSaving, setEditSaving] = useState(false);
+
   // ألوان متغيرة للبطاقات
   const [headerColor, setHeaderColor] = useState(CARD_COLORS[0]);
   const [inputColor, setInputColor] = useState(CARD_COLORS[3]);
@@ -150,12 +155,29 @@ export default function StudentSupportDetailPage() {
       }
       setTicket(ticketData);
 
-      const { data: repliesData } = await supabase
+      // ✅ جلب الردود مع معلومات المرسل (طالب) واسم المساعد إن وجد
+      const { data: repliesData, error: repliesError } = await supabase
         .from('ticket_replies')
-        .select('*, sender:profiles(full_name)')
+        .select(`
+          *,
+          sender:profiles(full_name),
+          replied_by_assistant:assistants!ticket_replies_replied_by_assistant_id_fkey(full_name, display_name)
+        `)
         .eq('ticket_id', ticketId)
         .order('created_at', { ascending: true });
-      setReplies(repliesData || []);
+
+      if (repliesError) {
+        console.warn('⚠️ فشل جلب الردود:', repliesError.message);
+        // في حالة خطأ، نحاول جلبها بدون replied_by_assistant (للتوافق)
+        const { data: fallbackReplies } = await supabase
+          .from('ticket_replies')
+          .select('*, sender:profiles(full_name)')
+          .eq('ticket_id', ticketId)
+          .order('created_at', { ascending: true });
+        setReplies(fallbackReplies || []);
+      } else {
+        setReplies(repliesData || []);
+      }
     } catch (err) {
       console.error(err);
       toast.error(isArabic ? 'فشل التحميل' : 'Load failed');
@@ -180,11 +202,21 @@ export default function StudentSupportDetailPage() {
         filter: `ticket_id=eq.${ticketId}`
       }, (payload) => {
         const newReply = payload.new;
-        supabase.from('profiles').select('full_name').eq('id', newReply.sender_id).single()
-          .then(({ data }) => {
-            setReplies(prev => [...prev, { ...newReply, sender: data }]);
-            setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
-          });
+        // جلب بيانات المرسل والمساعد (إذا وجد)
+        Promise.all([
+          supabase.from('profiles').select('full_name').eq('id', newReply.sender_id).single(),
+          newReply.replied_by_assistant_id
+            ? supabase.from('assistants').select('full_name, display_name').eq('id', newReply.replied_by_assistant_id).single()
+            : Promise.resolve({ data: null })
+        ]).then(([{ data: sender }, { data: assistant }]) => {
+          const replyWithExtra = {
+            ...newReply,
+            sender,
+            replied_by_assistant: assistant,
+          };
+          setReplies(prev => [...prev, replyWithExtra]);
+          setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+        });
       })
       .subscribe();
 
@@ -195,7 +227,7 @@ export default function StudentSupportDetailPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  // ---------- إرسال رد ----------
+  // ---------- إرسال رد جديد ----------
   const handleSendReply = async (e) => {
     e?.preventDefault();
     if (!newReply.trim() || !user) return;
@@ -206,6 +238,7 @@ export default function StudentSupportDetailPage() {
         sender_id: user.id,
         message: newReply.trim(),
         created_at: new Date().toISOString(),
+        // لا نضع replied_by_assistant_id لأن الرد من الطالب
       });
       if (error) throw error;
       setNewReply('');
@@ -237,6 +270,63 @@ export default function StudentSupportDetailPage() {
     }
   };
 
+  // ---------- دوال تعديل وحذف الردود ----------
+  const startEditReply = (reply) => {
+    setEditingReplyId(reply.id);
+    setEditMessage(reply.message);
+  };
+
+  const cancelEditReply = () => {
+    setEditingReplyId(null);
+    setEditMessage('');
+  };
+
+  const saveEditReply = async (replyId) => {
+    const trimmed = editMessage.trim();
+    if (!trimmed) {
+      toast.error(isArabic ? 'الرسالة فارغة' : 'Message is empty');
+      return;
+    }
+    setEditSaving(true);
+    try {
+      const { error } = await supabase
+        .from('ticket_replies')
+        .update({ message: trimmed })
+        .eq('id', replyId)
+        .eq('sender_id', user.id); // تأمين: لا يعدل إلا ردوده
+
+      if (error) throw error;
+      // تحديث القائمة محلياً
+      setReplies(prev => prev.map(r => r.id === replyId ? { ...r, message: trimmed } : r));
+      toast.success(isArabic ? 'تم التعديل' : 'Updated');
+      cancelEditReply();
+    } catch (err) {
+      console.error(err);
+      toast.error(isArabic ? 'فشل التعديل' : 'Update failed');
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
+  const deleteReply = async (replyId) => {
+    if (!confirm(isArabic ? 'هل أنت متأكد من حذف هذا الرد؟' : 'Are you sure you want to delete this reply?')) return;
+    try {
+      const { error } = await supabase
+        .from('ticket_replies')
+        .delete()
+        .eq('id', replyId)
+        .eq('sender_id', user.id); // تأمين
+
+      if (error) throw error;
+      setReplies(prev => prev.filter(r => r.id !== replyId));
+      toast.success(isArabic ? 'تم الحذف' : 'Deleted');
+    } catch (err) {
+      console.error(err);
+      toast.error(isArabic ? 'فشل الحذف' : 'Delete failed');
+    }
+  };
+
+  // ---------- تنسيق التاريخ ----------
   const formatDate = (dateStr) => {
     return new Date(dateStr).toLocaleString(isArabic ? 'ar-EG' : 'en-US', {
       month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
@@ -323,6 +413,20 @@ export default function StudentSupportDetailPage() {
         <AnimatePresence>
           {replies.map((reply) => {
             const isStudent = reply.sender_id === user?.id;
+            const isEditing = editingReplyId === reply.id;
+
+            // ✅ تحديد اسم المرسل الحقيقي
+            let displayName = reply.sender?.full_name || (isArabic ? 'المعلم' : 'Teacher');
+            let isAssistantReply = false;
+            if (reply.replied_by_assistant) {
+              displayName = reply.replied_by_assistant.display_name || reply.replied_by_assistant.full_name || 'مساعد';
+              isAssistantReply = true;
+            } else if (reply.replied_by_assistant_id) {
+              // في حالة عدم جلب البيانات الكاملة، نعرض اسم افتراضي
+              displayName = 'مساعد';
+              isAssistantReply = true;
+            }
+
             return (
               <motion.div
                 key={reply.id}
@@ -343,12 +447,66 @@ export default function StudentSupportDetailPage() {
                         <Icons.User className="h-3.5 w-3.5 text-blue-500 dark:text-blue-400" />
                       </div>
                       <p className="text-xs font-bold text-blue-500 dark:text-blue-400">
-                        {reply.sender?.full_name || (isArabic ? 'المعلم' : 'Teacher')}
+                        {displayName}
+                        {isAssistantReply && ` (${isArabic ? 'مساعد' : 'Assistant'})`}
                       </p>
                     </div>
                   )}
-                  <p className="text-base whitespace-pre-wrap leading-relaxed">{reply.message}</p>
-                  <p className="text-[11px] mt-3 opacity-60">{formatDate(reply.created_at)}</p>
+
+                  {isEditing ? (
+                    // وضع التعديل
+                    <div className="space-y-2">
+                      <textarea
+                        value={editMessage}
+                        onChange={(e) => setEditMessage(e.target.value)}
+                        className={`w-full p-3 text-base ${styles.input} border ${styles.border} rounded-xl focus:ring-2 focus:ring-yellow-500/40 outline-none transition resize-none`}
+                        rows={3}
+                        autoFocus
+                      />
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => saveEditReply(reply.id)}
+                          disabled={editSaving || !editMessage.trim()}
+                          className={`px-4 py-1.5 text-sm rounded-lg bg-green-500 text-white hover:bg-green-600 transition disabled:opacity-50 flex items-center gap-1`}
+                        >
+                          {editSaving ? <Icons.Loader2 className="h-4 w-4 animate-spin" /> : <Icons.Check className="h-4 w-4" />}
+                          {isArabic ? 'حفظ' : 'Save'}
+                        </button>
+                        <button
+                          onClick={cancelEditReply}
+                          className="px-4 py-1.5 text-sm rounded-lg bg-gray-500/20 hover:bg-gray-500/30 transition"
+                        >
+                          {isArabic ? 'إلغاء' : 'Cancel'}
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    // عرض عادي
+                    <>
+                      <p className="text-base whitespace-pre-wrap leading-relaxed">{reply.message}</p>
+                      <div className="flex items-center justify-between mt-3">
+                        <p className="text-[11px] opacity-60">{formatDate(reply.created_at)}</p>
+                        {isStudent && (
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => startEditReply(reply)}
+                              className="p-1 rounded-lg hover:bg-white/10 transition text-blue-500 dark:text-blue-400"
+                              title={isArabic ? 'تعديل' : 'Edit'}
+                            >
+                              <Icons.Edit className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={() => deleteReply(reply.id)}
+                              className="p-1 rounded-lg hover:bg-red-500/20 transition text-red-400"
+                              title={isArabic ? 'حذف' : 'Delete'}
+                            >
+                              <Icons.Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  )}
                 </div>
               </motion.div>
             );
