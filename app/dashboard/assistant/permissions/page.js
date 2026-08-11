@@ -15,7 +15,7 @@
 // - Glassmorphism فاخر وأنيميشن سلس
 // - عرض معلومات المساعد الأساسية
 // ================================================================
-
+import React from 'react';
 import { useState, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';

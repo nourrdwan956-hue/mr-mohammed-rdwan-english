@@ -11,7 +11,7 @@
 // ============================================================
 
 'use client';
-
+import React from 'react';
 import { AssistantLayout } from '@/components/AssistantLayout';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';

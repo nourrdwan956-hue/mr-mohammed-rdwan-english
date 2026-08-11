@@ -7,7 +7,7 @@
 // ✅ بدون أي قيود صلاحيات (مؤقتاً)
 
 'use client';
-
+import React from 'react';
 import { Suspense } from 'react';
 import { AssistantLayout } from '@/components/AssistantLayout';
 import { motion, AnimatePresence } from 'framer-motion';

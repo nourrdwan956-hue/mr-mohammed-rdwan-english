@@ -16,7 +16,7 @@
 // - دعم الترجمة العربية والإنجليزية
 // - منع التحميل اللانهائي
 // ================================================================
-
+import React from 'react';
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';

@@ -12,7 +12,7 @@
 // - دعم كامل للوضعين الفاتح والداكن مع وضوح تام للخطوط
 // - Glassmorphism فاخر وأنيميشن سلس
 // ================================================================
-
+import React from 'react';
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';

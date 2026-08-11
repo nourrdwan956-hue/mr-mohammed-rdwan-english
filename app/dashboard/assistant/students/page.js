@@ -5,7 +5,7 @@
 // إدارة الطلاب – نسخة المساعد (مع Suspense لحل خطأ البناء)
 // ✅ إضافة Suspense boundary لحل خطأ useSearchParams في البناء
 // ============================================================
-
+import React from 'react';
 import { Suspense } from 'react';
 import { AssistantLayout } from '@/components/AssistantLayout';
 import { motion, AnimatePresence } from 'framer-motion';
