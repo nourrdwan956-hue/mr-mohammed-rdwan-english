@@ -1,6 +1,6 @@
 'use client';
-import React from 'react'
-import { useState, useEffect, useMemo, useCallback } from 'react';
+
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import * as Icons from 'lucide-react';
@@ -35,9 +35,9 @@ const hasPermission = (permissions, module, permission = 'can_view') => {
 };
 
 // ================================================================
-// شريط جانبي (Sidebar) – مكون محسّن
+// شريط جانبي (Sidebar) – مع زر الثيم داخل الشريط
 // ================================================================
-const Sidebar = React.memo(({ isOpen, onClose, assistant, permissions, styles, pathname, unreadCounts }) => {
+const Sidebar = React.memo(({ isOpen, onClose, assistant, permissions, styles, pathname, unreadCounts, onToggleTheme, theme }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
@@ -64,6 +64,7 @@ const Sidebar = React.memo(({ isOpen, onClose, assistant, permissions, styles, p
     logs: 'سجل النشاطات',
     logout: 'تسجيل الخروج',
     backToMain: 'العودة للمنصة الرئيسية',
+    themeToggle: 'تبديل الثيم',
   };
 
   // ===== معالج الخروج =====
@@ -102,7 +103,7 @@ const Sidebar = React.memo(({ isOpen, onClose, assistant, permissions, styles, p
         } ${styles.card} border-l ${styles.border} ${styles.bg} overflow-y-auto flex flex-col shadow-2xl`}
         style={{ direction: 'rtl' }}
       >
-        {/* رأس الشريط الجانبي */}
+        {/* رأس الشريط الجانبي – مع زر الثيم */}
         <div className={`flex items-center justify-between p-3 border-b ${styles.border}`}>
           {!isCollapsed && (
             <motion.div
@@ -115,6 +116,20 @@ const Sidebar = React.memo(({ isOpen, onClose, assistant, permissions, styles, p
             </motion.div>
           )}
           <div className="flex items-center gap-1">
+            {/* زر الثيم – يظهر دائماً */}
+            <button
+              onClick={onToggleTheme}
+              className={`p-1.5 rounded-lg transition hover:bg-white/10 ${styles.subtext}`}
+              aria-label={t.themeToggle}
+              title={t.themeToggle}
+            >
+              {theme === 'dark' ? (
+                <Icons.Sun className="h-4 w-4 text-yellow-400" />
+              ) : (
+                <Icons.Moon className="h-4 w-4 text-gray-600" />
+              )}
+            </button>
+            {/* زر الطي */}
             <button
               onClick={() => setIsCollapsed(!isCollapsed)}
               className={`p-1 rounded-lg hover:bg-white/10 transition ${styles.subtext}`}
@@ -122,6 +137,7 @@ const Sidebar = React.memo(({ isOpen, onClose, assistant, permissions, styles, p
             >
               {isCollapsed ? <Icons.ChevronLeft className="h-5 w-5" /> : <Icons.ChevronRight className="h-5 w-5" />}
             </button>
+            {/* زر الإغلاق (للجوال) */}
             {isMobile && (
               <button
                 onClick={onClose}
@@ -134,7 +150,7 @@ const Sidebar = React.memo(({ isOpen, onClose, assistant, permissions, styles, p
           </div>
         </div>
 
-        {/* معلومات المساعد */}
+        {/* معلومات المساعد (تظهر فقط عند التوسيع) */}
         {assistant && !isCollapsed && (
           <motion.div
             initial={{ opacity: 0, y: -10 }}
@@ -316,12 +332,17 @@ export function AssistantLayout({ children }) {
         setPermissions(perms);
 
         // جلب الإشعارات (عدد التذاكر المفتوحة، الرسائل غير المقروءة، إلخ)
-        const res = await fetch('/api/assistant/notifications', {
-          headers: { 'x-assistant-id': parsed.id },
-        });
-        if (res.ok) {
-          const data = await res.json();
-          setUnreadCounts(data.counts || {});
+        try {
+          const res = await fetch('/api/assistant/notifications', {
+            headers: { 'x-assistant-id': parsed.id },
+          });
+          if (res.ok) {
+            const data = await res.json();
+            setUnreadCounts(data.counts || {});
+          }
+        } catch (e) {
+          // تجاهل خطأ الإشعارات (غير حرج)
+          console.log('Notifications not available');
         }
       } catch (err) {
         console.error('Error loading assistant data:', err);
@@ -334,7 +355,7 @@ export function AssistantLayout({ children }) {
     fetchData();
   }, [router]);
 
-  // تبديل الثيم مع تأثير
+  // تبديل الثيم (يُمرر إلى Sidebar)
   const handleToggleTheme = useCallback(() => {
     toggleTheme();
   }, [toggleTheme]);
@@ -364,10 +385,12 @@ export function AssistantLayout({ children }) {
         styles={styles}
         pathname={pathname}
         unreadCounts={unreadCounts}
+        onToggleTheme={handleToggleTheme}
+        theme={theme}
       />
 
       <div className={`flex-1 transition-all duration-300 md:mr-64`}>
-        {/* الهيدر */}
+        {/* الهيدر – بدون زر الثيم (الآن في الشريط الجانبي) */}
         <header className={`sticky top-0 z-30 ${styles.card} border-b ${styles.border} px-4 py-3 flex items-center justify-between backdrop-blur-md`}>
           <div className="flex items-center gap-3">
             <button
@@ -381,22 +404,7 @@ export function AssistantLayout({ children }) {
               مرحباً، {assistant.display_name || assistant.full_name}
             </span>
           </div>
-          <div className="flex items-center gap-2">
-            {/* زر تبديل الثيم مع أنيميشن */}
-            <motion.button
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
-              onClick={handleToggleTheme}
-              className={`p-2.5 rounded-xl transition-all ${styles.card} border ${styles.border} hover:border-yellow-400/50 shadow-lg`}
-              aria-label="تبديل الثيم"
-            >
-              {theme === 'dark' ? (
-                <Icons.Sun className="h-5 w-5 text-yellow-400" />
-              ) : (
-                <Icons.Moon className="h-5 w-5 text-gray-600" />
-              )}
-            </motion.button>
-          </div>
+          {/* تم إزالة زر الثيم من هنا */}
         </header>
 
         <main className="p-4 md:p-6">
