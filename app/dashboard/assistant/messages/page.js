@@ -1,22 +1,19 @@
 'use client';
 
-import { AssistantLayout } from '@/components/AssistantLayout';
+import React from 'react';
 import { useTheme } from '@/lib/hooks/useTheme';
-import * as Icons from 'lucide-react';
+import { Mail } from 'lucide-react';
 
-export default function AssistantMessagesPage() {
+export default function MessagesPage() {
   const { styles } = useTheme();
 
   return (
-    <AssistantLayout>
-      <div className={`${styles.bg} ${styles.text} p-6`}>
-        <div className="max-w-4xl mx-auto text-center py-20">
-          <Icons.Mail className={`h-20 w-20 mx-auto mb-4 ${styles.subtext}`} />
-          <h1 className={`text-3xl font-bold ${styles.text}`}>✉️ المراسلات</h1>
-          <p className={`${styles.subtext} text-lg mt-2`}>هذه الصفحة قيد التطوير</p>
-          <p className={`${styles.subtext} text-sm mt-4`}>سيتمكن المساعد من إدارة المراسلات هنا قريباً</p>
-        </div>
+    <div className={`min-h-screen ${styles.bg} ${styles.text} p-6`}>
+      <div className={`rounded-2xl p-8 text-center ${styles.card} border ${styles.border}`}>
+        <Mail className="w-16 h-16 mx-auto mb-4 text-yellow-400" />
+        <h2 className="text-2xl font-bold mb-2">صفحة المراسلات</h2>
+        <p className={`${styles.subtext}`}>قيد التطوير ... قريباً</p>
       </div>
-    </AssistantLayout>
+    </div>
   );
 }
