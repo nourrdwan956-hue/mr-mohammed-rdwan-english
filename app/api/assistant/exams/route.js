@@ -1,198 +1,253 @@
+// ================================================================
+// 📁 app/api/assistant/exams/route.js
+// إدارة الامتحانات للمساعد (GET, POST) – بدون حذف
+// ================================================================
 
-
-// app/api/assistant/exams/route.js
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { hasPermission } from '@/lib/permissions';
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY|| process.env.SUPABASE_SERVICE_ROLE_KEY,
-  { auth: { autoRefreshToken: false, persistSession: false } }
-);
-
-// ================================================================
-// 📡 GET – جلب جميع الامتحانات مع بيانات البنوك
-// ================================================================
 export async function GET(request) {
   try {
-    const { searchParams } = new URL(request.url);
-    const teacherId = searchParams.get('teacher_id');
-
-    if (!teacherId) {
-      return NextResponse.json({ error: 'teacher_id مطلوب' }, { status: 400 });
+    const assistantId = request.headers.get('x-assistant-id');
+    if (!assistantId) {
+      return NextResponse.json({ error: 'معرف المساعد مطلوب' }, { status: 400 });
     }
 
-    // 1. جلب الامتحانات
-    const { data: exams, error: examsError } = await supabaseAdmin
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseSecretKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!supabaseUrl || !supabaseSecretKey) {
+      return NextResponse.json({ error: 'تكوين الخادم غير مكتمل' }, { status: 500 });
+    }
+
+    const supabaseAdmin = createClient(supabaseUrl, supabaseSecretKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+
+    // جلب بيانات المساعد
+    const { data: assistant, error: assistantError } = await supabaseAdmin
+      .from('assistants')
+      .select('*')
+      .eq('id', assistantId)
+      .single();
+
+    if (assistantError || !assistant) {
+      return NextResponse.json({ error: 'المساعد غير موجود' }, { status: 404 });
+    }
+
+    if (!assistant.is_active) {
+      return NextResponse.json({ error: 'الحساب غير مفعل' }, { status: 403 });
+    }
+
+    // جلب صلاحيات المساعد
+    const { data: permissions } = await supabaseAdmin
+      .from('assistant_permissions')
+      .select('module, can_view, can_manage')
+      .eq('assistant_id', assistantId);
+
+    const canView = permissions?.some(
+      (p) => (p.module === 'exams') && (p.can_view || p.can_manage)
+    );
+
+    if (!canView) {
+      return NextResponse.json({ error: 'غير مصرح لك بمشاهدة الامتحانات' }, { status: 403 });
+    }
+
+    // معاملات التصفية
+    const { searchParams } = new URL(request.url);
+    const courseId = searchParams.get('courseId');
+    const status = searchParams.get('status'); // published, draft, active, upcoming, ended
+
+    // بناء الاستعلام
+    let query = supabaseAdmin
       .from('exams')
       .select('*')
-      .eq('teacher_id', teacherId)
+      .eq('teacher_id', assistant.teacher_id)
       .order('created_at', { ascending: false });
 
-    if (examsError) {
-      console.error('❌ Exams error:', examsError);
-      return NextResponse.json({ error: 'فشل جلب الامتحانات' }, { status: 500 });
+    if (courseId && courseId !== 'all') {
+      query = query.eq('course_id', courseId);
     }
 
-    const examIds = exams?.map(e => e.id) || [];
+    if (status) {
+      const now = new Date().toISOString();
+      if (status === 'published') {
+        query = query.eq('is_published', true);
+      } else if (status === 'draft') {
+        query = query.eq('is_published', false);
+      } else if (status === 'active') {
+        query = query
+          .eq('is_published', true)
+          .lte('start_date', now)
+          .gte('end_date', now);
+      } else if (status === 'upcoming') {
+        query = query
+          .eq('is_published', true)
+          .gt('start_date', now);
+      } else if (status === 'ended') {
+        query = query
+          .eq('is_published', true)
+          .lt('end_date', now);
+      }
+    }
 
-    // 2. جلب إحصائيات المحاولات والأسئلة
-    let attemptsCounts = {};
-    let questionsCounts = {};
+    const { data: exams, error: examsError } = await query;
+
+    if (examsError) {
+      return NextResponse.json({ error: 'فشل جلب الامتحانات: ' + examsError.message }, { status: 500 });
+    }
+
+    // جلب إحصائيات إضافية (عدد الأسئلة والمحاولات) لكل امتحان
+    const examIds = exams.map(e => e.id);
+    let attemptsCount = {};
+    let questionsCount = {};
 
     if (examIds.length > 0) {
+      // عدد المحاولات
       const { data: attemptsData } = await supabaseAdmin
         .from('exam_attempts')
         .select('exam_id')
         .in('exam_id', examIds);
-
-      attemptsData?.forEach(row => {
-        attemptsCounts[row.exam_id] = (attemptsCounts[row.exam_id] || 0) + 1;
+      
+      attemptsData?.forEach(a => {
+        attemptsCount[a.exam_id] = (attemptsCount[a.exam_id] || 0) + 1;
       });
 
+      // عدد الأسئلة (استبعاد القطع)
       const { data: questionsData } = await supabaseAdmin
         .from('exam_questions')
-        .select('exam_id, bank_question_id')
-        .in('exam_id', examIds);
+        .select('exam_id, type')
+        .in('exam_id', examIds)
+        .neq('type', 'passage');
 
-      questionsData?.forEach(row => {
-        questionsCounts[row.exam_id] = (questionsCounts[row.exam_id] || 0) + 1;
-      });
-
-      // 3. جلب بيانات البنوك المصدر
-      const bankQuestionIds = questionsData
-        ?.filter(q => q.bank_question_id)
-        .map(q => q.bank_question_id) || [];
-
-      let questionBankMap = {};
-      if (bankQuestionIds.length > 0) {
-        const { data: questions } = await supabaseAdmin
-          .from('questions')
-          .select('id, bank_id')
-          .in('id', bankQuestionIds);
-        questions?.forEach(q => {
-          questionBankMap[q.id] = q.bank_id;
-        });
-      }
-
-      const examBankMap = {};
       questionsData?.forEach(q => {
-        if (q.bank_question_id && questionBankMap[q.bank_question_id]) {
-          const bankId = questionBankMap[q.bank_question_id];
-          if (!examBankMap[q.exam_id]) {
-            examBankMap[q.exam_id] = { bankId, count: 0 };
-          }
-          examBankMap[q.exam_id].count += 1;
-        }
-      });
-
-      const bankIds = Object.values(examBankMap).map(item => item.bankId).filter(Boolean);
-      let bankMap = {};
-      if (bankIds.length > 0) {
-        const { data: banks } = await supabaseAdmin
-          .from('question_banks')
-          .select('id, title')
-          .in('id', bankIds);
-        banks?.forEach(b => { bankMap[b.id] = b.title; });
-      }
-
-      // 4. إضافة بيانات البنك إلى كل امتحان
-      exams?.forEach(exam => {
-        const bankInfo = examBankMap[exam.id];
-        if (bankInfo) {
-          exam.bank_id = bankInfo.bankId;
-          exam.bank_title = bankMap[bankInfo.bankId] || 'بنك غير معروف';
-          exam.bank_questions_count = bankInfo.count;
-        }
+        questionsCount[q.exam_id] = (questionsCount[q.exam_id] || 0) + 1;
       });
     }
 
-    const processed = exams?.map(exam => ({
+    const enrichedExams = exams.map(exam => ({
       ...exam,
-      attempts_count: attemptsCounts[exam.id] || 0,
-      questions_count: questionsCounts[exam.id] || 0,
-    })) || [];
+      attempts_count: attemptsCount[exam.id] || 0,
+      questions_count: questionsCount[exam.id] || 0,
+    }));
 
     return NextResponse.json({
       success: true,
-      exams: processed,
-      banks: {}, // يمكن إضافة البنوك هنا إذا لزم الأمر
+      exams: enrichedExams,
     });
-  } catch (err) {
-    console.error('❌ GET exams error:', err);
-    return NextResponse.json({ error: 'حدث خطأ في الخادم' }, { status: 500 });
+  } catch (error) {
+    console.error('❌ GET /api/assistant/exams error:', error);
+    return NextResponse.json({ error: 'حدث خطأ في الخادم: ' + error.message }, { status: 500 });
   }
 }
 
-// ================================================================
-// 📡 POST – إنشاء امتحان جديد
-// ================================================================
 export async function POST(request) {
   try {
+    const assistantId = request.headers.get('x-assistant-id');
+    if (!assistantId) {
+      return NextResponse.json({ error: 'معرف المساعد مطلوب' }, { status: 400 });
+    }
+
     const body = await request.json();
-    const {
-      teacher_id,
-      course_id,
-      title,
-      description,
-      duration_minutes,
-      start_date,
-      end_date,
-      total_marks,
-      passing_marks,
-      shuffle_questions,
-      shuffle_options,
-      allow_backward,
-      show_results_immediately,
-      attempts_allowed,
-      password,
-      settings,
-      is_published,
-    } = body;
+    const { title, description, course_id, duration_minutes, start_date, end_date, total_marks, passing_marks, shuffle_questions, shuffle_options, allow_backward, show_results_immediately, attempts_allowed, password, settings, is_published } = body;
 
-    if (!teacher_id) {
-      return NextResponse.json({ error: 'teacher_id مطلوب' }, { status: 400 });
-    }
-    if (!title?.trim()) {
-      return NextResponse.json({ error: 'عنوان الامتحان مطلوب' }, { status: 400 });
+    // التحقق من الحقول المطلوبة
+    if (!title || !duration_minutes || !start_date || !end_date) {
+      return NextResponse.json({ error: 'العنوان، المدة، تاريخ البدء وتاريخ الانتهاء مطلوبة' }, { status: 400 });
     }
 
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseSecretKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!supabaseUrl || !supabaseSecretKey) {
+      return NextResponse.json({ error: 'تكوين الخادم غير مكتمل' }, { status: 500 });
+    }
+
+    const supabaseAdmin = createClient(supabaseUrl, supabaseSecretKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+
+    // جلب المساعد
+    const { data: assistant, error: assistantError } = await supabaseAdmin
+      .from('assistants')
+      .select('*')
+      .eq('id', assistantId)
+      .single();
+
+    if (assistantError || !assistant) {
+      return NextResponse.json({ error: 'المساعد غير موجود' }, { status: 404 });
+    }
+
+    if (!assistant.is_active) {
+      return NextResponse.json({ error: 'الحساب غير مفعل' }, { status: 403 });
+    }
+
+    // صلاحية الإنشاء
+    const { data: permissions } = await supabaseAdmin
+      .from('assistant_permissions')
+      .select('module, can_create, can_manage')
+      .eq('assistant_id', assistantId);
+
+    const canCreate = permissions?.some(
+      (p) => (p.module === 'exams') && (p.can_create || p.can_manage)
+    );
+
+    if (!canCreate) {
+      return NextResponse.json({ error: 'غير مصرح لك بإنشاء امتحانات' }, { status: 403 });
+    }
+
+    // التحقق من وجود الكورس (إن وجد)
+    if (course_id) {
+      const { data: course, error: courseError } = await supabaseAdmin
+        .from('courses')
+        .select('id')
+        .eq('id', course_id)
+        .eq('teacher_id', assistant.teacher_id)
+        .single();
+
+      if (courseError || !course) {
+        return NextResponse.json({ error: 'الكورس غير موجود أو لا يخص معلمك' }, { status: 400 });
+      }
+    }
+
+    // إنشاء الامتحان
     const examData = {
-      teacher_id,
-      course_id: course_id || null,
+      teacher_id: assistant.teacher_id,
       title: title.trim(),
-      description: description?.trim() || null,
-      duration_minutes: duration_minutes || 0,
-      start_date: start_date || new Date().toISOString(),
-      end_date: end_date || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-      total_marks: total_marks || 0,
-      passing_marks: passing_marks || 0,
-      shuffle_questions: !!shuffle_questions,
-      shuffle_options: !!shuffle_options,
-      allow_backward: !!allow_backward,
-      show_results_immediately: !!show_results_immediately,
-      attempts_allowed: attempts_allowed || 1,
+      description: description?.trim() || '',
+      course_id: course_id || null,
+      duration_minutes: Number(duration_minutes),
+      start_date: start_date,
+      end_date: end_date,
+      total_marks: Number(total_marks) || 0,
+      passing_marks: Number(passing_marks) || 0,
+      shuffle_questions: shuffle_questions !== undefined ? shuffle_questions : true,
+      shuffle_options: shuffle_options !== undefined ? shuffle_options : true,
+      allow_backward: allow_backward || false,
+      show_results_immediately: show_results_immediately !== undefined ? show_results_immediately : true,
+      attempts_allowed: Number(attempts_allowed) || 1,
       password: password || null,
       settings: settings || {},
-      is_published: !!is_published,
+      is_published: is_published || false,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
 
-    const { data: exam, error } = await supabaseAdmin
+    const { data: newExam, error: insertError } = await supabaseAdmin
       .from('exams')
       .insert(examData)
       .select()
       .single();
 
-    if (error) {
-      console.error('❌ Insert exam error:', error);
-      return NextResponse.json({ error: 'فشل إنشاء الامتحان' }, { status: 500 });
+    if (insertError) {
+      return NextResponse.json({ error: 'فشل إنشاء الامتحان: ' + insertError.message }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true, exam });
-  } catch (err) {
-    console.error('❌ POST exam error:', err);
-    return NextResponse.json({ error: 'حدث خطأ في الخادم' }, { status: 500 });
+    return NextResponse.json({
+      success: true,
+      exam: newExam,
+    });
+  } catch (error) {
+    console.error('❌ POST /api/assistant/exams error:', error);
+    return NextResponse.json({ error: 'حدث خطأ في الخادم: ' + error.message }, { status: 500 });
   }
 }

@@ -1,27 +1,25 @@
-// ================================================================
-// 📁 app/dashboard/assistant/exams/[id]/questions/page.js
-// 📝 نظام الأسئلة المتطور للمساعد – النسخة النهائية V29
-// ================================================================
-// - دعم أنواع الأسئلة: اختيار من متعدد، صح/خطأ، ملء الفراغ، إكمال من كلمات، ترتيب الجملة، قطعة نصية
-// - تم إزالة essay نهائياً
-// - دعم القطع النصية مع إضافة أسئلة تابعة
-// - تحديث الدرجة الكلية تلقائياً
-// - دعم صلاحيات المساعد
-// - دعم الثيم الموحّد عبر useTheme
-// ================================================================
-
 'use client';
 
-import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { useRouter, useParams } from 'next/navigation';
-import Link from 'next/link';
+// ============================================================
+// نظام الأسئلة المتطور – نسخة المساعد (بدون حذف)
+// ✅ استخدام AssistantLayout مع صلاحيات مخزنة في sessionStorage
+// ✅ إزالة جميع عمليات الحذف (فردية، جماعية، حذف القطع)
+// ✅ التحقق من صلاحيات can_edit و can_view
+// ✅ الحفاظ على جميع الوظائف الأخرى (إضافة، تعديل، نسخ، ترتيب، إحصائيات، رسوم بيانية)
+// ✅ دعم جميع أنواع الأسئلة (MCQ, True/False, Fill Blank, Fill From Words, Sentence Reorder, Passage)
+// ✅ معاينة حية للأسئلة
+// ✅ ربط القطع النصية
+// ✅ تحديث total_marks تلقائياً
+// ============================================================
+
+import { AssistantLayout } from '@/components/AssistantLayout';
 import { motion, AnimatePresence } from 'framer-motion';
+import Link from 'next/link';
+import { useRouter, useParams } from 'next/navigation';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import * as Icons from 'lucide-react';
+import { supabase } from '@/lib/supabaseClient';
 import { toast } from 'react-hot-toast';
-import { useTheme } from '@/lib/hooks/useTheme'; // ✅ استيراد الثيم الموحد
-import { useAssistantData } from '@/lib/hooks/useAssistantData';
-import { useCachedFetch } from '@/lib/hooks/useCachedFetch';
-import dynamic from 'next/dynamic';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -35,7 +33,8 @@ import {
   LineElement,
 } from 'chart.js';
 import { Bar, Doughnut } from 'react-chartjs-2';
-import { AssistantLayout } from '@/components/AssistantLayout'; // ✅ استيراد AssistantLayout
+import { useTheme } from '@/lib/hooks/useTheme';
+import { hasPermission } from '@/lib/permissions';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement, PointElement, LineElement);
 
@@ -120,7 +119,7 @@ const DIFFICULTY_LEVELS = [
 ];
 
 // ============================================================
-// 2. خلفية الجسيمات (تعتمد على الثيم)
+// 2. خلفية الجسيمات
 // ============================================================
 const ParticleBackground = () => {
   const canvasRef = useRef(null);
@@ -170,9 +169,9 @@ const ParticleBackground = () => {
 };
 
 // ============================================================
-// 3. عداد متحرك (يستخدم styles)
+// 3. عداد متحرك
 // ============================================================
-const AnimatedCounter = ({ target, suffix = '', duration = 1500, prefix = '', styles }) => {
+const AnimatedCounter = ({ target, suffix = '', duration = 1500, prefix = '' }) => {
   const [count, setCount] = useState(0);
   const ref = useRef(null);
   useEffect(() => {
@@ -191,29 +190,33 @@ const AnimatedCounter = ({ target, suffix = '', duration = 1500, prefix = '', st
     if (ref.current) observer.observe(ref.current);
     return () => observer.disconnect();
   }, [target, duration]);
-  return <span ref={ref} className={`font-extrabold ${styles.text}`}>{prefix}{count}{suffix}</span>;
+  return <span ref={ref} className="font-extrabold text-white">{prefix}{count}{suffix}</span>;
 };
 
 // ============================================================
-// 4. بطاقة إحصائية (معدلة لاستخدام styles)
+// 4. بطاقة إحصائية
 // ============================================================
-const StatCard = ({ stat, styles }) => {
+const StatCard = ({ stat }) => {
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: stat.delay }}
       whileHover={{ y: -4, scale: 1.02 }}
-      className={`relative rounded-2xl p-5 transition-all duration-300 overflow-hidden shadow-lg ${styles.card} border ${styles.border}`}
+      className={`relative rounded-2xl p-5 transition-all duration-300 overflow-hidden shadow-lg ${
+        isDark ? 'bg-[#1a1f2e] border border-[#2a2f3e]' : 'bg-white border border-gray-200'
+      }`}
     >
       <div className="absolute inset-0 bg-gradient-to-br from-yellow-400/10 to-transparent opacity-50" />
       <div className="relative z-10 flex items-start justify-between">
         <div>
-          <p className={`text-sm font-semibold ${styles.subtext}`}>{stat.label}</p>
-          <p className={`text-3xl font-extrabold mt-1 drop-shadow-lg ${styles.text}`}>
-            <AnimatedCounter target={stat.value} suffix={stat.suffix || ''} styles={styles} />
+          <p className={`text-sm font-semibold ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>{stat.label}</p>
+          <p className="text-3xl font-extrabold text-white mt-1 drop-shadow-lg">
+            <AnimatedCounter target={stat.value} suffix={stat.suffix || ''} />
           </p>
-          {stat.sub && <p className={`text-xs ${styles.subtext} mt-1`}>{stat.sub}</p>}
+          {stat.sub && <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'} mt-1`}>{stat.sub}</p>}
         </div>
         <div className={`p-3 rounded-xl bg-gradient-to-br ${stat.color} bg-opacity-20 shadow-inner`}>
           <stat.icon className="h-6 w-6 text-white" />
@@ -232,66 +235,131 @@ const StatCard = ({ stat, styles }) => {
 };
 
 // ============================================================
-// 5. Hook مخصص لإدارة الأسئلة (مُصلح للمساعد)
+// 5. Hook مخصص لإدارة الأسئلة (مُصلح – بدون passage_text)
 // ============================================================
-const useQuestions = (examId, assistantId, teacherId) => {
+const useQuestions = (examId, teacherId) => {
   const [questions, setQuestions] = useState([]);
   const [passages, setPassages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // ----- دالة لتحديث الدرجة الكلية في جدول الامتحانات -----
   const updateTotalMarks = useCallback(async () => {
     try {
-      const res = await fetch(`/api/assistant/exams/${examId}/update-total-marks`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-assistant-id': assistantId,
-        },
-        body: JSON.stringify({ teacher_id: teacherId }),
-      });
-      if (!res.ok) {
-        console.warn('فشل تحديث الدرجة الكلية');
-      }
+      const { data: allQuestions } = await supabase
+        .from('exam_questions')
+        .select('marks, type')
+        .eq('exam_id', examId);
+      const total = allQuestions
+        ?.filter(q => q.type !== 'passage')
+        .reduce((sum, q) => sum + (q.marks || 0), 0) || 0;
+      await supabase
+        .from('exams')
+        .update({ total_marks: total, updated_at: new Date().toISOString() })
+        .eq('id', examId);
     } catch (err) {
       console.error('فشل تحديث الدرجة الكلية:', err);
     }
-  }, [examId, assistantId, teacherId]);
+  }, [examId]);
 
   const fetchQuestions = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/assistant/exams/${examId}/questions?teacher_id=${teacherId}`, {
-        headers: { 'x-assistant-id': assistantId },
+      const { data, error } = await supabase
+        .from('exam_questions')
+        .select('*')
+        .eq('exam_id', examId)
+        .order('order_index', { ascending: true });
+      if (error) throw error;
+
+      const passagesList = data.filter(q => q.type === 'passage');
+      const normalQuestions = data.filter(q => q.type !== 'passage');
+
+      const passageMap = {};
+      passagesList.forEach(p => {
+        passageMap[p.id] = { ...p, children: [] };
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'فشل جلب الأسئلة');
-      const qs = data.questions || [];
-      setQuestions(qs);
-      setPassages(qs.filter(q => q.type === 'passage'));
+      normalQuestions.forEach(q => {
+        if (q.passage_id && passageMap[q.passage_id]) {
+          passageMap[q.passage_id].children.push(q);
+        }
+      });
+
+      const ordered = [];
+      const passageIds = Object.keys(passageMap);
+      passageIds.forEach(id => {
+        const passage = passageMap[id];
+        ordered.push(passage);
+        const sortedChildren = passage.children.sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
+        ordered.push(...sortedChildren);
+      });
+      const standalone = normalQuestions.filter(q => !q.passage_id);
+      ordered.push(...standalone);
+
+      setQuestions(ordered);
+      setPassages(passagesList);
     } catch (err) {
       setError(err.message);
       toast.error('فشل جلب الأسئلة');
     } finally {
       setLoading(false);
     }
-  }, [examId, assistantId, teacherId]);
+  }, [examId]);
 
+  // ✅ إضافة سؤال (قطعة أو عادي) – بدون passage_text
   const addQuestion = async (questionData) => {
     try {
-      const res = await fetch(`/api/assistant/exams/${examId}/questions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-assistant-id': assistantId,
-        },
-        body: JSON.stringify({
-          teacher_id: teacherId,
-          question: questionData,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'فشل إضافة السؤال');
+      if (questionData.type === 'passage') {
+        const { data, error } = await supabase
+          .from('exam_questions')
+          .insert({
+            exam_id: examId,
+            type: 'passage',
+            question_text: questionData.question_text || '',
+            marks: 0,
+            correct_answer: null,
+            difficulty: null,
+            order_index: questionData.order_index || 0,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+          .select()
+          .single();
+        if (error) throw error;
+        await fetchQuestions();
+        await updateTotalMarks();
+        toast.success('✅ تم إضافة القطعة بنجاح');
+        return data;
+      }
+
+      const { data, error } = await supabase
+        .from('exam_questions')
+        .insert({
+          exam_id: examId,
+          type: questionData.type,
+          question_text: questionData.question_text,
+          options: questionData.options || [],
+          correct_answer: questionData.correct_answer || null,
+          marks: questionData.marks || 1,
+          difficulty: questionData.difficulty || 'medium',
+          order_index: questionData.order_index || 0,
+          explanation: questionData.explanation || '',
+          category: questionData.category || '',
+          time_limit: questionData.time_limit || 60,
+          hint: questionData.hint || '',
+          passage_id: questionData.passage_id || null,
+          case_sensitive: questionData.case_sensitive || false,
+          ignore_extra_spaces: questionData.ignore_extra_spaces !== undefined ? questionData.ignore_extra_spaces : true,
+          partial_marking: questionData.partial_marking || false,
+          word_limit: questionData.word_limit || 0,
+          bank_question_id: questionData.bank_question_id || null,
+          text_align: questionData.text_align || 'left',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .select()
+        .single();
+      if (error) throw error;
       await fetchQuestions();
       await updateTotalMarks();
       toast.success('✅ تم إضافة السؤال بنجاح');
@@ -303,21 +371,53 @@ const useQuestions = (examId, assistantId, teacherId) => {
     }
   };
 
+  // ✅ تحديث سؤال – بدون passage_text
   const updateQuestion = async (id, updates) => {
     try {
-      const res = await fetch(`/api/assistant/exams/${examId}/questions/${id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-assistant-id': assistantId,
-        },
-        body: JSON.stringify({
-          teacher_id: teacherId,
-          question: updates,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'فشل تحديث السؤال');
+      const question = questions.find(q => q.id === id);
+      if (question && question.type === 'passage') {
+        const { data, error } = await supabase
+          .from('exam_questions')
+          .update({
+            question_text: updates.question_text || '',
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', id)
+          .select()
+          .single();
+        if (error) throw error;
+        await fetchQuestions();
+        await updateTotalMarks();
+        toast.success('✅ تم تحديث القطعة');
+        return data;
+      }
+
+      const { data, error } = await supabase
+        .from('exam_questions')
+        .update({
+          type: updates.type,
+          question_text: updates.question_text,
+          options: updates.options || [],
+          correct_answer: updates.correct_answer || null,
+          marks: updates.marks || 1,
+          difficulty: updates.difficulty || 'medium',
+          order_index: updates.order_index || 0,
+          explanation: updates.explanation || '',
+          category: updates.category || '',
+          time_limit: updates.time_limit || 60,
+          hint: updates.hint || '',
+          passage_id: updates.passage_id || null,
+          case_sensitive: updates.case_sensitive || false,
+          ignore_extra_spaces: updates.ignore_extra_spaces !== undefined ? updates.ignore_extra_spaces : true,
+          partial_marking: updates.partial_marking || false,
+          word_limit: updates.word_limit || 0,
+          text_align: updates.text_align || 'left',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', id)
+        .select()
+        .single();
+      if (error) throw error;
       await fetchQuestions();
       await updateTotalMarks();
       toast.success('✅ تم تحديث السؤال');
@@ -329,63 +429,21 @@ const useQuestions = (examId, assistantId, teacherId) => {
     }
   };
 
-  const deleteQuestion = async (id) => {
-    try {
-      const question = questions.find(q => q.id === id);
-      if (question && question.type === 'passage') {
-        await fetch(`/api/assistant/exams/${examId}/questions/bulk`, {
-          method: 'DELETE',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-assistant-id': assistantId,
-          },
-          body: JSON.stringify({
-            teacher_id: teacherId,
-            ids: questions.filter(q => q.passage_id === id).map(q => q.id),
-          }),
-        });
-      }
-      const res = await fetch(`/api/assistant/exams/${examId}/questions/${id}`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-assistant-id': assistantId,
-        },
-        body: JSON.stringify({ teacher_id: teacherId }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'فشل حذف السؤال');
-      await fetchQuestions();
-      await updateTotalMarks();
-      toast.success('✅ تم حذف السؤال');
-    } catch (err) {
-      console.error('Delete error:', err);
-      toast.error('فشل حذف السؤال');
-      throw err;
-    }
-  };
+  // ❌ حذف سؤال – تم إزالته تماماً (لا يستخدم في نسخة المساعد)
+  // يتم استبداله بوظيفة فارغة تظهر رسالة "غير مسموح"
 
+  // نقل سؤال (لا يؤثر على total_marks)
   const moveQuestion = async (index, direction) => {
     const newIndex = index + direction;
     if (newIndex < 0 || newIndex >= questions.length) return;
     const updated = [...questions];
     const [moved] = updated.splice(index, 1);
     updated.splice(newIndex, 0, moved);
-    const updates = updated.map((q, i) => ({ id: q.id, order_index: i }));
+    const updates = updated.map((q, i) => ({ ...q, order_index: i }));
     try {
-      const res = await fetch(`/api/assistant/exams/${examId}/questions/reorder`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-assistant-id': assistantId,
-        },
-        body: JSON.stringify({
-          teacher_id: teacherId,
-          questions: updates,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'فشل تحديث الترتيب');
+      for (const q of updates) {
+        await supabase.from('exam_questions').update({ order_index: q.order_index }).eq('id', q.id);
+      }
       setQuestions(updated);
       toast.success('✅ تم تحديث الترتيب');
     } catch (err) {
@@ -394,12 +452,14 @@ const useQuestions = (examId, assistantId, teacherId) => {
     }
   };
 
+  // نسخ سؤال
   const duplicateQuestion = async (question) => {
     const { id, ...rest } = question;
     const newQuestion = { ...rest, order_index: questions.length };
     return await addQuestion(newQuestion);
   };
 
+  // ترتيب عشوائي (لا يؤثر على total_marks)
   const randomizeOrder = async () => {
     if (questions.length < 2) {
       toast.warning('يجب وجود سؤالين على الأقل للترتيب العشوائي');
@@ -409,21 +469,11 @@ const useQuestions = (examId, assistantId, teacherId) => {
     const normal = questions.filter(q => q.type !== 'passage');
     const shuffledNormal = [...normal].sort(() => Math.random() - 0.5);
     const shuffled = [...passagesList, ...shuffledNormal];
-    const updates = shuffled.map((q, i) => ({ id: q.id, order_index: i }));
+    const updates = shuffled.map((q, i) => ({ ...q, order_index: i }));
     try {
-      const res = await fetch(`/api/assistant/exams/${examId}/questions/reorder`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-assistant-id': assistantId,
-        },
-        body: JSON.stringify({
-          teacher_id: teacherId,
-          questions: updates,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'فشل الترتيب العشوائي');
+      for (const q of updates) {
+        await supabase.from('exam_questions').update({ order_index: q.order_index }).eq('id', q.id);
+      }
       setQuestions(shuffled);
       toast.success('✅ تم ترتيب الأسئلة عشوائياً مع الحفاظ على تجميع القطع');
     } catch (err) {
@@ -431,22 +481,11 @@ const useQuestions = (examId, assistantId, teacherId) => {
     }
   };
 
+  // تحديث جماعي (بدون حذف)
   const bulkUpdate = async (ids, updates) => {
     try {
-      const res = await fetch(`/api/assistant/exams/${examId}/questions/bulk`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-assistant-id': assistantId,
-        },
-        body: JSON.stringify({
-          teacher_id: teacherId,
-          ids,
-          updates,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'فشل التحديث الجماعي');
+      const { error } = await supabase.from('exam_questions').update(updates).in('id', ids);
+      if (error) throw error;
       await fetchQuestions();
       await updateTotalMarks();
       toast.success(`✅ تم تحديث ${ids.length} سؤال`);
@@ -463,7 +502,6 @@ const useQuestions = (examId, assistantId, teacherId) => {
     fetchQuestions,
     addQuestion,
     updateQuestion,
-    deleteQuestion,
     moveQuestion,
     duplicateQuestion,
     randomizeOrder,
@@ -472,9 +510,11 @@ const useQuestions = (examId, assistantId, teacherId) => {
 };
 
 // ============================================================
-// 6. معاينة السؤال (مُعاد كتابتها مع دعم الأنواع الجديدة) – تستخدم styles
+// 6. معاينة السؤال (مُعاد كتابتها لتجنب الأخطاء) – تم إزالة essay
 // ============================================================
-const QuestionPreview = ({ question, styles }) => {
+const QuestionPreview = ({ question }) => {
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
   if (!question) return null;
   const type = question.type || 'multiple_choice';
   const typeInfo = QUESTION_TYPES[type] || QUESTION_TYPES.multiple_choice;
@@ -504,7 +544,7 @@ const QuestionPreview = ({ question, styles }) => {
     return (
       <div className="space-y-2">
         <div>
-          <p className={`text-xs font-semibold ${styles.subtext}`}>الكلمات المبعثرة (للطالب):</p>
+          <p className={`text-xs font-semibold ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>الكلمات المبعثرة (للطالب):</p>
           <div className="flex flex-wrap gap-1 mt-1">
             {Array.isArray(words) && words.map((w, i) => (
               <span key={i} className="text-xs px-2 py-0.5 rounded-full bg-amber-600/30 text-amber-300 border border-amber-600">
@@ -515,7 +555,7 @@ const QuestionPreview = ({ question, styles }) => {
         </div>
         {Array.isArray(models) && models.length > 0 && (
           <div>
-            <p className={`text-xs font-semibold ${styles.subtext}`}>نماذج الإجابات الصحيحة:</p>
+            <p className={`text-xs font-semibold ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>نماذج الإجابات الصحيحة:</p>
             {models.map((model, idx) => (
               <div key={idx} className="flex flex-wrap gap-1 mt-1">
                 <span className="text-xs text-green-400 ml-1">نموذج {idx+1}:</span>
@@ -533,13 +573,13 @@ const QuestionPreview = ({ question, styles }) => {
   };
 
   return (
-    <div className={`rounded-xl p-4 mt-4 border-2 ${styles.card} border ${styles.border}`}>
+    <div className={`rounded-xl p-4 mt-4 border-2 ${isDark ? 'border-white/20 bg-[#1a1f2e]' : 'border-gray-300 bg-white'}`}>
       <div className="flex items-center gap-2 mb-2 flex-wrap">
         <TypeIcon className="h-5 w-5" style={{ color: typeInfo.color }} />
         <span className="text-xs font-bold" style={{ color: typeInfo.color }}>معاينة السؤال</span>
-        <span className={`text-xs ${styles.subtext}`}>#{question.order_index + 1}</span>
+        <span className={`text-xs ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>#{question.order_index + 1}</span>
         {question.type !== 'passage' && (
-          <span className={`text-xs ${styles.subtext}`}>الدرجة: {question.marks}</span>
+          <span className={`text-xs ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>الدرجة: {question.marks}</span>
         )}
         {question.difficulty && (
           <span className="text-xs" style={{ color: DIFFICULTY_LEVELS.find(d => d.value === question.difficulty)?.color || '#fff' }}>
@@ -558,23 +598,35 @@ const QuestionPreview = ({ question, styles }) => {
         )}
       </div>
       {type === 'passage' ? (
-        <div className={`p-3 rounded-lg ${styles.card} border ${styles.border} text-sm`}>
-          <p className={`font-bold ${styles.text}`}>📄 القطعة:</p>
-          <p className={`whitespace-pre-wrap ${styles.subtext}`}>{question.question_text || 'لا يوجد نص'}</p>
+        <div className={`p-3 rounded-lg ${isDark ? 'bg-black/30 border border-white/10' : 'bg-gray-100 border border-gray-200'} text-sm`}>
+          <p className="font-bold text-white">📄 القطعة:</p>
+          <p
+            className={`whitespace-pre-wrap ${isDark ? 'text-gray-200' : 'text-gray-800'}`}
+            dir="ltr"
+            style={{ textAlign: 'left' }}
+          >
+            {question.question_text || 'لا يوجد نص'}
+          </p>
         </div>
       ) : (
         <>
-          <p className={`text-sm mb-2 font-medium ${styles.text}`}>{question.question_text}</p>
+          <p
+            className={`text-sm mb-2 font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}
+            dir="ltr"
+            style={{ textAlign: 'left' }}
+          >
+            {question.question_text}
+          </p>
           {type === 'fill_from_words' && (
             <div className="space-y-2">
-              <div className={`p-3 rounded-lg ${styles.card} border ${styles.border}`}>
-                <p className={`text-sm ${styles.subtext}`}>
+              <div className={`p-3 rounded-lg ${isDark ? 'bg-black/30 border border-white/10' : 'bg-gray-100 border border-gray-200'}`}>
+                <p className={`text-sm ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>
                   {renderPreviewText(question.question_text, question.correct_answer)}
                 </p>
               </div>
               {Array.isArray(question.options) && question.options.length > 0 && (
                 <div>
-                  <p className={`text-xs font-semibold ${styles.subtext}`}>صندوق الكلمات:</p>
+                  <p className={`text-xs font-semibold ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>صندوق الكلمات:</p>
                   <div className="flex flex-wrap gap-1 mt-1">
                     {question.options.map((w, i) => (
                       <span key={i} className="text-xs px-2 py-0.5 rounded-full bg-amber-600/30 text-amber-300 border border-amber-600">
@@ -586,7 +638,7 @@ const QuestionPreview = ({ question, styles }) => {
               )}
               {Array.isArray(question.correct_answer) && question.correct_answer.length > 0 && (
                 <div>
-                  <p className={`text-xs font-semibold ${styles.subtext}`}>الإجابات الصحيحة:</p>
+                  <p className={`text-xs font-semibold ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>الإجابات الصحيحة:</p>
                   <div className="flex flex-wrap gap-1 mt-1">
                     {question.correct_answer.map((ans, i) => (
                       <span key={i} className="text-xs px-2 py-0.5 rounded-full bg-green-600/30 text-green-300 border border-green-600">
@@ -602,7 +654,7 @@ const QuestionPreview = ({ question, styles }) => {
           {type === 'multiple_choice' && question.options?.length > 0 && (
             <div className="space-y-1">
               {question.options.map((opt, i) => (
-                <div key={i} className={`flex items-center gap-2 text-sm ${opt.isCorrect ? 'text-green-400 font-bold' : styles.subtext}`}>
+                <div key={i} className={`flex items-center gap-2 text-sm ${opt.isCorrect ? 'text-green-400 font-bold' : isDark ? 'text-gray-200' : 'text-gray-800'}`}>
                   <span>{String.fromCharCode(65 + i)}.</span>
                   <span>{opt.text}</span>
                   {opt.isCorrect && <Icons.CheckCircle className="h-4 w-4 text-green-400" />}
@@ -612,7 +664,7 @@ const QuestionPreview = ({ question, styles }) => {
           )}
           {type === 'fill_blank' && question.correct_answer && (
             <div className="mt-2 p-2 rounded-lg bg-purple-600/20 border border-purple-600/30">
-              <p className={`text-xs font-semibold ${styles.subtext}`}>نماذج الإجابات الصحيحة:</p>
+              <p className={`text-xs font-semibold ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>نماذج الإجابات الصحيحة:</p>
               <div className="flex flex-wrap gap-1 mt-1">
                 {Array.isArray(question.correct_answer) ? (
                   question.correct_answer.map((ans, idx) => (
@@ -629,7 +681,7 @@ const QuestionPreview = ({ question, styles }) => {
             </div>
           )}
           {question.explanation && (
-            <div className={`text-xs mt-2 flex items-start gap-1 ${styles.subtext}`}>
+            <div className={`text-xs mt-2 flex items-start gap-1 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
               <Icons.Lightbulb className="h-4 w-4 text-yellow-400 flex-shrink-0 mt-0.5" />
               <span>{question.explanation}</span>
             </div>
@@ -641,7 +693,7 @@ const QuestionPreview = ({ question, styles }) => {
 };
 
 // ============================================================
-// 7. نافذة إضافة/تعديل سؤال (معدلة لاستخدام styles)
+// 7. نافذة إضافة/تعديل سؤال (مع تحسين معاينة القطعة) – تم إزالة essay
 // ============================================================
 const QuestionFormModal = ({
   isOpen,
@@ -652,8 +704,9 @@ const QuestionFormModal = ({
   totalQuestions,
   existingPassages,
   preselectedPassageId = null,
-  styles,
 }) => {
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
   const [formData, setFormData] = useState({
     type: 'multiple_choice',
     question_text: '',
@@ -674,12 +727,14 @@ const QuestionFormModal = ({
     word_limit: 0,
     word_bank: [],
     correct_answers: [],
+    text_align: 'left',
   });
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [showPassagePreview, setShowPassagePreview] = useState(false);
   const [previewPassageId, setPreviewPassageId] = useState(null);
+  
   const prevQuestionTextRef = useRef('');
   const updatingRef = useRef(false);
 
@@ -746,6 +801,7 @@ const QuestionFormModal = ({
         word_limit: question.word_limit || 0,
         word_bank: wordBank,
         correct_answers: correctAnswers,
+        text_align: question.text_align || 'left',
       });
       prevQuestionTextRef.current = question.question_text || '';
     } else {
@@ -770,6 +826,7 @@ const QuestionFormModal = ({
         word_limit: 0,
         word_bank: ['', ''],
         correct_answers: [''],
+        text_align: 'left',
       });
       prevQuestionTextRef.current = '';
     }
@@ -988,6 +1045,7 @@ const QuestionFormModal = ({
         delete dataToSubmit.passage_text;
         delete dataToSubmit.word_bank;
         delete dataToSubmit.correct_answers;
+        dataToSubmit.text_align = 'left';
         await onSubmit(dataToSubmit);
         onClose();
         return;
@@ -1052,6 +1110,8 @@ const QuestionFormModal = ({
 
       if (!dataToSubmit.passage_id) dataToSubmit.passage_id = null;
       delete dataToSubmit.passage_text;
+      dataToSubmit.text_align = formData.text_align || 'left';
+      
       await onSubmit(dataToSubmit);
       onClose();
     } catch (err) {
@@ -1101,7 +1161,9 @@ const QuestionFormModal = ({
         initial={{ scale: 0.9, y: 20 }}
         animate={{ scale: 1, y: 0 }}
         exit={{ scale: 0.9, y: 20 }}
-        className={`rounded-3xl p-8 max-w-4xl w-full max-h-[90vh] overflow-y-auto ${styles.card} border ${styles.border} shadow-2xl`}
+        className={`rounded-3xl p-8 max-w-4xl w-full max-h-[90vh] overflow-y-auto ${
+          isDark ? 'bg-[#1a1f2e] border border-white/20' : 'bg-white border border-gray-300'
+        } shadow-2xl`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex justify-between items-center mb-6">
@@ -1109,13 +1171,13 @@ const QuestionFormModal = ({
             <div className="p-2 rounded-xl" style={{ backgroundColor: typeInfo.bg }}>
               <TypeIcon className="h-6 w-6" style={{ color: typeInfo.color }} />
             </div>
-            <h3 className={`text-2xl font-bold ${styles.text}`}>
+            <h3 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
               {isEdit ? '✏️ تعديل السؤال' : '➕ إضافة سؤال جديد'}
             </h3>
           </div>
           <div className="flex gap-2">
-            <button type="button" onClick={() => setShowPreview(!showPreview)} className={`p-2 rounded-xl transition hover:bg-white/10 ${styles.subtext}`}>
-              <Icons.Eye className="h-5 w-5" />
+            <button type="button" onClick={() => setShowPreview(!showPreview)} className={`p-2 rounded-xl transition ${isDark ? 'hover:bg-white/10' : 'hover:bg-gray-100'}`}>
+              <Icons.Eye className="h-5 w-5 ${isDark ? 'text-gray-300' : 'text-gray-600'}" />
             </button>
             <button onClick={onClose} className="p-2 rounded-xl transition hover:bg-red-500/20">
               <Icons.X className="h-6 w-6 text-red-400" />
@@ -1126,7 +1188,7 @@ const QuestionFormModal = ({
         <form onSubmit={handleSubmit} className="space-y-5">
           {/* نوع السؤال */}
           <div>
-            <label className={`block text-sm font-medium mb-1.5 ${styles.subtext}`}>نوع السؤال</label>
+            <label className={`block text-sm font-medium mb-1.5 ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>نوع السؤال</label>
             <div className="grid grid-cols-3 md:grid-cols-7 gap-2">
               {Object.entries(QUESTION_TYPES).map(([key, { label, icon: Icon, color, bg }]) => (
                 <button
@@ -1149,18 +1211,19 @@ const QuestionFormModal = ({
                       word_bank: key === 'fill_from_words' ? ['', ''] : (key === 'sentence_reorder' ? [] : []),
                       correct_answers: key === 'fill_from_words' ? [''] : (key === 'sentence_reorder' ? [[]] : []),
                       question_text: key === 'fill_from_words' ? '' : (key === 'passage' ? '' : ''),
+                      text_align: 'left',
                     }));
                     prevQuestionTextRef.current = '';
                   }}
                   className={`p-2 rounded-xl text-center transition-all duration-300 text-xs ${
                     formData.type === key
                       ? 'border-2 shadow-lg' 
-                      : `${styles.card} border ${styles.border} hover:border-yellow-400/50`
+                      : `${isDark ? 'border border-white/10 hover:border-white/30' : 'border border-gray-200 hover:border-gray-400'}`
                   }`}
                   style={{
                     borderColor: formData.type === key ? color : undefined,
-                    backgroundColor: formData.type === key ? bg : (styles.card),
-                    color: formData.type === key ? color : styles.subtext,
+                    backgroundColor: formData.type === key ? bg : (isDark ? 'rgba(255,255,255,0.03)' : '#f9fafb'),
+                    color: formData.type === key ? color : (isDark ? '#9ca3af' : '#4b5563'),
                   }}
                 >
                   <Icon className="h-5 w-5 mx-auto mb-1" />
@@ -1173,7 +1236,7 @@ const QuestionFormModal = ({
           {/* ربط القطعة (لغير القطع) مع زر معاينة */}
           {!isPassage && existingPassages && existingPassages.length > 0 && (
             <div>
-              <label className={`block text-sm font-medium mb-1.5 ${styles.subtext}`}>
+              <label className={`block text-sm font-medium mb-1.5 ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>
                 ربط بقطعة (اختياري)
               </label>
               <div className="flex gap-2 items-start">
@@ -1181,7 +1244,9 @@ const QuestionFormModal = ({
                   name="passage_id"
                   value={formData.passage_id || ''}
                   onChange={handleChange}
-                  className={`flex-1 p-3 rounded-xl focus:ring-2 focus:ring-yellow-500 outline-none transition ${styles.input} border ${styles.border}`}
+                  className={`flex-1 p-3 rounded-xl focus:ring-2 focus:ring-yellow-500 outline-none transition ${
+                    isDark ? 'bg-[#0b0e1a] border border-white/20 text-white' : 'bg-white border border-gray-300 text-gray-900'
+                  }`}
                 >
                   <option value="">بدون قطعة</option>
                   {existingPassages.map(p => (
@@ -1193,38 +1258,80 @@ const QuestionFormModal = ({
                 <button
                   type="button"
                   onClick={handlePreviewPassage}
-                  className={`px-3 py-3 rounded-xl transition flex items-center justify-center ${styles.card} border ${styles.border} hover:border-yellow-400/50`}
+                  className={`px-3 py-3 rounded-xl transition flex items-center justify-center ${
+                    isDark ? 'bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-300 border border-indigo-600' : 'bg-indigo-100 hover:bg-indigo-200 text-indigo-700 border border-indigo-300'
+                  }`}
                   title="معاينة القطعة المختارة"
                 >
                   <Icons.Eye className="h-5 w-5" />
                 </button>
               </div>
-              <p className={`text-xs mt-1 ${styles.subtext}`}>
+              <p className={`text-xs mt-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
                 اختر قطعة موجودة لربط هذا السؤال بها، أو اتركه بدون قطعة. يمكنك معاينة القطعة المختارة بالضغط على زر العين.
               </p>
+            </div>
+          )}
+
+          {/* أزرار المحاذاة */}
+          {!isPassage && (
+            <div className="flex items-center gap-2 mt-2">
+              <span className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                <Icons.AlignLeft className="inline h-4 w-4 mr-1" />
+                المحاذاة:
+              </span>
+              {[
+                { value: 'left', icon: Icons.AlignLeft, label: 'يسار' },
+                { value: 'center', icon: Icons.AlignCenter, label: 'وسط' },
+                { value: 'right', icon: Icons.AlignRight, label: 'يمين' },
+              ].map(({ value, icon: Icon, label }) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setFormData(prev => ({ ...prev, text_align: value }))}
+                  className={`p-2 rounded-lg transition-all duration-200 ${
+                    formData.text_align === value
+                      ? 'bg-yellow-500/30 border-2 border-yellow-400 shadow-lg shadow-yellow-500/20'
+                      : isDark
+                      ? 'bg-white/5 border border-white/10 hover:bg-white/10'
+                      : 'bg-gray-100 border border-gray-200 hover:bg-gray-200'
+                  }`}
+                  title={label}
+                >
+                  <Icon className={`h-5 w-5 ${
+                    formData.text_align === value ? 'text-yellow-400' : isDark ? 'text-gray-400' : 'text-gray-600'
+                  }`} />
+                </button>
+              ))}
+              <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'} mr-2`}>
+                (اختر اتجاه النص)
+              </span>
             </div>
           )}
 
           {/* نص السؤال أو القطعة */}
           {isPassage ? (
             <div>
-              <label className={`block text-sm font-medium mb-1.5 ${styles.subtext}`}>نص القطعة <span className="text-red-400">*</span></label>
+              <label className={`block text-sm font-medium mb-1.5 ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>نص القطعة <span className="text-red-400">*</span></label>
               <textarea
                 name="passage_text"
                 value={formData.passage_text}
                 onChange={handleChange}
                 rows="6"
+                dir="ltr"
+                style={{ textAlign: 'left' }}
                 placeholder="أدخل النص الطويل للقطعة هنا..."
-                className={`w-full p-3 rounded-xl focus:ring-2 focus:ring-yellow-500 outline-none transition resize-none ${styles.input} border ${styles.border}`}
+                className={`w-full p-3 rounded-xl focus:ring-2 focus:ring-yellow-500 outline-none transition resize-none ${
+                  isDark ? 'bg-[#0b0e1a] border border-white/20 text-white' : 'bg-white border border-gray-300 text-gray-900'
+                }`}
               />
               {errors.passage_text && <p className="text-red-400 text-xs mt-1">{errors.passage_text}</p>}
             </div>
           ) : (
             <div>
-              <label className={`block text-sm font-medium mb-1.5 ${styles.subtext}`}>
+              <label className={`block text-sm font-medium mb-1.5 ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>
                 نص السؤال <span className="text-red-400">*</span>
                 {formData.type === 'fill_from_words' && (
-                  <span className={`text-xs mr-2 ${styles.subtext}`}>
+                  <span className={`text-xs mr-2 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
                     (استخدم {`{1}`}, {`{2}`}, ... أو ____ للفراغات)
                   </span>
                 )}
@@ -1234,8 +1341,12 @@ const QuestionFormModal = ({
                 value={formData.question_text}
                 onChange={handleChange}
                 rows="3"
+                dir="ltr"
+                style={{ textAlign: 'left' }}
                 placeholder={formData.type === 'fill_from_words' ? 'مثال: Learning a new language ... {1} __________.' : 'اكتب نص السؤال هنا...'}
-                className={`w-full p-3 rounded-xl focus:ring-2 focus:ring-yellow-500 outline-none transition resize-none ${styles.input} border ${styles.border}`}
+                className={`w-full p-3 rounded-xl focus:ring-2 focus:ring-yellow-500 outline-none transition resize-none ${
+                  isDark ? 'bg-[#0b0e1a] border border-white/20 text-white' : 'bg-white border border-gray-300 text-gray-900'
+                }`}
               />
               {errors.question_text && <p className="text-red-400 text-xs mt-1">{errors.question_text}</p>}
             </div>
@@ -1244,19 +1355,21 @@ const QuestionFormModal = ({
           {/* خيارات MCQ */}
           {formData.type === 'multiple_choice' && (
             <div>
-              <label className={`block text-sm font-medium mb-1.5 ${styles.subtext}`}>الخيارات</label>
+              <label className={`block text-sm font-medium mb-1.5 ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>الخيارات</label>
               <div className="space-y-2">
                 {formData.options.map((opt, idx) => (
                   <div key={idx} className="flex items-center gap-2">
-                    <span className={`text-xs ${styles.subtext} w-6`}>{String.fromCharCode(65 + idx)}.</span>
+                    <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'} w-6`}>{String.fromCharCode(65 + idx)}.</span>
                     <input
                       type="text"
                       value={opt.text}
                       onChange={(e) => updateOption(idx, 'text', e.target.value)}
                       placeholder={`خيار ${String.fromCharCode(65 + idx)}`}
-                      className={`flex-1 p-2 rounded-lg focus:ring-2 focus:ring-yellow-500 outline-none transition text-sm ${styles.input} border ${styles.border}`}
+                      className={`flex-1 p-2 rounded-lg focus:ring-2 focus:ring-yellow-500 outline-none transition text-sm ${
+                        isDark ? 'bg-[#0b0e1a] border border-white/20 text-white' : 'bg-white border border-gray-300 text-gray-900'
+                      }`}
                     />
-                    <label className={`flex items-center gap-1 text-xs ${styles.subtext} whitespace-nowrap`}>
+                    <label className={`flex items-center gap-1 text-xs ${isDark ? 'text-gray-300' : 'text-gray-700'} whitespace-nowrap`}>
                       <input type="checkbox" checked={opt.isCorrect} onChange={(e) => updateOption(idx, 'isCorrect', e.target.checked)} className="w-4 h-4 accent-yellow-500 rounded" /> صحيح
                     </label>
                     {formData.options.length > 2 && (
@@ -1273,10 +1386,10 @@ const QuestionFormModal = ({
           {/* صح/خطأ */}
           {formData.type === 'true_false' && (
             <div>
-              <label className={`block text-sm font-medium mb-1.5 ${styles.subtext}`}>الإجابة الصحيحة</label>
+              <label className={`block text-sm font-medium mb-1.5 ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>الإجابة الصحيحة</label>
               <div className="flex gap-4">
                 {['true', 'false'].map(val => (
-                  <label key={val} className={`flex items-center gap-2 cursor-pointer ${styles.subtext}`}>
+                  <label key={val} className={`flex items-center gap-2 cursor-pointer ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>
                     <input type="radio" name="correct_answer" value={val} checked={formData.correct_answer === val} onChange={handleChange} className="w-4 h-4 accent-yellow-500" />
                     <span>{val === 'true' ? 'صح' : 'خطأ'}</span>
                   </label>
@@ -1286,23 +1399,25 @@ const QuestionFormModal = ({
             </div>
           )}
 
-          {/* ✅ إكمال من كلمات معطاة – واجهة جديدة */}
+          {/* إكمال من كلمات معطاة – واجهة جديدة */}
           {formData.type === 'fill_from_words' && (
             <div className="space-y-4">
               <div>
-                <label className={`block text-sm font-medium mb-1.5 ${styles.subtext}`}>
+                <label className={`block text-sm font-medium mb-1.5 ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>
                   صندوق الكلمات (Word Bank) <span className="text-red-400">*</span>
                 </label>
                 <div className="space-y-2">
                   {formData.word_bank.map((word, idx) => (
                     <div key={idx} className="flex items-center gap-2">
-                      <span className={`text-xs ${styles.subtext} w-6`}>{idx + 1}.</span>
+                      <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'} w-6`}>{idx + 1}.</span>
                       <input
                         type="text"
                         value={word}
                         onChange={(e) => updateWord(idx, e.target.value)}
                         placeholder={`كلمة ${idx + 1}`}
-                        className={`flex-1 p-2 rounded-lg focus:ring-2 focus:ring-yellow-500 outline-none transition text-sm ${styles.input} border ${styles.border}`}
+                        className={`flex-1 p-2 rounded-lg focus:ring-2 focus:ring-yellow-500 outline-none transition text-sm ${
+                          isDark ? 'bg-[#0b0e1a] border border-white/20 text-white' : 'bg-white border border-gray-300 text-gray-900'
+                        }`}
                       />
                       {formData.word_bank.length > 2 && (
                         <button
@@ -1327,20 +1442,22 @@ const QuestionFormModal = ({
               </div>
 
               <div>
-                <label className={`block text-sm font-medium mb-1.5 ${styles.subtext}`}>
+                <label className={`block text-sm font-medium mb-1.5 ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>
                   الإجابات الصحيحة <span className="text-red-400">*</span>
-                  <span className={`text-xs mr-2 ${styles.subtext}`}>
+                  <span className={`text-xs mr-2 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
                     (لكل فراغ إجابة من صندوق الكلمات)
                   </span>
                 </label>
                 <div className="space-y-2">
                   {formData.correct_answers.map((ans, idx) => (
                     <div key={idx} className="flex items-center gap-2">
-                      <span className={`text-xs ${styles.subtext} w-6`}>#{idx + 1}</span>
+                      <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'} w-6`}>#{idx + 1}</span>
                       <select
                         value={ans}
                         onChange={(e) => updateCorrectAnswer(idx, e.target.value)}
-                        className={`flex-1 p-2 rounded-lg focus:ring-2 focus:ring-yellow-500 outline-none transition text-sm ${styles.input} border ${styles.border}`}
+                        className={`flex-1 p-2 rounded-lg focus:ring-2 focus:ring-yellow-500 outline-none transition text-sm ${
+                          isDark ? 'bg-[#0b0e1a] border border-white/20 text-white' : 'bg-white border border-gray-300 text-gray-900'
+                        }`}
                       >
                         <option value="">اختر كلمة...</option>
                         {formData.word_bank.map((word, i) => (
@@ -1371,26 +1488,26 @@ const QuestionFormModal = ({
             </div>
           )}
 
-          {/* ✅ واجهة ترتيب الجملة (محسّنة) */}
+          {/* واجهة ترتيب الجملة (محسّنة) */}
           {isSentenceReorder && (
             <div className="space-y-4">
               <div>
-                <label className={`block text-sm font-medium mb-1.5 ${styles.subtext}`}>
+                <label className={`block text-sm font-medium mb-1.5 ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>
                   الكلمات المبعثرة <span className="text-red-400">*</span>
-                  <span className={`text-xs mr-2 ${styles.subtext}`}>
+                  <span className={`text-xs mr-2 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
                     (أدخل الكلمات بالترتيب العشوائي الذي سيظهر للطالب)
                   </span>
                 </label>
                 <div className="flex flex-wrap gap-2 items-center">
                   {formData.word_bank.map((word, idx) => (
                     <div key={idx} className="flex items-center gap-1 bg-white/5 rounded-lg px-2 py-1 border border-white/10">
-                      <span className={`text-xs ${styles.subtext}`}>{idx + 1}.</span>
+                      <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{idx + 1}.</span>
                       <input
                         type="text"
                         value={word}
                         onChange={(e) => updateWord(idx, e.target.value)}
                         placeholder={`كلمة ${idx + 1}`}
-                        className={`w-24 p-1 text-sm bg-transparent border-b-2 focus:outline-none ${styles.text} ${styles.border}`}
+                        className={`w-24 p-1 text-sm bg-transparent border-b-2 focus:outline-none ${isDark ? 'border-white/20 text-white' : 'border-gray-400 text-gray-900'}`}
                       />
                       {formData.word_bank.length > 2 && (
                         <button
@@ -1415,13 +1532,13 @@ const QuestionFormModal = ({
               </div>
 
               <div>
-                <label className={`block text-sm font-medium mb-1.5 ${styles.subtext}`}>
+                <label className={`block text-sm font-medium mb-1.5 ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>
                   نماذج الإجابات الصحيحة <span className="text-red-400">*</span>
-                  <span className={`text-xs mr-2 ${styles.subtext}`}>
+                  <span className={`text-xs mr-2 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
                     (أضف نموذجاً واحداً أو أكثر. كل نموذج هو ترتيب صحيح للكلمات)
                   </span>
                 </label>
-                <p className={`text-xs mb-2 ${styles.subtext}`}>
+                <p className={`text-xs mb-2 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
                   رتب الكلمات بالترتيب الصحيح لتكوين الجملة.
                 </p>
                 {formData.correct_answers.map((model, modelIdx) => (
@@ -1441,13 +1558,13 @@ const QuestionFormModal = ({
                     <div className="flex flex-wrap gap-2 items-center">
                       {model.map((word, wordIdx) => (
                         <div key={wordIdx} className="flex items-center gap-1">
-                          <span className={`text-xs ${styles.subtext}`}>{wordIdx + 1}.</span>
+                          <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{wordIdx + 1}.</span>
                           <input
                             type="text"
                             value={word}
                             onChange={(e) => updateSentenceModelWord(modelIdx, wordIdx, e.target.value)}
                             placeholder={`كلمة ${wordIdx + 1}`}
-                            className={`w-24 p-1 text-sm bg-transparent border-b-2 focus:outline-none ${styles.text} ${styles.border}`}
+                            className={`w-24 p-1 text-sm bg-transparent border-b-2 focus:outline-none ${isDark ? 'border-white/20 text-white' : 'border-gray-400 text-gray-900'}`}
                           />
                         </div>
                       ))}
@@ -1476,21 +1593,23 @@ const QuestionFormModal = ({
           {/* نماذج الإجابات المتعددة (لـ fill_blank فقط) */}
           {formData.type === 'fill_blank' && (
             <div>
-              <label className={`block text-sm font-medium mb-1.5 ${styles.subtext}`}>
+              <label className={`block text-sm font-medium mb-1.5 ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>
                 نماذج الإجابات الصحيحة <span className="text-red-400">*</span>
-                <span className={`text-xs mr-2 ${styles.subtext}`}>(أدخل نموذجاً واحداً أو أكثر)</span>
+                <span className={`text-xs mr-2 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>(أدخل نموذجاً واحداً أو أكثر)</span>
               </label>
               <div className="space-y-2">
                 {Array.isArray(formData.correct_answer) ? (
                   formData.correct_answer.map((ans, idx) => (
                     <div key={idx} className="flex items-center gap-2">
-                      <span className={`text-xs ${styles.subtext} w-6`}>{idx + 1}.</span>
+                      <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'} w-6`}>{idx + 1}.</span>
                       <input
                         type="text"
                         value={ans}
                         onChange={(e) => updateCorrectAnswerOld(idx, e.target.value)}
                         placeholder={`نموذج الإجابة ${idx + 1}`}
-                        className={`flex-1 p-2 rounded-lg focus:ring-2 focus:ring-yellow-500 outline-none transition text-sm ${styles.input} border ${styles.border}`}
+                        className={`flex-1 p-2 rounded-lg focus:ring-2 focus:ring-yellow-500 outline-none transition text-sm ${
+                          isDark ? 'bg-[#0b0e1a] border border-white/20 text-white' : 'bg-white border border-gray-300 text-gray-900'
+                        }`}
                       />
                       {formData.correct_answer.length > 1 && (
                         <button type="button" onClick={() => removeCorrectAnswerOld(idx)} className="text-red-400 hover:text-red-300 transition"><Icons.X className="h-4 w-4" /></button>
@@ -1504,7 +1623,9 @@ const QuestionFormModal = ({
                       value={formData.correct_answer}
                       onChange={(e) => setFormData(prev => ({ ...prev, correct_answer: [e.target.value] }))}
                       placeholder="نموذج الإجابة"
-                      className={`flex-1 p-2 rounded-lg focus:ring-2 focus:ring-yellow-500 outline-none transition text-sm ${styles.input} border ${styles.border}`}
+                      className={`flex-1 p-2 rounded-lg focus:ring-2 focus:ring-yellow-500 outline-none transition text-sm ${
+                        isDark ? 'bg-[#0b0e1a] border border-white/20 text-white' : 'bg-white border border-gray-300 text-gray-900'
+                      }`}
                     />
                   </div>
                 )}
@@ -1517,38 +1638,46 @@ const QuestionFormModal = ({
           {/* خيارات متقدمة (لغير القطع) */}
           {!isPassage && (
             <>
-              <div className={`border-t ${styles.border} pt-4 grid grid-cols-1 md:grid-cols-2 gap-4`}>
+              <div className={`border-t ${isDark ? 'border-white/10' : 'border-gray-200'} pt-4 grid grid-cols-1 md:grid-cols-2 gap-4`}>
                 <div>
-                  <label className={`block text-sm font-medium mb-1.5 ${styles.subtext}`}>مستوى الصعوبة</label>
-                  <select name="difficulty" value={formData.difficulty} onChange={handleChange} className={`w-full p-2.5 rounded-xl focus:ring-2 focus:ring-yellow-500 outline-none transition ${styles.input} border ${styles.border}`}>
+                  <label className={`block text-sm font-medium mb-1.5 ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>مستوى الصعوبة</label>
+                  <select name="difficulty" value={formData.difficulty} onChange={handleChange} className={`w-full p-2.5 rounded-xl focus:ring-2 focus:ring-yellow-500 outline-none transition ${
+                    isDark ? 'bg-[#0b0e1a] border border-white/20 text-white' : 'bg-white border border-gray-300 text-gray-900'
+                  }`}>
                     {DIFFICULTY_LEVELS.map(level => <option key={level.value} value={level.value}>{level.label}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className={`block text-sm font-medium mb-1.5 ${styles.subtext}`}>التصنيف (اختياري)</label>
-                  <input type="text" name="category" value={formData.category || ''} onChange={handleChange} placeholder="مثال: فصل 1" className={`w-full p-2.5 rounded-xl focus:ring-2 focus:ring-yellow-500 outline-none transition ${styles.input} border ${styles.border}`} />
+                  <label className={`block text-sm font-medium mb-1.5 ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>التصنيف (اختياري)</label>
+                  <input type="text" name="category" value={formData.category || ''} onChange={handleChange} placeholder="مثال: فصل 1" className={`w-full p-2.5 rounded-xl focus:ring-2 focus:ring-yellow-500 outline-none transition ${
+                    isDark ? 'bg-[#0b0e1a] border border-white/20 text-white' : 'bg-white border border-gray-300 text-gray-900'
+                  }`} />
                 </div>
                 <div>
-                  <label className={`block text-sm font-medium mb-1.5 ${styles.subtext}`}>الوقت المقترح (ثانية)</label>
-                  <input type="number" name="time_limit" value={formData.time_limit} onChange={handleChange} min="5" className={`w-full p-2.5 rounded-xl focus:ring-2 focus:ring-yellow-500 outline-none transition ${styles.input} border ${styles.border}`} />
+                  <label className={`block text-sm font-medium mb-1.5 ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>الوقت المقترح (ثانية)</label>
+                  <input type="number" name="time_limit" value={formData.time_limit} onChange={handleChange} min="5" className={`w-full p-2.5 rounded-xl focus:ring-2 focus:ring-yellow-500 outline-none transition ${
+                    isDark ? 'bg-[#0b0e1a] border border-white/20 text-white' : 'bg-white border border-gray-300 text-gray-900'
+                  }`} />
                 </div>
                 <div>
-                  <label className={`block text-sm font-medium mb-1.5 ${styles.subtext}`}>حد الكلمات (للمقالي)</label>
-                  <input type="number" name="word_limit" value={formData.word_limit} onChange={handleChange} min="0" placeholder="0 = غير محدود" className={`w-full p-2.5 rounded-xl focus:ring-2 focus:ring-yellow-500 outline-none transition ${styles.input} border ${styles.border}`} />
+                  <label className={`block text-sm font-medium mb-1.5 ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>حد الكلمات</label>
+                  <input type="number" name="word_limit" value={formData.word_limit} onChange={handleChange} min="0" placeholder="0 = غير محدود" className={`w-full p-2.5 rounded-xl focus:ring-2 focus:ring-yellow-500 outline-none transition ${
+                    isDark ? 'bg-[#0b0e1a] border border-white/20 text-white' : 'bg-white border border-gray-300 text-gray-900'
+                  }`} />
                 </div>
               </div>
 
               {/* إعدادات التصحيح الذكي */}
-              <div className={`border-t ${styles.border} pt-4 grid grid-cols-1 md:grid-cols-3 gap-4`}>
-                <label className={`flex items-center gap-2 text-sm ${styles.subtext}`}>
+              <div className={`border-t ${isDark ? 'border-white/10' : 'border-gray-200'} pt-4 grid grid-cols-1 md:grid-cols-3 gap-4`}>
+                <label className={`flex items-center gap-2 text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                   <input type="checkbox" name="case_sensitive" checked={formData.case_sensitive} onChange={handleChange} className="w-4 h-4 accent-yellow-500 rounded" />
                   حساسية حالة الأحرف
                 </label>
-                <label className={`flex items-center gap-2 text-sm ${styles.subtext}`}>
+                <label className={`flex items-center gap-2 text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                   <input type="checkbox" name="ignore_extra_spaces" checked={formData.ignore_extra_spaces} onChange={handleChange} className="w-4 h-4 accent-yellow-500 rounded" />
                   تجاهل المسافات الزائدة
                 </label>
-                <label className={`flex items-center gap-2 text-sm ${styles.subtext}`}>
+                <label className={`flex items-center gap-2 text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                   <input type="checkbox" name="partial_marking" checked={formData.partial_marking} onChange={handleChange} className="w-4 h-4 accent-yellow-500 rounded" />
                   تصحيح جزئي (نصف درجة)
                 </label>
@@ -1556,30 +1685,38 @@ const QuestionFormModal = ({
 
               {/* شرح وتلميح */}
               <div>
-                <label className={`block text-sm font-medium mb-1.5 ${styles.subtext}`}>شرح (اختياري)</label>
-                <textarea name="explanation" value={formData.explanation || ''} onChange={handleChange} rows="2" placeholder="شرح إضافي..." className={`w-full p-3 rounded-xl focus:ring-2 focus:ring-yellow-500 outline-none transition resize-none ${styles.input} border ${styles.border}`} />
+                <label className={`block text-sm font-medium mb-1.5 ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>شرح (اختياري)</label>
+                <textarea name="explanation" value={formData.explanation || ''} onChange={handleChange} rows="2" placeholder="شرح إضافي..." className={`w-full p-3 rounded-xl focus:ring-2 focus:ring-yellow-500 outline-none transition resize-none ${
+                  isDark ? 'bg-[#0b0e1a] border border-white/20 text-white' : 'bg-white border border-gray-300 text-gray-900'
+                }`} />
               </div>
               <div>
-                <label className={`block text-sm font-medium mb-1.5 ${styles.subtext}`}>تلميح (اختياري)</label>
-                <input type="text" name="hint" value={formData.hint || ''} onChange={handleChange} placeholder="تلميح..." className={`w-full p-2.5 rounded-xl focus:ring-2 focus:ring-yellow-500 outline-none transition ${styles.input} border ${styles.border}`} />
+                <label className={`block text-sm font-medium mb-1.5 ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>تلميح (اختياري)</label>
+                <input type="text" name="hint" value={formData.hint || ''} onChange={handleChange} placeholder="تلميح..." className={`w-full p-2.5 rounded-xl focus:ring-2 focus:ring-yellow-500 outline-none transition ${
+                  isDark ? 'bg-[#0b0e1a] border border-white/20 text-white' : 'bg-white border border-gray-300 text-gray-900'
+                }`} />
               </div>
 
               {/* الدرجة */}
               <div>
-                <label className={`block text-sm font-medium mb-1.5 ${styles.subtext}`}>الدرجة <span className="text-red-400">*</span></label>
-                <input type="number" name="marks" value={formData.marks} onChange={handleChange} min="1" className={`w-full p-3 rounded-xl focus:ring-2 focus:ring-yellow-500 outline-none transition ${styles.input} border ${styles.border}`} />
+                <label className={`block text-sm font-medium mb-1.5 ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>الدرجة <span className="text-red-400">*</span></label>
+                <input type="number" name="marks" value={formData.marks} onChange={handleChange} min="1" className={`w-full p-3 rounded-xl focus:ring-2 focus:ring-yellow-500 outline-none transition ${
+                  isDark ? 'bg-[#0b0e1a] border border-white/20 text-white' : 'bg-white border border-gray-300 text-gray-900'
+                }`} />
                 {errors.marks && <p className="text-red-400 text-xs mt-1">{errors.marks}</p>}
               </div>
             </>
           )}
 
-          {showPreview && <QuestionPreview question={{ ...formData, order_index: 0 }} styles={styles} />}
+          {showPreview && <QuestionPreview question={{ ...formData, order_index: 0 }} />}
 
           <div className="flex gap-3 pt-4 border-t border-white/5">
             <button type="submit" disabled={submitting} className="flex-1 py-3 bg-gradient-to-r from-yellow-400 to-yellow-600 text-black font-bold rounded-xl hover:scale-[1.02] transition shadow-lg shadow-yellow-500/30 disabled:opacity-70 flex items-center justify-center gap-2">
               {submitting ? <><div className="w-5 h-5 border-2 border-black/30 border-t-black rounded-full animate-spin" /> جاري الحفظ...</> : <><Icons.Save className="h-5 w-5" /> {isEdit ? 'تحديث السؤال' : 'إضافة السؤال'}</>}
             </button>
-            <button type="button" onClick={onClose} className={`px-6 py-3 rounded-xl transition ${styles.card} border ${styles.border} hover:border-yellow-400/50 ${styles.text}`}>إلغاء</button>
+            <button type="button" onClick={onClose} className={`px-6 py-3 rounded-xl transition ${
+              isDark ? 'bg-white/10 hover:bg-white/20 text-white border border-white/20' : 'bg-gray-200 hover:bg-gray-300 text-gray-800 border border-gray-300'
+            }`}>إلغاء</button>
           </div>
         </form>
       </motion.div>
@@ -1595,11 +1732,13 @@ const QuestionFormModal = ({
             onClick={() => setShowPassagePreview(false)}
           >
             <motion.div
-              className={`rounded-2xl p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto ${styles.card} border ${styles.border} shadow-2xl`}
+              className={`rounded-2xl p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto ${
+                isDark ? 'bg-[#1a1f2e] border border-white/20' : 'bg-white border border-gray-300'
+              } shadow-2xl`}
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex justify-between items-center mb-4">
-                <h4 className={`text-lg font-bold flex items-center gap-2 ${styles.text}`}>
+                <h4 className={`text-lg font-bold flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
                   <Icons.BookOpen className="h-5 w-5 text-indigo-400" />
                   معاينة القطعة
                 </h4>
@@ -1607,15 +1746,17 @@ const QuestionFormModal = ({
                   <Icons.X className="h-6 w-6 text-red-400" />
                 </button>
               </div>
-              <div className={`p-4 rounded-xl ${styles.card} border ${styles.border}`}>
-                <p className={`whitespace-pre-wrap text-sm ${styles.subtext}`}>
+              <div className={`p-4 rounded-xl ${isDark ? 'bg-black/30 border border-white/10' : 'bg-gray-100 border border-gray-200'}`}>
+                <p className={`whitespace-pre-wrap text-sm ${isDark ? 'text-gray-200' : 'text-gray-800'}`} dir="ltr" style={{ textAlign: 'left' }}>
                   {getSelectedPassageText() || 'لا يوجد نص'}
                 </p>
               </div>
               <div className="mt-4 flex justify-end">
                 <button
                   onClick={() => setShowPassagePreview(false)}
-                  className={`px-4 py-2 rounded-xl transition ${styles.card} border ${styles.border} hover:border-yellow-400/50 ${styles.text}`}
+                  className={`px-4 py-2 rounded-xl transition ${
+                    isDark ? 'bg-white/10 hover:bg-white/20 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-800'
+                  }`}
                 >
                   إغلاق
                 </button>
@@ -1629,13 +1770,12 @@ const QuestionFormModal = ({
 };
 
 // ============================================================
-// 8. مكون بطاقة السؤال (مع عرض خاص للقطعة) – معدل لاستخدام styles
+// 8. مكون بطاقة السؤال (مع عرض خاص للقطعة) – بدون حذف
 // ============================================================
 const QuestionItem = ({ 
   question, 
   index, 
   onEdit, 
-  onDelete, 
   onMoveUp, 
   onMoveDown, 
   onDuplicate, 
@@ -1643,8 +1783,9 @@ const QuestionItem = ({
   selected,
   totalQuestions,
   onAddSubQuestion,
-  styles,
 }) => {
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
   const type = question.type || 'multiple_choice';
   const typeInfo = QUESTION_TYPES[type] || QUESTION_TYPES.multiple_choice;
   const TypeIcon = typeInfo.icon;
@@ -1659,13 +1800,13 @@ const QuestionItem = ({
       whileHover={{ y: -2 }}
       className={`rounded-xl p-4 transition-all duration-300 group ${
         selected ? 'ring-2 ring-yellow-400' : ''
-      } ${styles.card} border ${styles.border}`}
+      } ${isDark ? 'bg-[#1a1f2e] border border-white/20' : 'bg-white border border-gray-300 shadow-sm'}`}
     >
       <div className="flex items-start justify-between">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <input type="checkbox" checked={selected} onChange={() => onSelect(question.id)} className="w-4 h-4 accent-yellow-500 rounded" />
-            <span className={`text-xs ${styles.subtext}`}>#{index + 1}</span>
+            <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>#{index + 1}</span>
             <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold" style={{ backgroundColor: typeInfo.bg, color: typeInfo.color, border: `1px solid ${typeInfo.color}` }}>
               <TypeIcon className="h-3 w-3 inline ml-1" /> {typeInfo.label}
             </span>
@@ -1676,7 +1817,7 @@ const QuestionItem = ({
               <span className="text-xs text-green-400">✅ {Array.isArray(question.correct_answer) ? question.correct_answer.join(' / ') : question.correct_answer}</span>
             )}
             {difficulty && <span className="text-xs" style={{ color: difficulty.color }}>{difficulty.label}</span>}
-            {question.category && <span className={`text-xs ${styles.subtext} bg-white/10 px-2 py-0.5 rounded-full`}>{question.category}</span>}
+            {question.category && <span className={`text-xs ${isDark ? 'text-gray-400 bg-white/10' : 'text-gray-600 bg-gray-100'} px-2 py-0.5 rounded-full`}>{question.category}</span>}
             {question.bank_question_id && (
               <span className="px-2 py-0.5 rounded-full text-[10px] bg-purple-600/30 text-purple-300 border border-purple-600 flex items-center gap-1">
                 <Icons.Database className="h-3 w-3" /> مستورد
@@ -1704,7 +1845,11 @@ const QuestionItem = ({
                 <span className="text-sm font-bold text-indigo-400">📄 قطعة نصية</span>
                 <span className="text-xs text-gray-400">(بدون درجة)</span>
               </div>
-              <p className={`text-sm mt-1 line-clamp-2 ${styles.subtext}`}>
+              <p
+                className={`text-sm mt-1 line-clamp-2 ${isDark ? 'text-gray-200' : 'text-gray-800'}`}
+                dir="ltr"
+                style={{ textAlign: 'left' }}
+              >
                 {question.question_text || 'لا يوجد نص'}
               </p>
               <button
@@ -1715,7 +1860,11 @@ const QuestionItem = ({
               </button>
             </div>
           ) : (
-            <p className={`text-sm mt-1 line-clamp-2 font-medium ${styles.text}`}>
+            <p
+              className={`text-sm mt-1 line-clamp-2 font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}
+              dir="ltr"
+              style={{ textAlign: 'left' }}
+            >
               {question.question_text}
             </p>
           )}
@@ -1723,18 +1872,18 @@ const QuestionItem = ({
 
         <div className="flex items-center gap-1 flex-shrink-0 mr-4">
           <button onClick={() => onMoveUp(index)} disabled={index === 0} className={`p-1.5 rounded-lg transition ${
-            index === 0 ? 'opacity-30 cursor-not-allowed' : `${styles.hover} text-gray-400`
+            index === 0 ? 'opacity-30 cursor-not-allowed' : `${isDark ? 'hover:bg-white/10 text-gray-400' : 'hover:bg-gray-100 text-gray-600'}`
           }`}>
             <Icons.ChevronUp className="h-4 w-4" />
           </button>
           <button onClick={() => onMoveDown(index)} disabled={index === totalQuestions - 1} className={`p-1.5 rounded-lg transition ${
-            index === totalQuestions - 1 ? 'opacity-30 cursor-not-allowed' : `${styles.hover} text-gray-400`
+            index === totalQuestions - 1 ? 'opacity-30 cursor-not-allowed' : `${isDark ? 'hover:bg-white/10 text-gray-400' : 'hover:bg-gray-100 text-gray-600'}`
           }`}>
             <Icons.ChevronDown className="h-4 w-4" />
           </button>
           <button onClick={() => onDuplicate(question)} className="p-1.5 rounded-lg transition text-cyan-400 hover:bg-cyan-500/20"><Icons.Copy className="h-4 w-4" /></button>
           <button onClick={() => onEdit(question)} className="p-1.5 rounded-lg transition text-yellow-400 hover:bg-yellow-500/20"><Icons.Edit className="h-4 w-4" /></button>
-          <button onClick={() => onDelete(question.id)} className="p-1.5 rounded-lg transition text-red-400 hover:bg-red-500/20"><Icons.Trash2 className="h-4 w-4" /></button>
+          {/* ❌ تم إزالة زر الحذف تماماً للمساعد */}
         </div>
       </div>
     </motion.div>
@@ -1742,66 +1891,40 @@ const QuestionItem = ({
 };
 
 // ============================================================
-// 9. الصفحة الرئيسية – إدارة الأسئلة للمساعد (معدلة بالكامل)
+// 9. الصفحة الرئيسية – إدارة الأسئلة (بدون حذف)
 // ============================================================
-export default function AssistantExamQuestionsPage() {
+const ExamQuestionsContent = () => {
   const router = useRouter();
   const params = useParams();
   const examId = params.id;
-  const { theme, toggleTheme, styles } = useTheme(); // ✅ استخدام الثيم الموحد
+  const { theme, language = 'ar' } = useTheme();
   const isDark = theme === 'dark';
 
   // ===== بيانات المساعد والصلاحيات =====
-  const { assistant, permissions, loading: assistantLoading } = useAssistantData();
-  const teacherId = assistant?.teacher_id;
+  const [assistant, setAssistant] = useState(null);
+  const [permissions, setPermissions] = useState([]);
+  const [loadingAssistant, setLoadingAssistant] = useState(true);
+  const [teacherId, setTeacherId] = useState(null);
 
-  // دالة مساعدة لجلب معرف المساعد
-  const getAssistantId = useCallback(() => {
-    try {
-      const assistantData = sessionStorage.getItem('assistantData');
-      if (assistantData) {
-        const parsed = JSON.parse(assistantData);
-        return parsed?.id || null;
-      }
-      return null;
-    } catch {
-      return null;
-    }
-  }, []);
-
-  const assistantId = getAssistantId();
-
-  // ===== جلب بيانات الامتحان =====
-  const { data: examData, isLoading: examLoading, mutate: mutateExam } = useCachedFetch(
-    teacherId ? `/api/assistant/exams/${examId}?teacher_id=${teacherId}` : null,
-    { headers: { 'x-assistant-id': assistantId } }
-  );
-
-  const exam = examData?.exam || null;
-
-  // ===== استخدام Hook الأسئلة المعدّل للمساعد =====
   const {
     questions,
     passages,
-    loading: questionsLoading,
+    loading,
     error,
     fetchQuestions,
     addQuestion,
     updateQuestion,
-    deleteQuestion,
     moveQuestion,
     duplicateQuestion,
     randomizeOrder,
     bulkUpdate,
-  } = useQuestions(examId, assistantId, teacherId);
+  } = useQuestions(examId, teacherId);
 
-  // ===== حالات إضافية =====
+  const [exam, setExam] = useState(null);
   const [passingMarks, setPassingMarks] = useState(0);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState(null);
   const [preselectedPassageId, setPreselectedPassageId] = useState(null);
-  const [deleteTarget, setDeleteTarget] = useState(null);
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isImportExportOpen, setIsImportExportOpen] = useState(false);
   const [isBankOpen, setIsBankOpen] = useState(false);
   const [isAnalyticsOpen, setIsAnalyticsOpen] = useState(false);
@@ -1811,7 +1934,6 @@ export default function AssistantExamQuestionsPage() {
   const [filterType, setFilterType] = useState('all');
   const [filterPassage, setFilterPassage] = useState('all');
 
-  // ===== إحصائيات =====
   const [stats, setStats] = useState({
     total: 0,
     multipleChoice: 0,
@@ -1828,6 +1950,83 @@ export default function AssistantExamQuestionsPage() {
     customQuestions: 0,
     passageQuestions: 0,
   });
+
+  // ===== جلب بيانات المساعد والصلاحيات =====
+  useEffect(() => {
+    const loadAssistantData = async () => {
+      try {
+        const stored = sessionStorage.getItem('assistantData');
+        if (!stored) {
+          router.push('/assistant-login');
+          return;
+        }
+        const data = JSON.parse(stored);
+        setAssistant(data);
+        setTeacherId(data.teacher_id);
+
+        const perms = JSON.parse(sessionStorage.getItem('assistantPermissions') || '[]');
+        setPermissions(perms);
+
+        // التحقق من صلاحية العرض
+        if (!hasPermission(perms, 'exams', 'can_view')) {
+          toast.error('غير مصرح لك بمشاهدة هذه الصفحة');
+          router.push('/dashboard/assistant');
+          return;
+        }
+
+        setLoadingAssistant(false);
+      } catch (err) {
+        console.error('Error loading assistant data:', err);
+        router.push('/assistant-login');
+      }
+    };
+    loadAssistantData();
+  }, [router]);
+
+  // ===== جلب بيانات الامتحان =====
+  const fetchExam = useCallback(async () => {
+    if (!teacherId || !examId) return;
+    try {
+      const { data, error } = await supabase
+        .from('exams')
+        .select('*')
+        .eq('id', examId)
+        .single();
+      if (error) throw error;
+      if (data.teacher_id !== teacherId) {
+        toast.error('غير مصرح لك');
+        router.push('/dashboard/assistant/exams');
+        return;
+      }
+      setExam(data);
+      setPassingMarks(data.passing_marks || 0);
+    } catch (err) {
+      toast.error('فشل جلب بيانات الامتحان');
+    }
+  }, [examId, teacherId, router]);
+
+  // ===== تحديث درجة النجاح =====
+  const handlePassingMarksChange = async () => {
+    if (!hasPermission(permissions, 'exams', 'can_edit')) {
+      toast.error('ليس لديك صلاحية تعديل الامتحانات');
+      return;
+    }
+    const newPassing = Number(passingMarks);
+    if (isNaN(newPassing) || newPassing < 0) {
+      toast.error('يرجى إدخال قيمة صحيحة');
+      return;
+    }
+    try {
+      const { error } = await supabase
+        .from('exams')
+        .update({ passing_marks: newPassing, updated_at: new Date().toISOString() })
+        .eq('id', examId);
+      if (error) throw error;
+      toast.success('تم تحديث درجة النجاح');
+    } catch (err) {
+      toast.error('فشل تحديث درجة النجاح');
+    }
+  };
 
   // ===== تحديث الإحصائيات =====
   useEffect(() => {
@@ -1885,43 +2084,13 @@ export default function AssistantExamQuestionsPage() {
     }
   }, [questions]);
 
-  // ===== تحديث درجة النجاح عبر API =====
-  const handlePassingMarksChange = async () => {
-    const newPassing = Number(passingMarks);
-    if (isNaN(newPassing) || newPassing < 0) {
-      toast.error('يرجى إدخال قيمة صحيحة');
-      return;
-    }
-    try {
-      const res = await fetch(`/api/assistant/exams/${examId}/update-passing-marks`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-assistant-id': assistantId,
-        },
-        body: JSON.stringify({
-          teacher_id: teacherId,
-          passing_marks: newPassing,
-        }),
-      });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || 'فشل تحديث درجة النجاح');
-      }
-      toast.success('تم تحديث درجة النجاح');
-      mutateExam();
-    } catch (err) {
-      console.error('Error updating passing marks:', err);
-      toast.error('فشل تحديث درجة النجاح');
-    }
-  };
-
-  // ===== جلب بيانات الامتحان عند تحميل الصفحة =====
+  // ===== جلب البيانات عند التحميل =====
   useEffect(() => {
-    if (exam) {
-      setPassingMarks(exam.passing_marks || 0);
+    if (examId && teacherId) {
+      fetchExam();
+      fetchQuestions();
     }
-  }, [exam]);
+  }, [examId, teacherId, fetchExam, fetchQuestions]);
 
   // ===== الفلاتر =====
   const filteredQuestions = useMemo(() => {
@@ -1946,36 +2115,40 @@ export default function AssistantExamQuestionsPage() {
 
   // ===== دوال التحكم =====
   const handleAddQuestion = () => {
+    if (!hasPermission(permissions, 'exams', 'can_edit')) {
+      toast.error('ليس لديك صلاحية إضافة أسئلة');
+      return;
+    }
     setEditingQuestion(null);
     setPreselectedPassageId(null);
     setIsModalOpen(true);
   };
 
   const handleEditQuestion = (question) => {
+    if (!hasPermission(permissions, 'exams', 'can_edit')) {
+      toast.error('ليس لديك صلاحية تعديل الأسئلة');
+      return;
+    }
     setEditingQuestion(question);
     setPreselectedPassageId(null);
     setIsModalOpen(true);
   };
 
   const handleAddSubQuestion = (passageId) => {
+    if (!hasPermission(permissions, 'exams', 'can_edit')) {
+      toast.error('ليس لديك صلاحية إضافة أسئلة');
+      return;
+    }
     setEditingQuestion(null);
     setPreselectedPassageId(passageId);
     setIsModalOpen(true);
   };
 
-  const handleDeleteQuestion = (id) => {
-    const q = questions.find(q => q.id === id);
-    if (q) { setDeleteTarget(q); setIsDeleteModalOpen(true); }
-  };
-
-  const confirmDelete = async () => {
-    if (!deleteTarget) return;
-    await deleteQuestion(deleteTarget.id);
-    setIsDeleteModalOpen(false);
-    setDeleteTarget(null);
-  };
-
   const handleSubmitQuestion = async (data) => {
+    if (!hasPermission(permissions, 'exams', 'can_edit')) {
+      toast.error('ليس لديك صلاحية تعديل الأسئلة');
+      return;
+    }
     try {
       if (editingQuestion) {
         await updateQuestion(editingQuestion.id, data);
@@ -1988,10 +2161,16 @@ export default function AssistantExamQuestionsPage() {
     } catch (err) { throw err; }
   };
 
-  const handleDuplicate = async (question) => { await duplicateQuestion(question); };
+  const handleDuplicate = async (question) => {
+    if (!hasPermission(permissions, 'exams', 'can_edit')) {
+      toast.error('ليس لديك صلاحية نسخ الأسئلة');
+      return;
+    }
+    await duplicateQuestion(question);
+  };
 
   const handleSelectQuestion = (id) => setSelectedQuestions(prev => prev.includes(id) ? prev.filter(q => q !== id) : [...prev, id]);
-
+  
   const handleSelectAll = () => {
     const realQuestions = questions.filter(q => q.type !== 'passage');
     const allIds = realQuestions.map(q => q.id);
@@ -2003,8 +2182,20 @@ export default function AssistantExamQuestionsPage() {
   };
 
   const handleBulkUpdate = async (ids, updates) => {
+    if (!hasPermission(permissions, 'exams', 'can_edit')) {
+      toast.error('ليس لديك صلاحية تعديل الأسئلة');
+      return;
+    }
     await bulkUpdate(ids, updates);
     setSelectedQuestions([]);
+  };
+
+  const syncWithBank = async () => {
+    if (!hasPermission(permissions, 'exams', 'can_edit')) {
+      toast.error('ليس لديك صلاحية المزامنة مع البنك');
+      return;
+    }
+    toast.info('مزامنة البنك قيد التطوير');
   };
 
   const goBack = () => router.push(`/dashboard/assistant/exams/${examId}`);
@@ -2023,42 +2214,32 @@ export default function AssistantExamQuestionsPage() {
   ];
 
   // ===== حالة التحميل =====
-  const isLoading = assistantLoading || examLoading || questionsLoading;
-
-  if (isLoading) {
+  if (loadingAssistant || loading) {
     return (
       <AssistantLayout>
-        <div className={`min-h-screen flex items-center justify-center ${styles.bg}`}>
-          <div className="text-center">
-            <div className="w-16 h-16 border-4 border-yellow-400 border-t-transparent rounded-full animate-spin mx-auto" />
-            <p className={`mt-4 text-sm ${styles.subtext}`}>
-              جاري تحميل الأسئلة...
-            </p>
-          </div>
-        </div>
+        <div className="flex items-center justify-center py-20"><div className="w-12 h-12 border-4 border-yellow-500/30 border-t-yellow-500 rounded-full animate-spin" /></div>
       </AssistantLayout>
     );
   }
 
   // ===== التحقق من الصلاحية =====
-  const canView = hasPermission(permissions, 'exams', 'can_view');
-  if (!exam || !canView) {
+  if (!hasPermission(permissions, 'exams', 'can_view')) {
     return (
       <AssistantLayout>
-        <div className={`min-h-screen flex items-center justify-center ${styles.bg}`}>
-          <div className="text-center">
-            <Icons.AlertCircle className={`h-16 w-16 mx-auto mb-4 ${styles.subtext}`} />
-            <h2 className={`text-2xl font-bold ${styles.text}`}>
-              {!exam ? 'الامتحان غير موجود' : 'غير مصرح لك'}
-            </h2>
-            <button
-              onClick={goBack}
-              className="mt-4 px-6 py-2 bg-yellow-400/20 hover:bg-yellow-400/30 text-yellow-300 rounded-xl transition"
-            >
-              العودة إلى التفاصيل
-            </button>
-          </div>
+        <div className="flex flex-col items-center justify-center py-20">
+          <Icons.Lock className="h-16 w-16 text-gray-400 mb-4" />
+          <h2 className="text-2xl font-bold text-gray-600">غير مصرح لك</h2>
+          <p className="text-gray-500 mt-2">ليس لديك صلاحية عرض هذه الصفحة</p>
+          <button onClick={() => router.push('/dashboard/assistant')} className="mt-4 px-6 py-2 bg-yellow-400/20 hover:bg-yellow-400/30 text-yellow-300 rounded-xl transition">العودة للوحة التحكم</button>
         </div>
+      </AssistantLayout>
+    );
+  }
+
+  if (!exam) {
+    return (
+      <AssistantLayout>
+        <div className="text-center py-20"><Icons.AlertCircle className="h-16 w-16 text-red-400 mx-auto mb-4" /><p className="text-red-400 text-lg">الامتحان غير موجود</p><button onClick={goBack} className="text-yellow-400 hover:underline mt-2">العودة</button></div>
       </AssistantLayout>
     );
   }
@@ -2098,55 +2279,54 @@ export default function AssistantExamQuestionsPage() {
 
   return (
     <AssistantLayout>
-      <div className={`min-h-screen ${styles.bg} ${styles.text} relative overflow-x-hidden`}>
+      <div className="relative min-h-screen">
         <ParticleBackground />
         <div className="relative z-10 px-4 py-6">
-          {/* ===== الهيدر ===== */}
+          {/* رأس الصفحة */}
           <div className="flex flex-col md:flex-row md:items-center justify-between mb-6">
             <div>
-              <h1 className={`text-3xl font-extrabold ${styles.text}`}>📝 إدارة أسئلة الامتحان</h1>
-              <p className={`text-sm mt-1 flex items-center gap-2 flex-wrap ${styles.subtext}`}>
+              <h1 className={`text-3xl font-extrabold ${isDark ? 'text-white' : 'text-gray-900'}`}>📝 إدارة أسئلة الامتحان</h1>
+              <p className={`text-sm mt-1 flex items-center gap-2 flex-wrap ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
                 <span>{exam.title}</span>
                 <span className="text-yellow-400">({stats.total} سؤال)</span>
                 {exam.course_id && <Link href={`/dashboard/assistant/courses/${exam.course_id}`} className="text-xs text-blue-400 hover:text-blue-300 transition flex items-center gap-1"><Icons.Book className="h-3 w-3" /> عرض الكورس</Link>}
               </p>
             </div>
             <div className="flex flex-wrap gap-3 mt-3 md:mt-0">
-              <button onClick={() => setIsBankOpen(true)} className="px-4 py-2 bg-cyan-600/30 hover:bg-cyan-600/50 text-cyan-300 rounded-xl text-sm font-semibold transition flex items-center gap-2 border border-cyan-600"><Icons.BookOpen className="h-4 w-4" /> بنك الأسئلة</button>
-              <button onClick={() => setIsImportExportOpen(true)} className="px-4 py-2 bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-300 rounded-xl text-sm font-semibold transition flex items-center gap-2 border border-indigo-600"><Icons.Upload className="h-4 w-4" /> استيراد/تصدير</button>
-              <button onClick={randomizeOrder} className="px-4 py-2 bg-purple-600/30 hover:bg-purple-600/50 text-purple-300 rounded-xl text-sm font-semibold transition flex items-center gap-2 border border-purple-600"><Icons.Shuffle className="h-4 w-4" /> ترتيب عشوائي</button>
-              {selectedQuestions.length > 0 && <button onClick={() => setIsBulkEditOpen(true)} className="px-4 py-2 bg-orange-600/30 hover:bg-orange-600/50 text-orange-300 rounded-xl text-sm font-semibold transition flex items-center gap-2 border border-orange-600"><Icons.Edit className="h-4 w-4" /> تحرير جماعي ({selectedQuestions.length})</button>}
+              {hasPermission(permissions, 'exams', 'can_edit') && (
+                <>
+                  <button onClick={() => setIsBankOpen(true)} className="px-4 py-2 bg-cyan-600/30 hover:bg-cyan-600/50 text-cyan-300 rounded-xl text-sm font-semibold transition flex items-center gap-2 border border-cyan-600"><Icons.BookOpen className="h-4 w-4" /> بنك الأسئلة</button>
+                  <button onClick={() => setIsImportExportOpen(true)} className="px-4 py-2 bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-300 rounded-xl text-sm font-semibold transition flex items-center gap-2 border border-indigo-600"><Icons.Upload className="h-4 w-4" /> استيراد/تصدير</button>
+                  <button onClick={randomizeOrder} className="px-4 py-2 bg-purple-600/30 hover:bg-purple-600/50 text-purple-300 rounded-xl text-sm font-semibold transition flex items-center gap-2 border border-purple-600"><Icons.Shuffle className="h-4 w-4" /> ترتيب عشوائي</button>
+                  <button onClick={syncWithBank} className="px-4 py-2 bg-teal-600/30 hover:bg-teal-600/50 text-teal-300 rounded-xl text-sm font-semibold transition flex items-center gap-2 border border-teal-600"><Icons.RefreshCw className="h-4 w-4" /> مزامنة مع البنك</button>
+                  {selectedQuestions.length > 0 && <button onClick={() => setIsBulkEditOpen(true)} className="px-4 py-2 bg-orange-600/30 hover:bg-orange-600/50 text-orange-300 rounded-xl text-sm font-semibold transition flex items-center gap-2 border border-orange-600"><Icons.Edit className="h-4 w-4" /> تحرير جماعي ({selectedQuestions.length})</button>}
+                </>
+              )}
               <button onClick={goToResults} className="px-4 py-2 bg-purple-600/30 hover:bg-purple-600/50 text-purple-300 rounded-xl text-sm font-semibold transition flex items-center gap-2 border border-purple-600"><Icons.BarChart className="h-4 w-4" /> النتائج</button>
-              <button onClick={goBack} className={`px-4 py-2 rounded-xl text-sm transition flex items-center gap-2 ${styles.card} border ${styles.border} hover:border-yellow-400/50 ${styles.text}`}><Icons.ArrowRight className="h-4 w-4" /> العودة</button>
-              <button
-                onClick={toggleTheme}
-                className={`p-2 rounded-xl transition ${styles.card} border ${styles.border} hover:border-yellow-400/50`}
-              >
-                {isDark ? <Icons.Sun className="h-5 w-5 text-yellow-400" /> : <Icons.Moon className="h-5 w-5 text-gray-600" />}
-              </button>
+              <button onClick={goBack} className={`px-4 py-2 rounded-xl text-sm transition flex items-center gap-2 ${isDark ? 'bg-white/10 hover:bg-white/20 text-white border border-white/20' : 'bg-gray-200 hover:bg-gray-300 text-gray-800 border border-gray-300'}`}><Icons.ArrowRight className="h-4 w-4" /> العودة</button>
             </div>
           </div>
 
-          {/* ===== الإحصائيات ===== */}
+          {/* الإحصائيات */}
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3 mb-6">
-            {statsData.map((stat) => <StatCard key={stat.id} stat={stat} styles={styles} />)}
+            {statsData.map((stat) => <StatCard key={stat.id} stat={stat} />)}
           </div>
 
-          {/* ===== صندوق الدرجة الكلية ودرجة النجاح ===== */}
-          <div className={`flex flex-wrap items-center gap-4 mb-6 p-4 rounded-2xl ${styles.card} border ${styles.border}`}>
+          {/* صندوق الدرجة الكلية ودرجة النجاح */}
+          <div className={`flex flex-wrap items-center gap-4 mb-6 p-4 rounded-2xl ${isDark ? 'bg-[#1a1f2e] border border-white/20' : 'bg-white border border-gray-300 shadow-sm'}`}>
             <div className="flex items-center gap-2">
               <Icons.Star className="h-5 w-5 text-yellow-400" />
-              <span className={`text-sm font-medium ${styles.subtext}`}>
-                الدرجة الكلية:
+              <span className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+                {language === 'ar' ? 'الدرجة الكلية:' : 'Total Marks:'}
               </span>
-              <span className={`text-xl font-bold ${styles.text}`}>
+              <span className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
                 {stats.totalMarks || 0}
               </span>
             </div>
             <div className="flex items-center gap-2">
               <Icons.Target className="h-5 w-5 text-green-400" />
-              <span className={`text-sm font-medium ${styles.subtext}`}>
-                درجة النجاح:
+              <span className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+                {language === 'ar' ? 'درجة النجاح:' : 'Passing Marks:'}
               </span>
               <input
                 type="number"
@@ -2155,32 +2335,39 @@ export default function AssistantExamQuestionsPage() {
                 onBlur={handlePassingMarksChange}
                 min="0"
                 max={stats.totalMarks}
-                className={`w-24 px-3 py-1.5 rounded-lg border focus:ring-2 focus:ring-yellow-400 outline-none transition text-sm ${styles.input} border ${styles.border}`}
+                disabled={!hasPermission(permissions, 'exams', 'can_edit')}
+                className={`w-24 px-3 py-1.5 rounded-lg border focus:ring-2 focus:ring-yellow-400 outline-none transition text-sm ${
+                  isDark ? 'bg-white/10 border-white/20 text-white' : 'bg-gray-100 border-gray-300 text-gray-900'
+                } ${!hasPermission(permissions, 'exams', 'can_edit') ? 'opacity-60 cursor-not-allowed' : ''}`}
               />
-              <button
-                onClick={handlePassingMarksChange}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${styles.card} border ${styles.border} hover:border-yellow-400/50 ${styles.text}`}
-              >
-                حفظ
-              </button>
+              {hasPermission(permissions, 'exams', 'can_edit') && (
+                <button
+                  onClick={handlePassingMarksChange}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+                    isDark ? 'bg-yellow-400/20 text-yellow-300 hover:bg-yellow-400/30' : 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200'
+                  }`}
+                >
+                  {language === 'ar' ? 'حفظ' : 'Save'}
+                </button>
+              )}
             </div>
-            <div className={`text-xs ${styles.subtext}`}>
-              (يمكنك تعديل درجة النجاح مباشرة)
+            <div className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+              {language === 'ar' ? '(يمكنك تعديل درجة النجاح مباشرة)' : '(You can edit passing marks here)'}
             </div>
           </div>
 
-          {/* ===== الرسوم البيانية ===== */}
+          {/* الرسوم البيانية */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-            <div className={`rounded-2xl p-5 ${styles.card} border ${styles.border}`}>
-              <h3 className={`text-lg font-bold flex items-center gap-2 mb-3 ${styles.text}`}><Icons.ChartBar className="h-5 w-5 text-yellow-400" /> توزيع مستويات الصعوبة</h3>
+            <div className={`rounded-2xl p-5 ${isDark ? 'bg-[#1a1f2e] border border-white/20' : 'bg-white border border-gray-300 shadow-sm'}`}>
+              <h3 className={`text-lg font-bold flex items-center gap-2 mb-3 ${isDark ? 'text-white' : 'text-gray-900'}`}><Icons.ChartBar className="h-5 w-5 text-yellow-400" /> توزيع مستويات الصعوبة</h3>
               <div className="h-40"><Bar data={difficultyChartData} options={chartOptions} /></div>
             </div>
-            <div className={`rounded-2xl p-5 ${styles.card} border ${styles.border}`}>
-              <h3 className={`text-lg font-bold flex items-center gap-2 mb-3 ${styles.text}`}><Icons.PieChart className="h-5 w-5 text-yellow-400" /> توزيع أنواع الأسئلة</h3>
+            <div className={`rounded-2xl p-5 ${isDark ? 'bg-[#1a1f2e] border border-white/20' : 'bg-white border border-gray-300 shadow-sm'}`}>
+              <h3 className={`text-lg font-bold flex items-center gap-2 mb-3 ${isDark ? 'text-white' : 'text-gray-900'}`}><Icons.PieChart className="h-5 w-5 text-yellow-400" /> توزيع أنواع الأسئلة</h3>
               <div className="h-40"><Bar data={typeChartData} options={chartOptions} /></div>
             </div>
-            <div className={`rounded-2xl p-5 ${styles.card} border ${styles.border}`}>
-              <h3 className={`text-lg font-bold flex items-center gap-2 mb-3 ${styles.text}`}><Icons.PieChart className="h-5 w-5 text-purple-400" /> مصدر الأسئلة</h3>
+            <div className={`rounded-2xl p-5 ${isDark ? 'bg-[#1a1f2e] border border-white/20' : 'bg-white border border-gray-300 shadow-sm'}`}>
+              <h3 className={`text-lg font-bold flex items-center gap-2 mb-3 ${isDark ? 'text-white' : 'text-gray-900'}`}><Icons.PieChart className="h-5 w-5 text-purple-400" /> مصدر الأسئلة</h3>
               <div className="h-40 max-w-xs mx-auto">
                 <Doughnut data={sourceChartData} options={{
                   responsive: true,
@@ -2196,13 +2383,13 @@ export default function AssistantExamQuestionsPage() {
             </div>
           </div>
 
-          {/* ===== قائمة الأسئلة مع الفلاتر ===== */}
-          <div className={`rounded-2xl p-5 transition-all duration-500 ${styles.card} border ${styles.border}`}>
+          {/* قائمة الأسئلة مع الفلاتر */}
+          <div className={`rounded-2xl p-5 transition-all duration-500 ${isDark ? 'bg-[#1a1f2e] border border-white/20' : 'bg-white border border-gray-300 shadow-sm'}`}>
             <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
               <div className="flex items-center gap-3">
-                <h3 className={`text-lg font-bold flex items-center gap-2 ${styles.text}`}>
+                <h3 className={`text-lg font-bold flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
                   <Icons.List className="h-5 w-5 text-yellow-400" /> الأسئلة
-                  <span className={`text-sm ${styles.subtext}`}>({stats.total} سؤال)</span>
+                  <span className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>({stats.total} سؤال)</span>
                 </h3>
                 {stats.total > 0 && (
                   <button onClick={handleSelectAll} className="text-xs text-yellow-400 hover:underline transition">
@@ -2211,26 +2398,34 @@ export default function AssistantExamQuestionsPage() {
                 )}
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                <select value={filterSource} onChange={(e) => setFilterSource(e.target.value)} className={`p-2 rounded-xl focus:ring-2 focus:ring-yellow-500 outline-none transition text-sm ${styles.input} border ${styles.border}`}>
+                <select value={filterSource} onChange={(e) => setFilterSource(e.target.value)} className={`p-2 rounded-xl focus:ring-2 focus:ring-yellow-500 outline-none transition text-sm ${
+                  isDark ? 'bg-[#0b0e1a] border border-white/20 text-white' : 'bg-white border border-gray-300 text-gray-900'
+                }`}>
                   <option value="all">جميع المصادر</option>
                   <option value="bank">من البنوك</option>
                   <option value="custom">مخصص</option>
                 </select>
-                <select value={filterType} onChange={(e) => setFilterType(e.target.value)} className={`p-2 rounded-xl focus:ring-2 focus:ring-yellow-500 outline-none transition text-sm ${styles.input} border ${styles.border}`}>
+                <select value={filterType} onChange={(e) => setFilterType(e.target.value)} className={`p-2 rounded-xl focus:ring-2 focus:ring-yellow-500 outline-none transition text-sm ${
+                  isDark ? 'bg-[#0b0e1a] border border-white/20 text-white' : 'bg-white border border-gray-300 text-gray-900'
+                }`}>
                   <option value="all">جميع الأنواع</option>
                   {Object.entries(QUESTION_TYPES).map(([key, { label }]) => <option key={key} value={key}>{label}</option>)}
                 </select>
-                <select value={filterPassage} onChange={(e) => setFilterPassage(e.target.value)} className={`p-2 rounded-xl focus:ring-2 focus:ring-yellow-500 outline-none transition text-sm ${styles.input} border ${styles.border}`}>
+                <select value={filterPassage} onChange={(e) => setFilterPassage(e.target.value)} className={`p-2 rounded-xl focus:ring-2 focus:ring-yellow-500 outline-none transition text-sm ${
+                  isDark ? 'bg-[#0b0e1a] border border-white/20 text-white' : 'bg-white border border-gray-300 text-gray-900'
+                }`}>
                   <option value="all">جميع الأسئلة</option>
                   <option value="with_passage">مرتبطة بقطعة</option>
                   <option value="without_passage">غير مرتبطة بقطعة</option>
                 </select>
-                <button onClick={handleAddQuestion} className="px-4 py-2 bg-yellow-500/30 hover:bg-yellow-500/50 text-yellow-300 rounded-xl text-sm font-semibold transition flex items-center gap-1 border border-yellow-500"><Icons.Plus className="h-4 w-4" /> إضافة سؤال</button>
+                {hasPermission(permissions, 'exams', 'can_edit') && (
+                  <button onClick={handleAddQuestion} className="px-4 py-2 bg-yellow-500/30 hover:bg-yellow-500/50 text-yellow-300 rounded-xl text-sm font-semibold transition flex items-center gap-1 border border-yellow-500"><Icons.Plus className="h-4 w-4" /> إضافة سؤال</button>
+                )}
               </div>
             </div>
 
             {filteredQuestions.length === 0 ? (
-              <div className="text-center py-12"><Icons.HelpCircle className="h-16 w-16 text-gray-500 mx-auto mb-4" /><p className={styles.subtext}>لا توجد أسئلة تطابق التصفية</p></div>
+              <div className="text-center py-12"><Icons.HelpCircle className="h-16 w-16 text-gray-500 mx-auto mb-4" /><p className={isDark ? 'text-gray-400' : 'text-gray-600'}>لا توجد أسئلة تطابق التصفية</p></div>
             ) : (
               <div className="space-y-2">
                 {filteredQuestions.map((question, index) => (
@@ -2239,35 +2434,34 @@ export default function AssistantExamQuestionsPage() {
                     question={question}
                     index={index}
                     totalQuestions={filteredQuestions.length}
-                    onEdit={handleEditQuestion}
-                    onDelete={handleDeleteQuestion}
-                    onMoveUp={() => moveQuestion(index, -1)}
-                    onMoveDown={() => moveQuestion(index, 1)}
-                    onDuplicate={handleDuplicate}
+                    onEdit={hasPermission(permissions, 'exams', 'can_edit') ? handleEditQuestion : () => toast.warning('ليس لديك صلاحية تعديل الأسئلة')}
+                    onMoveUp={hasPermission(permissions, 'exams', 'can_edit') ? () => moveQuestion(index, -1) : () => {}}
+                    onMoveDown={hasPermission(permissions, 'exams', 'can_edit') ? () => moveQuestion(index, 1) : () => {}}
+                    onDuplicate={hasPermission(permissions, 'exams', 'can_edit') ? handleDuplicate : () => toast.warning('ليس لديك صلاحية نسخ الأسئلة')}
                     onSelect={handleSelectQuestion}
                     selected={selectedQuestions.includes(question.id)}
-                    onAddSubQuestion={handleAddSubQuestion}
-                    styles={styles}
+                    onAddSubQuestion={hasPermission(permissions, 'exams', 'can_edit') ? handleAddSubQuestion : () => toast.warning('ليس لديك صلاحية إضافة أسئلة')}
                   />
                 ))}
               </div>
             )}
           </div>
 
-          {/* ===== روابط سريعة ===== */}
-          <div className={`rounded-2xl p-4 mt-6 ${styles.card} border ${styles.border}`}>
-            <h3 className={`text-sm font-semibold mb-2 flex items-center gap-2 ${styles.text}`}><Icons.Link className="h-4 w-4 text-yellow-400" /> روابط سريعة</h3>
+          {/* روابط سريعة */}
+          <div className={`rounded-2xl p-4 mt-6 ${isDark ? 'bg-[#1a1f2e] border border-white/20' : 'bg-white border border-gray-300 shadow-sm'}`}>
+            <h3 className={`text-sm font-semibold mb-2 flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}><Icons.Link className="h-4 w-4 text-yellow-400" /> روابط سريعة</h3>
             <div className="flex flex-wrap gap-3">
-              <Link href="/dashboard/assistant" className={`text-xs px-3 py-1.5 rounded-lg transition ${styles.card} hover:bg-white/5 ${styles.subtext}`}>الرئيسية</Link>
-              <Link href="/dashboard/assistant/courses" className={`text-xs px-3 py-1.5 rounded-lg transition ${styles.card} hover:bg-white/5 ${styles.subtext}`}>الكورسات</Link>
-              <Link href="/dashboard/assistant/exams" className={`text-xs px-3 py-1.5 rounded-lg transition ${styles.card} hover:bg-white/5 ${styles.subtext}`}>الامتحانات</Link>
-              <Link href="/dashboard/assistant/question-bank" className={`text-xs px-3 py-1.5 rounded-lg transition bg-purple-500/10 hover:bg-purple-500/20 text-purple-300`}>بنوك الأسئلة</Link>
+              <Link href="/dashboard/assistant" className={`text-xs px-3 py-1.5 rounded-lg transition ${isDark ? 'bg-white/10 hover:bg-white/20 text-gray-300' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'}`}>الرئيسية</Link>
+              <Link href="/dashboard/assistant/courses" className={`text-xs px-3 py-1.5 rounded-lg transition ${isDark ? 'bg-white/10 hover:bg-white/20 text-gray-300' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'}`}>الكورسات</Link>
+              <Link href="/dashboard/assistant/exams" className={`text-xs px-3 py-1.5 rounded-lg transition ${isDark ? 'bg-white/10 hover:bg-white/20 text-gray-300' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'}`}>الامتحانات</Link>
+              <Link href="/dashboard/assistant/students" className={`text-xs px-3 py-1.5 rounded-lg transition ${isDark ? 'bg-white/10 hover:bg-white/20 text-gray-300' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'}`}>الطلاب</Link>
+              <Link href="/dashboard/assistant/question-bank" className={`text-xs px-3 py-1.5 rounded-lg transition ${isDark ? 'bg-white/10 hover:bg-white/20 text-gray-300' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'}`}>بنوك الأسئلة</Link>
             </div>
           </div>
         </div>
       </div>
 
-      {/* ===== النوافذ المنبثقة ===== */}
+      {/* النوافذ المنبثقة */}
       <AnimatePresence>
         {isModalOpen && (
           <QuestionFormModal
@@ -2283,31 +2477,14 @@ export default function AssistantExamQuestionsPage() {
             totalQuestions={questions.length}
             existingPassages={passages}
             preselectedPassageId={preselectedPassageId}
-            styles={styles}
           />
         )}
-        {isDeleteModalOpen && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50">
-            <div className={`rounded-2xl p-6 max-w-md w-full ${styles.card} border ${styles.border}`}>
-              <h3 className={`text-xl font-bold mb-4 ${styles.text}`}>تأكيد الحذف</h3>
-              <p className={styles.subtext}>هل أنت متأكد من حذف هذا السؤال؟</p>
-              <div className="flex gap-3 mt-6">
-                <button onClick={confirmDelete} className="flex-1 py-2 bg-red-500 hover:bg-red-600 text-white font-bold rounded-xl transition">حذف</button>
-                <button onClick={() => setIsDeleteModalOpen(false)} className={`flex-1 py-2 rounded-xl transition ${styles.card} border ${styles.border} hover:border-yellow-400/50 ${styles.text}`}>إلغاء</button>
-              </div>
-            </div>
-          </motion.div>
-        )}
+        {/* ❌ تم إزالة مودال حذف السؤال تماماً للمساعد */}
       </AnimatePresence>
     </AssistantLayout>
   );
-}
-
-// دالة مساعدة للتحقق من الصلاحية
-const hasPermission = (permissions, module, permission) => {
-  if (!permissions || permissions.length === 0) return false;
-  const perm = permissions.find(p => p.module === module);
-  if (!perm) return false;
-  if (perm.can_manage) return true;
-  return perm[permission] === true;
 };
+
+export default function AssistantExamQuestionsPage() {
+  return <ExamQuestionsContent />;
+}

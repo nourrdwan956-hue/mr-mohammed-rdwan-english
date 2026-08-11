@@ -1,33 +1,31 @@
-// ================================================================
-// 📁 app/dashboard/assistant/exams/[id]/results/page.js
-// 📊 نتائج الامتحان – النسخة المتطورة للمساعد V2
-// ================================================================
-// - دعم كامل للصلاحيات (can_view)
-// - دعم الثيم الموحّد عبر useTheme
-// - استخدام AssistantLayout
-// - عرض بيانات الطالب الكاملة (الاسم الرباعي، المدرسة، الصف، المحافظة، الهاتف، ولي الأمر)
-// - نظام تصحيح متطور باستخدام gradeExam (يدعم الإجابات المتعددة)
-// - تحليل أسئلة القطعة (مع تجميع الأداء)
-// - تقارير أداء فردية متقدمة مع رسوم بيانية
-// - تصدير تقرير PDF لكل طالب
-// - جدول متابعة تقدم الطالب في جميع الامتحانات
-// - التحكم في عدد المحاولات المسموحة لطالب معين
-// - عرض المخالفات (عدد مرات الخروج من الامتحان)
-// - مؤشر الأمان لكل طالب (Security Index)
-// - أزرار التواصل مع الطالب وولي الأمر
-// - إعادة تعيين محاولات طالب فردي
-// - تباين عالٍ جداً في الوضعين الفاتح والداكن
-// - تحديث مسارات التنقل من /dashboard/teacher/ إلى /dashboard/assistant/
-// - استخدام useCachedFetch و useAssistantData مع x-assistant-id
-// ================================================================
+// ============================================================
+// app/dashboard/assistant/exams/[id]/results/page.js
+// نتائج الامتحان – نسخة المساعد المتطورة V14 (مبنية على ملف المعلم)
+// ✅ استخدام AssistantLayout بدلاً من TeacherLayout
+// ✅ استخدام useAssistantData للحصول على assistant و permissions و teacherId
+// ✅ التحقق من صلاحية can_view عبر hasPermission
+// ✅ استخدام teacherId في استعلامات supabase للتحقق من ملكية الامتحان للمعلم
+// ✅ تغيير جميع مسارات التنقل إلى dashboard/assistant
+// ✅ استبعاد القطع النصية (passage) من تحليل الأسئلة
+// ✅ ربط كامل ببيانات الطالب (الاسم الرباعي، المدرسة، الصف، المحافظة، الهاتف، ولي الأمر)
+// ✅ نظام تصحيح متطور باستخدام gradeExam
+// ✅ تقارير أداء فردية مع رسوم بيانية
+// ✅ تصدير CSV
+// ✅ التحكم في عدد المحاولات المسموحة لطالب معين
+// ✅ عرض المخالفات ومؤشر الأمان
+// ✅ أزرار التواصل مع الطالب وولي الأمر
+// ✅ تباين عالٍ جداً في الوضعين الفاتح والداكن
+// ============================================================
 
 'use client';
 
-import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { useRouter, useParams } from 'next/navigation';
-import Link from 'next/link';
+import { AssistantLayout } from '@/components/AssistantLayout';
 import { motion, AnimatePresence } from 'framer-motion';
+import Link from 'next/link';
+import { useRouter, useParams } from 'next/navigation';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import * as Icons from 'lucide-react';
+import { supabase } from '@/lib/supabaseClient';
 import { toast } from 'react-hot-toast';
 import {
   Chart as ChartJS,
@@ -42,11 +40,10 @@ import {
   LineElement,
   Filler,
 } from 'chart.js';
-import { Bar, Doughnut, Line } from 'react-chartjs-2';
-import { useTheme } from '@/lib/hooks/useTheme'; // ✅ استيراد الثيم الموحد
+import { Bar, Doughnut } from 'react-chartjs-2';
+import { useTheme } from '@/lib/hooks/useTheme';
 import { useAssistantData } from '@/lib/hooks/useAssistantData';
-import { useCachedFetch } from '@/lib/hooks/useCachedFetch';
-import { AssistantLayout } from '@/components/AssistantLayout'; // ✅ استيراد AssistantLayout
+import { hasPermission } from '@/lib/permissions';
 import { gradeExam, calculateSecurityIndex } from '@/lib/examUtils';
 
 ChartJS.register(
@@ -63,43 +60,7 @@ ChartJS.register(
 );
 
 // ================================================================
-// 🔧 دوال مساعدة
-// ================================================================
-
-const hasPermission = (permissions, module, permission) => {
-  if (!permissions || permissions.length === 0) return false;
-  const perm = permissions.find(p => p.module === module);
-  if (!perm) return false;
-  if (perm.can_manage) return true;
-  return perm[permission] === true;
-};
-
-const formatDate = (date) => {
-  if (!date) return 'غير محدد';
-  return new Date(date).toLocaleDateString('ar-EG', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-};
-
-const getScoreColor = (score, passingMarks) => {
-  if (score >= passingMarks) return 'text-green-400';
-  return 'text-red-400';
-};
-
-const getGrade = (percentage) => {
-  if (percentage >= 90) return { label: 'ممتاز', color: 'text-green-400', emoji: '🌟' };
-  if (percentage >= 75) return { label: 'جيد جداً', color: 'text-blue-400', emoji: '⭐' };
-  if (percentage >= 60) return { label: 'جيد', color: 'text-yellow-400', emoji: '👍' };
-  if (percentage >= 40) return { label: 'مقبول', color: 'text-orange-400', emoji: '📖' };
-  return { label: 'ضعيف', color: 'text-red-400', emoji: '💪' };
-};
-
-// ================================================================
-// 1. خلفية الجسيمات (أنيقة جداً) – تعتمد على الثيم
+// 1. خلفية الجسيمات
 // ================================================================
 const ParticleBackground = () => {
   const canvasRef = useRef(null);
@@ -159,10 +120,37 @@ const ParticleBackground = () => {
 };
 
 // ================================================================
-// 2. مكونات مساعدة (مع تباين عالٍ) – معدلة لاستخدام styles
+// 2. دوال مساعدة
+// ================================================================
+const formatDate = (date) => {
+  if (!date) return 'غير محدد';
+  return new Date(date).toLocaleDateString('ar-EG', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
+
+const getScoreColor = (score, passingMarks) => {
+  if (score >= passingMarks) return 'text-green-400';
+  return 'text-red-400';
+};
+
+const getGrade = (percentage) => {
+  if (percentage >= 90) return { label: 'ممتاز', color: 'text-green-400', emoji: '🌟' };
+  if (percentage >= 75) return { label: 'جيد جداً', color: 'text-blue-400', emoji: '⭐' };
+  if (percentage >= 60) return { label: 'جيد', color: 'text-yellow-400', emoji: '👍' };
+  if (percentage >= 40) return { label: 'مقبول', color: 'text-orange-400', emoji: '📖' };
+  return { label: 'ضعيف', color: 'text-red-400', emoji: '💪' };
+};
+
+// ================================================================
+// 3. مكونات مساعدة (مع تباين عالٍ)
 // ================================================================
 
-// 2.1 بطاقة إحصائية
+// 3.1 بطاقة إحصائية
 const StatCard = ({ stat, styles }) => {
   const [isHovered, setIsHovered] = useState(false);
   return (
@@ -200,7 +188,7 @@ const StatCard = ({ stat, styles }) => {
   );
 };
 
-// 2.2 صف الطالب في الجدول (معدل لإضافة الأعمدة الجديدة)
+// 3.2 صف الطالب في الجدول
 const StudentRow = ({ 
   student, 
   index, 
@@ -273,7 +261,6 @@ const StudentRow = ({
       <td className="py-3 px-4 text-center">
         <span className={`text-xs ${styles.subtext}`}>{violations}</span>
       </td>
-      {/* عمود ولي الأمر */}
       <td className="py-3 px-4 text-center hidden lg:table-cell">
         {student.parent_phone ? (
           <a href={`tel:${student.parent_phone}`} className="text-xs text-purple-400 hover:text-purple-300 transition flex items-center gap-1 justify-center">
@@ -283,7 +270,6 @@ const StudentRow = ({
           <span className="text-xs text-gray-500">—</span>
         )}
       </td>
-      {/* عمود مؤشر الأمان */}
       <td className="py-3 px-4 text-center">
         <span className={`text-xs font-bold ${securityIndex >= 80 ? 'text-green-400' : securityIndex >= 50 ? 'text-yellow-400' : 'text-red-400'}`}>
           {Math.round(securityIndex)}%
@@ -334,7 +320,7 @@ const StudentRow = ({
   );
 };
 
-// 2.3 نافذة تقرير الطالب (مودال متقدم) – معدلة لاستخدام gradeExam و styles
+// 3.3 نافذة تقرير الطالب
 const StudentReportModal = ({ isOpen, onClose, student, exam, questions, styles, theme }) => {
   if (!isOpen || !student) return null;
   const isDark = theme === 'dark';
@@ -345,14 +331,12 @@ const StudentReportModal = ({ isOpen, onClose, student, exam, questions, styles,
   const grade = getGrade(percentage);
   const violations = student.proctoring_log?.violations || 0;
 
-  // استخدام gradeExam للتصحيح الموحد
   const { questionGrades } = useMemo(() => {
     if (!student || !questions.length) return { questionGrades: {} };
     const answers = student.answers || {};
     return gradeExam(questions, answers, { partialMarking: true, caseSensitive: false, ignoreExtraSpaces: true });
   }, [student, questions]);
 
-  // بناء إحصائيات الأسئلة مع الدرجات من gradeExam
   const questionStats = useMemo(() => {
     if (!student || !questions.length) return [];
     const answers = student.answers || {};
@@ -367,10 +351,6 @@ const StudentReportModal = ({ isOpen, onClose, student, exam, questions, styles,
     });
   }, [questions, student, questionGrades]);
 
-  const correctCount = questionStats.filter(q => q.isCorrect).length;
-  const totalQuestions = questionStats.length;
-
-  // بيانات الرسم البياني لتوزيع الإجابات
   const chartData = {
     labels: questionStats.map((_, i) => `سؤال ${i+1}`),
     datasets: [{
@@ -394,11 +374,11 @@ const StudentReportModal = ({ isOpen, onClose, student, exam, questions, styles,
         initial={{ scale: 0.9, y: 20 }}
         animate={{ scale: 1, y: 0 }}
         exit={{ scale: 0.9, y: 20 }}
-        className={`max-w-4xl w-full max-h-[90vh] overflow-y-auto rounded-3xl p-8 ${styles.card} border ${styles.border} shadow-2xl`}
+        className={`max-w-4xl w-full max-h-[90vh] overflow-y-auto rounded-3xl p-8 ${isDark ? 'bg-[#1a1f2e] border border-white/20' : 'bg-white border border-gray-300'} shadow-2xl`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex justify-between items-center mb-6">
-          <h3 className={`text-2xl font-bold ${styles.text}`}>
+          <h3 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
             📊 تقرير أداء الطالب
           </h3>
           <button onClick={onClose} className="p-2 rounded-xl hover:bg-red-500/20 transition">
@@ -406,69 +386,66 @@ const StudentReportModal = ({ isOpen, onClose, student, exam, questions, styles,
           </button>
         </div>
 
-        {/* معلومات الطالب */}
-        <div className={`grid grid-cols-1 md:grid-cols-2 gap-4 p-4 rounded-xl ${styles.cardBg || (isDark ? 'bg-black/20 border border-white/10' : 'bg-gray-100 border border-gray-200')}`}>
+        <div className={`grid grid-cols-1 md:grid-cols-2 gap-4 p-4 rounded-xl ${isDark ? 'bg-black/20 border border-white/10' : 'bg-gray-100 border border-gray-200'}`}>
           <div>
-            <p className={`text-sm ${styles.subtext}`}>الاسم الكامل</p>
-            <p className={`text-lg font-bold ${styles.text}`}>{student.full_name || 'غير معروف'}</p>
+            <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>الاسم الكامل</p>
+            <p className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{student.full_name || 'غير معروف'}</p>
           </div>
           <div>
-            <p className={`text-sm ${styles.subtext}`}>البريد الإلكتروني</p>
-            <p className={`text-lg font-bold ${styles.text}`}>{student.email || '—'}</p>
+            <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>البريد الإلكتروني</p>
+            <p className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{student.email || '—'}</p>
           </div>
           <div>
-            <p className={`text-sm ${styles.subtext}`}>الهاتف</p>
-            <p className={`text-lg font-bold ${styles.text}`}>{student.phone || '—'}</p>
+            <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>الهاتف</p>
+            <p className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{student.phone || '—'}</p>
           </div>
           <div>
-            <p className={`text-sm ${styles.subtext}`}>هاتف ولي الأمر</p>
-            <p className={`text-lg font-bold ${styles.text}`}>{student.parent_phone || '—'}</p>
+            <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>هاتف ولي الأمر</p>
+            <p className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{student.parent_phone || '—'}</p>
           </div>
           <div>
-            <p className={`text-sm ${styles.subtext}`}>المدرسة</p>
-            <p className={`text-lg font-bold ${styles.text}`}>{student.school || '—'}</p>
+            <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>المدرسة</p>
+            <p className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{student.school || '—'}</p>
           </div>
           <div>
-            <p className={`text-sm ${styles.subtext}`}>الصف الدراسي</p>
-            <p className={`text-lg font-bold ${styles.text}`}>{student.grade || '—'}</p>
+            <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>الصف الدراسي</p>
+            <p className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{student.grade || '—'}</p>
           </div>
           <div>
-            <p className={`text-sm ${styles.subtext}`}>المحافظة</p>
-            <p className={`text-lg font-bold ${styles.text}`}>{student.governorate || '—'}</p>
+            <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>المحافظة</p>
+            <p className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{student.governorate || '—'}</p>
           </div>
           <div>
-            <p className={`text-sm ${styles.subtext}`}>المخالفات</p>
+            <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>المخالفات</p>
             <p className={`text-lg font-bold text-red-400`}>{violations}</p>
           </div>
         </div>
 
-        {/* ملخص الأداء */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
           <div className={`p-4 rounded-xl text-center ${isDark ? 'bg-white/5 border border-white/10' : 'bg-gray-50 border border-gray-200'}`}>
-            <p className={`text-sm ${styles.subtext}`}>الدرجة</p>
+            <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>الدرجة</p>
             <p className={`text-2xl font-bold ${getScoreColor(student.score, exam?.passing_marks || 0)}`}>
               {student.score} / {student.total_marks}
             </p>
           </div>
           <div className={`p-4 rounded-xl text-center ${isDark ? 'bg-white/5 border border-white/10' : 'bg-gray-50 border border-gray-200'}`}>
-            <p className={`text-sm ${styles.subtext}`}>النسبة</p>
-            <p className={`text-2xl font-bold ${styles.text}`}>{Math.round(percentage)}%</p>
+            <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>النسبة</p>
+            <p className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{Math.round(percentage)}%</p>
           </div>
           <div className={`p-4 rounded-xl text-center ${isDark ? 'bg-white/5 border border-white/10' : 'bg-gray-50 border border-gray-200'}`}>
-            <p className={`text-sm ${styles.subtext}`}>الحالة</p>
+            <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>الحالة</p>
             <p className={`text-2xl font-bold ${passed ? 'text-green-400' : 'text-red-400'}`}>
               {passed ? 'ناجح ✅' : 'راسب ❌'}
             </p>
           </div>
           <div className={`p-4 rounded-xl text-center ${isDark ? 'bg-white/5 border border-white/10' : 'bg-gray-50 border border-gray-200'}`}>
-            <p className={`text-sm ${styles.subtext}`}>التقدير</p>
+            <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>التقدير</p>
             <p className={`text-2xl font-bold ${grade.color}`}>{grade.emoji} {grade.label}</p>
           </div>
         </div>
 
-        {/* رسم بياني لتوزيع الإجابات */}
         <div className="mt-6">
-          <h4 className={`text-sm font-bold ${styles.text} mb-3`}>توزيع الإجابات الصحيحة والخاطئة</h4>
+          <h4 className={`text-sm font-bold ${isDark ? 'text-white' : 'text-gray-900'} mb-3`}>توزيع الإجابات الصحيحة والخاطئة</h4>
           <div className="h-48">
             <Bar data={chartData} options={{
               responsive: true,
@@ -482,9 +459,8 @@ const StudentReportModal = ({ isOpen, onClose, student, exam, questions, styles,
           </div>
         </div>
 
-        {/* تفاصيل الأسئلة – مع عرض الدرجة المستحقة */}
         <div className="mt-6 max-h-60 overflow-y-auto space-y-2">
-          <h4 className={`text-sm font-bold ${styles.text} mb-2`}>تفاصيل الأسئلة</h4>
+          <h4 className={`text-sm font-bold ${isDark ? 'text-white' : 'text-gray-900'} mb-2`}>تفاصيل الأسئلة</h4>
           {questionStats.map((q, idx) => (
             <div key={q.id} className={`p-3 rounded-lg flex justify-between items-center ${isDark ? 'bg-white/5 border border-white/10' : 'bg-gray-50 border border-gray-200'}`}>
               <div className="flex-1">
@@ -509,7 +485,6 @@ const StudentReportModal = ({ isOpen, onClose, student, exam, questions, styles,
           ))}
         </div>
 
-        {/* أزرار التصدير والتواصل */}
         <div className="flex flex-wrap gap-3 mt-6 pt-4 border-t border-white/10">
           <button
             onClick={() => toast.success('جاري تجهيز التقرير PDF...')}
@@ -543,7 +518,7 @@ const StudentReportModal = ({ isOpen, onClose, student, exam, questions, styles,
   );
 };
 
-// 2.4 نافذة تعديل المحاولات (لطالب فردي)
+// 3.4 نافذة تعديل المحاولات (لطالب فردي)
 const AdjustAttemptsModal = ({ isOpen, onClose, student, onSave, styles, theme }) => {
   const [attempts, setAttempts] = useState(1);
   const isDark = theme === 'dark';
@@ -568,17 +543,17 @@ const AdjustAttemptsModal = ({ isOpen, onClose, student, onSave, styles, theme }
         initial={{ scale: 0.9, y: 20 }}
         animate={{ scale: 1, y: 0 }}
         exit={{ scale: 0.9, y: 20 }}
-        className={`max-w-md w-full rounded-2xl p-6 ${styles.card} border ${styles.border} shadow-2xl`}
+        className={`max-w-md w-full rounded-2xl p-6 ${isDark ? 'bg-[#1a1f2e] border border-white/20' : 'bg-white border border-gray-300'} shadow-2xl`}
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 className={`text-xl font-bold ${styles.text} mb-4`}>
+        <h3 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'} mb-4`}>
           تعديل عدد المحاولات المسموحة
         </h3>
-        <p className={`text-sm ${styles.subtext} mb-4`}>
+        <p className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'} mb-4`}>
           الطالب: <span className="font-bold">{student.full_name || 'غير معروف'}</span>
         </p>
         <div>
-          <label className={`block text-sm font-medium ${styles.subtext} mb-1.5`}>
+          <label className={`block text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'} mb-1.5`}>
             عدد المحاولات المسموحة
           </label>
           <input
@@ -586,7 +561,7 @@ const AdjustAttemptsModal = ({ isOpen, onClose, student, onSave, styles, theme }
             min="1"
             value={attempts}
             onChange={(e) => setAttempts(parseInt(e.target.value) || 1)}
-            className={`w-full p-3 rounded-xl border focus:ring-2 focus:ring-yellow-500 outline-none transition ${styles.input} border ${styles.border}`}
+            className={`w-full p-3 rounded-xl border focus:ring-2 focus:ring-yellow-500 outline-none transition ${isDark ? 'bg-[#0b0e1a] border-white/20 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
           />
         </div>
         <div className="flex gap-3 mt-6">
@@ -598,7 +573,7 @@ const AdjustAttemptsModal = ({ isOpen, onClose, student, onSave, styles, theme }
           </button>
           <button
             onClick={onClose}
-            className={`flex-1 py-2.5 rounded-xl transition ${styles.card} border ${styles.border} hover:border-yellow-400/50 ${styles.text}`}
+            className={`flex-1 py-2.5 rounded-xl transition ${isDark ? 'bg-white/10 hover:bg-white/20 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-800'}`}
           >
             إلغاء
           </button>
@@ -608,20 +583,13 @@ const AdjustAttemptsModal = ({ isOpen, onClose, student, onSave, styles, theme }
   );
 };
 
-// 2.5 مودال إعادة تعيين المحاولات لطلاب متعددين
-const ResetAttemptsModal = ({ isOpen, onClose, students, examId, onSave }) => {
+// 3.5 مودال إعادة تعيين المحاولات لطلاب متعددين
+const ResetAttemptsModal = ({ isOpen, onClose, students, onSave }) => {
   const [selectedStudent, setSelectedStudent] = useState('');
   const [newAttempts, setNewAttempts] = useState(1);
   const [loading, setLoading] = useState(false);
   const { theme } = useTheme();
   const isDark = theme === 'dark';
-  const styles = {
-    card: isDark ? 'bg-[#1a1f2e] border-white/20' : 'bg-white border-gray-300',
-    border: isDark ? 'border-white/20' : 'border-gray-300',
-    text: isDark ? 'text-white' : 'text-gray-900',
-    subtext: isDark ? 'text-gray-400' : 'text-gray-600',
-    input: isDark ? 'bg-[#0b0e1a] text-white' : 'bg-white text-gray-900',
-  };
 
   useEffect(() => {
     if (students.length > 0 && !selectedStudent) {
@@ -643,21 +611,21 @@ const ResetAttemptsModal = ({ isOpen, onClose, students, examId, onSave }) => {
         initial={{ scale: 0.9, y: 20 }}
         animate={{ scale: 1, y: 0 }}
         exit={{ scale: 0.9, y: 20 }}
-        className={`max-w-md w-full rounded-2xl p-6 ${styles.card} border ${styles.border} shadow-2xl`}
+        className={`max-w-md w-full rounded-2xl p-6 ${isDark ? 'bg-[#1a1f2e] border border-white/20' : 'bg-white border border-gray-300'} shadow-2xl`}
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 className={`text-xl font-bold ${styles.text} mb-4`}>
+        <h3 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'} mb-4`}>
           🔄 إعادة تعيين المحاولات
         </h3>
         <div className="space-y-4">
           <div>
-            <label className={`block text-sm font-medium ${styles.subtext} mb-1.5`}>
+            <label className={`block text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'} mb-1.5`}>
               اختيار الطالب
             </label>
             <select
               value={selectedStudent}
               onChange={(e) => setSelectedStudent(e.target.value)}
-              className={`w-full p-3 rounded-xl border focus:ring-2 focus:ring-yellow-500 outline-none transition ${styles.input} border ${styles.border}`}
+              className={`w-full p-3 rounded-xl border focus:ring-2 focus:ring-yellow-500 outline-none transition ${isDark ? 'bg-[#0b0e1a] border-white/20 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
             >
               {students.map(s => (
                 <option key={s.id} value={s.id}>
@@ -667,7 +635,7 @@ const ResetAttemptsModal = ({ isOpen, onClose, students, examId, onSave }) => {
             </select>
           </div>
           <div>
-            <label className={`block text-sm font-medium ${styles.subtext} mb-1.5`}>
+            <label className={`block text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'} mb-1.5`}>
               عدد المحاولات الجديد
             </label>
             <input
@@ -675,7 +643,7 @@ const ResetAttemptsModal = ({ isOpen, onClose, students, examId, onSave }) => {
               min="1"
               value={newAttempts}
               onChange={(e) => setNewAttempts(parseInt(e.target.value) || 1)}
-              className={`w-full p-3 rounded-xl border focus:ring-2 focus:ring-yellow-500 outline-none transition ${styles.input} border ${styles.border}`}
+              className={`w-full p-3 rounded-xl border focus:ring-2 focus:ring-yellow-500 outline-none transition ${isDark ? 'bg-[#0b0e1a] border-white/20 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
             />
           </div>
         </div>
@@ -693,7 +661,7 @@ const ResetAttemptsModal = ({ isOpen, onClose, students, examId, onSave }) => {
           </button>
           <button
             onClick={onClose}
-            className={`flex-1 py-2.5 rounded-xl transition ${styles.card} border ${styles.border} hover:border-yellow-400/50 ${styles.text}`}
+            className={`flex-1 py-2.5 rounded-xl transition ${isDark ? 'bg-white/10 hover:bg-white/20 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-800'}`}
           >
             إلغاء
           </button>
@@ -704,7 +672,7 @@ const ResetAttemptsModal = ({ isOpen, onClose, students, examId, onSave }) => {
 };
 
 // ================================================================
-// 3. الصفحة الرئيسية – نتائج الامتحان (مع تباين عالٍ)
+// 4. الصفحة الرئيسية – نتائج الامتحان (للمساعد)
 // ================================================================
 export default function AssistantExamResultsPage() {
   const router = useRouter();
@@ -712,10 +680,10 @@ export default function AssistantExamResultsPage() {
   const examId = params.id;
 
   // ✅ استخدام الثيم المركزي
-  const { theme, toggleTheme, styles: themeStyles } = useTheme();
+  const { theme } = useTheme();
   const isDark = theme === 'dark';
 
-  // ===== بيانات المساعد والصلاحيات =====
+  // ✅ استخدام بيانات المساعد والصلاحيات
   const { assistant, permissions, loading: assistantLoading } = useAssistantData();
   const teacherId = assistant?.teacher_id;
 
@@ -754,38 +722,14 @@ export default function AssistantExamResultsPage() {
   // ===== تخزين مؤشرات الأمان لكل طالب =====
   const [securityIndexMap, setSecurityIndexMap] = useState({});
 
-  // ===== دالة مساعدة لجلب معرف المساعد =====
-  const getAssistantId = useCallback(() => {
-    try {
-      const assistantData = sessionStorage.getItem('assistantData');
-      if (assistantData) {
-        const parsed = JSON.parse(assistantData);
-        return parsed?.id || null;
-      }
-      return null;
-    } catch {
-      return null;
-    }
-  }, []);
-
-  const assistantId = getAssistantId();
-
   // ===== جلب البيانات =====
   const fetchResults = useCallback(async () => {
+    if (!teacherId || !examId) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
-      const { data: { user } } = await sessionStorage.getUser();
-      if (!user) {
-        router.push('/login');
-        return;
-      }
-
-      // التحقق من صلاحية المساعد
-      if (!teacherId) {
-        toast.error('معلم غير مرتبط بالمساعد');
-        return;
-      }
-
       // 1. جلب الامتحان
       const { data: examData, error: examError } = await supabase
         .from('exams')
@@ -1152,12 +1096,6 @@ export default function AssistantExamResultsPage() {
             </div>
             <div className="flex flex-wrap gap-3 mt-3 md:mt-0">
               <button
-                onClick={toggleTheme}
-                className={`p-2 rounded-xl transition ${styles.card} border ${styles.border} hover:border-yellow-400/50`}
-              >
-                {isDark ? <Icons.Sun className="h-5 w-5 text-yellow-400" /> : <Icons.Moon className="h-5 w-5 text-gray-600" />}
-              </button>
-              <button
                 onClick={handleExportCSV}
                 disabled={attempts.length === 0}
                 className={`px-4 py-2 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 rounded-xl text-sm font-semibold transition flex items-center gap-2 ${attempts.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
@@ -1400,7 +1338,6 @@ export default function AssistantExamResultsPage() {
           name: a.full_name, 
           currentAttempts: a.custom_attempts_limit || exam.attempts_allowed 
         }))}
-        examId={examId}
         onSave={handleResetAttempts}
       />
     </AssistantLayout>

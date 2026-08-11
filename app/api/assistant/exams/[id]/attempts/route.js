@@ -1,52 +1,185 @@
+// ================================================================
+// 📁 app/api/assistant/exams/[id]/attempts/route.js
+// إدارة محاولات الطلاب للمساعد (GET, PUT) – بدون DELETE
+// ================================================================
 
-
-// app/api/assistant/exams/[id]/attempts/route.js
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY|| process.env.SUPABASE_SERVICE_ROLE_KEY,
-  { auth: { autoRefreshToken: false, persistSession: false } }
-);
-
 export async function GET(request, { params }) {
   try {
-    const { id } = await params;
+    const assistantId = request.headers.get('x-assistant-id');
+    if (!assistantId) {
+      return NextResponse.json({ error: 'معرف المساعد مطلوب' }, { status: 400 });
+    }
+
+    const { id: examId } = await params;
     const { searchParams } = new URL(request.url);
-    const teacherId = searchParams.get('teacher_id');
+    const studentId = searchParams.get('studentId');
 
-    if (!id) {
-      return NextResponse.json({ error: 'معرف الامتحان مطلوب' }, { status: 400 });
-    }
-    if (!teacherId) {
-      return NextResponse.json({ error: 'teacher_id مطلوب' }, { status: 400 });
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseSecretKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!supabaseUrl || !supabaseSecretKey) {
+      return NextResponse.json({ error: 'تكوين الخادم غير مكتمل' }, { status: 500 });
     }
 
-    const { data: attempts, error } = await supabaseAdmin
+    const supabaseAdmin = createClient(supabaseUrl, supabaseSecretKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+
+    // جلب المساعد
+    const { data: assistant, error: assistantError } = await supabaseAdmin
+      .from('assistants')
+      .select('*')
+      .eq('id', assistantId)
+      .single();
+
+    if (assistantError || !assistant) {
+      return NextResponse.json({ error: 'المساعد غير موجود' }, { status: 404 });
+    }
+
+    if (!assistant.is_active) {
+      return NextResponse.json({ error: 'الحساب غير مفعل' }, { status: 403 });
+    }
+
+    // صلاحية العرض
+    const { data: permissions } = await supabaseAdmin
+      .from('assistant_permissions')
+      .select('module, can_view, can_manage')
+      .eq('assistant_id', assistantId);
+
+    const canView = permissions?.some(
+      (p) => (p.module === 'exams') && (p.can_view || p.can_manage)
+    );
+
+    if (!canView) {
+      return NextResponse.json({ error: 'غير مصرح لك بمشاهدة محاولات هذا الامتحان' }, { status: 403 });
+    }
+
+    // التحقق من ملكية الامتحان
+    const { data: exam, error: examError } = await supabaseAdmin
+      .from('exams')
+      .select('id')
+      .eq('id', examId)
+      .eq('teacher_id', assistant.teacher_id)
+      .single();
+
+    if (examError || !exam) {
+      return NextResponse.json({ error: 'الامتحان غير موجود أو لا يخص معلمك' }, { status: 404 });
+    }
+
+    // جلب المحاولات
+    let query = supabaseAdmin
       .from('exam_attempts')
-      .select(`
-        *,
-        profiles:student_id (full_name, email)
-      `)
-      .eq('exam_id', id)
-      .eq('status', 'completed')
-      .order('score', { ascending: false });
+      .select('*, profiles:student_id (full_name, email)')
+      .eq('exam_id', examId);
 
-    if (error) {
-      console.error('❌ Attempts error:', error);
-      return NextResponse.json({ error: 'فشل جلب المحاولات' }, { status: 500 });
+    if (studentId) {
+      query = query.eq('student_id', studentId);
     }
 
-    const processed = (attempts || []).map(a => ({
-      ...a,
-      student_name: a.profiles?.full_name || 'طالب',
-      student_email: a.profiles?.email || '',
-    }));
+    const { data: attempts, error: attemptsError } = await query
+      .order('created_at', { ascending: false });
 
-    return NextResponse.json({ success: true, attempts: processed });
-  } catch (err) {
-    console.error('❌ GET attempts error:', err);
-    return NextResponse.json({ error: 'حدث خطأ في الخادم' }, { status: 500 });
+    if (attemptsError) {
+      return NextResponse.json({ error: 'فشل جلب المحاولات: ' + attemptsError.message }, { status: 500 });
+    }
+
+    return NextResponse.json({
+      success: true,
+      attempts: attempts || [],
+    });
+  } catch (error) {
+    console.error('❌ GET /api/assistant/exams/[id]/attempts error:', error);
+    return NextResponse.json({ error: 'حدث خطأ في الخادم: ' + error.message }, { status: 500 });
+  }
+}
+
+export async function PUT(request, { params }) {
+  try {
+    const assistantId = request.headers.get('x-assistant-id');
+    if (!assistantId) {
+      return NextResponse.json({ error: 'معرف المساعد مطلوب' }, { status: 400 });
+    }
+
+    const { id: examId } = await params;
+    const body = await request.json();
+    const { studentId, custom_attempts_limit } = body;
+
+    if (!studentId || custom_attempts_limit === undefined) {
+      return NextResponse.json({ error: 'معرف الطالب وعدد المحاولات مطلوبان' }, { status: 400 });
+    }
+
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseSecretKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!supabaseUrl || !supabaseSecretKey) {
+      return NextResponse.json({ error: 'تكوين الخادم غير مكتمل' }, { status: 500 });
+    }
+
+    const supabaseAdmin = createClient(supabaseUrl, supabaseSecretKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+
+    // جلب المساعد
+    const { data: assistant, error: assistantError } = await supabaseAdmin
+      .from('assistants')
+      .select('*')
+      .eq('id', assistantId)
+      .single();
+
+    if (assistantError || !assistant) {
+      return NextResponse.json({ error: 'المساعد غير موجود' }, { status: 404 });
+    }
+
+    if (!assistant.is_active) {
+      return NextResponse.json({ error: 'الحساب غير مفعل' }, { status: 403 });
+    }
+
+    // صلاحية التعديل
+    const { data: permissions } = await supabaseAdmin
+      .from('assistant_permissions')
+      .select('module, can_edit, can_manage')
+      .eq('assistant_id', assistantId);
+
+    const canEdit = permissions?.some(
+      (p) => (p.module === 'exams') && (p.can_edit || p.can_manage)
+    );
+
+    if (!canEdit) {
+      return NextResponse.json({ error: 'غير مصرح لك بتعديل محاولات الطلاب' }, { status: 403 });
+    }
+
+    // التحقق من ملكية الامتحان
+    const { data: exam, error: examError } = await supabaseAdmin
+      .from('exams')
+      .select('id')
+      .eq('id', examId)
+      .eq('teacher_id', assistant.teacher_id)
+      .single();
+
+    if (examError || !exam) {
+      return NextResponse.json({ error: 'الامتحان غير موجود أو لا يخص معلمك' }, { status: 404 });
+    }
+
+    // تحديث custom_attempts_limit للمحاولة الأحدث للطالب في هذا الامتحان
+    const { data: attempt, error: attemptError } = await supabaseAdmin
+      .from('exam_attempts')
+      .update({ custom_attempts_limit: Number(custom_attempts_limit) })
+      .eq('exam_id', examId)
+      .eq('student_id', studentId)
+      .select()
+      .single();
+
+    if (attemptError) {
+      return NextResponse.json({ error: 'فشل تحديث المحاولات: ' + attemptError.message }, { status: 500 });
+    }
+
+    return NextResponse.json({
+      success: true,
+      attempt,
+    });
+  } catch (error) {
+    console.error('❌ PUT /api/assistant/exams/[id]/attempts error:', error);
+    return NextResponse.json({ error: 'حدث خطأ في الخادم: ' + error.message }, { status: 500 });
   }
 }
