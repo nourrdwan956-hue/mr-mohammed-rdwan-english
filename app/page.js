@@ -1,14 +1,11 @@
 // app/page.js
 // ================================================================
-// 🏛️ الصفحة الرئيسية – منصة مستر محمد رضوان (نسخة 3D فاخرة)
-// ================================================================
-// ✅ عرض الكورسات بشكل 3D مع تأثير بارز (خروج من الشاشة)
-// ✅ أسهم تنقل حقيقية (يسار/يمين) مع اتجاه صحيح
-// ✅ تكبير أزرار تسجيل الدخول وإنشاء حساب على الشاشات الكبيرة
-// ✅ توقيع المبرمج في الفوتر بشكل مميز مع لون متغير
-// ✅ شريط متحرك رفيع حول كل بطاقة
-// ✅ إحصائيات حقيقية (فيديوهات، امتحانات، كتب)
-// ✅ جميع الوظائف الأخرى محفوظة كما هي
+// 🏛️ الصفحة الرئيسية – نسخة 3D بطبقات متعددة
+// ✅ تأثير طبقات خلفية متدرجة تعطي عمقاً للبطاقات
+// ✅ الحفاظ على نسبة الصورة 16:9 (أفقي عريض)
+// ✅ توقيع المبرمج بأناقة بدون تكبير الخط
+// ✅ أسهم تنقل حقيقية مع تأثيرات
+// ✅ جميع الوظائف الأخرى محفوظة
 // ================================================================
 
 'use client';
@@ -381,16 +378,17 @@ const ScrollToTopButton = ({ show, onClick }) => (
 );
 
 // ================================================================
-// 🃏 بطاقة الكورس – نسخة 3D فاخرة مع شريط متحرك وتأثير خروج من الشاشة
+// 🃏 بطاقة الكورس – مع تأثير الطبقات 3D المتعددة
 // ================================================================
 
-const CourseCard3D = ({ course, teacher, index, isActive }) => {
+const CourseCard3D = ({ course, teacher, index }) => {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   const router = useRouter();
   const [isHovered, setIsHovered] = useState(false);
   const cardRef = useRef(null);
   const [rotation, setRotation] = useState({ x: 0, y: 0 });
+  const [layerOffset, setLayerOffset] = useState(0);
 
   const handleMouseMove = (e) => {
     if (!cardRef.current) return;
@@ -399,16 +397,22 @@ const CourseCard3D = ({ course, teacher, index, isActive }) => {
     const y = e.clientY - rect.top;
     const centerX = rect.width / 2;
     const centerY = rect.height / 2;
-    const rotateX = ((y - centerY) / centerY) * -12; // زيادة الزاوية للتأثير 3D
-    const rotateY = ((x - centerX) / centerX) * 12;
+    const rotateX = ((y - centerY) / centerY) * -8;
+    const rotateY = ((x - centerX) / centerX) * 8;
     setRotation({ x: rotateX, y: rotateY });
+    // حركة الطبقات حسب اتجاه الماوس
+    const offsetX = ((x - centerX) / centerX) * 10;
+    const offsetY = ((y - centerY) / centerY) * 10;
+    setLayerOffset({ x: offsetX, y: offsetY });
   };
 
   const handleMouseLeave = () => {
     setRotation({ x: 0, y: 0 });
+    setLayerOffset({ x: 0, y: 0 });
     setIsHovered(false);
   };
 
+  // إحصائيات الكورس
   const stats = [
     { label: 'فيديوهات', count: course.videos_count || 0, icon: Icons.Video, color: 'text-blue-400' },
     { label: 'امتحانات', count: course.exams_count || 0, icon: Icons.FileText, color: 'text-purple-400' },
@@ -416,6 +420,11 @@ const CourseCard3D = ({ course, teacher, index, isActive }) => {
   ];
 
   const totalItems = stats.reduce((sum, s) => sum + s.count, 0);
+
+  // تعريف الطبقات الخلفية (ألوان متدرجة)
+  const layerColors = isDark
+    ? ['#1a2332', '#243447', '#2f405a', '#3a5470']
+    : ['#e8ecf0', '#d5dbe3', '#c2cad6', '#afb9c9'];
 
   return (
     <motion.div
@@ -427,7 +436,7 @@ const CourseCard3D = ({ course, teacher, index, isActive }) => {
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={handleMouseLeave}
       onClick={() => router.push(`/dashboard/student/courses/${course.id}`)}
-      className="group cursor-pointer perspective-1000"
+      className="group cursor-pointer relative"
       style={{ perspective: '1400px' }}
     >
       <motion.div
@@ -438,15 +447,52 @@ const CourseCard3D = ({ course, teacher, index, isActive }) => {
           y: isHovered ? -12 : 0,
         }}
         transition={{ duration: 0.3 }}
+        style={{
+          transformStyle: 'preserve-3d',
+        }}
       >
-        {/* الشريط المتحرك الرفيع حول الإطار (Border Stroke) - أكثر وضوحاً */}
+        {/* الطبقات الخلفية المتعددة */}
+        <div
+          className="absolute inset-0 -z-10"
+          style={{
+            transform: `translateZ(-20px) rotateX(${rotation.x * 0.5}deg) rotateY(${rotation.y * 0.5}deg)`,
+            transformStyle: 'preserve-3d',
+          }}
+        >
+          {layerColors.map((color, idx) => {
+            const depth = (idx + 1) * 12;
+            const scale = 1 - (idx + 1) * 0.02;
+            const opacity = 0.6 - idx * 0.1;
+            return (
+              <motion.div
+                key={idx}
+                className="absolute rounded-2xl border border-white/10"
+                style={{
+                  backgroundColor: color,
+                  width: '100%',
+                  height: '100%',
+                  transform: `translateZ(${-depth}px) scale(${scale}) translateX(${layerOffset.x * (idx+1) * 0.5}px) translateY(${layerOffset.y * (idx+1) * 0.5}px)`,
+                  opacity: opacity,
+                  boxShadow: `0 8px 30px rgba(0,0,0,0.15)`,
+                }}
+                animate={{
+                  scale: isHovered ? scale * 1.02 : scale,
+                  opacity: isHovered ? opacity + 0.1 : opacity,
+                }}
+                transition={{ duration: 0.3 }}
+              />
+            );
+          })}
+        </div>
+
+        {/* الشريط المتحرك الرفيع حول الإطار */}
         <div className="absolute inset-[-3px] rounded-2xl overflow-hidden pointer-events-none">
           <div className="absolute inset-0 rounded-2xl p-[3px]">
             <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-transparent via-yellow-400/60 to-transparent animate-border-flow" />
           </div>
         </div>
 
-        {/* محتوى البطاقة */}
+        {/* البطاقة الأمامية */}
         <motion.div
           className={`relative rounded-2xl overflow-hidden transition-all duration-500 ${
             isDark
@@ -461,7 +507,7 @@ const CourseCard3D = ({ course, teacher, index, isActive }) => {
             maxHeight: '500px',
           }}
         >
-          {/* تأثير إضاءة 3D - محسّن */}
+          {/* تأثير إضاءة 3D */}
           <div
             className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500"
             style={{
@@ -469,8 +515,8 @@ const CourseCard3D = ({ course, teacher, index, isActive }) => {
             }}
           />
 
-          {/* صورة الغلاف */}
-          <div className="relative w-full overflow-hidden" style={{ height: '260px' }}>
+          {/* صورة الغلاف – نسبة 16:9 (عرض 16 ارتفاع 9) */}
+          <div className="relative w-full overflow-hidden" style={{ aspectRatio: '16/9' }}>
             {course?.cover_image ? (
               <>
                 <motion.img
@@ -604,9 +650,6 @@ const CourseCard3D = ({ course, teacher, index, isActive }) => {
           50% { background-position: 100% 0%; }
           100% { background-position: 200% 0%; }
         }
-        .perspective-1000 {
-          perspective: 1200px;
-        }
         .line-clamp-1 {
           display: -webkit-box;
           -webkit-line-clamp: 1;
@@ -625,13 +668,10 @@ const CourseCard3D = ({ course, teacher, index, isActive }) => {
 };
 
 // ================================================================
-// 🎠 عرض الكورسات – Carousel أفقي 3D مع أسهم تنقل حقيقية
+// 🎠 عرض الكورسات – Carousel مع الطبقات 3D
 // ================================================================
 
 const CoursesCarousel3D = ({ courses, teachers, isDark, loading }) => {
-  const [isDragging, setIsDragging] = useState(false);
-  const [startX, setStartX] = useState(0);
-  const [scrollLeft, setScrollLeft] = useState(0);
   const containerRef = useRef(null);
   const [cardWidth, setCardWidth] = useState(340);
 
@@ -693,20 +733,6 @@ const CoursesCarousel3D = ({ courses, teachers, isDark, loading }) => {
           scrollbarWidth: 'none',
           msOverflowStyle: 'none',
         }}
-        onMouseDown={(e) => {
-          setIsDragging(true);
-          setStartX(e.pageX - containerRef.current.offsetLeft);
-          setScrollLeft(containerRef.current.scrollLeft);
-        }}
-        onMouseUp={() => setIsDragging(false)}
-        onMouseLeave={() => setIsDragging(false)}
-        onMouseMove={(e) => {
-          if (!isDragging) return;
-          e.preventDefault();
-          const x = e.pageX - containerRef.current.offsetLeft;
-          const walk = (x - startX) * 1.5;
-          containerRef.current.scrollLeft = scrollLeft - walk;
-        }}
       >
         {visibleCourses.map((course, index) => (
           <div
@@ -718,13 +744,12 @@ const CoursesCarousel3D = ({ courses, teachers, isDark, loading }) => {
               course={course}
               teacher={teachers[course.teacher_id] || null}
               index={index}
-              isActive={false}
             />
           </div>
         ))}
       </div>
 
-      {/* أسهم التنقل - اتجاه حقيقي (يسار/يمين) مع تكبير عند Hover */}
+      {/* أسهم التنقل */}
       {visibleCourses.length > 3 && (
         <div className="flex justify-center gap-4 mt-6">
           <motion.button
@@ -1215,7 +1240,7 @@ const ContactSection = ({ isDark }) => {
   );
 };
 
-// ----- الفوتر المعدل مع توقيع المبرمج المميز -----
+// ----- الفوتر المعدل مع توقيع المبرمج بأناقة -----
 const FooterSection = ({ isDark }) => {
   return (
     <footer className={`${isDark ? 'bg-[#030812]/90 border-white/5' : 'bg-white/90 border-gray-200/40'} border-t py-3 sm:py-4 px-3 sm:px-4 backdrop-blur`}>
@@ -1265,49 +1290,36 @@ const FooterSection = ({ isDark }) => {
           </Link>
         </div>
 
-        {/* توقيع المبرمج – مميز في كل الأوضاع */}
+        {/* توقيع المبرمج – تصميم أنيق بدون تكبير الخط */}
         <div className={`border-t ${isDark ? 'border-white/5' : 'border-gray-200/40'} mt-2 pt-2`}>
           <motion.div
-            initial={{ opacity: 0.6 }}
+            initial={{ opacity: 0.7 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 2, repeat: Infinity, repeatType: 'reverse' }}
             className="text-center"
           >
-            <p className="text-[7px] sm:text-[9px] font-mono tracking-widest">
-              <span className={isDark ? 'text-blue-400/40' : 'text-blue-400/60'}>⚡ Built with ❤️ by</span>
-              {' '}
+            <p className="text-[7px] sm:text-[9px] font-mono tracking-wider flex items-center justify-center gap-1.5 flex-wrap">
+              <span className={isDark ? 'text-blue-400/40' : 'text-blue-400/60'}>⚡</span>
+              <span className={isDark ? 'text-gray-400' : 'text-gray-500'}>Built with ❤️ by</span>
               <span
-                className={`font-extrabold text-[8px] sm:text-[10px] transition-all duration-300 hover:scale-105 inline-block ${
+                className={`font-bold transition-all duration-300 hover:scale-105 inline-block ${
                   isDark
-                    ? 'text-transparent bg-clip-text bg-gradient-to-r from-red-400 via-pink-400 to-purple-400 animate-gradient'
-                    : 'text-transparent bg-clip-text bg-gradient-to-r from-red-600 via-pink-600 to-purple-600 animate-gradient'
+                    ? 'text-transparent bg-clip-text bg-gradient-to-r from-red-400 via-pink-400 to-purple-400'
+                    : 'text-transparent bg-clip-text bg-gradient-to-r from-red-600 via-pink-600 to-purple-600'
                 }`}
                 style={{
                   textShadow: isDark
-                    ? '0 0 30px rgba(244, 63, 94, 0.3)'
-                    : '0 0 30px rgba(220, 38, 38, 0.2)',
+                    ? '0 0 20px rgba(244, 63, 94, 0.2)'
+                    : '0 0 20px rgba(220, 38, 38, 0.15)',
                 }}
               >
                 Nour El-Saeed
               </span>
-              {' '}
               <span className={isDark ? 'text-blue-400/20' : 'text-blue-400/30'}>•</span>
-              {' '}
               <span className={`text-[6px] sm:text-[8px] ${isDark ? 'text-blue-400/30' : 'text-blue-400/40'}`}>
                 Developer &amp; Designer
               </span>
             </p>
-            <style jsx>{`
-              @keyframes gradient {
-                0% { background-position: 0% 50%; }
-                50% { background-position: 100% 50%; }
-                100% { background-position: 0% 50%; }
-              }
-              .animate-gradient {
-                animation: gradient 4s ease infinite;
-                background-size: 200% 200%;
-              }
-            `}</style>
           </motion.div>
         </div>
       </div>
@@ -1511,7 +1523,6 @@ export default function Home() {
               </span>
             </button>
 
-            {/* ✅ زر تسجيل الدخول – أكبر على الشاشات الكبيرة */}
             <Link
               href="/login"
               className={`px-2 py-0.5 rounded-full text-[7px] sm:text-[9px] lg:text-xs font-bold border-2 transition-all duration-300 hover:scale-105 ${
@@ -1524,7 +1535,6 @@ export default function Home() {
               تسجيل الدخول
             </Link>
 
-            {/* ✅ زر إنشاء حساب – أكبر على الشاشات الكبيرة */}
             <Link
               href="/register"
               className="px-2 py-0.5 rounded-full bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-bold shadow-lg shadow-blue-500/30 hover:scale-105 transition-all duration-300 flex items-center gap-0.5 text-[7px] sm:text-[9px] lg:text-xs lg:px-3 lg:py-1"
@@ -1569,9 +1579,6 @@ export default function Home() {
         }
         .font-arabic {
           font-family: 'Scheherazade New', 'Amiri', serif;
-        }
-        .perspective-1000 {
-          perspective: 1200px;
         }
         .tracking-wider {
           letter-spacing: 0.05em;
