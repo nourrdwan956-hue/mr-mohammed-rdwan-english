@@ -1,4 +1,4 @@
-// /app/api/videos/[id]/route.js
+// app/api/videos/[id]/route.js
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { verifyCourseOwnership } from '@/lib/playlist-utils';
@@ -8,8 +8,8 @@ import { verifyCourseOwnership } from '@/lib/playlist-utils';
 // ============================================================
 export async function GET(request, { params }) {
   try {
-    const { id } = params;
-
+    // ✅ استخراج id مع await
+    const { id } = await params;
     if (!id) {
       return NextResponse.json(
         { success: false, error: 'معرف الفيديو مطلوب' },
@@ -18,8 +18,6 @@ export async function GET(request, { params }) {
     }
 
     const supabase = await createClient();
-
-    // التحقق من تسجيل الدخول
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
       return NextResponse.json(
@@ -28,7 +26,7 @@ export async function GET(request, { params }) {
       );
     }
 
-    // جلب الفيديو مع بيانات الكورس المرتبط به
+    // جلب الفيديو مع بيانات الكورس
     const { data: video, error: videoError } = await supabase
       .from('videos')
       .select(
@@ -51,7 +49,6 @@ export async function GET(request, { params }) {
       );
     }
 
-    // التحقق من صلاحية المشاهدة
     const userId = session.user.id;
     const courseId = video.course_id;
 
@@ -72,7 +69,7 @@ export async function GET(request, { params }) {
       return NextResponse.json({ success: true, data: video });
     }
 
-    // 3- هل هو طالب مشترك (لديه اشتراك نشط أو تسجيل مجاني)؟
+    // 3- هل هو طالب مشترك؟
     const { data: enrollment, error: enrollError } = await supabase
       .from('enrollments')
       .select('id, status')
@@ -82,7 +79,6 @@ export async function GET(request, { params }) {
       .maybeSingle();
 
     if (!enrollError && enrollment) {
-      // فحص الاشتراك المدفوع/الكود
       const { data: subscription, error: subError } = await supabase
         .from('course_subscriptions')
         .select('id')
@@ -95,8 +91,6 @@ export async function GET(request, { params }) {
         return NextResponse.json({ success: true, data: video });
       }
 
-      // إذا كان الكورس مجانيًا (نفترض أن enrollment كافٍ)
-      // لكن نفضل التحقق من حقل is_free في courses
       const { data: courseData } = await supabase
         .from('courses')
         .select('is_free')
@@ -108,7 +102,6 @@ export async function GET(request, { params }) {
       }
     }
 
-    // إذا لم يتحقق أي شرط
     return NextResponse.json(
       { success: false, error: 'غير مصرح لك بمشاهدة هذا الفيديو' },
       { status: 403 }
@@ -127,9 +120,15 @@ export async function GET(request, { params }) {
 // ============================================================
 export async function PUT(request, { params }) {
   try {
-    const { id } = params;
-    const body = await request.json();
+    const { id } = await params;
+    if (!id) {
+      return NextResponse.json(
+        { success: false, error: 'معرف الفيديو مطلوب' },
+        { status: 400 }
+      );
+    }
 
+    const body = await request.json();
     const {
       title,
       description,
@@ -140,16 +139,7 @@ export async function PUT(request, { params }) {
       playlistOrder,
     } = body;
 
-    if (!id) {
-      return NextResponse.json(
-        { success: false, error: 'معرف الفيديو مطلوب' },
-        { status: 400 }
-      );
-    }
-
     const supabase = await createClient();
-
-    // التحقق من المصادقة
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
       return NextResponse.json(
@@ -172,7 +162,6 @@ export async function PUT(request, { params }) {
       );
     }
 
-    // التحقق من صلاحية المعلم/المساعد
     const { isAuthorized, error: authzError } = await verifyCourseOwnership(
       user.id,
       existingVideo.course_id
@@ -185,18 +174,13 @@ export async function PUT(request, { params }) {
       );
     }
 
-    // بناء كائن التحديث
-    const updateData = {
-      updated_at: new Date().toISOString(),
-    };
-
+    const updateData = { updated_at: new Date().toISOString() };
     if (title !== undefined) updateData.title = title.trim();
     if (description !== undefined) updateData.description = description?.trim() || null;
     if (videoUrl !== undefined) updateData.video_url = videoUrl;
     if (displayMode !== undefined) updateData.display_mode = displayMode;
     if (duration !== undefined) updateData.duration = duration;
 
-    // الحقول الجديدة - مع التعامل مع null
     if (playlistId !== undefined) {
       updateData.playlist_id = playlistId || null;
       if (playlistId === null) {
@@ -208,7 +192,6 @@ export async function PUT(request, { params }) {
       updateData.playlist_order = playlistOrder !== null ? playlistOrder : null;
     }
 
-    // تنفيذ التحديث
     const { data, error } = await supabase
       .from('videos')
       .update(updateData)
@@ -242,8 +225,7 @@ export async function PUT(request, { params }) {
 // ============================================================
 export async function DELETE(request, { params }) {
   try {
-    const { id } = params;
-
+    const { id } = await params;
     if (!id) {
       return NextResponse.json(
         { success: false, error: 'معرف الفيديو مطلوب' },
@@ -252,8 +234,6 @@ export async function DELETE(request, { params }) {
     }
 
     const supabase = await createClient();
-
-    // التحقق من المصادقة
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
       return NextResponse.json(
@@ -262,7 +242,6 @@ export async function DELETE(request, { params }) {
       );
     }
 
-    // جلب الفيديو للتأكد من وجوده والحصول على course_id
     const { data: existingVideo, error: fetchError } = await supabase
       .from('videos')
       .select('id, course_id')
@@ -276,7 +255,6 @@ export async function DELETE(request, { params }) {
       );
     }
 
-    // التحقق من صلاحية المعلم/المساعد
     const { isAuthorized, error: authzError } = await verifyCourseOwnership(
       user.id,
       existingVideo.course_id
@@ -289,7 +267,6 @@ export async function DELETE(request, { params }) {
       );
     }
 
-    // حذف الفيديو
     const { error } = await supabase.from('videos').delete().eq('id', id);
 
     if (error) {
