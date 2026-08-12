@@ -1,11 +1,12 @@
 // /app/api/playlists/route.js
 import { NextResponse } from 'next/server';
-import { getSupabaseServerClient } from '@/lib/supabaseServer';
+import { createClient } from '@/lib/supabase/server';
 import {
   getCoursePlaylists,
   verifyCourseOwnership,
 } from '@/lib/playlist-utils';
 
+// GET: جلب جميع قوائم التشغيل لكورس معين
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -18,8 +19,7 @@ export async function GET(request) {
       );
     }
 
-    // استخدام العميل الخادم مع الكوكيز
-    const supabase = getSupabaseServerClient();
+    const supabase = await createClient();
     const { data: { session } } = await supabase.auth.getSession();
 
     if (!session) {
@@ -48,6 +48,7 @@ export async function GET(request) {
   }
 }
 
+// POST: إنشاء قائمة تشغيل جديدة
 export async function POST(request) {
   try {
     const body = await request.json();
@@ -60,7 +61,7 @@ export async function POST(request) {
       );
     }
 
-    const supabase = getSupabaseServerClient();
+    const supabase = await createClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
 
     if (authError || !user) {
