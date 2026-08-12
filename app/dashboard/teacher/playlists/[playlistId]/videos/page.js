@@ -20,7 +20,6 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-// مكون مودال مشترك
 const Modal = ({ isOpen, onClose, title, children }) => {
   if (!isOpen) return null;
   return (
@@ -43,7 +42,6 @@ const Modal = ({ isOpen, onClose, title, children }) => {
   );
 };
 
-// مكون عرض فيديو في القائمة مع أزرار التحكم
 const VideoItem = ({ video, index, total, onMoveUp, onMoveDown, onRemove, isDark }) => {
   return (
     <motion.div
@@ -100,9 +98,10 @@ const VideoItem = ({ video, index, total, onMoveUp, onMoveDown, onRemove, isDark
 
 export default function TeacherPlaylistVideosPage() {
   const params = useParams();
-  // ⚠️ تأكد من أن اسم المجلد في المسار هو [playlistId] وليس [id]
-  // إذا كان [id] فاستخدم params.id
-  const playlistId = params?.playlistId;
+  // ⚠️ هام: إذا كان اسم مجلد الـ playlistId هو [id] فاستخدم params.id
+  // const playlistId = params?.id;
+  const playlistId = params?.playlistId; // الافتراضي [playlistId]
+  
   const router = useRouter();
   const { theme } = useTheme();
   const isDark = theme === 'dark';
@@ -261,15 +260,14 @@ export default function TeacherPlaylistVideosPage() {
       return;
     }
 
-    // ✅ تأكد من أن playlistId صحيح
     if (!playlistId) {
       toast.error('معرف القائمة غير صالح');
       return;
     }
 
-    // 🔍 طباعة القيمة في وحدة تحكم المتصفح
+    // تسجيل القيمة المرسلة
     console.log('🔍 Sending playlistId to API:', playlistId);
-    console.log('🔍 Type of playlistId:', typeof playlistId);
+    console.log('🔍 Type:', typeof playlistId);
 
     try {
       const payload = {
@@ -279,7 +277,7 @@ export default function TeacherPlaylistVideosPage() {
         videoUrl: newVideoUrl.trim(),
         displayMode: newVideoDisplayMode,
         duration: 0,
-        playlistId: playlistId,
+        playlistId: playlistId, // سيكون إما null أو UUID صالح
         playlistOrder: videos.length,
       };
       console.log('📦 Full payload:', payload);
@@ -324,6 +322,7 @@ export default function TeacherPlaylistVideosPage() {
     }
   };
 
+  // تعريف الألوان حسب الثيم
   const bg = isDark ? 'bg-gray-900' : 'bg-gray-50';
   const text = isDark ? 'text-white' : 'text-gray-900';
   const cardBg = isDark ? 'bg-gray-800' : 'bg-white';

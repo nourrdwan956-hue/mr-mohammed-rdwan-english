@@ -78,7 +78,6 @@ export async function POST(request) {
       playlistOrder,
     } = body;
 
-    // 📝 تسجيل القيمة المستلمة
     console.log('📥 POST /api/videos - Raw playlistId:', playlistId);
     console.log('📥 Type of playlistId:', typeof playlistId);
 
@@ -110,15 +109,15 @@ export async function POST(request) {
       );
     }
 
-    // ✅ معالجة playlistId بأقصى درجات الحماية
+    // ===================== المعالجة الآمنة لـ playlistId =====================
     let finalPlaylistId = null;
     let finalPlaylistOrder = playlistOrder !== undefined ? playlistOrder : null;
 
-    // التحقق من أن playlistId قيمة صالحة (ليست undefined ولا null ولا سلسلة غير صالحة)
+    // تجاهل القيم غير الصالحة: undefined, null, "undefined", "null", أو سلسلة فارغة
     if (playlistId !== undefined && playlistId !== null && String(playlistId).trim() !== '') {
       const idStr = String(playlistId).trim();
       
-      // فحص صيغة UUID
+      // التأكد من صيغة UUID
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
       if (!uuidRegex.test(idStr)) {
         console.warn(`⚠️ Invalid UUID format: "${idStr}" — setting playlist_id to NULL`);
@@ -151,7 +150,7 @@ export async function POST(request) {
       finalPlaylistOrder = await getNextPlaylistOrder(finalPlaylistId);
     }
 
-    // تجهيز بيانات الفيديو
+    // ===================== إنشاء كائن الفيديو =====================
     const videoData = {
       course_id: courseId,
       title: title.trim(),
@@ -159,7 +158,7 @@ export async function POST(request) {
       video_url: videoUrl,
       display_mode: displayMode || 'platform',
       duration: duration || 0,
-      playlist_id: finalPlaylistId, // ← هنا إما null أو UUID صحيح
+      playlist_id: finalPlaylistId, // إما UUID صالح أو null
       playlist_order: finalPlaylistOrder,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -167,7 +166,7 @@ export async function POST(request) {
 
     console.log('📝 Final videoData to insert:', videoData);
 
-    // محاولة الإدراج
+    // ===================== محاولة الإدراج =====================
     const { data, error } = await supabase
       .from('videos')
       .insert(videoData)
@@ -176,7 +175,7 @@ export async function POST(request) {
 
     if (error) {
       console.error('❌ Supabase insert error:', error);
-      // إرجاع تفاصيل الخطأ لمساعدة التصحيح
+      // إرجاع تفاصيل الخطأ للمساعدة في التصحيح
       return NextResponse.json(
         { 
           success: false, 

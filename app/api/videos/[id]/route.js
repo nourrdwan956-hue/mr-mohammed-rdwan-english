@@ -174,7 +174,7 @@ export async function PUT(request, { params }) {
     if (displayMode !== undefined) updateData.display_mode = displayMode;
     if (duration !== undefined) updateData.duration = duration;
 
-    // ✅ معالجة playlistId بشكل آمن
+    // ===================== معالجة playlistId في PUT =====================
     let finalPlaylistId = null;
     if (playlistId !== undefined) {
       const idStr = playlistId !== null ? String(playlistId).trim() : '';
