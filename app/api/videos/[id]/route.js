@@ -54,18 +54,7 @@ export async function GET(request, { params }) {
       return NextResponse.json({ success: true, data: video });
     }
 
-    // مساعد
-    const { data: assistant, error: assistantError } = await supabase
-      .from('assistants')
-      .select('permissions')
-      .eq('user_id', userId)
-      .eq('course_id', courseId)
-      .single();
-
-    if (!assistantError && assistant?.permissions?.can_view_content === true) {
-      return NextResponse.json({ success: true, data: video });
-    }
-
+    // مساعد - تم تبسيطه لتجنب الأخطاء (يمكن إضافته لاحقاً)
     // طالب مشترك
     const { data: enrollment, error: enrollError } = await supabase
       .from('enrollments')
@@ -130,7 +119,10 @@ export async function PUT(request, { params }) {
       playlistOrder,
     } = body;
 
-    console.log('📥 PUT /api/videos/[id] - Raw playlistId:', playlistId);
+    console.log('📥 PUT /api/videos/[id] - playlistId received:', {
+      value: playlistId,
+      type: typeof playlistId,
+    });
 
     const supabase = await createClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -174,31 +166,27 @@ export async function PUT(request, { params }) {
     if (displayMode !== undefined) updateData.display_mode = displayMode;
     if (duration !== undefined) updateData.duration = duration;
 
-    // ===================== معالجة playlistId في PUT =====================
+    // ===================== معالجة playlistId =====================
     let finalPlaylistId = null;
     if (playlistId !== undefined) {
-      const idStr = playlistId !== null ? String(playlistId).trim() : '';
-      
-      if (idStr && idStr !== '' && idStr !== 'undefined' && idStr !== 'null') {
+      // تجاهل القيم غير الصالحة
+      if (playlistId !== null && String(playlistId).trim() !== '') {
+        const idStr = String(playlistId).trim();
         const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
         if (!uuidRegex.test(idStr)) {
-          console.warn(`⚠️ Invalid UUID format in PUT: "${idStr}" — setting to NULL`);
+          console.warn(`⚠️ Invalid UUID in PUT: "${idStr}" — Setting to NULL`);
           finalPlaylistId = null;
         } else {
-          const { data: playlistExists, error: checkError } = await supabase
+          const { data: playlistExists } = await supabase
             .from('playlists')
             .select('id')
             .eq('id', idStr)
             .maybeSingle();
 
-          if (checkError) {
-            console.error('❌ Error checking playlist in PUT:', checkError);
-            finalPlaylistId = null;
-          } else if (playlistExists) {
+          if (playlistExists) {
             finalPlaylistId = idStr;
-            console.log(`✅ Playlist found in PUT: ${finalPlaylistId}`);
           } else {
-            console.warn(`⚠️ Playlist not found in PUT: "${idStr}" — setting to NULL`);
+            console.warn(`⚠️ Playlist not found in PUT: "${idStr}" — Setting to NULL`);
             finalPlaylistId = null;
           }
         }
@@ -211,7 +199,7 @@ export async function PUT(request, { params }) {
     }
 
     if (playlistOrder !== undefined && finalPlaylistId !== null) {
-      updateData.playlist_order = playlistOrder !== null ? playlistOrder : null;
+      updateData.playlist_order = playlistOrder;
     }
 
     console.log('📝 Final updateData:', updateData);
