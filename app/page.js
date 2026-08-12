@@ -387,37 +387,60 @@ const ScrollToTopButton = ({ show, onClick }) => (
 const UNIFIED_CLIP_COLOR = '#FBBF24'; // لون ذهبي موحد لجميع الكورسات
 
 // ================================================================
-// 🃏 بطاقة الكورس – مع 6 طبقات ظاهرة ومشبك ورق (لون موحد)
+// 🃏 بطاقة الكورس – تأثير "كومة ملفات" ثلاثي الأبعاد (CSS خفيف بدون JS re-render)
 // ================================================================
 
 const CourseCard3D = ({ course, teacher, index }) => {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   const router = useRouter();
-  const [isHovered, setIsHovered] = useState(false);
   const cardRef = useRef(null);
-  const [rotation, setRotation] = useState({ x: 0, y: 0 });
-  const [layerOffset, setLayerOffset] = useState({ x: 0, y: 0 });
+  const frontRef = useRef(null);
+  const rafRef = useRef(null);
+  const hoveredRef = useRef(false);
+
+  // ==============================================================
+  // ⚡ التفاعل مع الماوس يتم عبر ref مباشرة (بدون setState) لتفادي
+  // إعادة رسم الشجرة الكاملة عند كل حركة ماوس -> أداء أعلى بكثير
+  // ==============================================================
+  const applyTransform = (rotateX, rotateY) => {
+    if (!frontRef.current) return;
+    const liftScale = hoveredRef.current ? 'scale(1.04) translateY(-8px)' : 'scale(1) translateY(0px)';
+    frontRef.current.style.transform = `${liftScale} rotateX(${rotateX}deg) rotateY(${rotateY}deg)`;
+  };
 
   const handleMouseMove = (e) => {
     if (!cardRef.current) return;
-    const rect = cardRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    const centerX = rect.width / 2;
-    const centerY = rect.height / 2;
-    const rotateX = ((y - centerY) / centerY) * -8;
-    const rotateY = ((x - centerX) / centerX) * 8;
-    setRotation({ x: rotateX, y: rotateY });
-    const offsetX = ((x - centerX) / centerX) * 12;
-    const offsetY = ((y - centerY) / centerY) * 12;
-    setLayerOffset({ x: offsetX, y: offsetY });
+    if (rafRef.current) return; // throttle: تحديث واحد كحد أقصى لكل فريم
+    const clientX = e.clientX;
+    const clientY = e.clientY;
+    rafRef.current = requestAnimationFrame(() => {
+      const rect = cardRef.current.getBoundingClientRect();
+      const x = clientX - rect.left;
+      const y = clientY - rect.top;
+      const centerX = rect.width / 2;
+      const centerY = rect.height / 2;
+      const rotateX = ((y - centerY) / centerY) * -6;
+      const rotateY = ((x - centerX) / centerX) * 6;
+      applyTransform(rotateX, rotateY);
+      rafRef.current = null;
+    });
+  };
+
+  const handleMouseEnter = () => {
+    hoveredRef.current = true;
+    if (cardRef.current) cardRef.current.classList.add('is-hovered');
+    applyTransform(0, 0);
   };
 
   const handleMouseLeave = () => {
-    setRotation({ x: 0, y: 0 });
-    setLayerOffset({ x: 0, y: 0 });
-    setIsHovered(false);
+    hoveredRef.current = false;
+    if (cardRef.current) cardRef.current.classList.remove('is-hovered');
+    if (rafRef.current) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
+    applyTransform(0, 0);
   };
 
   const stats = [
@@ -427,353 +450,291 @@ const CourseCard3D = ({ course, teacher, index }) => {
   ];
 
   const totalItems = stats.reduce((sum, s) => sum + s.count, 0);
-
-  // استخدام اللون الموحد للمشبك
   const clipColor = UNIFIED_CLIP_COLOR;
-  const LAYER_COUNT = 6;
 
   return (
-    <motion.div
+    <div
       ref={cardRef}
-      initial={{ opacity: 0, scale: 0.9, y: 30 }}
-      animate={{ opacity: 1, scale: 1, y: 0 }}
-      transition={{ duration: 0.6, delay: index * 0.07 }}
       onMouseMove={handleMouseMove}
-      onMouseEnter={() => setIsHovered(true)}
+      onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       onClick={() => router.push(`/dashboard/student/courses/${course.id}`)}
-      className="group cursor-pointer relative"
-      style={{ perspective: '1600px', overflow: 'visible' }}
+      className="course-stack group cursor-pointer relative opacity-0 animate-[cardIn_0.5s_ease-out_forwards]"
+      style={{ perspective: '1400px', animationDelay: `${index * 60}ms` }}
     >
-      <motion.div
-        className="relative rounded-2xl overflow-visible"
-        animate={{
-          scale: isHovered ? 1.04 : 1,
-          zIndex: isHovered ? 30 : 10,
-          y: isHovered ? -8 : 0,
-        }}
-        transition={{ duration: 0.3 }}
+      {/* ============================================================== */}
+      {/* 🔥 كومة الملفات خلف البطاقة – 3 طبقات ثابتة CSS فقط           */}
+      {/* لا يوجد blur ولا framer-motion هنا => صفر تكلفة عند التحريك   */}
+      {/* ============================================================== */}
+      <div
+        className={`course-layer absolute inset-0 rounded-2xl border-2 ${
+          isDark ? 'border-white/8' : 'border-black/8'
+        }`}
         style={{
-          transformStyle: 'preserve-3d',
-          overflow: 'visible',
+          backgroundColor: isDark ? 'rgba(15,25,45,0.35)' : 'rgba(210,215,225,0.35)',
+          zIndex: -3,
         }}
-      >
-        {/* ============================================================== */}
-        {/* 🔥 الطبقات المتكررة – كل طبقة تظهر كبطاقة مستقلة */}
-        {/* ============================================================== */}
+      />
+      <div
+        className={`course-layer absolute inset-0 rounded-2xl border-2 ${
+          isDark ? 'border-white/9' : 'border-black/9'
+        }`}
+        style={{
+          backgroundColor: isDark ? 'rgba(15,25,45,0.45)' : 'rgba(210,215,225,0.45)',
+          zIndex: -2,
+        }}
+      />
+      <div
+        className={`course-layer absolute inset-0 rounded-2xl border-2 ${
+          isDark ? 'border-white/10' : 'border-black/10'
+        }`}
+        style={{
+          backgroundColor: isDark ? 'rgba(15,25,45,0.6)' : 'rgba(210,215,225,0.6)',
+          zIndex: -1,
+        }}
+      />
+
+      {/* ============================================================== */}
+      {/* 📌 مشبك ورق (Paperclip) – لون موحد - z-index عالي جداً */}
+      {/* ============================================================== */}
+      <div className="absolute -top-4 -left-2 z-[100] pointer-events-none">
         <div
-          className="absolute inset-0 -z-10"
-          style={{
-            transformStyle: 'preserve-3d',
-            transform: `rotateX(${rotation.x * 0.3}deg) rotateY(${rotation.y * 0.3}deg)`,
-            overflow: 'visible',
-          }}
+          className="relative course-clip"
+          style={{ filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.25))' }}
         >
-          {Array.from({ length: LAYER_COUNT }).map((_, idx) => {
-            const depth = (idx + 1) * 18;
-            const scale = 1 - (idx + 1) * 0.025;
-            const opacity = 0.7 - idx * 0.08;
-            const offsetFactor = (idx + 1) * 0.5;
-
-            // لون الطبقات موحد (يعتمد على الوضع الفاتح/الداكن)
-            const layerColor = isDark
-              ? `rgba(15, 25, 45, ${0.5 + idx * 0.06})`
-              : `rgba(210, 215, 225, ${0.5 + idx * 0.06})`;
-
-            const borderColor = isDark
-              ? `rgba(255,255,255,${0.05 + idx * 0.02})`
-              : `rgba(0,0,0,${0.05 + idx * 0.02})`;
-
-            return (
-              <motion.div
-                key={idx}
-                className="absolute rounded-2xl border-2"
-                style={{
-                  backgroundColor: layerColor,
-                  borderColor: borderColor,
-                  width: '100%',
-                  height: '100%',
-                  transform: `
-                    translateZ(${-depth}px)
-                    scale(${scale})
-                    translateX(${layerOffset.x * offsetFactor}px)
-                    translateY(${layerOffset.y * offsetFactor}px)
-                  `,
-                  opacity: opacity,
-                  boxShadow: `0 8px 30px rgba(0,0,0,0.12)`,
-                  backdropFilter: 'blur(1px)',
-                  overflow: 'visible',
-                }}
-                animate={{
-                  scale: isHovered ? scale * 1.02 : scale,
-                  opacity: isHovered ? opacity + 0.1 : opacity,
-                  translateZ: isHovered ? -depth - 10 : -depth,
-                }}
-                transition={{ duration: 0.3 }}
-              >
-                <div className="absolute inset-2 rounded-xl border border-white/5" />
-                <div className="absolute bottom-4 right-4 text-[6px] font-bold opacity-20 text-gray-500">
-                  #{idx + 1}
-                </div>
-              </motion.div>
-            );
-          })}
-        </div>
-
-        {/* ============================================================== */}
-        {/* 📌 مشبك ورق (Paperclip) – لون موحد - z-index عالي جداً */}
-        {/* ============================================================== */}
-        <div className="absolute -top-4 -left-2 z-[100]">
-          <motion.div
-            animate={{
-              scale: isHovered ? 1.1 : 1,
-              rotate: isHovered ? 0 : -5,
-            }}
-            transition={{ duration: 0.3 }}
-            className="relative"
-            style={{ filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.25))' }}
-          >
-            {/* الجزء الخلفي من المشبك (يمتد خلف البطاقة) */}
-            <div
-              className="absolute -z-10"
-              style={{
-                width: '28px',
-                height: '60px',
-                backgroundColor: clipColor,
-                opacity: 0.6,
-                borderRadius: '4px 4px 8px 8px',
-                transform: 'translate(4px, -6px) rotate(8deg)',
-                boxShadow: 'inset 0 2px 6px rgba(0,0,0,0.2)',
-              }}
-            />
-            
-            {/* المشبك الأمامي (الجزء المرئي) */}
-            <svg
-              width="36"
-              height="64"
-              viewBox="0 0 36 64"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-              style={{ filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.3))' }}
-            >
-              {/* الجزء العلوي الدائري */}
-              <circle cx="18" cy="16" r="14" fill={clipColor} stroke="white" strokeWidth="2" />
-              <circle cx="14" cy="12" r="4" fill="white" opacity="0.4" />
-              
-              {/* الذراع الأيسر للمشبك */}
-              <path
-                d="M8 24 L6 56 Q6 62 12 62 L14 62 L14 56 L8 56 Z"
-                fill={clipColor}
-                stroke="white"
-                strokeWidth="1.5"
-              />
-              
-              {/* الذراع الأيمن للمشبك */}
-              <path
-                d="M28 24 L30 56 Q30 62 24 62 L22 62 L22 56 L28 56 Z"
-                fill={clipColor}
-                stroke="white"
-                strokeWidth="1.5"
-              />
-              
-              {/* النابض المركزي (التجعيدات) */}
-              <rect x="15" y="28" width="6" height="4" rx="1" fill={clipColor} stroke="white" strokeWidth="1" />
-              <rect x="15" y="34" width="6" height="4" rx="1" fill={clipColor} stroke="white" strokeWidth="1" />
-              <rect x="15" y="40" width="6" height="4" rx="1" fill={clipColor} stroke="white" strokeWidth="1" />
-              
-              {/* نهاية المشبك السفلية */}
-              <circle cx="18" cy="56" r="4" fill={clipColor} stroke="white" strokeWidth="1.5" />
-            </svg>
-
-            {/* توهج خفيف */}
-            <div
-              className="absolute inset-0 rounded-full blur-xl"
-              style={{
-                backgroundColor: clipColor,
-                opacity: 0.2,
-                transform: 'scale(1.6)',
-              }}
-            />
-          </motion.div>
-        </div>
-
-        {/* ============================================================== */}
-        {/* الإطار المتحرك – أخضر فاتح جداً */}
-        {/* ============================================================== */}
-        <div className="absolute inset-[-3px] rounded-2xl overflow-hidden pointer-events-none">
-          <div className="absolute inset-0 rounded-2xl p-[3px]">
-            <div
-              className={`absolute inset-0 rounded-2xl bg-gradient-to-r from-transparent via-green-300/20 to-transparent transition-opacity duration-300 ${
-                isHovered ? 'opacity-100' : 'opacity-0'
-              }`}
-              style={{
-                animation: isHovered ? 'borderFlow 3s linear infinite' : 'none',
-                backgroundSize: '300% 100%',
-              }}
-            />
-          </div>
-        </div>
-
-        {/* ============================================================== */}
-        {/* البطاقة الأمامية (الظاهرة) */}
-        {/* ============================================================== */}
-        <motion.div
-          className={`relative rounded-2xl overflow-hidden transition-all duration-500 ${
-            isDark
-              ? 'bg-white/10 border-white/15'
-              : 'bg-white/90 border-gray-200/50'
-          } border backdrop-blur-md shadow-xl hover:shadow-2xl`}
-          style={{
-            transform: `rotateX(${rotation.x}deg) rotateY(${rotation.y}deg)`,
-            transformStyle: 'preserve-3d',
-            transition: 'transform 0.15s ease-out',
-            minHeight: '400px',
-            maxHeight: '500px',
-          }}
-          animate={{
-            z: isHovered ? 40 : 0,
-            scale: isHovered ? 1.04 : 1,
-          }}
-          transition={{ duration: 0.3 }}
-        >
-          {/* تأثير إضاءة 3D */}
           <div
-            className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+            className="absolute -z-10"
             style={{
-              background: `radial-gradient(circle at ${50 + rotation.y * 3}% ${50 + rotation.x * 3}%, rgba(255,255,255,0.2) 0%, transparent 70%)`,
+              width: '28px',
+              height: '60px',
+              backgroundColor: clipColor,
+              opacity: 0.6,
+              borderRadius: '4px 4px 8px 8px',
+              transform: 'translate(4px, -6px) rotate(8deg)',
+              boxShadow: 'inset 0 2px 6px rgba(0,0,0,0.2)',
             }}
           />
+          <svg
+            width="36"
+            height="64"
+            viewBox="0 0 36 64"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+            style={{ filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.3))' }}
+          >
+            <circle cx="18" cy="16" r="14" fill={clipColor} stroke="white" strokeWidth="2" />
+            <circle cx="14" cy="12" r="4" fill="white" opacity="0.4" />
+            <path
+              d="M8 24 L6 56 Q6 62 12 62 L14 62 L14 56 L8 56 Z"
+              fill={clipColor}
+              stroke="white"
+              strokeWidth="1.5"
+            />
+            <path
+              d="M28 24 L30 56 Q30 62 24 62 L22 62 L22 56 L28 56 Z"
+              fill={clipColor}
+              stroke="white"
+              strokeWidth="1.5"
+            />
+            <rect x="15" y="28" width="6" height="4" rx="1" fill={clipColor} stroke="white" strokeWidth="1" />
+            <rect x="15" y="34" width="6" height="4" rx="1" fill={clipColor} stroke="white" strokeWidth="1" />
+            <rect x="15" y="40" width="6" height="4" rx="1" fill={clipColor} stroke="white" strokeWidth="1" />
+            <circle cx="18" cy="56" r="4" fill={clipColor} stroke="white" strokeWidth="1.5" />
+          </svg>
+          <div
+            className="absolute inset-0 rounded-full blur-xl"
+            style={{
+              backgroundColor: clipColor,
+              opacity: 0.2,
+              transform: 'scale(1.6)',
+            }}
+          />
+        </div>
+      </div>
 
-          {/* صورة الغلاف – نسبة 16:9 */}
-          <div className="relative w-full overflow-hidden" style={{ aspectRatio: '16/9' }}>
-            {course?.cover_image ? (
-              <>
-                <motion.img
-                  src={course.cover_image}
-                  alt={course.title}
-                  className="w-full h-full object-cover object-center"
-                  style={{
-                    filter: 'brightness(1.15) contrast(1.1) saturate(1.08)',
-                    backgroundColor: '#e8ecf0',
-                  }}
-                  animate={{ scale: isHovered ? 1.08 : 1 }}
-                  transition={{ duration: 0.6 }}
-                  loading="lazy"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent" />
-              </>
-            ) : (
-              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-400/20 to-green-400/20">
-                <Icons.BookOpen className="h-20 w-20 text-gray-400/30" />
-              </div>
-            )}
+      {/* ============================================================== */}
+      {/* الإطار المتحرك – أخضر فاتح جداً (CSS فقط عبر group-hover) */}
+      {/* ============================================================== */}
+      <div className="absolute inset-[-3px] rounded-2xl overflow-hidden pointer-events-none">
+        <div className="absolute inset-0 rounded-2xl p-[3px]">
+          <div className="course-border-glow absolute inset-0 rounded-2xl bg-gradient-to-r from-transparent via-green-300/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+        </div>
+      </div>
 
-            {/* شارات السعر والحالة */}
-            <div className="absolute top-3 right-3 flex flex-col gap-1.5 z-10">
-              <motion.span
-                className={`text-[8px] sm:text-[9px] px-2.5 py-0.5 rounded-full font-bold backdrop-blur-lg border border-white/15 shadow-lg ${
-                  course?.is_free
-                    ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white'
-                    : 'bg-gradient-to-r from-blue-500 to-blue-600 text-white'
-                }`}
-                whileHover={{ scale: 1.05 }}
-              >
-                {course?.is_free ? 'مجاني' : `${course?.price} ج.م`}
-              </motion.span>
-              {course?.is_published && (
-                <span className="text-[8px] sm:text-[9px] px-2.5 py-0.5 rounded-full bg-gradient-to-r from-blue-400 to-cyan-500 text-white font-bold backdrop-blur-lg border border-white/15 shadow-lg">
-                  متاح
-                </span>
-              )}
+      {/* ============================================================== */}
+      {/* البطاقة الأمامية (الظاهرة) – تدور بدون setState عبر ref */}
+      {/* ============================================================== */}
+      <div
+        ref={frontRef}
+        className={`relative rounded-2xl overflow-hidden transition-all duration-500 z-10 ${
+          isDark
+            ? 'bg-white/10 border-white/15'
+            : 'bg-white/90 border-gray-200/50'
+        } border backdrop-blur-md shadow-xl hover:shadow-2xl course-front`}
+        style={{
+          transformStyle: 'preserve-3d',
+          transition: 'transform 0.15s ease-out, box-shadow 0.3s ease',
+          minHeight: '400px',
+          maxHeight: '500px',
+          willChange: 'transform',
+        }}
+      >
+        {/* تأثير إضاءة 3D */}
+        <div className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500 course-glow" />
+
+        {/* صورة الغلاف – نسبة 16:9 */}
+        <div className="relative w-full overflow-hidden" style={{ aspectRatio: '16/9' }}>
+          {course?.cover_image ? (
+            <>
+              <img
+                src={course.cover_image}
+                alt={course.title}
+                className="w-full h-full object-cover object-center transition-transform duration-500 ease-out group-hover:scale-[1.08]"
+                style={{
+                  filter: 'brightness(1.15) contrast(1.1) saturate(1.08)',
+                  backgroundColor: '#e8ecf0',
+                }}
+                loading="lazy"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent" />
+            </>
+          ) : (
+            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-400/20 to-green-400/20">
+              <Icons.BookOpen className="h-20 w-20 text-gray-400/30" />
             </div>
+          )}
 
-            {/* شارات المرحلة والصف */}
-            <div className="absolute bottom-3 right-3 flex gap-1.5 z-10">
-              <span className="text-[7px] sm:text-[8px] px-2 py-0.5 rounded-full bg-black/70 backdrop-blur-sm text-white/90 border border-white/10 shadow-lg">
-                {course?.grade_stage === 'primary' ? 'ابتدائي' :
-                 course?.grade_stage === 'middle' ? 'إعدادي' :
-                 course?.grade_stage === 'secondary' ? 'ثانوي' : 'عام'}
+          {/* شارات السعر والحالة */}
+          <div className="absolute top-3 right-3 flex flex-col gap-1.5 z-10">
+            <span
+              className={`text-[8px] sm:text-[9px] px-2.5 py-0.5 rounded-full font-bold backdrop-blur-lg border border-white/15 shadow-lg transition-transform duration-200 hover:scale-105 ${
+                course?.is_free
+                  ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white'
+                  : 'bg-gradient-to-r from-blue-500 to-blue-600 text-white'
+              }`}
+            >
+              {course?.is_free ? 'مجاني' : `${course?.price} ج.م`}
+            </span>
+            {course?.is_published && (
+              <span className="text-[8px] sm:text-[9px] px-2.5 py-0.5 rounded-full bg-gradient-to-r from-blue-400 to-cyan-500 text-white font-bold backdrop-blur-lg border border-white/15 shadow-lg">
+                متاح
               </span>
-              {course?.grade_level && (
-                <span className="text-[7px] sm:text-[8px] px-2 py-0.5 rounded-full bg-black/70 backdrop-blur-sm text-white/90 border border-white/10 shadow-lg">
-                  صف {course.grade_level}
-                </span>
+            )}
+          </div>
+
+          {/* شارات المرحلة والصف */}
+          <div className="absolute bottom-3 right-3 flex gap-1.5 z-10">
+            <span className="text-[7px] sm:text-[8px] px-2 py-0.5 rounded-full bg-black/70 backdrop-blur-sm text-white/90 border border-white/10 shadow-lg">
+              {course?.grade_stage === 'primary' ? 'ابتدائي' :
+               course?.grade_stage === 'middle' ? 'إعدادي' :
+               course?.grade_stage === 'secondary' ? 'ثانوي' : 'عام'}
+            </span>
+            {course?.grade_level && (
+              <span className="text-[7px] sm:text-[8px] px-2 py-0.5 rounded-full bg-black/70 backdrop-blur-sm text-white/90 border border-white/10 shadow-lg">
+                صف {course.grade_level}
+              </span>
+            )}
+          </div>
+
+          {/* أيقونة تشغيل عند Hover */}
+          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10">
+            <div className="p-4 rounded-full bg-black/40 backdrop-blur-md border border-white/20 shadow-2xl group-hover:scale-110 transition-transform duration-300">
+              <Icons.Play className="h-8 w-8 text-white" />
+            </div>
+          </div>
+        </div>
+
+        {/* محتوى البطاقة */}
+        <div className="p-4 flex flex-col flex-1">
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex-1 min-w-0">
+              <h3 className={`text-sm sm:text-base font-bold mb-0.5 line-clamp-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                {course?.title || 'كورس'}
+              </h3>
+              {teacher && (
+                <p className={`text-[9px] sm:text-[10px] ${isDark ? 'text-gray-400' : 'text-gray-500'} flex items-center gap-1`}>
+                  <Icons.User className="h-3 w-3 text-blue-400" />
+                  {teacher.full_name}
+                </p>
               )}
             </div>
-
-            {/* أيقونة تشغيل عند Hover */}
-            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10">
-              <div className="p-4 rounded-full bg-black/40 backdrop-blur-md border border-white/20 shadow-2xl group-hover:scale-110 transition-transform duration-300">
-                <Icons.Play className="h-8 w-8 text-white" />
-              </div>
+            <div className="flex-shrink-0">
+              <span className="text-[10px] sm:text-xs font-extrabold text-yellow-400 bg-yellow-400/10 px-2 py-0.5 rounded-full border border-yellow-400/20">
+                {totalItems} عنصر
+              </span>
             </div>
           </div>
 
-          {/* محتوى البطاقة */}
-          <div className="p-4 flex flex-col flex-1">
-            <div className="flex items-start justify-between gap-2">
-              <div className="flex-1 min-w-0">
-                <h3 className={`text-sm sm:text-base font-bold mb-0.5 line-clamp-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                  {course?.title || 'كورس'}
-                </h3>
-                {teacher && (
-                  <p className={`text-[9px] sm:text-[10px] ${isDark ? 'text-gray-400' : 'text-gray-500'} flex items-center gap-1`}>
-                    <Icons.User className="h-3 w-3 text-blue-400" />
-                    {teacher.full_name}
-                  </p>
-                )}
-              </div>
-              <div className="flex-shrink-0">
-                <span className="text-[10px] sm:text-xs font-extrabold text-yellow-400 bg-yellow-400/10 px-2 py-0.5 rounded-full border border-yellow-400/20">
-                  {totalItems} عنصر
-                </span>
-              </div>
-            </div>
+          <p className={`text-[9px] sm:text-[10px] ${isDark ? 'text-gray-400' : 'text-gray-500'} leading-relaxed line-clamp-2 mt-1 flex-1`}>
+            {course?.description || 'لا يوجد وصف'}
+          </p>
 
-            <p className={`text-[9px] sm:text-[10px] ${isDark ? 'text-gray-400' : 'text-gray-500'} leading-relaxed line-clamp-2 mt-1 flex-1`}>
-              {course?.description || 'لا يوجد وصف'}
-            </p>
-
-            {/* إحصائيات الكورس */}
-            <div className="flex items-center justify-between mt-2 gap-1 flex-wrap">
-              {stats.map((stat, idx) => (
-                <div key={idx} className="flex items-center gap-1 text-[8px] sm:text-[9px]">
-                  <stat.icon className={`h-3 w-3 ${stat.color}`} />
-                  <span className={`${isDark ? 'text-gray-300' : 'text-gray-700'} font-bold`}>{stat.count}</span>
-                  <span className={`${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{stat.label}</span>
-                </div>
-              ))}
-            </div>
-
-            <div className="flex items-center justify-between mt-2 pt-2 border-t border-white/10">
-              <div className="flex items-center gap-2 text-[7px] sm:text-[8px] text-gray-400">
-                <span className="flex items-center gap-0.5">
-                  <Icons.Clock className="h-3 w-3" />
-                  {course?.subscription_duration_days || 30} يوم
-                </span>
-                <span className="flex items-center gap-0.5">
-                  <Icons.Monitor className="h-3 w-3" />
-                  {course?.max_devices || 2} جهاز
-                </span>
+          {/* إحصائيات الكورس */}
+          <div className="flex items-center justify-between mt-2 gap-1 flex-wrap">
+            {stats.map((stat, idx) => (
+              <div key={idx} className="flex items-center gap-1 text-[8px] sm:text-[9px]">
+                <stat.icon className={`h-3 w-3 ${stat.color}`} />
+                <span className={`${isDark ? 'text-gray-300' : 'text-gray-700'} font-bold`}>{stat.count}</span>
+                <span className={`${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{stat.label}</span>
               </div>
-              <motion.span
-                className={`text-[8px] sm:text-[9px] font-bold ${isDark ? 'text-blue-400' : 'text-blue-600'} flex items-center gap-0.5`}
-                whileHover={{ x: -3 }}
-                transition={{ duration: 0.2 }}
-              >
-                {course?.is_free ? 'ابدأ مجاناً' : 'اشترك'}
-                <Icons.ArrowLeft className="h-3 w-3" />
-              </motion.span>
-            </div>
+            ))}
           </div>
-        </motion.div>
-      </motion.div>
+
+          <div className="flex items-center justify-between mt-2 pt-2 border-t border-white/10">
+            <div className="flex items-center gap-2 text-[7px] sm:text-[8px] text-gray-400">
+              <span className="flex items-center gap-0.5">
+                <Icons.Clock className="h-3 w-3" />
+                {course?.subscription_duration_days || 30} يوم
+              </span>
+              <span className="flex items-center gap-0.5">
+                <Icons.Monitor className="h-3 w-3" />
+                {course?.max_devices || 2} جهاز
+              </span>
+            </div>
+            <span
+              className={`text-[8px] sm:text-[9px] font-bold ${isDark ? 'text-blue-400' : 'text-blue-600'} flex items-center gap-0.5 transition-transform duration-200 group-hover:-translate-x-1`}
+            >
+              {course?.is_free ? 'ابدأ مجاناً' : 'اشترك'}
+              <Icons.ArrowLeft className="h-3 w-3" />
+            </span>
+          </div>
+        </div>
+      </div>
 
       <style jsx>{`
-        @keyframes borderFlow {
-          0% { background-position: 0% 0%; }
-          50% { background-position: 100% 0%; }
-          100% { background-position: 200% 0%; }
+        @keyframes cardIn {
+          from { opacity: 0; transform: translateY(24px) scale(0.96); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .course-layer {
+          transform: translate(6px, 6px) rotate(0.4deg);
+          transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.35s ease;
+          will-change: transform;
+        }
+        .course-layer:nth-child(2) {
+          transform: translate(12px, 12px) rotate(-0.6deg);
+        }
+        .course-layer:nth-child(3) {
+          transform: translate(18px, 18px) rotate(0.9deg);
+        }
+        .course-stack.is-hovered .course-layer:nth-child(1) {
+          transform: translate(10px, 10px) rotate(1deg);
+        }
+        .course-stack.is-hovered .course-layer:nth-child(2) {
+          transform: translate(20px, 18px) rotate(-1.6deg);
+        }
+        .course-stack.is-hovered .course-layer:nth-child(3) {
+          transform: translate(30px, 26px) rotate(2.2deg);
+        }
+        .course-clip {
+          transform: rotate(-5deg) scale(1);
+          transition: transform 0.3s ease;
+        }
+        .course-stack.is-hovered .course-clip {
+          transform: rotate(0deg) scale(1.1);
+        }
+        .course-glow {
+          background: radial-gradient(circle at 50% 40%, rgba(255,255,255,0.18) 0%, transparent 70%);
         }
         .line-clamp-1 {
           display: -webkit-box;
@@ -788,7 +749,7 @@ const CourseCard3D = ({ course, teacher, index }) => {
           overflow: hidden;
         }
       `}</style>
-    </motion.div>
+    </div>
   );
 };
 
@@ -837,9 +798,6 @@ const CoursesCarousel3D = ({ courses, teachers, isDark, loading }) => {
 
   const visibleCourses = courses.slice(0, 8);
 
-  // ============================================================
-  // التعديل: دوال التمرير المحسّنة
-  // ============================================================
   const scrollForward = () => {
     if (containerRef.current) {
       const currentScroll = containerRef.current.scrollLeft;
