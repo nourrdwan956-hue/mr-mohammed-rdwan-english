@@ -798,12 +798,13 @@ const CoursesCarousel3D = ({ courses, teachers, isDark, loading }) => {
 
   const visibleCourses = courses.slice(0, 8);
 
+  // ============================================================
+  // 🛠️ التعديل المطلوب: استبدال scrollTo بـ scrollBy لضمان عمل الأسهم
+  // ============================================================
   const scrollForward = () => {
     if (containerRef.current) {
-      const currentScroll = containerRef.current.scrollLeft;
-      const targetScroll = currentScroll + cardWidth + 20;
-      containerRef.current.scrollTo({
-        left: targetScroll,
+      containerRef.current.scrollBy({
+        left: cardWidth + 20,
         behavior: 'smooth',
       });
     }
@@ -811,10 +812,8 @@ const CoursesCarousel3D = ({ courses, teachers, isDark, loading }) => {
 
   const scrollBackward = () => {
     if (containerRef.current) {
-      const currentScroll = containerRef.current.scrollLeft;
-      const targetScroll = Math.max(0, currentScroll - (cardWidth + 20));
-      containerRef.current.scrollTo({
-        left: targetScroll,
+      containerRef.current.scrollBy({
+        left: -(cardWidth + 20),
         behavior: 'smooth',
       });
     }
