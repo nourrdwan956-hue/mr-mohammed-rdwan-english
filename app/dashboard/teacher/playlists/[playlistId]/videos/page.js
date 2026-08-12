@@ -100,7 +100,8 @@ const VideoItem = ({ video, index, total, onMoveUp, onMoveDown, onRemove, isDark
 
 export default function TeacherPlaylistVideosPage() {
   const params = useParams();
-  // ✅ استخراج playlistId من params (لأن المسار هو [playlistId])
+  // ⚠️ تأكد من أن اسم المجلد في المسار هو [playlistId] وليس [id]
+  // إذا كان [id] فاستخدم params.id
   const playlistId = params?.playlistId;
   const router = useRouter();
   const { theme } = useTheme();
@@ -266,28 +267,34 @@ export default function TeacherPlaylistVideosPage() {
       return;
     }
 
+    // 🔍 طباعة القيمة في وحدة تحكم المتصفح
+    console.log('🔍 Sending playlistId to API:', playlistId);
+    console.log('🔍 Type of playlistId:', typeof playlistId);
+
     try {
+      const payload = {
+        courseId: playlist.course_id,
+        title: newVideoTitle.trim(),
+        description: newVideoDescription.trim() || null,
+        videoUrl: newVideoUrl.trim(),
+        displayMode: newVideoDisplayMode,
+        duration: 0,
+        playlistId: playlistId,
+        playlistOrder: videos.length,
+      };
+      console.log('📦 Full payload:', payload);
+
       const res = await fetch('/api/videos', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          courseId: playlist.course_id,
-          title: newVideoTitle.trim(),
-          description: newVideoDescription.trim() || null,
-          videoUrl: newVideoUrl.trim(),
-          displayMode: newVideoDisplayMode,
-          duration: 0,
-          playlistId: playlistId, // ✅ إرسال المعرف الصحيح
-          playlistOrder: videos.length,
-        }),
+        body: JSON.stringify(payload),
       });
 
-      // ✅ التحقق من الاستجابة حتى لو كانت خطأ
       let data;
       try {
         data = await res.json();
       } catch (parseError) {
-        // إذا لم تكن استجابة JSON، نعرض رسالة عامة
+        console.error('❌ Failed to parse JSON response:', parseError);
         throw new Error('حدث خطأ في الخادم، يرجى المحاولة مرة أخرى');
       }
 
@@ -304,7 +311,7 @@ export default function TeacherPlaylistVideosPage() {
       fetchPlaylistData();
       fetchAvailableVideos();
     } catch (err) {
-      console.error('Create video error:', err);
+      console.error('❌ Create video error:', err);
       toast.error(err.message || 'حدث خطأ أثناء إنشاء الفيديو');
     }
   };
