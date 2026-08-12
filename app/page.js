@@ -1,9 +1,9 @@
 // app/page.js
 // ================================================================
 // 🏛️ الصفحة الرئيسية – منصة مستر محمد رضوان
-// ✅ 6 طبقات متراكبة فوق بعضها (كل طبقة تظهر بوضوح)
-// ✅ البطاقة الأمامية تتصدر للأمام عند Hover (translateZ + scale)
-// ✅ دبوس ملون في الطرف العلوي الأيسر (لون مختلف لكل كورس)
+// ✅ 6 طبقات مرئية فوق بعضها (كل طبقة تظهر كبطاقة مستقلة)
+// ✅ البطاقة الأمامية تتصدر للأمام عند Hover مع تأثير 3D
+// ✅ مشبك ورق (Paperclip) في الزاوية العلوية اليسرى
 // ✅ إطار أخضر فاتح جداً عند Hover
 // ✅ أسهم معكوسة (يمين → التالي، يسار → السابق)
 // ✅ توقيع المبرمج بتأثير فريد
@@ -21,7 +21,7 @@ import { useTheme } from '@/lib/hooks/useTheme';
 import { supabase } from '@/lib/supabaseClient';
 
 // ================================================================
-// 📌 مميزات المنصة
+// 📌 مميزات المنصة (بدون تغيير)
 // ================================================================
 
 const PLATFORM_FEATURES = [
@@ -141,7 +141,7 @@ const SOCIAL_LINKS = [
 ];
 
 // ================================================================
-// ⏳ العداد التنازلي
+// ⏳ العداد التنازلي (بدون تغيير)
 // ================================================================
 
 const CountdownTimer = ({ isDark }) => {
@@ -245,7 +245,7 @@ const CountdownTimer = ({ isDark }) => {
 };
 
 // ================================================================
-// 🎨 خلفية متطورة
+// 🎨 خلفية متطورة (بدون تغيير)
 // ================================================================
 
 const ElegantBackground = ({ isDark }) => {
@@ -321,7 +321,7 @@ const ElegantBackground = ({ isDark }) => {
 };
 
 // ================================================================
-// 🧭 مؤشر التمرير
+// 🧭 مؤشر التمرير (بدون تغيير)
 // ================================================================
 
 const ScrollIndicator = ({ targetId }) => {
@@ -358,7 +358,7 @@ const ScrollIndicator = ({ targetId }) => {
 };
 
 // ================================================================
-// ⬆️ زر العودة للأعلى
+// ⬆️ زر العودة للأعلى (بدون تغيير)
 // ================================================================
 
 const ScrollToTopButton = ({ show, onClick }) => (
@@ -380,10 +380,10 @@ const ScrollToTopButton = ({ show, onClick }) => (
 );
 
 // ================================================================
-// 🎨 ألوان الدبابيس المختلفة لكل كورس
+// 🎨 ألوان المشابك المختلفة لكل كورس
 // ================================================================
 
-const PIN_COLORS = [
+const CLIP_COLORS = [
   '#FF6B6B', // أحمر
   '#FF9F43', // برتقالي
   '#FECA57', // أصفر
@@ -403,7 +403,7 @@ const PIN_COLORS = [
 ];
 
 // ================================================================
-// 🃏 بطاقة الكورس – مع طبقات متصدرة (Stacked Cards)
+// 🃏 بطاقة الكورس – مع 6 طبقات ظاهرة ومشبك ورق
 // ================================================================
 
 const CourseCard3D = ({ course, teacher, index }) => {
@@ -436,7 +436,6 @@ const CourseCard3D = ({ course, teacher, index }) => {
     setIsHovered(false);
   };
 
-  // إحصائيات الكورس
   const stats = [
     { label: 'فيديوهات', count: course.videos_count || 0, icon: Icons.Video, color: 'text-blue-400' },
     { label: 'امتحانات', count: course.exams_count || 0, icon: Icons.FileText, color: 'text-purple-400' },
@@ -445,10 +444,7 @@ const CourseCard3D = ({ course, teacher, index }) => {
 
   const totalItems = stats.reduce((sum, s) => sum + s.count, 0);
 
-  // لون الدبوس لكل كورس
-  const pinColor = PIN_COLORS[index % PIN_COLORS.length];
-
-  // عدد الطبقات (6)
+  const clipColor = CLIP_COLORS[index % CLIP_COLORS.length];
   const LAYER_COUNT = 6;
 
   return (
@@ -462,7 +458,7 @@ const CourseCard3D = ({ course, teacher, index }) => {
       onMouseLeave={handleMouseLeave}
       onClick={() => router.push(`/dashboard/student/courses/${course.id}`)}
       className="group cursor-pointer relative"
-      style={{ perspective: '1800px' }}
+      style={{ perspective: '1600px' }}
     >
       <motion.div
         className="relative rounded-2xl overflow-visible"
@@ -477,7 +473,7 @@ const CourseCard3D = ({ course, teacher, index }) => {
         }}
       >
         {/* ============================================================== */}
-        {/* 🔥 الطبقات المتصدرة – كل طبقة تظهر كبطاقة مستقلة */}
+        {/* 🔥 الطبقات المتكررة – كل طبقة تظهر كبطاقة مستقلة */}
         {/* ============================================================== */}
         <div
           className="absolute inset-0 -z-10"
@@ -487,21 +483,15 @@ const CourseCard3D = ({ course, teacher, index }) => {
           }}
         >
           {Array.from({ length: LAYER_COUNT }).map((_, idx) => {
-            // عمق كل طبقة (كلما زاد الرقم، كلما ابتعدت للخلف)
             const depth = (idx + 1) * 18;
-            // مقياس الحجم (تقل كلما ابتعدت)
             const scale = 1 - (idx + 1) * 0.025;
-            // الشفافية (تقل كلما ابتعدت)
             const opacity = 0.7 - idx * 0.08;
-            // الإزاحة الأفقية والرأسية (تزيد كلما ابتعدت)
             const offsetFactor = (idx + 1) * 0.5;
 
-            // لون الخلفية (أغمق كلما ابتعدت)
             const layerColor = isDark
               ? `rgba(15, 25, 45, ${0.5 + idx * 0.06})`
               : `rgba(210, 215, 225, ${0.5 + idx * 0.06})`;
 
-            // حدود الطبقة (تظهر بشكل أوضح كلما ابتعدت)
             const borderColor = isDark
               ? `rgba(255,255,255,${0.05 + idx * 0.02})`
               : `rgba(0,0,0,${0.05 + idx * 0.02})`;
@@ -524,19 +514,15 @@ const CourseCard3D = ({ course, teacher, index }) => {
                   opacity: opacity,
                   boxShadow: `0 8px 30px rgba(0,0,0,0.12)`,
                   backdropFilter: 'blur(1px)',
-                  // إضافة حدود داخلية لإظهار التكرار بشكل أوضح
                 }}
                 animate={{
                   scale: isHovered ? scale * 1.02 : scale,
                   opacity: isHovered ? opacity + 0.1 : opacity,
-                  // عند Hover، نحرك الطبقات الخلفية قليلاً للخلف لتعزيز العمق
                   translateZ: isHovered ? -depth - 10 : -depth,
                 }}
                 transition={{ duration: 0.3 }}
               >
-                {/* حدود داخلية شفافة لإظهار التكرار */}
                 <div className="absolute inset-2 rounded-xl border border-white/5" />
-                {/* محتوى وهمي للطبقات (عناوين وهمية) */}
                 <div className="absolute bottom-4 right-4 text-[6px] font-bold opacity-20 text-gray-500">
                   #{idx + 1}
                 </div>
@@ -546,48 +532,77 @@ const CourseCard3D = ({ course, teacher, index }) => {
         </div>
 
         {/* ============================================================== */}
-        {/* 📌 الدبوس الملون – الطرف العلوي الأيسر */}
+        {/* 📌 مشبك ورق (Paperclip) – جزء أمامي وخلفي */}
         {/* ============================================================== */}
-        <div
-          className="absolute -top-1 -left-1 z-20"
-          style={{
-            transform: 'rotate(-15deg)',
-            filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.3))',
-          }}
-        >
+        <div className="absolute -top-4 -left-2 z-20">
           <motion.div
             animate={{
-              scale: isHovered ? 1.15 : 1,
-              rotate: isHovered ? 0 : -15,
+              scale: isHovered ? 1.1 : 1,
+              rotate: isHovered ? 0 : -5,
             }}
             transition={{ duration: 0.3 }}
             className="relative"
+            style={{ filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.25))' }}
           >
-            {/* جسم الدبوس */}
+            {/* الجزء الخلفي من المشبك (يمتد خلف البطاقة) */}
+            <div
+              className="absolute -z-10"
+              style={{
+                width: '28px',
+                height: '60px',
+                backgroundColor: clipColor,
+                opacity: 0.6,
+                borderRadius: '4px 4px 8px 8px',
+                transform: 'translate(4px, -6px) rotate(8deg)',
+                boxShadow: 'inset 0 2px 6px rgba(0,0,0,0.2)',
+              }}
+            />
+            
+            {/* المشبك الأمامي (الجزء المرئي) */}
             <svg
-              width="32"
-              height="48"
-              viewBox="0 0 32 48"
+              width="36"
+              height="64"
+              viewBox="0 0 36 64"
               fill="none"
               xmlns="http://www.w3.org/2000/svg"
-              style={{ filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.25))' }}
+              style={{ filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.3))' }}
             >
-              {/* رأس الدبوس الدائري */}
-              <circle cx="16" cy="16" r="14" fill={pinColor} stroke="white" strokeWidth="2" />
-              {/* النقطة اللامعة */}
-              <circle cx="12" cy="12" r="4" fill="white" opacity="0.4" />
-              {/* الساق */}
-              <rect x="13" y="28" width="6" height="18" rx="3" fill={pinColor} stroke="white" strokeWidth="1.5" />
-              {/* طرف الساق */}
-              <circle cx="16" cy="46" r="3" fill={pinColor} stroke="white" strokeWidth="1.5" />
+              {/* الجزء العلوي الدائري */}
+              <circle cx="18" cy="16" r="14" fill={clipColor} stroke="white" strokeWidth="2" />
+              <circle cx="14" cy="12" r="4" fill="white" opacity="0.4" />
+              
+              {/* الذراع الأيسر للمشبك */}
+              <path
+                d="M8 24 L6 56 Q6 62 12 62 L14 62 L14 56 L8 56 Z"
+                fill={clipColor}
+                stroke="white"
+                strokeWidth="1.5"
+              />
+              
+              {/* الذراع الأيمن للمشبك */}
+              <path
+                d="M28 24 L30 56 Q30 62 24 62 L22 62 L22 56 L28 56 Z"
+                fill={clipColor}
+                stroke="white"
+                strokeWidth="1.5"
+              />
+              
+              {/* النابض المركزي (التجعيدات) */}
+              <rect x="15" y="28" width="6" height="4" rx="1" fill={clipColor} stroke="white" strokeWidth="1" />
+              <rect x="15" y="34" width="6" height="4" rx="1" fill={clipColor} stroke="white" strokeWidth="1" />
+              <rect x="15" y="40" width="6" height="4" rx="1" fill={clipColor} stroke="white" strokeWidth="1" />
+              
+              {/* نهاية المشبك السفلية */}
+              <circle cx="18" cy="56" r="4" fill={clipColor} stroke="white" strokeWidth="1.5" />
             </svg>
-            {/* تأثير التوهج */}
+
+            {/* توهج خفيف */}
             <div
               className="absolute inset-0 rounded-full blur-xl"
               style={{
-                backgroundColor: pinColor,
-                opacity: 0.3,
-                transform: 'scale(1.5)',
+                backgroundColor: clipColor,
+                opacity: 0.2,
+                transform: 'scale(1.6)',
               }}
             />
           </motion.div>
@@ -611,7 +626,7 @@ const CourseCard3D = ({ course, teacher, index }) => {
         </div>
 
         {/* ============================================================== */}
-        {/* البطاقة الأمامية (الظاهرة) – تتصدر للأمام عند Hover */}
+        {/* البطاقة الأمامية (الظاهرة) */}
         {/* ============================================================== */}
         <motion.div
           className={`relative rounded-2xl overflow-hidden transition-all duration-500 ${
@@ -625,10 +640,8 @@ const CourseCard3D = ({ course, teacher, index }) => {
             transition: 'transform 0.15s ease-out',
             minHeight: '400px',
             maxHeight: '500px',
-            // عند Hover، نرفع البطاقة للأمام بقوة
           }}
           animate={{
-            // زيادة translateZ عند Hover لجعلها تتصدر
             z: isHovered ? 40 : 0,
             scale: isHovered ? 1.04 : 1,
           }}
@@ -791,7 +804,7 @@ const CourseCard3D = ({ course, teacher, index }) => {
 };
 
 // ================================================================
-// 🎠 عرض الكورسات – Carousel مع طبقات متصدرة وأسهم معكوسة
+// 🎠 عرض الكورسات – Carousel مع طبقات ظاهرة وأسهم معكوسة
 // ================================================================
 
 const CoursesCarousel3D = ({ courses, teachers, isDark, loading }) => {
