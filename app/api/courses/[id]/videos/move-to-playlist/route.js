@@ -6,14 +6,12 @@ export async function POST(request, { params }) {
   console.log('🚀 API called with params:', params);
   
   try {
-    // 1. التحقق من params
     const courseId = params?.id;
     if (!courseId) {
       console.error('❌ No courseId in params');
       return NextResponse.json({ error: 'معرف الكورس مطلوب' }, { status: 400 });
     }
 
-    // 2. قراءة الجسم
     let body;
     try {
       body = await request.json();
@@ -29,7 +27,6 @@ export async function POST(request, { params }) {
       return NextResponse.json({ error: 'معرف الفيديو مطلوب' }, { status: 400 });
     }
 
-    // 3. التحقق من المستخدم
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     if (userError || !user) {
       console.error('❌ Auth error:', userError);
@@ -37,7 +34,6 @@ export async function POST(request, { params }) {
     }
     console.log('✅ User authenticated:', user.id);
 
-    // 4. التحقق من ملكية الكورس
     const { data: course, error: courseError } = await supabase
       .from('courses')
       .select('teacher_id')
@@ -54,7 +50,6 @@ export async function POST(request, { params }) {
     }
     console.log('✅ Course owned by user');
 
-    // 5. التحقق من وجود الفيديو
     const { data: video, error: videoError } = await supabase
       .from('videos')
       .select('id')
@@ -68,7 +63,6 @@ export async function POST(request, { params }) {
     }
     console.log('✅ Video exists');
 
-    // 6. التحقق من القائمة
     if (playlistId) {
       const { data: playlist, error: playlistError } = await supabase
         .from('video_playlists')
@@ -84,7 +78,6 @@ export async function POST(request, { params }) {
       console.log('✅ Playlist exists');
     }
 
-    // 7. تحديث الفيديو
     console.log('🔄 Updating video:', videoId, '→ playlist:', playlistId || 'null');
     const { data: updatedVideo, error: updateError } = await supabase
       .from('videos')
