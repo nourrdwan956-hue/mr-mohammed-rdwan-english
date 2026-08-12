@@ -2,8 +2,7 @@
 // ================================================================
 // 🏛️ صفحة تفاصيل الكورس – نسخة فاخرة وسريعة
 // ✅ التقدم يعتمد على الامتحانات فقط (لا علاقة بالفيديوهات)
-// ✅ إصلاح النسب المئوية (تخزين صحيح)
-// ✅ إصلاح رسالة "لم تبدأ بعد"
+// ✅ إصلاح مشكلة عدم جلب المحاولات بسبب stale enrollment
 // ✅ شاشة تحميل فاخرة (دائرة متحركة بألوان متغيرة)
 // ✅ أيقونات صغيرة جداً (h-3 w-3)
 // ✅ معالجة الأخطاء (لا 406 ولا ReferenceError)
@@ -224,7 +223,7 @@ const getMotivationalMessage = (percentage, attemptedExams, totalExams, language
 // 6. مكونات العرض – أيقونات صغيرة جداً
 // ================================================================
 
-// ✅ TabButton – أيقونة h-3 w-3
+// ✅ TabButton
 const TabButton = ({ active, onClick, icon: Icon, label, count, styles }) => (
   <button
     onClick={onClick}
@@ -240,7 +239,7 @@ const TabButton = ({ active, onClick, icon: Icon, label, count, styles }) => (
   </button>
 );
 
-// ✅ CircularProgress – حجم 44 بكسل
+// ✅ CircularProgress
 const CircularProgress = ({ percentage, size = 44, strokeWidth = 3, styles, label }) => {
   const s = size;
   const sw = Math.max(2, strokeWidth);
@@ -278,7 +277,7 @@ const CircularProgress = ({ percentage, size = 44, strokeWidth = 3, styles, labe
   );
 };
 
-// ✅ VideoItem – أيقونات صغيرة
+// ✅ VideoItem
 const VideoItem = memo(({ video, bookmarked, onToggleBookmark, styles, language }) => {
   const [color, setColor] = useState(CARD_COLORS[Math.floor(Math.random() * CARD_COLORS.length)]);
   return (
@@ -308,7 +307,7 @@ const VideoItem = memo(({ video, bookmarked, onToggleBookmark, styles, language 
 });
 VideoItem.displayName = 'VideoItem';
 
-// ✅ ExamItem – أيقونات صغيرة مع إصلاح النسبة
+// ✅ ExamItem
 const ExamItem = memo(({ exam, styles, language, attempted, percentage, passed }) => {
   const [color, setColor] = useState(CARD_COLORS[Math.floor(Math.random() * CARD_COLORS.length)]);
   return (
@@ -497,8 +496,8 @@ export default function StudentCourseDetailsPage() {
       }, 0);
       setTotalDuration(totalSecs);
 
-      // ✅ جلب محاولات الامتحانات فقط
-      if (user && enrollment) {
+      // ✅ جلب محاولات الامتحانات – بغض النظر عن حالة enrollment
+      if (user) {
         const examIds = exRes.data?.map(e => e.id) || [];
         if (examIds.length > 0) {
           const { data: attempts, error: attemptsError } = await supabase
@@ -541,7 +540,7 @@ export default function StudentCourseDetailsPage() {
     } finally {
       setContentLoading(false);
     }
-  }, [id, enrollment, videoOrder, examOrder, bookOrder, language]);
+  }, [id, videoOrder, examOrder, bookOrder, language]);
 
   // ===== جلب بيانات الكورس =====
   const fetchCourseData = useCallback(async () => {
@@ -623,13 +622,9 @@ export default function StudentCourseDetailsPage() {
         await supabase
           .from('enrollments')
           .insert({ student_id: user.id, course_id: id, progress: 0 });
-        await fetchContent();
+        // سنقوم بجلب المحتوى في useEffect الخاص بالتسجيل
         setEnrollment({ progress: 0 });
         setActiveTab('videos');
-      }
-
-      if (enrollData) {
-        await fetchContent();
       }
 
       // ✅ جلب كورسات ذات صلة
@@ -654,17 +649,28 @@ export default function StudentCourseDetailsPage() {
     } finally {
       setLoading(false);
     }
-  }, [id, language, router, fetchContent]);
+  }, [id, language, router]);
 
+  // ===== جلب المحتوى عند تغير التسجيل أو الترتيب =====
+  useEffect(() => {
+    if (enrollment && id) {
+      fetchContent();
+    }
+  }, [enrollment, id, fetchContent]);
+
+  // ===== جلب المحتوى عند تغير الترتيب (بغض النظر عن التسجيل) =====
+  useEffect(() => {
+    if (id) {
+      fetchContent();
+    }
+  }, [videoOrder, examOrder, bookOrder, id, fetchContent]);
+
+  // ===== التحميل الأولي =====
   useEffect(() => {
     if (fetchedRef.current) return;
     fetchedRef.current = true;
     fetchCourseData();
   }, [fetchCourseData]);
-
-  useEffect(() => {
-    if (enrollment && id) fetchContent();
-  }, [videoOrder, examOrder, bookOrder]);
 
   // ===== الاشتراك =====
   const handleEnroll = async () => {
@@ -695,7 +701,6 @@ export default function StudentCourseDetailsPage() {
 
         if (existing) {
           setEnrollment(existing);
-          await fetchContent();
           toast.success(language === 'ar' ? 'أنت مشترك بالفعل' : 'Already enrolled');
           setActiveTab('videos');
           return;
@@ -704,9 +709,14 @@ export default function StudentCourseDetailsPage() {
         await supabase
           .from('enrollments')
           .insert({ student_id: user.id, course_id: id, progress: 0 });
-        setEnrollment({ progress: 0 });
+        const { data: newEnroll } = await supabase
+          .from('enrollments')
+          .select('*')
+          .eq('student_id', user.id)
+          .eq('course_id', id)
+          .single();
+        setEnrollment(newEnroll);
         toast.success(language === 'ar' ? 'تم الاشتراك!' : 'Enrolled!');
-        await fetchContent();
         setActiveTab('videos');
         return;
       }
@@ -727,7 +737,6 @@ export default function StudentCourseDetailsPage() {
 
       if (existing) {
         setEnrollment(existing);
-        await fetchContent();
         toast.success(language === 'ar' ? 'أنت مشترك بالفعل' : 'Already enrolled');
         setActiveTab('videos');
         return;
@@ -736,9 +745,14 @@ export default function StudentCourseDetailsPage() {
       await supabase
         .from('enrollments')
         .insert({ student_id: user.id, course_id: id, progress: 0 });
-      setEnrollment({ progress: 0 });
+      const { data: newEnroll } = await supabase
+        .from('enrollments')
+        .select('*')
+        .eq('student_id', user.id)
+        .eq('course_id', id)
+        .single();
+      setEnrollment(newEnroll);
       toast.success(language === 'ar' ? 'تم الاشتراك!' : 'Enrolled!');
-      await fetchContent();
       setActiveTab('videos');
     } catch (err) {
       console.error('❌ Enroll error:', err);
