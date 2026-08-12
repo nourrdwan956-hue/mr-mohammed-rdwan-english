@@ -1,39 +1,44 @@
-// app/dashboard/student/progress/page.js
+// app/dashboard/student/courses/[id]/page.js
 // ================================================================
-// 🏛️ صفحة التقدم العام – نسخة تعتمد على الامتحانات فقط
-// ✅ لكل كورس: التقدم = نسبة الامتحانات المجتازة من إجمالي امتحاناته
-// ✅ إحصائيات عامة: مجموع الامتحانات، المجتازة، المتوسط العام
-// ✅ بطاقات لكل كورس مع تفاصيل الامتحانات والعبارات التحفيزية
-// ✅ إشعار بالكورسات التي فيها امتحانات غير محلولة
-// ✅ رسم بياني مقارن بين الكورسات
-// ✅ خفيفة وسريعة على الموبايل، فخمة على الديسكتوب
+// 🏛️ صفحة تفاصيل الكورس – تقدم يعتمد فقط على الامتحانات
+// ✅ أيقونات صغيرة افتراضياً (h-3 w-3 / h-3.5 w-3.5)
+// ✅ لا حاجة لتقليص الصفحة (مناسبة من 100%)
+// ✅ جودة عالية وتصميم أنيق
 // ================================================================
 
 'use client';
 
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react';
+import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
-import * as Icons from 'lucide-react';
+import {
+  Play,
+  CheckCircle,
+  Bookmark,
+  FileText,
+  BookOpen,
+  Clock,
+  ArrowLeft,
+  Lock,
+  Grid3X3,
+  Video,
+  FileQuestion,
+  Book,
+  MessageCircle,
+  ArrowDown,
+  ArrowUp,
+  Award,
+  TrendingUp,
+  AlertCircle,
+} from 'lucide-react';
 import { useTheme } from '@/lib/hooks/useTheme';
 import { supabase } from '@/lib/supabaseClient';
 import { toast } from 'react-hot-toast';
-import { Bar } from 'react-chartjs-2';
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend,
-} from 'chart.js';
-
-ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
+import { checkCourseAccess } from '@/lib/course-access';
 
 // ================================================================
-// 1. ألوان البطاقات (نظام Wave Border)
+// 1. ألوان البطاقات المتغيرة (نظام Wave Border)
 // ================================================================
 const CARD_COLORS = [
   { name: 'blue', text: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-500/10 dark:bg-blue-400/10', border: 'border-blue-400/30 dark:border-blue-400/20' },
@@ -50,7 +55,7 @@ const getRandomColor = (exclude = []) => {
 };
 
 // ================================================================
-// 2. Wave Border Card (محسن للموبايل)
+// 2. مكون Wave Border Card (محسن للموبايل)
 // ================================================================
 const WaveBorderCard = ({ children, className = '', initialColor = 'blue', onColorChange }) => {
   const [color, setColor] = useState(CARD_COLORS.find(c => c.name === initialColor) || CARD_COLORS[0]);
@@ -122,20 +127,12 @@ const WaveBorderCard = ({ children, className = '', initialColor = 'blue', onCol
 // ================================================================
 // 3. دوال مساعدة
 // ================================================================
-const formatDate = (dateString, language) => {
-  if (!dateString) return '-';
-  return new Date(dateString).toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
-};
-
-const formatTime = (seconds) => {
-  if (!seconds || isNaN(seconds)) return '0:00';
-  const m = Math.floor(seconds / 60);
-  const s = Math.floor(seconds % 60);
-  return `${m}:${s.toString().padStart(2, '0')}`;
+const formatDuration = (totalSeconds, language) => {
+  if (!totalSeconds || totalSeconds === 0) return language === 'ar' ? 'غير محدد' : 'N/A';
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  if (hours > 0) return language === 'ar' ? `${hours} س ${minutes} د` : `${hours}h ${minutes}m`;
+  return language === 'ar' ? `${minutes} د` : `${minutes}m`;
 };
 
 // ================================================================
@@ -149,26 +146,21 @@ const getMotivationalMessage = (percentage, attemptedExams, totalExams, language
   }
   if (percentage === 0) {
     return language === 'ar'
-      ? '💪 عادي يا بطل، كلنا بنتعلم من الأخطاء. راجع المادة وحاول تاني'
-      : '💪 It\'s okay, we all learn from mistakes. Review and try again';
-  }
-  if (attemptedExams === totalExams && percentage < 100) {
-    return language === 'ar'
-      ? '🔥 حللت كل الامتحانات! بس لسه في شوية أخطاء، راجعها وهتكون متمكن 100%'
-      : '🔥 You solved all exams! But there are some mistakes, review them and you\'ll master it 100%';
+      ? '📚 عادي يا بطل، كلنا بنتعلم من الأخطاء. راجع المادة وحاول تاني'
+      : '📚 It\'s okay, we all learn from mistakes. Review and try again';
   }
   if (percentage >= 80) {
     return language === 'ar'
-      ? '🌟 يا عبقري! أداءك خيالي، كمل على كده وهتبقى أسطورة'
-      : '🌟 Genius! Your performance is legendary, keep it up!';
+      ? '🌟 يا عبقري! أنت طالع عن السحاب! كمل على كده وهتبقى الأول'
+      : '🌟 Genius! You\'re off the charts! Keep it up!';
   } else if (percentage >= 60) {
     return language === 'ar'
       ? '⭐ ماشي حالك يا نجم، شد حيلك شوية وهتوصل للقمة'
-      : '⭐ You\'re doing great, push a bit more and you\'ll reach the top';
+      : '⭐ You\'re doing great, push a bit more!';
   } else if (percentage >= 40) {
     return language === 'ar'
-      ? '📈 في تقدم واضح! استمر ولا تيأس، النجاح قريب'
-      : '📈 Clear progress! Keep going, success is near';
+      ? '📈 في تقدم ملحوظ! استمر ولا تيأس، النجاح قريب'
+      : '📈 Noticeable progress! Keep going!';
   } else {
     return language === 'ar'
       ? '💪 أنت أقوى مما تظن! ركز على اللي فاتك، وربنا معاك'
@@ -177,88 +169,153 @@ const getMotivationalMessage = (percentage, attemptedExams, totalExams, language
 };
 
 // ================================================================
-// 5. مكونات العرض
+// 5. مكونات عرض العناصر – بأيقونات صغيرة
 // ================================================================
 
-// 5.1 دائرة التقدم
-const CircularProgress = ({ percentage, size = 70, strokeWidth = 6, styles, label, sublabel, color = 'blue' }) => {
-  const radius = (size - strokeWidth) / 2;
-  const circumference = radius * 2 * Math.PI;
-  const offset = circumference - (percentage / 100) * circumference;
-  const gradients = {
-    blue: ['#60A5FA', '#2563EB'],
-    yellow: ['#FACC15', '#D97706'],
-    green: ['#34D399', '#059669'],
-    purple: ['#A78BFA', '#7C3AED'],
-    orange: ['#FB923C', '#EA580C'],
-    red: ['#F87171', '#DC2626'],
-  };
-  const [c1, c2] = gradients[color] || gradients.blue;
+// ✅ TabButton – أيقونة صغيرة
+const TabButton = ({ active, onClick, icon: Icon, label, count, styles }) => (
+  <button
+    onClick={onClick}
+    className={`flex items-center gap-1 px-2 py-1.5 rounded-lg text-[9px] sm:text-xs font-bold transition-all duration-300 whitespace-nowrap ${
+      active ? 'bg-blue-500/20 text-blue-600 dark:text-blue-400 shadow-lg shadow-blue-500/10 scale-105' : `${styles.subtext} hover:bg-gray-100 dark:hover:bg-white/5`
+    }`}
+  >
+    <Icon className="h-3 w-3 sm:h-3 w-3" /> {/* ✅ صغيرة دائماً */}
+    <span className="hidden xs:inline">{label}</span>
+    {count !== undefined && (
+      <span className={`text-[8px] rounded-full px-1.5 py-0.5 ${active ? 'bg-blue-500/30 text-blue-700 dark:text-blue-300' : 'bg-gray-200 dark:bg-white/10'}`}>{count}</span>
+    )}
+  </button>
+);
 
+// ✅ CircularProgress – أيقونة صغيرة
+const CircularProgress = ({ percentage, size = 50, strokeWidth = 4, label, styles }) => {
+  const s = size;
+  const sw = Math.max(3, strokeWidth);
   return (
     <div className="relative inline-flex items-center justify-center">
-      <svg width={size} height={size} className="transform -rotate-90 drop-shadow-lg w-[60px] sm:w-[70px] md:w-[80px] h-[60px] sm:h-[70px] md:h-[80px]">
-        <circle cx={size/2} cy={size/2} r={radius} className="stroke-current text-gray-200 dark:text-white/10" strokeWidth={strokeWidth} fill="none" />
-        <motion.circle
-          cx={size/2} cy={size/2} r={radius}
-          stroke={`url(#grad-${color})`}
-          strokeWidth={strokeWidth}
-          fill="none"
-          strokeLinecap="round"
-          strokeDasharray={circumference}
-          initial={{ strokeDashoffset: circumference }}
-          animate={{ strokeDashoffset: offset }}
+      <svg width={s} height={s} className="transform -rotate-90">
+        <circle cx={s/2} cy={s/2} r={s/2 - sw/2} className="stroke-current text-gray-200 dark:text-white/10" strokeWidth={sw} fill="none" />
+        <motion.circle cx={s/2} cy={s/2} r={s/2 - sw/2} stroke="url(#grad)" strokeWidth={sw} fill="none" strokeLinecap="round"
+          strokeDasharray={(s/2 - sw/2) * 2 * Math.PI}
+          initial={{ strokeDashoffset: (s/2 - sw/2) * 2 * Math.PI }}
+          animate={{ strokeDashoffset: (s/2 - sw/2) * 2 * Math.PI * (1 - percentage/100) }}
           transition={{ duration: 1.2, ease: 'easeOut' }}
         />
         <defs>
-          <linearGradient id={`grad-${color}`} x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor={c1} />
-            <stop offset="100%" stopColor={c2} />
-          </linearGradient>
+          <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stopColor="#FACC15"/><stop offset="100%" stopColor="#D97706"/></linearGradient>
         </defs>
       </svg>
       <div className="absolute flex flex-col items-center">
-        <span className={`text-sm sm:text-base font-black ${styles.text}`}>{Math.round(percentage)}%</span>
-        {label && <span className={`text-[7px] sm:text-[10px] ${styles.subtext} -mt-0.5`}>{label}</span>}
-        {sublabel && <span className={`text-[6px] sm:text-[9px] ${styles.muted}`}>{sublabel}</span>}
+        <span className="text-[10px] sm:text-xs font-extrabold">{Math.round(percentage)}%</span>
+        {label && <span className="text-[6px] sm:text-[7px] text-gray-400 -mt-0.5">{label}</span>}
       </div>
     </div>
   );
 };
 
-// 5.2 شريط تقدم خطي
-const LinearProgress = ({ value, max = 100, label, styles, color = 'blue', showPercentage = true }) => {
-  const pct = max > 0 ? Math.min((value / max) * 100, 100) : 0;
-  const colors = {
-    blue: 'from-blue-400 to-blue-600',
-    yellow: 'from-yellow-400 to-yellow-600',
-    green: 'from-green-400 to-green-600',
-    purple: 'from-purple-400 to-purple-600',
-    orange: 'from-orange-400 to-orange-600',
-    red: 'from-red-400 to-red-600',
-  };
-  const grad = colors[color] || colors.blue;
+// ✅ VideoItem – أيقونات صغيرة
+const VideoItem = memo(({ video, bookmarked, onToggleBookmark, styles, language, watched }) => {
+  const [color, setColor] = useState(CARD_COLORS[Math.floor(Math.random() * CARD_COLORS.length)]);
   return (
-    <div className="space-y-0.5 sm:space-y-1">
-      {label && (
-        <div className="flex justify-between text-[10px] sm:text-xs">
-          <span className={styles.subtext}>{label}</span>
-          {showPercentage && <span className={`font-bold ${styles.text}`}>{Math.round(pct)}%</span>}
+    <WaveBorderCard initialColor={color.name} onColorChange={setColor}>
+      <div className="p-2 flex flex-col sm:flex-row items-start sm:items-center gap-2 hover:border-blue-400/50 transition group relative min-h-[44px]">
+        {watched && (
+          <div className="absolute top-1 right-1 bg-green-500/20 text-green-400 rounded-full p-0.5">
+            <CheckCircle className="h-2.5 w-2.5 fill-current" />
+          </div>
+        )}
+        <div className="relative flex-shrink-0">
+          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-blue-400/10 flex items-center justify-center">
+            <Play className="h-3.5 w-3.5 text-blue-500" />
+          </div>
+          {video.duration && (
+            <span className="absolute -bottom-0.5 -right-0.5 bg-black/80 text-white text-[6px] px-1 py-0.5 rounded font-mono">
+              {video.duration}
+            </span>
+          )}
         </div>
-      )}
-      <div className="w-full h-2 sm:h-2.5 bg-gray-200 dark:bg-white/10 rounded-full overflow-hidden">
-        <motion.div
-          initial={{ width: 0 }}
-          animate={{ width: `${pct}%` }}
-          transition={{ duration: 0.8, ease: 'easeOut' }}
-          className={`h-full bg-gradient-to-r ${grad} rounded-full shadow-lg shadow-${color}-500/20`}
-        />
+        <div className="flex-1 min-w-0">
+          <Link href={`/watch/${video.id}`} className="text-[10px] sm:text-sm font-bold hover:text-blue-500 transition line-clamp-1">
+            {video.title}
+          </Link>
+        </div>
+        <button onClick={() => onToggleBookmark(video.id)} className="p-1 rounded-lg transition text-gray-400 hover:text-yellow-500">
+          <Bookmark className={`h-3 w-3 ${bookmarked ? 'fill-yellow-500 text-yellow-500' : ''}`} />
+        </button>
       </div>
-    </div>
+    </WaveBorderCard>
+  );
+});
+VideoItem.displayName = 'VideoItem';
+
+// ✅ ExamItem – أيقونات صغيرة
+const ExamItem = memo(({ exam, styles, language, attempted, score, passed }) => {
+  const [color, setColor] = useState(CARD_COLORS[Math.floor(Math.random() * CARD_COLORS.length)]);
+  return (
+    <WaveBorderCard initialColor={color.name} onColorChange={setColor}>
+      <div className="p-2 flex flex-col sm:flex-row items-start sm:items-center gap-2 hover:border-blue-400/50 transition min-h-[44px]">
+        <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg ${attempted ? (passed ? 'bg-green-400/10' : 'bg-red-400/10') : 'bg-blue-400/10'} flex items-center justify-center flex-shrink-0`}>
+          <FileText className={`h-3.5 w-3.5 ${attempted ? (passed ? 'text-green-500' : 'text-red-500') : 'text-blue-500'}`} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <Link href={`/dashboard/student/exams/${exam.id}`} className="text-[10px] sm:text-sm font-bold hover:text-blue-500 transition line-clamp-1">
+            {exam.title}
+          </Link>
+          {attempted && score !== undefined && (
+            <div className="flex items-center gap-1 mt-0.5">
+              <span className={`text-[8px] sm:text-[10px] font-bold ${passed ? 'text-green-400' : 'text-red-400'}`}>
+                {score}% • {passed ? '✅ ناجح' : '❌ راسب'}
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
+    </WaveBorderCard>
+  );
+});
+ExamItem.displayName = 'ExamItem';
+
+// ✅ BookItem – أيقونات صغيرة
+const BookItem = memo(({ book, styles, language }) => {
+  const [color, setColor] = useState(CARD_COLORS[Math.floor(Math.random() * CARD_COLORS.length)]);
+  return (
+    <WaveBorderCard initialColor={color.name} onColorChange={setColor}>
+      <div className="p-2 flex flex-col sm:flex-row items-start sm:items-center gap-2 hover:border-blue-400/50 transition min-h-[44px]">
+        <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-purple-400/10 flex items-center justify-center flex-shrink-0">
+          <BookOpen className="h-3.5 w-3.5 text-purple-500" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <Link href={`/dashboard/student/books/${book.id}`} className="text-[10px] sm:text-sm font-bold hover:text-purple-500 transition line-clamp-1">
+            {book.title}
+          </Link>
+        </div>
+      </div>
+    </WaveBorderCard>
+  );
+});
+BookItem.displayName = 'BookItem';
+
+// ✅ OrderToggleButton – أيقونات صغيرة
+const OrderToggleButton = ({ order, onToggle, styles, language }) => {
+  const isDesc = order === 'desc';
+  const Icon = isDesc ? ArrowDown : ArrowUp;
+  return (
+    <button
+      onClick={onToggle}
+      className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[9px] font-semibold transition-all duration-200 border-2 ${
+        isDesc
+          ? 'border-yellow-400/60 bg-yellow-400/20 text-yellow-400'
+          : 'border-blue-400/50 bg-blue-400/10 text-blue-400'
+      }`}
+    >
+      <Icon className="h-3 w-3" />
+      <span className="hidden xs:inline">{isDesc ? 'الأحدث' : 'الأقدم'}</span>
+    </button>
   );
 };
 
-// 5.3 بطاقة تحفيزية
+// ✅ MotivationalCard – أيقونات صغيرة
 const MotivationalCard = ({ message, icon: Icon, styles, color = 'yellow' }) => {
   const colorMap = {
     yellow: 'border-yellow-400/30 bg-yellow-400/10 text-yellow-400',
@@ -273,499 +330,560 @@ const MotivationalCard = ({ message, icon: Icon, styles, color = 'yellow' }) => 
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
-      className={`p-2 sm:p-3 rounded-xl border ${bgClass} backdrop-blur-sm flex items-start gap-2 sm:gap-3`}
+      className={`p-2 rounded-xl border ${bgClass} backdrop-blur-sm flex items-start gap-2`}
     >
-      <Icon className="h-5 w-5 sm:h-6 sm:w-6 flex-shrink-0 mt-0.5" />
-      <p className={`text-[10px] sm:text-sm font-medium ${styles.text} leading-relaxed`}>{message}</p>
+      <Icon className="h-4 w-4 sm:h-5 w-5 flex-shrink-0 mt-0.5" />
+      <p className="text-[10px] sm:text-sm font-medium leading-relaxed">{message}</p>
     </motion.div>
-  );
-};
-
-// 5.4 بطاقة كورس للتقدم العام
-const CourseProgressCard = ({ course, stats, styles, language }) => {
-  const [color, setColor] = useState(CARD_COLORS[Math.floor(Math.random() * CARD_COLORS.length)]);
-  const handleColorChange = (newColor) => setColor(newColor);
-  const levelColor = stats.percentage >= 80 ? 'green' : stats.percentage >= 50 ? 'yellow' : stats.percentage > 0 ? 'blue' : 'red';
-  const pendingCount = stats.totalExams - stats.attemptedExams;
-
-  return (
-    <WaveBorderCard initialColor={color.name} onColorChange={handleColorChange}>
-      <div className="p-3 sm:p-4 space-y-3">
-        <div className="flex items-center justify-between">
-          <Link href={`/dashboard/student/courses/${course.id}`} className={`text-sm sm:text-base font-bold ${styles.text} hover:text-yellow-400 transition line-clamp-1`}>
-            {course.title}
-          </Link>
-          <span className={`text-[8px] sm:text-[10px] px-1.5 py-0.5 rounded-full border ${levelColor === 'green' ? 'border-green-400/30 bg-green-400/10 text-green-400' : levelColor === 'yellow' ? 'border-yellow-400/30 bg-yellow-400/10 text-yellow-400' : 'border-blue-400/30 bg-blue-400/10 text-blue-400'}`}>
-            {stats.percentage}%
-          </span>
-        </div>
-
-        <div className="flex items-center gap-3 sm:gap-4">
-          <CircularProgress
-            percentage={stats.percentage}
-            size={56}
-            strokeWidth={5}
-            styles={styles}
-            color={levelColor}
-            label={language === 'ar' ? 'اجتياز' : 'Passed'}
-            sublabel={`${stats.passedExams}/${stats.totalExams}`}
-          />
-          <div className="flex-1 space-y-1.5">
-            <LinearProgress value={stats.percentage} max={100} styles={styles} color={levelColor} showPercentage={false} />
-            <div className="flex justify-between text-[8px] sm:text-[10px]">
-              <span className={styles.subtext}>
-                {language === 'ar' ? 'المتوسط' : 'Avg'}: <span className={`font-bold ${styles.text}`}>{stats.avgScore}%</span>
-              </span>
-              <span className={styles.subtext}>
-                {language === 'ar' ? 'محلولة' : 'Attempted'}: <span className={`font-bold ${styles.text}`}>{stats.attemptedExams}</span>
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {pendingCount > 0 && (
-          <div className={`text-[8px] sm:text-[10px] ${styles.subtext} flex items-center gap-1`}>
-            <Icons.Bell className="h-3 w-3 text-blue-400" />
-            {language === 'ar'
-              ? `📌 ${pendingCount} امتحان لم تحله بعد`
-              : `📌 ${pendingCount} exam(s) not taken yet`}
-          </div>
-        )}
-
-        <div className="flex flex-wrap gap-1.5 pt-1 border-t border-white/10">
-          <Link
-            href={`/dashboard/student/courses/${course.id}/progress`}
-            className="text-[8px] sm:text-[10px] px-2 py-0.5 rounded-lg bg-yellow-400/20 text-yellow-400 hover:bg-yellow-400/30 transition"
-          >
-            {language === 'ar' ? 'تفاصيل' : 'Details'}
-          </Link>
-          <Link
-            href={`/dashboard/student/courses/${course.id}`}
-            className="text-[8px] sm:text-[10px] px-2 py-0.5 rounded-lg bg-blue-400/20 text-blue-400 hover:bg-blue-400/30 transition"
-          >
-            {language === 'ar' ? 'دخول' : 'Enter'}
-          </Link>
-        </div>
-      </div>
-    </WaveBorderCard>
   );
 };
 
 // ================================================================
 // 6. الصفحة الرئيسية
 // ================================================================
-export default function StudentProgressPage() {
+export default function StudentCourseDetailsPage() {
+  const params = useParams();
   const router = useRouter();
+  const id = params?.id;
   const { theme, styles, language } = useTheme();
 
+  const [course, setCourse] = useState(null);
+  const [teacher, setTeacher] = useState(null);
+  const [videos, setVideos] = useState([]);
+  const [exams, setExams] = useState([]);
+  const [books, setBooks] = useState([]);
+  const [enrollment, setEnrollment] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [coursesData, setCoursesData] = useState([]);
-  const [globalStats, setGlobalStats] = useState({
-    totalCourses: 0,
-    totalExams: 0,
-    totalPassedExams: 0,
-    totalAttemptedExams: 0,
-    overallPercentage: 0,
-    overallAvgScore: 0,
-  });
-  const [chartData, setChartData] = useState(null);
-  const [motivationalMessage, setMotivationalMessage] = useState('');
+  const [contentLoading, setContentLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState('videos');
+  const [bookmarks, setBookmarks] = useState({});
+  const [enrolling, setEnrolling] = useState(false);
+  const [relatedCourses, setRelatedCourses] = useState([]);
+  const [examAttempts, setExamAttempts] = useState({});
+  const [totalDuration, setTotalDuration] = useState(0);
   const fetchedRef = useRef(false);
 
-  // ===== جلب البيانات =====
-  const fetchData = useCallback(async () => {
-    setLoading(true);
+  const [videoOrder, setVideoOrder] = useState('desc');
+  const [examOrder, setExamOrder] = useState('desc');
+  const [bookOrder, setBookOrder] = useState('desc');
+
+  const [accessDenied, setAccessDenied] = useState(false);
+  const [accessReason, setAccessReason] = useState('');
+  const [isCheckingAccess, setIsCheckingAccess] = useState(false);
+
+  const [headerColor, setHeaderColor] = useState(CARD_COLORS[0]);
+
+  // ===== إحصائيات الامتحانات (هذا هو التقدم الحقيقي) =====
+  const examStats = useMemo(() => {
+    const total = exams.length;
+    if (total === 0) return { total, attempted: 0, passed: 0, avgScore: 0, percentage: 0 };
+
+    let attemptedCount = 0;
+    let passedCount = 0;
+    let scoreSum = 0;
+
+    exams.forEach(exam => {
+      const attempt = examAttempts[exam.id];
+      if (attempt && attempt.attempted) {
+        attemptedCount++;
+        scoreSum += attempt.score || 0;
+        if (attempt.passed) passedCount++;
+      }
+    });
+
+    const avgScore = attemptedCount > 0 ? Math.round(scoreSum / attemptedCount) : 0;
+    const percentage = total > 0 ? Math.round((passedCount / total) * 100) : 0;
+
+    return { total, attempted: attemptedCount, passed: passedCount, avgScore, percentage };
+  }, [exams, examAttempts]);
+
+  const motivationalMessage = useMemo(() => {
+    return getMotivationalMessage(examStats.percentage, examStats.attempted, examStats.total, language);
+  }, [examStats, language]);
+
+  const studentLevel = useMemo(() => {
+    const p = examStats.percentage;
+    if (p >= 80) return 'green';
+    if (p >= 50) return 'yellow';
+    if (p > 0) return 'blue';
+    return 'red';
+  }, [examStats.percentage]);
+
+  // ===== جلب المحتوى =====
+  const fetchContent = useCallback(async () => {
+    if (!id) return;
+    setContentLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { router.push('/login'); return; }
+      const [vidRes, exRes, bkRes] = await Promise.all([
+        supabase.from('videos').select('*').eq('course_id', id).order('created_at', { ascending: videoOrder === 'asc' }),
+        supabase.from('exams').select('*').eq('course_id', id).order('created_at', { ascending: examOrder === 'asc' }),
+        supabase.from('books').select('*').eq('course_id', id).order('created_at', { ascending: bookOrder === 'asc' }),
+      ]);
+      setVideos(vidRes.data || []);
+      setExams(exRes.data || []);
+      setBooks(bkRes.data || []);
 
-      // 1. جلب الكورسات المسجل فيها الطالب
-      const { data: enrolls } = await supabase
-        .from('enrollments')
-        .select('course_id')
-        .eq('student_id', user.id);
+      const totalSecs = (vidRes.data || []).reduce((sum, v) => {
+        if (v.duration) {
+          const parts = v.duration.split(':');
+          if (parts.length === 2) return sum + parseInt(parts[0])*60 + parseInt(parts[1]);
+          if (parts.length === 3) return sum + parseInt(parts[0])*3600 + parseInt(parts[1])*60 + parseInt(parts[2]);
+        }
+        return sum;
+      }, 0);
+      setTotalDuration(totalSecs);
 
-      if (!enrolls || enrolls.length === 0) {
-        setLoading(false);
-        return;
+      if (user && enrollment) {
+        const examIds = exRes.data?.map(e => e.id) || [];
+        if (examIds.length > 0) {
+          const { data: attempts } = await supabase
+            .from('exam_attempts')
+            .select('exam_id, score, total_marks, passed')
+            .eq('student_id', user.id)
+            .in('exam_id', examIds)
+            .eq('status', 'completed');
+
+          const attemptMap = {};
+          attempts?.forEach(a => {
+            const existing = attemptMap[a.exam_id];
+            if (!existing || a.score > existing.score) {
+              const pct = a.total_marks > 0 ? Math.round((a.score / a.total_marks) * 100) : 0;
+              attemptMap[a.exam_id] = {
+                attempted: true,
+                score: pct,
+                passed: a.passed === true || pct >= (exRes.data?.find(e => e.id === a.exam_id)?.passing_marks || 0),
+              };
+            }
+          });
+          setExamAttempts(attemptMap);
+        }
+      }
+    } catch (err) { console.error('Error fetching content:', err); }
+    finally { setContentLoading(false); }
+  }, [id, enrollment, videoOrder, examOrder, bookOrder]);
+
+  // ===== جلب بيانات الكورس =====
+  const fetchCourseData = useCallback(async () => {
+    if (!id) return;
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { router.replace('/login'); return; }
+
+      const { data: existingProfile } = await supabase.from('profiles').select('id').eq('id', user.id).maybeSingle();
+      if (!existingProfile) {
+        await supabase.from('profiles').insert({
+          id: user.id,
+          email: user.email,
+          full_name: user.email?.split('@')[0] || 'طالب',
+          role: 'student',
+          created_at: new Date().toISOString(),
+        });
       }
 
-      const courseIds = enrolls.map(e => e.course_id);
+      const { data: courseData, error: courseError } = await supabase
+        .from('courses').select('*, teacher:teacher_id(full_name, email)').eq('id', id).single();
+      if (courseError) throw courseError;
+      if (!courseData) throw new Error('الكورس غير موجود');
+      setCourse(courseData);
+      setTeacher(courseData.teacher);
 
-      // 2. جلب بيانات الكورسات
-      const { data: courses } = await supabase
-        .from('courses')
-        .select('id, title, teacher_id')
-        .in('id', courseIds)
-        .eq('is_published', true);
-
-      if (!courses || courses.length === 0) {
-        setLoading(false);
-        return;
+      if (courseData && !courseData.is_free && courseData.price > 0) {
+        setIsCheckingAccess(true);
+        const accessResult = await checkCourseAccess(courseData.id, user.id);
+        setIsCheckingAccess(false);
+        if (!accessResult.allowed) {
+          setAccessDenied(true);
+          setAccessReason(accessResult.reason);
+          setLoading(false);
+          return;
+        }
       }
 
-      // 3. جلب أسماء المدرسين
-      const teacherIds = courses.map(c => c.teacher_id).filter(Boolean);
-      let teachersMap = {};
-      if (teacherIds.length) {
-        const { data: teachers } = await supabase
-          .from('profiles')
-          .select('id, full_name')
-          .in('id', teacherIds);
-        teachers.forEach(t => { teachersMap[t.id] = t; });
-      }
+      const { data: enrollData } = await supabase.from('enrollments').select('*').eq('student_id', user.id).eq('course_id', id).maybeSingle();
+      setEnrollment(enrollData);
 
-      const courseMap = {};
-      courses.forEach(c => {
-        courseMap[c.id] = {
-          ...c,
-          teacher: teachersMap[c.teacher_id] || null
-        };
-      });
-
-      // 4. جلب الامتحانات لكل الكورسات
-      const { data: examsData } = await supabase
-        .from('exams')
-        .select('id, title, course_id, total_marks, passing_marks')
-        .in('course_id', courseIds);
-
-      const allExams = examsData || [];
-      const examIds = allExams.map(e => e.id);
-
-      // 5. جلب محاولات الطالب
-      const { data: attemptsData } = await supabase
-        .from('exam_attempts')
+      const { data: subscription } = await supabase
+        .from('course_subscriptions')
         .select('*')
         .eq('student_id', user.id)
-        .in('exam_id', examIds)
-        .eq('status', 'completed');
+        .eq('course_id', id)
+        .eq('is_active', true)
+        .maybeSingle();
 
-      const attemptMap = {};
-      attemptsData?.forEach(a => {
-        const existing = attemptMap[a.exam_id];
-        if (!existing || a.score > existing.score) {
-          attemptMap[a.exam_id] = a;
-        }
-      });
-
-      // 6. حساب الإحصائيات لكل كورس
-      let totalExams = 0;
-      let totalPassed = 0;
-      let totalAttempted = 0;
-      let totalScoreSum = 0;
-      let totalScoreCount = 0;
-
-      const processed = courseIds.map(cid => {
-        const course = courseMap[cid];
-        if (!course) return null;
-
-        const courseExams = allExams.filter(e => e.course_id === cid);
-        const total = courseExams.length;
-        let attempted = 0;
-        let passed = 0;
-        let scoreSum = 0;
-        const scores = [];
-
-        courseExams.forEach(exam => {
-          const att = attemptMap[exam.id];
-          if (att) {
-            attempted++;
-            const pct = att.total_marks > 0 ? Math.round((att.score / att.total_marks) * 100) : 0;
-            scoreSum += pct;
-            scores.push(pct);
-            if (att.passed === true || pct >= (exam.passing_marks || 0)) passed++;
-          }
-        });
-
-        const avgScore = attempted > 0 ? Math.round(scoreSum / attempted) : 0;
-        const percentage = total > 0 ? Math.round((passed / total) * 100) : 0;
-
-        totalExams += total;
-        totalPassed += passed;
-        totalAttempted += attempted;
-        totalScoreSum += scoreSum;
-        totalScoreCount += attempted;
-
-        return {
-          course,
-          totalExams: total,
-          attemptedExams: attempted,
-          passedExams: passed,
-          avgScore,
-          percentage,
-          scores,
-        };
-      }).filter(Boolean);
-
-      setCoursesData(processed);
-
-      const overallAvg = totalScoreCount > 0 ? Math.round(totalScoreSum / totalScoreCount) : 0;
-      const overallPct = totalExams > 0 ? Math.round((totalPassed / totalExams) * 100) : 0;
-
-      setGlobalStats({
-        totalCourses: processed.length,
-        totalExams,
-        totalPassedExams: totalPassed,
-        totalAttemptedExams: totalAttempted,
-        overallPercentage: overallPct,
-        overallAvgScore: overallAvg,
-      });
-
-      // 7. العبارة التحفيزية العامة
-      const msg = getMotivationalMessage(overallPct, totalAttempted, totalExams, language);
-      setMotivationalMessage(msg);
-
-      // 8. الرسم البياني (أول 6 كورسات)
-      const chartCourses = processed.slice(0, 6);
-      if (chartCourses.length > 0) {
-        setChartData({
-          labels: chartCourses.map(c => c.course.title?.substring(0, 12) || 'كورس'),
-          datasets: [
-            {
-              label: language === 'ar' ? 'نسبة الاجتياز %' : 'Pass Rate %',
-              data: chartCourses.map(c => c.percentage),
-              backgroundColor: 'rgba(251, 191, 36, 0.7)',
-              borderColor: '#fbbf24',
-              borderWidth: 2,
-              borderRadius: 6,
-            },
-            {
-              label: language === 'ar' ? 'متوسط الدرجة %' : 'Avg Score %',
-              data: chartCourses.map(c => c.avgScore),
-              backgroundColor: 'rgba(52, 211, 153, 0.7)',
-              borderColor: '#22c55e',
-              borderWidth: 2,
-              borderRadius: 6,
-            },
-          ],
-        });
+      if (subscription && !enrollData) {
+        await supabase.from('enrollments').insert({ student_id: user.id, course_id: id, progress: 0 });
+        await fetchContent();
+        setEnrollment({ progress: 0 });
+        setActiveTab('videos');
       }
 
-      setLoading(false);
+      if (enrollData) await fetchContent();
+
+      if (courseData.grade_stage && courseData.grade_level) {
+        const { data: related } = await supabase
+          .from('courses')
+          .select('*, teacher:teacher_id(full_name)')
+          .eq('grade_stage', courseData.grade_stage)
+          .eq('grade_level', courseData.grade_level)
+          .neq('id', id)
+          .order('created_at', { ascending: false })
+          .limit(3);
+        setRelatedCourses(related || []);
+      }
+
+      const stored = localStorage.getItem('videoBookmarks');
+      if (stored) setBookmarks(JSON.parse(stored));
     } catch (err) {
       console.error(err);
-      toast.error(language === 'ar' ? 'فشل تحميل التقدم' : 'Failed to load progress');
-      setLoading(false);
-    }
-  }, [router, language]);
+      toast.error(language==='ar'?'فشل تحميل الكورس':'Failed to load course');
+    } finally { setLoading(false); }
+  }, [id, language, router, fetchContent]);
 
   useEffect(() => {
     if (fetchedRef.current) return;
     fetchedRef.current = true;
-    fetchData();
-  }, [fetchData]);
+    fetchCourseData();
+  }, [fetchCourseData]);
 
   useEffect(() => {
-    const handleFocus = () => { fetchData(); };
-    window.addEventListener('focus', handleFocus);
-    return () => window.removeEventListener('focus', handleFocus);
-  }, [fetchData]);
+    if (enrollment && id) fetchContent();
+  }, [videoOrder, examOrder, bookOrder]);
 
-  // ===== حالة التحميل =====
-  if (loading) {
+  // ===== الاشتراك =====
+  const handleEnroll = async () => {
+    setEnrolling(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { toast.error(language==='ar'?'سجل الدخول':'Login'); return; }
+
+      const { data: existingSub } = await supabase
+        .from('course_subscriptions')
+        .select('*')
+        .eq('student_id', user.id)
+        .eq('course_id', id)
+        .eq('is_active', true)
+        .maybeSingle();
+
+      if (existingSub) {
+        const { data: existing } = await supabase.from('enrollments').select('*').eq('student_id', user.id).eq('course_id', id).maybeSingle();
+        if (existing) {
+          setEnrollment(existing);
+          await fetchContent();
+          toast.success('أنت مشترك بالفعل');
+          setActiveTab('videos');
+          return;
+        }
+        await supabase.from('enrollments').insert({ student_id: user.id, course_id: id, progress: 0 });
+        setEnrollment({ progress: 0 });
+        toast.success('تم الاشتراك!');
+        await fetchContent();
+        setActiveTab('videos');
+        return;
+      }
+
+      if (!course.is_free && course.price > 0) {
+        toast.info('هذا الكورس مدفوع. يرجى الاشتراك أولاً.');
+        router.push(`/dashboard/student/courses/${id}/payment`);
+        return;
+      }
+
+      const { data: existing } = await supabase.from('enrollments').select('*').eq('student_id', user.id).eq('course_id', id).maybeSingle();
+      if (existing) {
+        setEnrollment(existing);
+        await fetchContent();
+        toast.success('أنت مشترك بالفعل');
+        setActiveTab('videos');
+        return;
+      }
+
+      await supabase.from('enrollments').insert({ student_id: user.id, course_id: id, progress: 0 });
+      setEnrollment({ progress: 0 });
+      toast.success('تم الاشتراك!');
+      await fetchContent();
+      setActiveTab('videos');
+    } catch (err) {
+      console.error(err);
+      toast.error('فشل الاشتراك. حاول مرة أخرى.');
+    } finally { setEnrolling(false); }
+  };
+
+  const toggleBookmark = (videoId) => {
+    const updated = { ...bookmarks };
+    if (updated[videoId]) delete updated[videoId];
+    else updated[videoId] = true;
+    setBookmarks(updated);
+    localStorage.setItem('videoBookmarks', JSON.stringify(updated));
+  };
+
+  const toggleVideoOrder = () => setVideoOrder(prev => prev === 'desc' ? 'asc' : 'desc');
+  const toggleExamOrder = () => setExamOrder(prev => prev === 'desc' ? 'asc' : 'desc');
+  const toggleBookOrder = () => setBookOrder(prev => prev === 'desc' ? 'asc' : 'desc');
+
+  // ===== شاشات التحميل =====
+  if (loading || isCheckingAccess) {
     return (
-      <div className={`w-full min-h-screen flex items-center justify-center ${styles.bg}`}>
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 sm:w-12 sm:h-12 border-4 border-yellow-400/30 border-t-yellow-400 rounded-full animate-spin" />
-          <p className={`text-xs sm:text-sm ${styles.subtext}`}>
-            {language === 'ar' ? 'جاري تحميل التقدم...' : 'Loading progress...'}
-          </p>
+      <div className={`min-h-screen flex items-center justify-center ${styles.bg}`}>
+        <div className="flex flex-col items-center gap-2">
+          <div className="w-6 h-6 sm:w-8 sm:h-8 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin" />
+          <p className="text-[10px] sm:text-xs">{isCheckingAccess ? 'جاري التحقق...' : 'جاري التحميل...'}</p>
         </div>
       </div>
     );
   }
 
-  // ===== حالة عدم وجود كورسات =====
-  if (globalStats.totalCourses === 0) {
+  if (accessDenied) {
+    const messages = {
+      no_subscription: 'هذا الكورس مدفوع. يرجى الاشتراك أولاً.',
+      max_devices: 'تجاوزت الحد الأقصى للأجهزة المسموح بها.',
+      expired: 'انتهت صلاحية اشتراكك.',
+      default: 'لا يمكنك الوصول إلى هذا الكورس.',
+    };
     return (
-      <div className={`w-full min-h-screen ${styles.bg} flex items-center justify-center p-4`}>
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-center max-w-md"
-        >
-          <div className="p-6 rounded-3xl bg-white/5 dark:bg-black/20 border border-white/10 backdrop-blur-sm">
-            <Icons.BookOpen className="h-24 w-24 text-gray-500 mx-auto mb-4" />
-            <h2 className={`text-2xl font-bold ${styles.text}`}>
-              {language === 'ar' ? 'لم تسجل في أي كورس بعد' : 'Not enrolled in any course yet'}
-            </h2>
-            <p className={`mt-2 ${styles.subtext}`}>
-              {language === 'ar' ? 'ابدأ رحلتك التعليمية بالتسجيل في أول كورس لك!' : 'Start your learning journey by enrolling in your first course!'}
-            </p>
-            <Link href="/dashboard/student/courses" className="mt-6 px-8 py-3 bg-gradient-to-r from-yellow-400 to-yellow-600 text-black font-bold rounded-xl inline-block hover:scale-105 transition shadow-lg shadow-yellow-400/30">
-              {language === 'ar' ? 'استعرض الكورسات' : 'Browse Courses'}
-            </Link>
-          </div>
-        </motion.div>
+      <div className={`min-h-screen flex items-center justify-center ${styles.bg} p-3`}>
+        <div className="max-w-sm w-full p-4 rounded-2xl bg-card border text-center shadow-2xl">
+          <Lock className="h-8 w-8 text-red-400 mx-auto mb-2" />
+          <h2 className="text-base font-extrabold">🚫 وصول ممنوع</h2>
+          <p className="text-xs text-gray-400 mt-1">{messages[accessReason] || messages.default}</p>
+          <button onClick={() => router.back()} className="mt-3 px-4 py-1.5 bg-yellow-400 text-black font-bold rounded-lg text-xs">
+            العودة
+          </button>
+        </div>
       </div>
     );
+  }
+
+  if (!course) {
+    return <div className="h-full w-full flex items-center justify-center"><p className="text-gray-400">الكورس غير موجود</p></div>;
   }
 
   // ===== العرض الرئيسي =====
   return (
-    <div className={`w-full min-h-screen ${styles.bg} transition-colors duration-300 relative overflow-hidden`}>
-      {/* خلفية متحركة شفافة */}
-      <motion.div
-        animate={{ x: ['-5%', '5%', '-5%'], y: ['-5%', '5%', '-5%'] }}
-        transition={{ duration: 30, repeat: Infinity, ease: 'linear' }}
-        className="fixed -top-60 -right-60 w-[800px] h-[800px] bg-blue-500/5 dark:bg-blue-400/5 rounded-full blur-3xl pointer-events-none"
-      />
-      <motion.div
-        animate={{ x: ['5%', '-5%', '5%'], y: ['5%', '-5%', '5%'] }}
-        transition={{ duration: 35, repeat: Infinity, ease: 'linear' }}
-        className="fixed -bottom-60 -left-60 w-[900px] h-[900px] bg-green-500/5 dark:bg-green-400/5 rounded-full blur-3xl pointer-events-none"
-      />
-
-      <div className="relative z-10 max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
-
-        {/* ===== رأس الصفحة ===== */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className={`p-4 sm:p-6 rounded-2xl border ${styles.border} backdrop-blur-sm shadow-xl ${styles.card}`}
-        >
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="p-2 sm:p-3 rounded-xl bg-gradient-to-br from-yellow-400 to-yellow-600 shadow-xl shadow-yellow-400/30">
-                <Icons.TrendingUp className="h-6 w-6 sm:h-8 sm:w-8 text-white" />
+    <div className={`w-full min-h-screen ${styles.bg} overflow-x-hidden`}>
+      <div className="max-w-7xl mx-auto px-2 sm:px-4 py-2 space-y-3">
+        {/* ===== هيدر الكورس ===== */}
+        <WaveBorderCard initialColor={headerColor.name} onColorChange={setHeaderColor}>
+          <div className="p-2 sm:p-3">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-2">
+              <div className="lg:col-span-1">
+                <div className="aspect-video rounded-lg overflow-hidden bg-gray-800/50 border relative">
+                  {course.cover_image ? (
+                    <img src={course.cover_image} alt={course.title} className="w-full h-full object-contain" />
+                  ) : (
+                    <div className="flex items-center justify-center w-full h-full">
+                      <BookOpen className="h-8 w-8 sm:h-10 sm:w-10 text-gray-600" />
+                    </div>
+                  )}
+                  {enrollment && (
+                    <div className="absolute bottom-1 left-1 bg-black/60 backdrop-blur-md rounded-lg px-1.5 py-0.5 text-[8px] font-bold text-white flex items-center gap-1">
+                      <div className={`w-1.5 h-1.5 rounded-full ${examStats.percentage === 100 ? 'bg-green-400' : 'bg-yellow-400 animate-pulse'}`} />
+                      {examStats.percentage === 100 ? 'مكتمل' : `${Math.round(examStats.percentage)}%`}
+                    </div>
+                  )}
+                </div>
               </div>
-              <div>
-                <h1 className={`text-xl sm:text-2xl md:text-3xl font-black ${styles.text}`}>
-                  {language === 'ar' ? '📊 تقدمي العام' : '📊 My Overall Progress'}
-                </h1>
-                <p className={`text-[10px] sm:text-sm ${styles.subtext}`}>
-                  {language === 'ar'
-                    ? `مبني على الامتحانات من ${globalStats.totalCourses} كورس`
-                    : `Based on exams from ${globalStats.totalCourses} courses`}
-                </p>
+
+              <div className="lg:col-span-2 space-y-1.5">
+                <div className="flex flex-wrap items-center gap-1">
+                  <span className={`px-1.5 py-0.5 rounded-full text-[8px] font-bold ${course.is_free ? 'bg-green-500/20 text-green-400' : 'bg-blue-500/20 text-blue-400'}`}>
+                    {course.is_free ? 'مجاني' : `${course.price} ج.م`}
+                  </span>
+                  <span className="px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-purple-500/10 text-purple-400">
+                    {course.grade_stage === 'primary' ? 'ابتدائي' : course.grade_stage === 'middle' ? 'إعدادي' : 'ثانوي'}
+                    {course.grade_level && ` صف ${course.grade_level}`}
+                  </span>
+                </div>
+
+                <h1 className="text-base sm:text-xl md:text-2xl font-extrabold leading-tight">{course.title}</h1>
+
+                {teacher && (
+                  <div className="flex items-center gap-2 p-1.5 rounded-lg bg-blue-500/5 border border-blue-400/10">
+                    <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-bold text-xs">
+                      {teacher.full_name?.charAt(0).toUpperCase()}
+                    </div>
+                    <p className="text-xs font-bold">{teacher.full_name}</p>
+                  </div>
+                )}
+
+                {course.description && (
+                  <div className="p-1.5 rounded-lg bg-card border">
+                    <p className="text-[9px] sm:text-xs line-clamp-2">{course.description}</p>
+                  </div>
+                )}
+
+                {totalDuration > 0 && (
+                  <div className="flex items-center gap-1 text-[9px] text-gray-400">
+                    <Clock className="h-3 w-3" />
+                    <span>{formatDuration(totalDuration, language)} محتوى</span>
+                  </div>
+                )}
+
+                {/* ===== لوحة التقدم (تعتمد على الامتحانات فقط) ===== */}
+                {enrollment && (
+                  <div className="space-y-1.5">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-1">
+                      <div className="p-1.5 rounded-lg bg-card border text-center">
+                        <CircularProgress percentage={examStats.percentage} size={44} strokeWidth={3} styles={styles} />
+                        <p className="text-[7px] mt-0.5 text-gray-400">اجتياز ({examStats.passed}/{examStats.total})</p>
+                      </div>
+                      <div className="p-1.5 rounded-lg bg-card border text-center flex flex-col justify-center">
+                        <p className="text-sm font-extrabold">{examStats.attempted}</p>
+                        <p className="text-[7px] text-gray-400">تم حلها</p>
+                      </div>
+                      <div className="p-1.5 rounded-lg bg-card border text-center flex flex-col justify-center">
+                        <p className="text-sm font-extrabold">{examStats.avgScore}%</p>
+                        <p className="text-[7px] text-gray-400">المتوسط</p>
+                      </div>
+                      <div className="p-1.5 rounded-lg bg-card border text-center flex flex-col justify-center">
+                        <p className="text-sm font-extrabold">{examStats.total}</p>
+                        <p className="text-[7px] text-gray-400">إجمالي</p>
+                      </div>
+                    </div>
+
+                    <MotivationalCard
+                      message={motivationalMessage}
+                      icon={examStats.percentage >= 80 ? Award : examStats.percentage >= 50 ? TrendingUp : AlertCircle}
+                      styles={styles}
+                      color={studentLevel}
+                    />
+
+                    <Link
+                      href={`/dashboard/student/courses/${id}/progress`}
+                      className="inline-flex items-center gap-1 text-[9px] font-bold text-yellow-400 hover:text-yellow-300 transition"
+                    >
+                      📊 عرض التقدم التفصيلي →
+                    </Link>
+                  </div>
+                )}
+
+                <div className="flex flex-wrap gap-1 pt-1">
+                  {enrollment ? (
+                    <Link href={`/dashboard/student/courses/${id}/progress`} className="px-2.5 py-1 rounded-lg bg-blue-500 text-white font-bold text-[9px] hover:scale-105 transition flex items-center gap-1">
+                      <ArrowLeft className="h-3 w-3" /> متابعة
+                    </Link>
+                  ) : (
+                    <div className="w-full text-center py-2">
+                      <div className="flex flex-col sm:flex-row gap-1 justify-center">
+                        {course.is_free ? (
+                          <button onClick={handleEnroll} disabled={enrolling} className="px-3 py-1 bg-green-500 text-white font-bold rounded-lg text-[9px]">
+                            {enrolling ? 'جاري...' : 'ابدأ الآن 🚀'}
+                          </button>
+                        ) : (
+                          <>
+                            <button onClick={() => router.push(`/dashboard/student/courses/${id}/payment`)} className="px-3 py-1 bg-blue-500 text-white font-bold rounded-lg text-[9px]">
+                              💳 اشتراك
+                            </button>
+                            <button onClick={handleEnroll} disabled={enrolling} className="px-3 py-1 bg-gray-500/20 text-gray-400 font-bold rounded-lg text-[9px] border border-gray-500/30">
+                              {enrolling ? 'جاري...' : '🔑 كود'}
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-            <div className="flex items-center gap-3 sm:gap-4">
-              <CircularProgress
-                percentage={globalStats.overallPercentage}
-                size={64}
-                strokeWidth={5}
-                styles={styles}
-                color={globalStats.overallPercentage >= 80 ? 'green' : globalStats.overallPercentage >= 50 ? 'yellow' : 'blue'}
-                label={language === 'ar' ? 'إجمالي' : 'Overall'}
-                sublabel={`${globalStats.totalPassedExams}/${globalStats.totalExams}`}
-              />
-              <CircularProgress
-                percentage={globalStats.overallAvgScore}
-                size={64}
-                strokeWidth={5}
-                styles={styles}
-                color="purple"
-                label={language === 'ar' ? 'المتوسط' : 'Average'}
-                sublabel={`${globalStats.overallAvgScore}%`}
-              />
             </div>
           </div>
+        </WaveBorderCard>
 
-          {/* إحصائيات سريعة */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mt-3 pt-3 border-t border-white/10">
-            <div className="text-center">
-              <p className={`text-sm sm:text-lg font-bold ${styles.text}`}>{globalStats.totalCourses}</p>
-              <p className={`text-[8px] sm:text-[10px] ${styles.subtext}`}>{language === 'ar' ? 'كورسات' : 'Courses'}</p>
+        {/* ===== المحتوى (تبويبات) ===== */}
+        {enrollment && (
+          <>
+            <div className="flex gap-1 border-b-2 pb-1 overflow-x-auto no-scrollbar">
+              <TabButton active={activeTab==='videos'} onClick={()=>setActiveTab('videos')} icon={Video} label="فيديوهات" count={videos.length} styles={styles}/>
+              <TabButton active={activeTab==='exams'} onClick={()=>setActiveTab('exams')} icon={FileQuestion} label="امتحانات" count={exams.length} styles={styles}/>
+              <TabButton active={activeTab==='books'} onClick={()=>setActiveTab('books')} icon={Book} label="كتب" count={books.length} styles={styles}/>
+              <TabButton active={activeTab==='academic'} onClick={() => router.push(`/dashboard/student/support/academic?course=${id}`)} icon={MessageCircle} label="سؤال" styles={styles}/>
             </div>
-            <div className="text-center">
-              <p className={`text-sm sm:text-lg font-bold ${styles.text}`}>{globalStats.totalExams}</p>
-              <p className={`text-[8px] sm:text-[10px] ${styles.subtext}`}>{language === 'ar' ? 'امتحانات' : 'Exams'}</p>
-            </div>
-            <div className="text-center">
-              <p className={`text-sm sm:text-lg font-bold text-emerald-400`}>{globalStats.totalPassedExams}</p>
-              <p className={`text-[8px] sm:text-[10px] ${styles.subtext}`}>{language === 'ar' ? 'مجتازة' : 'Passed'}</p>
-            </div>
-            <div className="text-center">
-              <p className={`text-sm sm:text-lg font-bold text-yellow-400`}>{globalStats.totalAttemptedExams}</p>
-              <p className={`text-[8px] sm:text-[10px] ${styles.subtext}`}>{language === 'ar' ? 'محلولة' : 'Attempted'}</p>
-            </div>
-          </div>
+            <motion.div initial={{opacity:0,y:6}} animate={{opacity:1,y:0}} className="space-y-2">
+              {contentLoading ? (
+                <div className="flex justify-center py-6"><div className="w-6 h-6 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin"/></div>
+              ) : (
+                <>
+                  {activeTab==='videos' && (
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-xs font-bold text-gray-400">{videos.length} فيديو</span>
+                        <OrderToggleButton order={videoOrder} onToggle={toggleVideoOrder} styles={styles} language={language} />
+                      </div>
+                      <div className="space-y-1.5">
+                        {videos.length>0 ? videos.map(v=>(
+                          <VideoItem key={v.id} video={v} bookmarked={!!bookmarks[v.id]} onToggleBookmark={toggleBookmark} styles={styles} language={language} watched={false} />
+                        )) : <p className="text-xs text-gray-400">لا توجد فيديوهات</p>}
+                      </div>
+                    </div>
+                  )}
+                  {activeTab==='exams' && (
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-xs font-bold text-gray-400">{exams.length} امتحان</span>
+                        <OrderToggleButton order={examOrder} onToggle={toggleExamOrder} styles={styles} language={language} />
+                      </div>
+                      <div className="space-y-1.5">
+                        {exams.length>0 ? exams.map(e=>{
+                          const attempt = examAttempts[e.id];
+                          return (
+                            <ExamItem key={e.id} exam={e} styles={styles} language={language} attempted={attempt?.attempted} score={attempt?.score} passed={attempt?.passed} />
+                          );
+                        }) : <p className="text-xs text-gray-400">لا توجد امتحانات</p>}
+                      </div>
+                    </div>
+                  )}
+                  {activeTab==='books' && (
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-xs font-bold text-gray-400">{books.length} كتاب</span>
+                        <OrderToggleButton order={bookOrder} onToggle={toggleBookOrder} styles={styles} language={language} />
+                      </div>
+                      <div className="space-y-1.5">
+                        {books.length>0 ? books.map(b=><BookItem key={b.id} book={b} styles={styles} language={language}/>) : <p className="text-xs text-gray-400">لا توجد كتب</p>}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </motion.div>
+          </>
+        )}
 
-          {/* العبارة التحفيزية العامة */}
-          {motivationalMessage && (
-            <MotivationalCard
-              message={motivationalMessage}
-              icon={globalStats.overallPercentage >= 80 ? Icons.Trophy : globalStats.overallPercentage >= 50 ? Icons.TrendingUp : Icons.AlertCircle}
-              styles={styles}
-              color={globalStats.overallPercentage >= 80 ? 'green' : globalStats.overallPercentage >= 50 ? 'yellow' : 'blue'}
-            />
-          )}
-        </motion.div>
-
-        {/* ===== الرسم البياني ===== */}
-        {chartData && (
-          <div>
-            <h2 className={`text-sm sm:text-base font-bold ${styles.text} mb-3 flex items-center gap-2`}>
-              <Icons.BarChart3 className="h-4 w-4 sm:h-5 sm:w-5 text-purple-400" />
-              {language === 'ar' ? 'مقارنة الكورسات' : 'Course Comparison'}
-            </h2>
-            <WaveBorderCard initialColor="purple">
-              <div className="p-3 sm:p-4 h-48 sm:h-60">
-                <Bar
-                  data={chartData}
-                  options={{
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                      legend: {
-                        position: 'bottom',
-                        labels: {
-                          color: theme === 'dark' ? '#e2e8f0' : '#334155',
-                          font: { size: 10 }
-                        }
-                      }
-                    },
-                    scales: {
-                      y: {
-                        beginAtZero: true,
-                        max: 100,
-                        ticks: {
-                          callback: v => `${v}%`,
-                          color: theme === 'dark' ? '#e2e8f0' : '#334155',
-                          font: { size: 9 }
-                        }
-                      },
-                      x: {
-                        ticks: {
-                          color: theme === 'dark' ? '#e2e8f0' : '#334155',
-                          font: { size: 9 }
-                        }
-                      }
-                    }
-                  }}
-                />
-              </div>
-            </WaveBorderCard>
+        {!enrollment && (
+          <div className="text-center py-6 border-2 border-dashed rounded-2xl">
+            <Lock className="h-6 w-6 text-gray-400 mx-auto mb-1"/>
+            <h3 className="text-sm font-bold">اشترك للوصول للمحتوى</h3>
+            <p className="text-[9px] text-gray-400 max-w-lg mx-auto px-3">
+              بعد الاشتراك ستتمكن من مشاهدة الفيديوهات وحل الامتحانات وتحميل الكتب
+            </p>
           </div>
         )}
 
-        {/* ===== بطاقات الكورسات ===== */}
-        <div>
-          <h2 className={`text-sm sm:text-base font-bold ${styles.text} mb-3 flex items-center gap-2`}>
-            <Icons.BookOpen className="h-4 w-4 sm:h-5 sm:w-5 text-green-400" />
-            {language === 'ar' ? 'تفاصيل الكورسات' : 'Course Details'}
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
-            {coursesData.map((item, idx) => (
-              <CourseProgressCard
-                key={item.course.id}
-                course={item.course}
-                stats={{
-                  totalExams: item.totalExams,
-                  attemptedExams: item.attemptedExams,
-                  passedExams: item.passedExams,
-                  avgScore: item.avgScore,
-                  percentage: item.percentage,
-                }}
-                styles={styles}
-                language={language}
-              />
-            ))}
+        {/* ===== كورسات ذات صلة ===== */}
+        {relatedCourses.length>0 && (
+          <div>
+            <h2 className="text-sm font-bold mb-1.5 flex items-center gap-1">
+              <Grid3X3 className="h-3.5 w-3.5 text-blue-500"/> كورسات ذات صلة
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1.5">
+              {relatedCourses.map(rc=>(
+                <Link key={rc.id} href={`/dashboard/student/courses/${rc.id}`} className="p-2 rounded-lg border hover:border-blue-400/50 transition">
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-lg bg-blue-500/10 flex items-center justify-center">
+                      <BookOpen className="h-3.5 w-3.5 text-blue-500" />
+                    </div>
+                    <span className="text-[10px] font-bold line-clamp-1">{rc.title}</span>
+                  </div>
+                  {rc.teacher && <p className="text-[8px] text-gray-400 mt-0.5">{rc.teacher.full_name}</p>}
+                </Link>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
       </div>
+
+      <style jsx>{`
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+      `}</style>
     </div>
   );
 }
