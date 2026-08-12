@@ -1,4 +1,5 @@
 'use client';
+// app/dashboard/teacher/playlists/[playlistId]/videos/page.js
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
@@ -20,6 +21,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
+// مكون مودال مشترك
 const Modal = ({ isOpen, onClose, title, children }) => {
   if (!isOpen) return null;
   return (
@@ -42,6 +44,7 @@ const Modal = ({ isOpen, onClose, title, children }) => {
   );
 };
 
+// مكون عرض فيديو في القائمة مع أزرار التحكم
 const VideoItem = ({ video, index, total, onMoveUp, onMoveDown, onRemove, isDark }) => {
   return (
     <motion.div
@@ -98,10 +101,8 @@ const VideoItem = ({ video, index, total, onMoveUp, onMoveDown, onRemove, isDark
 
 export default function TeacherPlaylistVideosPage() {
   const params = useParams();
-  // ⚠️ هام: إذا كان اسم مجلد الـ playlistId هو [id] فاستخدم params.id
-  // const playlistId = params?.id;
-  const playlistId = params?.playlistId; // الافتراضي [playlistId]
-  
+  // ⚠️ إذا كان اسم المجلد [id] استخدم params.id
+  const playlistId = params?.playlistId;
   const router = useRouter();
   const { theme } = useTheme();
   const isDark = theme === 'dark';
@@ -132,7 +133,9 @@ export default function TeacherPlaylistVideosPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/playlists/${playlistId}`);
+      const res = await fetch(`/api/playlists/${playlistId}`, {
+        cache: 'no-store', // منع التخزين المؤقت
+      });
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
         throw new Error(errorData.error || 'فشل في جلب بيانات القائمة');
@@ -259,15 +262,10 @@ export default function TeacherPlaylistVideosPage() {
       toast.error('العنوان ورابط الفيديو مطلوبان');
       return;
     }
-
     if (!playlistId) {
       toast.error('معرف القائمة غير صالح');
       return;
     }
-
-    // تسجيل القيمة المرسلة
-    console.log('🔍 Sending playlistId to API:', playlistId);
-    console.log('🔍 Type:', typeof playlistId);
 
     try {
       const payload = {
@@ -277,10 +275,9 @@ export default function TeacherPlaylistVideosPage() {
         videoUrl: newVideoUrl.trim(),
         displayMode: newVideoDisplayMode,
         duration: 0,
-        playlistId: playlistId, // سيكون إما null أو UUID صالح
+        playlistId: playlistId,
         playlistOrder: videos.length,
       };
-      console.log('📦 Full payload:', payload);
 
       const res = await fetch('/api/videos', {
         method: 'POST',
@@ -288,17 +285,15 @@ export default function TeacherPlaylistVideosPage() {
         body: JSON.stringify(payload),
       });
 
-      let data;
-      try {
-        data = await res.json();
-      } catch (parseError) {
-        console.error('❌ Failed to parse JSON response:', parseError);
-        throw new Error('حدث خطأ في الخادم، يرجى المحاولة مرة أخرى');
-      }
+      const data = await res.json();
 
       if (!res.ok || !data.success) {
         throw new Error(data.error || 'فشل في إنشاء الفيديو');
       }
+
+      // ✅ إضافة الفيديو الجديد إلى القائمة المحلية مباشرة
+      const newVideo = data.data;
+      setVideos((prev) => [...prev, newVideo]);
 
       toast.success('تم إنشاء الفيديو وإضافته إلى القائمة');
       setNewVideoTitle('');
@@ -306,7 +301,8 @@ export default function TeacherPlaylistVideosPage() {
       setNewVideoUrl('');
       setNewVideoDisplayMode('platform');
       setIsCreateModalOpen(false);
-      fetchPlaylistData();
+
+      // تحديث قائمة الفيديوهات المتاحة
       fetchAvailableVideos();
     } catch (err) {
       console.error('❌ Create video error:', err);
@@ -322,7 +318,6 @@ export default function TeacherPlaylistVideosPage() {
     }
   };
 
-  // تعريف الألوان حسب الثيم
   const bg = isDark ? 'bg-gray-900' : 'bg-gray-50';
   const text = isDark ? 'text-white' : 'text-gray-900';
   const cardBg = isDark ? 'bg-gray-800' : 'bg-white';
@@ -373,7 +368,6 @@ export default function TeacherPlaylistVideosPage() {
   return (
     <div className={`min-h-screen ${bg} ${text} p-6 transition-colors duration-300`}>
       <div className="max-w-5xl mx-auto">
-        {/* شريط العنوان */}
         <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
           <div className="flex items-center gap-3">
             <button onClick={goBack} className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition">
@@ -411,7 +405,6 @@ export default function TeacherPlaylistVideosPage() {
           </div>
         </div>
 
-        {/* إحصائيات سريعة */}
         <div className={`${cardBg} rounded-lg p-4 mb-6 border ${borderColor}`}>
           <div className="flex items-center gap-6">
             <div className="flex items-center gap-2">
@@ -425,7 +418,6 @@ export default function TeacherPlaylistVideosPage() {
           </div>
         </div>
 
-        {/* قائمة الفيديوهات */}
         {videos.length === 0 ? (
           <div className="text-center py-16">
             <Video className="w-16 h-16 text-gray-400 mx-auto mb-4" />
@@ -457,7 +449,6 @@ export default function TeacherPlaylistVideosPage() {
         </div>
       </div>
 
-      {/* مودال إضافة فيديو موجود */}
       <Modal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} title="إضافة فيديو موجود إلى القائمة">
         <form onSubmit={handleAddExistingVideo} className="space-y-4">
           <div>
@@ -500,7 +491,6 @@ export default function TeacherPlaylistVideosPage() {
         </form>
       </Modal>
 
-      {/* مودال إنشاء فيديو جديد */}
       <Modal isOpen={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} title="إنشاء فيديو جديد وإضافته للقائمة">
         <form onSubmit={handleCreateVideo} className="space-y-4">
           <div>
