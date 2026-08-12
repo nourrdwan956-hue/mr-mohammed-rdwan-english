@@ -198,7 +198,7 @@ const CountdownTimer = ({ isDark }) => {
     <div className="relative">
       <div className="absolute inset-0 bg-gradient-to-br from-yellow-400/5 via-blue-400/5 to-green-400/5 blur-2xl -z-10" />
       
-      <div className={`relative overflow-hidden rounded-2xl border border-yellow-400/30 p-4 sm:p-6 text-center backdrop-blur-xl ${
+      <div className={`relative overflow-hidden rounded-2xl border border-yellow-400/30 p-4 sm:p-6 lg:p-8 text-center backdrop-blur-xl ${
         isDark ? 'bg-white/5' : 'bg-white/70'
       } shadow-lg shadow-yellow-400/10`}>
         
@@ -217,14 +217,14 @@ const CountdownTimer = ({ isDark }) => {
             </h3>
           </div>
 
-          <div className="grid grid-cols-4 gap-2 sm:gap-3 max-w-lg mx-auto">
+          <div className="grid grid-cols-4 gap-2 sm:gap-3 lg:gap-4 max-w-lg lg:max-w-2xl mx-auto">
             {items.map((item, idx) => (
               <motion.div
                 key={item.label}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: idx * 0.08 }}
-                className={`relative p-2 sm:p-3 rounded-xl bg-gradient-to-br ${item.color} bg-opacity-15 border border-white/10 backdrop-blur-sm`}
+                className={`relative p-2 sm:p-3 lg:p-4 rounded-xl bg-gradient-to-br ${item.color} bg-opacity-15 border border-white/10 backdrop-blur-sm`}
               >
                 <div className="text-2xl sm:text-3xl md:text-4xl font-black tabular-nums text-white drop-shadow-lg">
                   {String(item.value).padStart(2, '0')}
@@ -766,7 +766,8 @@ const CoursesCarousel3D = ({ courses, teachers, isDark, loading }) => {
       const w = window.innerWidth;
       if (w < 640) setCardWidth(280);
       else if (w < 1024) setCardWidth(320);
-      else setCardWidth(370);
+      else if (w < 1536) setCardWidth(370);
+      else setCardWidth(410);
     };
     updateWidth();
     window.addEventListener('resize', updateWidth);
@@ -823,7 +824,7 @@ const CoursesCarousel3D = ({ courses, teachers, isDark, loading }) => {
     <div className="relative w-full overflow-visible">
       <div
         ref={containerRef}
-        className="flex gap-5 overflow-x-auto pb-6 snap-x snap-mandatory scrollbar-hide px-4 pt-8 pb-10"
+        className="flex gap-5 lg:gap-6 overflow-x-auto pb-6 snap-x snap-mandatory scrollbar-hide px-4 lg:px-6 pt-8 pb-10"
         style={{
           scrollbarWidth: 'none',
           msOverflowStyle: 'none',
@@ -833,7 +834,7 @@ const CoursesCarousel3D = ({ courses, teachers, isDark, loading }) => {
           <div
             key={course.id}
             className="snap-center flex-shrink-0"
-            style={{ width: 'clamp(280px, 32vw, 400px)', overflow: 'visible' }}
+            style={{ width: 'clamp(280px, 26vw, 420px)', overflow: 'visible' }}
           >
             <CourseCard3D
               course={course}
@@ -915,7 +916,7 @@ const FeatureCard = ({ feature, index }) => {
       onMouseLeave={() => setIsHovered(false)}
     >
       <div
-        className={`p-3 rounded-xl border transition-all duration-300 ${
+        className={`p-3 lg:p-4 rounded-xl border transition-all duration-300 h-full ${
           isDark
             ? 'bg-white/8 border-white/10 hover:border-blue-400/40 hover:shadow-lg hover:shadow-blue-400/10'
             : 'bg-white/70 border-gray-200/40 hover:border-blue-400/50 hover:shadow-lg hover:shadow-blue-400/10'
@@ -971,7 +972,7 @@ const SocialCard = ({ link, index }) => {
         transition={{ delay: index * 0.03, duration: 0.3 }}
         viewport={{ once: true }}
         whileHover={{ scale: 1.02, y: -1 }}
-        className={`flex items-center gap-2 p-2 xs:p-2.5 rounded-xl border transition-all duration-300 ${
+        className={`flex items-center gap-2 p-2 xs:p-2.5 lg:p-3 rounded-xl border transition-all duration-300 h-full ${
           isDark
             ? 'bg-white/8 border-white/10 hover:border-blue-400/40 hover:bg-white/12'
             : 'bg-white/70 border-gray-200/40 hover:border-blue-400/50 hover:bg-white/85'
@@ -1012,7 +1013,7 @@ const SocialCard = ({ link, index }) => {
       transition={{ delay: index * 0.03, duration: 0.3 }}
       viewport={{ once: true }}
       whileHover={{ scale: 1.02, y: -1 }}
-      className={`flex items-center gap-2 p-2 xs:p-2.5 rounded-xl border transition-all duration-300 ${
+      className={`flex items-center gap-2 p-2 xs:p-2.5 lg:p-3 rounded-xl border transition-all duration-300 h-full ${
         isPrimary
           ? isDark
             ? 'bg-blue-400/15 border-blue-400/30 hover:border-blue-400/70 hover:bg-blue-400/25'
@@ -1052,8 +1053,8 @@ const HeroSection = ({ isDark }) => {
   const y = useTransform(scrollY, [0, 500], [0, 30]);
 
   return (
-    <section className="relative min-h-[85vh] flex items-center justify-center px-3 sm:px-4 pt-10 sm:pt-12 pb-4 sm:pb-6 overflow-hidden">
-      <motion.div style={{ y }} className="container mx-auto max-w-4xl text-center relative z-10">
+    <section className="relative min-h-[85vh] flex items-center justify-center px-3 sm:px-4 lg:px-8 xl:px-12 pt-10 sm:pt-12 pb-4 sm:pb-6 overflow-hidden">
+      <motion.div style={{ y }} className="container mx-auto max-w-4xl lg:max-w-5xl xl:max-w-6xl text-center relative z-10">
         <motion.div
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
@@ -1092,7 +1093,7 @@ const HeroSection = ({ isDark }) => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.35, duration: 0.4 }}
-            className={`text-xs sm:text-sm md:text-base max-w-2xl mx-auto leading-relaxed mb-3 sm:mb-4 ${
+            className={`text-xs sm:text-sm md:text-base lg:text-lg max-w-2xl lg:max-w-3xl mx-auto leading-relaxed mb-3 sm:mb-4 ${
               isDark ? 'text-gray-300' : 'text-gray-600'
             }`}
           >
@@ -1134,10 +1135,10 @@ const HeroSection = ({ isDark }) => {
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.55, duration: 0.4 }}
-            className="max-w-2xl mx-auto"
+            className="max-w-2xl lg:max-w-3xl mx-auto"
           >
             <div
-              className={`relative p-3 sm:p-4 rounded-xl border-2 ${
+              className={`relative p-3 sm:p-4 lg:p-5 rounded-xl border-2 ${
                 isDark
                   ? 'bg-gradient-to-br from-amber-500/20 to-yellow-500/20 border-yellow-400/40'
                   : 'bg-gradient-to-br from-amber-100/80 to-yellow-100/80 border-yellow-400/60'
@@ -1197,8 +1198,8 @@ const HeroSection = ({ isDark }) => {
 
 const CoursesSection = ({ isDark, courses, teachers, loading }) => {
   return (
-    <section id="courses" className={`py-6 sm:py-8 px-3 sm:px-4 ${isDark ? 'bg-[#0a0e1a]' : 'bg-white'}`}>
-      <div className="container mx-auto max-w-7xl">
+    <section id="courses" className={`py-6 sm:py-8 px-3 sm:px-4 lg:px-8 xl:px-12 ${isDark ? 'bg-[#0a0e1a]' : 'bg-white'}`}>
+      <div className="container mx-auto max-w-7xl 2xl:max-w-[96rem]">
         <motion.div
           initial={{ opacity: 0 }}
           whileInView={{ opacity: 1 }}
@@ -1227,8 +1228,8 @@ const CoursesSection = ({ isDark, courses, teachers, loading }) => {
 
 const FeaturesSection = ({ isDark }) => {
   return (
-    <section id="features" className={`py-4 sm:py-6 md:py-8 px-3 sm:px-4 ${isDark ? 'bg-[#0a0e1a]/60' : 'bg-white'}`}>
-      <div className="container mx-auto max-w-6xl">
+    <section id="features" className={`py-4 sm:py-6 md:py-8 px-3 sm:px-4 lg:px-8 xl:px-12 ${isDark ? 'bg-[#0a0e1a]/60' : 'bg-white'}`}>
+      <div className="container mx-auto max-w-6xl xl:max-w-7xl">
         <motion.div
           initial={{ opacity: 0 }}
           whileInView={{ opacity: 1 }}
@@ -1244,7 +1245,7 @@ const FeaturesSection = ({ isDark }) => {
           </p>
         </motion.div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-2.5 sm:gap-3 lg:gap-4">
           {PLATFORM_FEATURES.map((feature, index) => (
             <FeatureCard key={feature.id} feature={feature} index={index} />
           ))}
@@ -1256,8 +1257,8 @@ const FeaturesSection = ({ isDark }) => {
 
 const CountdownSection = ({ isDark }) => {
   return (
-    <section id="countdown" className={`py-4 sm:py-6 md:py-8 px-3 sm:px-4 ${isDark ? 'bg-[#0a0e1a]/60' : 'bg-white'}`}>
-      <div className="container mx-auto max-w-3xl">
+    <section id="countdown" className={`py-4 sm:py-6 md:py-8 px-3 sm:px-4 lg:px-8 xl:px-12 ${isDark ? 'bg-[#0a0e1a]/60' : 'bg-white'}`}>
+      <div className="container mx-auto max-w-3xl lg:max-w-4xl">
         <CountdownTimer isDark={isDark} />
       </div>
     </section>
@@ -1273,8 +1274,8 @@ const ContactSection = ({ isDark }) => {
   }, []);
 
   return (
-    <section id="contact" className={`py-4 sm:py-6 md:py-8 px-3 sm:px-4 ${isDark ? 'bg-[#0a0e1a]/60' : 'bg-white'}`}>
-      <div className="container mx-auto max-w-4xl">
+    <section id="contact" className={`py-4 sm:py-6 md:py-8 px-3 sm:px-4 lg:px-8 xl:px-12 ${isDark ? 'bg-[#0a0e1a]/60' : 'bg-white'}`}>
+      <div className="container mx-auto max-w-4xl xl:max-w-6xl">
         <motion.div
           initial={{ opacity: 0 }}
           whileInView={{ opacity: 1 }}
@@ -1290,7 +1291,7 @@ const ContactSection = ({ isDark }) => {
           </p>
         </motion.div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-2 sm:gap-3 lg:gap-4">
           {sortedLinks.map((link, index) => (
             <SocialCard key={link.id} link={link} index={index} />
           ))}
@@ -1301,7 +1302,7 @@ const ContactSection = ({ isDark }) => {
           whileInView={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.35, delay: 0.15 }}
           viewport={{ once: true }}
-          className={`mt-3 sm:mt-4 p-3 sm:p-4 rounded-xl border text-center ${
+          className={`mt-3 sm:mt-4 p-3 sm:p-4 lg:p-6 rounded-xl border text-center ${
             isDark ? 'bg-white/8 border-white/10' : 'bg-white/70 border-gray-200/40'
           } backdrop-blur-sm`}
         >
@@ -1331,8 +1332,8 @@ const ContactSection = ({ isDark }) => {
 
 const FooterSection = ({ isDark }) => {
   return (
-    <footer className={`${isDark ? 'bg-[#030812]/90 border-white/5' : 'bg-white/90 border-gray-200/40'} border-t py-3 sm:py-4 px-3 sm:px-4 backdrop-blur`}>
-      <div className="container mx-auto max-w-6xl">
+    <footer className={`${isDark ? 'bg-[#030812]/90 border-white/5' : 'bg-white/90 border-gray-200/40'} border-t py-3 sm:py-4 px-3 sm:px-4 lg:px-8 xl:px-12 backdrop-blur`}>
+      <div className="container mx-auto max-w-6xl xl:max-w-7xl">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <div className="md:col-span-2">
             <div className="flex items-center gap-2 mb-1">
@@ -1574,7 +1575,7 @@ export default function Home() {
       />
 
       <header className={`fixed top-0 left-0 right-0 z-40 transition-all duration-400 ${headerBg}`}>
-        <div className="container mx-auto px-3 sm:px-4 py-1.5 sm:py-2 flex items-center justify-between">
+        <div className="container mx-auto max-w-7xl 2xl:max-w-[96rem] px-3 sm:px-4 lg:px-8 xl:px-12 py-1.5 sm:py-2 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-1.5 sm:gap-2 group">
             <div className="h-7 w-7 sm:h-8 sm:w-8 md:h-9 md:w-9 rounded-full overflow-hidden shadow-lg shadow-blue-400/20 group-hover:scale-105 transition duration-300">
               <img src="/images/logo.png" alt="مستر محمد رضوان" className="w-full h-full object-cover" />
@@ -1589,7 +1590,7 @@ export default function Home() {
             </div>
           </Link>
 
-          <div className="hidden md:flex items-center gap-3 text-[9px] sm:text-[10px] font-bold">
+          <div className="hidden md:flex items-center gap-3 lg:gap-5 text-[9px] sm:text-[10px] lg:text-xs font-bold">
             {[
               { label: 'الكورسات', href: '#courses' },
               { label: 'المميزات', href: '#features' },
@@ -1606,7 +1607,7 @@ export default function Home() {
             ))}
           </div>
 
-          <div className="flex items-center gap-1 sm:gap-1.5">
+          <div className="flex items-center gap-1 sm:gap-1.5 lg:gap-2">
             <button
               onClick={toggleTheme}
               className="relative w-7 h-3.5 sm:w-8 sm:h-4 rounded-full bg-gradient-to-r from-blue-400 to-cyan-400 shadow-inner shadow-black/10 transition-all duration-500 hover:scale-105"
