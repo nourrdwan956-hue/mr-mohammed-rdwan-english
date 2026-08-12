@@ -7,6 +7,7 @@
 // ✅ إصلاح مشكلة عدم ظهور الفيديوهات (إضافة setVideos)
 // ✅ استبدال أيقونة Devices بـ Monitor
 // ✅ تعديل إحصائيات الدفع لتشمل مدفوعات الأكواد في totalRevenue
+// ✅ إضافة زر "قوائم" في شريط الإجراءات
 // ============================================================
 
 'use client';
@@ -1742,6 +1743,13 @@ export default function TeacherCourseDetailPage() {
                 className="px-3 py-1.5 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded-xl text-xs font-semibold transition flex items-center gap-1"
               >
                 <Icons.Monitor className="h-3 w-3" /> الأجهزة
+              </Link>
+              {/* ✅ الزر الجديد: قوائم */}
+              <Link
+                href={`/dashboard/teacher/courses/${courseId}/playlists`}
+                className="px-3 py-1.5 bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-400 rounded-xl text-xs font-semibold transition flex items-center gap-1"
+              >
+                <Icons.ListVideo className="h-3 w-3" /> قوائم
               </Link>
             </div>
           </div>
