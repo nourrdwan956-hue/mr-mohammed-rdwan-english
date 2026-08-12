@@ -1,4 +1,4 @@
-// /app/api/playlists/[id]/route.js
+// app/api/playlists/[id]/route.js
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import {
@@ -7,10 +7,10 @@ import {
   verifyCourseOwnership,
 } from '@/lib/playlist-utils';
 
-// GET: جلب قائمة واحدة مع فيديوهاتها
 export async function GET(request, { params }) {
   try {
-    const { id } = params;
+    // ✅ استخراج id من params مع await (للتأكد من أنها Promise)
+    const { id } = await params;
     if (!id) {
       return NextResponse.json(
         { success: false, error: 'معرف القائمة مطلوب' },
@@ -51,19 +51,18 @@ export async function GET(request, { params }) {
   }
 }
 
-// PUT: تعديل القائمة
 export async function PUT(request, { params }) {
   try {
-    const { id } = params;
-    const body = await request.json();
-    const { title, description, orderIndex } = body;
-
+    const { id } = await params;
     if (!id) {
       return NextResponse.json(
         { success: false, error: 'معرف القائمة مطلوب' },
         { status: 400 }
       );
     }
+
+    const body = await request.json();
+    const { title, description, orderIndex } = body;
 
     const supabase = await createClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -133,10 +132,9 @@ export async function PUT(request, { params }) {
   }
 }
 
-// DELETE: حذف قائمة
 export async function DELETE(request, { params }) {
   try {
-    const { id } = params;
+    const { id } = await params;
     if (!id) {
       return NextResponse.json(
         { success: false, error: 'معرف القائمة مطلوب' },
