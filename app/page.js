@@ -1,8 +1,9 @@
 // app/page.js
 // ================================================================
 // 🏛️ الصفحة الرئيسية – منصة مستر محمد رضوان
-// ✅ 6 طبقات متكررة من نفس الكورس (نسخ متراكبة)
-// ✅ إطار أخضر فاتح جداً عند Hover (opacity منخفض)
+// ✅ 6 طبقات فعلية متراكبة (نسخ من نفس البطاقة متحركة)
+// ✅ دبوس ملون في الطرف العلوي الأيسر لكل كورس (لون مختلف لكل كورس)
+// ✅ إطار أخضر فاتح جداً عند Hover
 // ✅ أسهم معكوسة (يمين → التالي، يسار → السابق)
 // ✅ توقيع المبرمج بتأثير فريد
 // ✅ نسبة الصورة 16:9
@@ -378,7 +379,30 @@ const ScrollToTopButton = ({ show, onClick }) => (
 );
 
 // ================================================================
-// 🃏 بطاقة الكورس – مع 6 طبقات متكررة وإطار أخضر فاتح
+// 🎨 ألوان الدبابيس المختلفة لكل كورس
+// ================================================================
+
+const PIN_COLORS = [
+  '#FF6B6B', // أحمر
+  '#FF9F43', // برتقالي
+  '#FECA57', // أصفر
+  '#48DBFB', // أزرق فاتح
+  '#0ABDE3', // أزرق متوسط
+  '#10AC84', // أخضر
+  '#EE5A24', // أحمر غامق
+  '#A29BFE', // بنفسجي فاتح
+  '#6C5CE7', // بنفسجي
+  '#FD79A8', // وردي
+  '#00CEC9', // تركواز
+  '#FDCB6E', // ذهبي
+  '#E17055', // مرجاني
+  '#00B894', // أخضر زمردي
+  '#6C5CE7', // نيلي
+  '#FDA7DF', // وردي فاتح
+];
+
+// ================================================================
+// 🃏 بطاقة الكورس – مع 6 طبقات فعلية ودبوس ملون
 // ================================================================
 
 const CourseCard3D = ({ course, teacher, index }) => {
@@ -397,11 +421,11 @@ const CourseCard3D = ({ course, teacher, index }) => {
     const y = e.clientY - rect.top;
     const centerX = rect.width / 2;
     const centerY = rect.height / 2;
-    const rotateX = ((y - centerY) / centerY) * -8;
-    const rotateY = ((x - centerX) / centerX) * 8;
+    const rotateX = ((y - centerY) / centerY) * -10;
+    const rotateY = ((x - centerX) / centerX) * 10;
     setRotation({ x: rotateX, y: rotateY });
-    const offsetX = ((x - centerX) / centerX) * 12;
-    const offsetY = ((y - centerY) / centerY) * 12;
+    const offsetX = ((x - centerX) / centerX) * 15;
+    const offsetY = ((y - centerY) / centerY) * 15;
     setLayerOffset({ x: offsetX, y: offsetY });
   };
 
@@ -411,6 +435,7 @@ const CourseCard3D = ({ course, teacher, index }) => {
     setIsHovered(false);
   };
 
+  // إحصائيات الكورس
   const stats = [
     { label: 'فيديوهات', count: course.videos_count || 0, icon: Icons.Video, color: 'text-blue-400' },
     { label: 'امتحانات', count: course.exams_count || 0, icon: Icons.FileText, color: 'text-purple-400' },
@@ -419,7 +444,10 @@ const CourseCard3D = ({ course, teacher, index }) => {
 
   const totalItems = stats.reduce((sum, s) => sum + s.count, 0);
 
-  // ✅ 6 طبقات متكررة من نفس البطاقة (نسخ متراكبة)
+  // ✅ لون الدبوس لكل كورس بناءً على الـ index
+  const pinColor = PIN_COLORS[index % PIN_COLORS.length];
+
+  // ✅ 6 طبقات فعلية متراكبة
   const LAYER_COUNT = 6;
 
   return (
@@ -440,56 +468,118 @@ const CourseCard3D = ({ course, teacher, index }) => {
         animate={{
           scale: isHovered ? 1.04 : 1,
           zIndex: isHovered ? 30 : 10,
-          y: isHovered ? -10 : 0,
+          y: isHovered ? -12 : 0,
         }}
         transition={{ duration: 0.3 }}
         style={{
           transformStyle: 'preserve-3d',
         }}
       >
-        {/* ===== الطبقات المتكررة (6 نسخ متراكبة) ===== */}
+        {/* ============================================================== */}
+        {/* 🔥 الطبقات المتكررة الفعلية – 6 طبقات مرئية متراكبة */}
+        {/* ============================================================== */}
         <div
           className="absolute inset-0 -z-10"
           style={{
-            transform: `translateZ(-20px) rotateX(${rotation.x * 0.5}deg) rotateY(${rotation.y * 0.5}deg)`,
+            transform: `translateZ(-20px) rotateX(${rotation.x * 0.4}deg) rotateY(${rotation.y * 0.4}deg)`,
             transformStyle: 'preserve-3d',
           }}
         >
           {Array.from({ length: LAYER_COUNT }).map((_, idx) => {
-            const depth = (idx + 1) * 18;
-            const scale = 1 - (idx + 1) * 0.025;
-            const opacity = 0.5 - idx * 0.07;
+            // كل طبقة تختلف في الإزاحة والعمق والحجم
+            const depth = (idx + 1) * 20;
+            const scale = 1 - (idx + 1) * 0.028;
+            const opacity = 0.7 - idx * 0.08;
+
+            // لون مختلف لكل طبقة (أغمق كلما ابتعدت)
+            const layerColor = isDark
+              ? `rgba(20, 30, 50, ${0.5 + idx * 0.06})`
+              : `rgba(220, 225, 235, ${0.5 + idx * 0.06})`;
 
             return (
               <motion.div
                 key={idx}
-                className="absolute rounded-2xl border border-white/20"
+                className="absolute rounded-2xl border-2"
                 style={{
-                  backgroundColor: isDark
-                    ? `rgba(26, 35, 50, ${0.4 + idx * 0.05})`
-                    : `rgba(232, 236, 240, ${0.4 + idx * 0.05})`,
+                  backgroundColor: layerColor,
+                  borderColor: isDark
+                    ? `rgba(255,255,255,${0.05 + idx * 0.02})`
+                    : `rgba(0,0,0,${0.05 + idx * 0.02})`,
                   width: '100%',
                   height: '100%',
-                  transform: `translateZ(${-depth}px) scale(${scale}) translateX(${layerOffset.x * (idx + 1) * 0.7}px) translateY(${layerOffset.y * (idx + 1) * 0.7}px)`,
+                  transform: `translateZ(${-depth}px) scale(${scale}) translateX(${layerOffset.x * (idx + 1) * 0.8}px) translateY(${layerOffset.y * (idx + 1) * 0.8}px)`,
                   opacity: opacity,
-                  boxShadow: `0 8px 30px rgba(0,0,0,0.12)`,
-                  backdropFilter: 'blur(2px)',
+                  boxShadow: `0 8px 40px rgba(0,0,0,0.15)`,
+                  backdropFilter: 'blur(1px)',
                 }}
                 animate={{
-                  scale: isHovered ? scale * 1.02 : scale,
-                  opacity: isHovered ? opacity + 0.1 : opacity,
+                  scale: isHovered ? scale * 1.025 : scale,
+                  opacity: isHovered ? opacity + 0.12 : opacity,
                 }}
                 transition={{ duration: 0.3 }}
-              />
+              >
+                {/* إضافة حدود داخلية للطبقات لإظهار التكرار بوضوح */}
+                <div className="absolute inset-2 rounded-xl border border-white/5" />
+              </motion.div>
             );
           })}
         </div>
 
-        {/* ===== الإطار المتحرك – أخضر فاتح جداً ===== */}
+        {/* ============================================================== */}
+        {/* 📌 الدبوس الملون – الطرف العلوي الأيسر */}
+        {/* ============================================================== */}
+        <div
+          className="absolute -top-1 -left-1 z-20"
+          style={{
+            transform: 'rotate(-15deg)',
+            filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.3))',
+          }}
+        >
+          <motion.div
+            animate={{
+              scale: isHovered ? 1.15 : 1,
+              rotate: isHovered ? 0 : -15,
+            }}
+            transition={{ duration: 0.3 }}
+            className="relative"
+          >
+            {/* جسم الدبوس */}
+            <svg
+              width="32"
+              height="48"
+              viewBox="0 0 32 48"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              style={{ filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.25))' }}
+            >
+              {/* رأس الدبوس الدائري */}
+              <circle cx="16" cy="16" r="14" fill={pinColor} stroke="white" strokeWidth="2" />
+              {/* النقطة اللامعة */}
+              <circle cx="12" cy="12" r="4" fill="white" opacity="0.4" />
+              {/* الساق */}
+              <rect x="13" y="28" width="6" height="18" rx="3" fill={pinColor} stroke="white" strokeWidth="1.5" />
+              {/* طرف الساق */}
+              <circle cx="16" cy="46" r="3" fill={pinColor} stroke="white" strokeWidth="1.5" />
+            </svg>
+            {/* تأثير التوهج */}
+            <div
+              className="absolute inset-0 rounded-full blur-xl"
+              style={{
+                backgroundColor: pinColor,
+                opacity: 0.3,
+                transform: 'scale(1.5)',
+              }}
+            />
+          </motion.div>
+        </div>
+
+        {/* ============================================================== */}
+        {/* الإطار المتحرك – أخضر فاتح جداً */}
+        {/* ============================================================== */}
         <div className="absolute inset-[-3px] rounded-2xl overflow-hidden pointer-events-none">
           <div className="absolute inset-0 rounded-2xl p-[3px]">
             <div
-              className={`absolute inset-0 rounded-2xl bg-gradient-to-r from-transparent via-green-300/30 to-transparent transition-opacity duration-300 ${
+              className={`absolute inset-0 rounded-2xl bg-gradient-to-r from-transparent via-green-300/25 to-transparent transition-opacity duration-300 ${
                 isHovered ? 'opacity-100' : 'opacity-0'
               }`}
               style={{
@@ -500,7 +590,9 @@ const CourseCard3D = ({ course, teacher, index }) => {
           </div>
         </div>
 
-        {/* ===== البطاقة الأمامية (الظاهرة) ===== */}
+        {/* ============================================================== */}
+        {/* البطاقة الأمامية (الظاهرة) */}
+        {/* ============================================================== */}
         <motion.div
           className={`relative rounded-2xl overflow-hidden transition-all duration-500 ${
             isDark
@@ -547,7 +639,7 @@ const CourseCard3D = ({ course, teacher, index }) => {
               </div>
             )}
 
-            {/* شارات */}
+            {/* شارات السعر والحالة */}
             <div className="absolute top-3 right-3 flex flex-col gap-1.5 z-10">
               <motion.span
                 className={`text-[8px] sm:text-[9px] px-2.5 py-0.5 rounded-full font-bold backdrop-blur-lg border border-white/15 shadow-lg ${
@@ -566,6 +658,7 @@ const CourseCard3D = ({ course, teacher, index }) => {
               )}
             </div>
 
+            {/* شارات المرحلة والصف */}
             <div className="absolute bottom-3 right-3 flex gap-1.5 z-10">
               <span className="text-[7px] sm:text-[8px] px-2 py-0.5 rounded-full bg-black/70 backdrop-blur-sm text-white/90 border border-white/10 shadow-lg">
                 {course?.grade_stage === 'primary' ? 'ابتدائي' :
@@ -579,6 +672,7 @@ const CourseCard3D = ({ course, teacher, index }) => {
               )}
             </div>
 
+            {/* أيقونة تشغيل عند Hover */}
             <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10">
               <div className="p-4 rounded-full bg-black/40 backdrop-blur-md border border-white/20 shadow-2xl group-hover:scale-110 transition-transform duration-300">
                 <Icons.Play className="h-8 w-8 text-white" />
@@ -611,6 +705,7 @@ const CourseCard3D = ({ course, teacher, index }) => {
               {course?.description || 'لا يوجد وصف'}
             </p>
 
+            {/* إحصائيات الكورس */}
             <div className="flex items-center justify-between mt-2 gap-1 flex-wrap">
               {stats.map((stat, idx) => (
                 <div key={idx} className="flex items-center gap-1 text-[8px] sm:text-[9px]">
@@ -669,7 +764,7 @@ const CourseCard3D = ({ course, teacher, index }) => {
 };
 
 // ================================================================
-// 🎠 عرض الكورسات – Carousel مع 6 طبقات وأسهم معكوسة
+// 🎠 عرض الكورسات – Carousel مع طبقات فعلية ودبابيس
 // ================================================================
 
 const CoursesCarousel3D = ({ courses, teachers, isDark, loading }) => {
@@ -801,7 +896,7 @@ const CoursesCarousel3D = ({ courses, teachers, isDark, loading }) => {
 };
 
 // ================================================================
-// 🃏 بطاقة المميزات
+// 🃏 بطاقة المميزات (بدون تغيير)
 // ================================================================
 
 const FeatureCard = ({ feature, index }) => {
@@ -860,7 +955,7 @@ const FeatureCard = ({ feature, index }) => {
 };
 
 // ================================================================
-// 🃏 بطاقة التواصل
+// 🃏 بطاقة التواصل (بدون تغيير)
 // ================================================================
 
 const SocialCard = ({ link, index }) => {
