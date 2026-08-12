@@ -78,12 +78,7 @@ export async function POST(request) {
       playlistOrder,
     } = body;
 
-    console.log('📝 POST /api/videos - Received data:', {
-      courseId,
-      title,
-      playlistId,
-      playlistOrder,
-    });
+    console.log('📥 POST /api/videos - Raw playlistId:', playlistId);
 
     // التحقق من البيانات الأساسية
     if (!courseId || !title || !videoUrl) {
@@ -113,39 +108,42 @@ export async function POST(request) {
       );
     }
 
-    // ✅ معالجة playlistId بشكل آمن
+    // ✅ معالجة playlistId بشكل آمن جداً
     let finalPlaylistId = null;
-    if (playlistId && playlistId !== 'undefined' && playlistId !== 'null' && playlistId.trim() !== '') {
-      // التحقق من صيغة UUID
+    let finalPlaylistOrder = playlistOrder !== undefined ? playlistOrder : null;
+
+    // التحقق من أن playlistId قيمة صالحة
+    if (playlistId && playlistId !== 'undefined' && playlistId !== 'null' && String(playlistId).trim() !== '') {
+      const idStr = String(playlistId).trim();
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-      if (!uuidRegex.test(playlistId)) {
-        console.warn('⚠️ Invalid playlistId format:', playlistId);
-        // لا نعيد خطأ، بل نعتبر الفيديو فردياً (نضع null)
+      
+      if (!uuidRegex.test(idStr)) {
+        console.warn('⚠️ Invalid UUID format for playlistId:', idStr);
         finalPlaylistId = null;
       } else {
-        // التحقق من وجود القائمة في قاعدة البيانات
+        // التحقق من وجود القائمة
         const { data: playlistExists, error: checkError } = await supabase
           .from('playlists')
           .select('id')
-          .eq('id', playlistId)
+          .eq('id', idStr)
           .maybeSingle();
 
         if (checkError) {
-          console.error('Error checking playlist existence:', checkError);
-        }
-
-        if (!playlistExists) {
-          console.warn('⚠️ Playlist not found:', playlistId);
-          // القائمة غير موجودة، نعتبر الفيديو فردياً
+          console.error('❌ Error checking playlist existence:', checkError);
           finalPlaylistId = null;
+        } else if (playlistExists) {
+          finalPlaylistId = idStr;
+          console.log('✅ Playlist found:', finalPlaylistId);
         } else {
-          finalPlaylistId = playlistId;
+          console.warn('⚠️ Playlist not found, setting to null');
+          finalPlaylistId = null;
         }
       }
+    } else {
+      console.log('ℹ️ No valid playlistId provided, video will be individual');
     }
 
-    // حساب الترتيب إذا كانت القائمة موجودة
-    let finalPlaylistOrder = playlistOrder !== undefined ? playlistOrder : null;
+    // إذا كانت القائمة موجودة ولم يتم تحديد ترتيب، نحسبه
     if (finalPlaylistId && (finalPlaylistOrder === null || finalPlaylistOrder === undefined)) {
       finalPlaylistOrder = await getNextPlaylistOrder(finalPlaylistId);
     }
@@ -164,7 +162,7 @@ export async function POST(request) {
       updated_at: new Date().toISOString(),
     };
 
-    console.log('📝 Inserting video with data:', videoData);
+    console.log('📝 Inserting video data:', videoData);
 
     const { data, error } = await supabase
       .from('videos')
@@ -180,7 +178,7 @@ export async function POST(request) {
       );
     }
 
-    console.log('✅ Video inserted successfully:', data.id);
+    console.log('✅ Video inserted successfully, ID:', data.id);
     return NextResponse.json({
       success: true,
       data,

@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { verifyCourseOwnership } from '@/lib/playlist-utils';
 
 // ============================================================
-// GET: جلب فيديو واحد مع بياناته (مع التحقق من الصلاحية)
+// GET: جلب فيديو واحد مع بياناته
 // ============================================================
 export async function GET(request, { params }) {
   try {
@@ -25,7 +25,6 @@ export async function GET(request, { params }) {
       );
     }
 
-    // جلب الفيديو مع بيانات الكورس المرتبط
     const { data: video, error: videoError } = await supabase
       .from('videos')
       .select(`
@@ -50,12 +49,12 @@ export async function GET(request, { params }) {
     const userId = session.user.id;
     const courseId = video.course_id;
 
-    // 1- هل هو المعلم؟
+    // 1- المعلم
     if (video.courses?.teacher_id === userId) {
       return NextResponse.json({ success: true, data: video });
     }
 
-    // 2- هل هو مساعد مع صلاحية مشاهدة؟
+    // 2- مساعد
     const { data: assistant, error: assistantError } = await supabase
       .from('assistants')
       .select('permissions')
@@ -67,7 +66,7 @@ export async function GET(request, { params }) {
       return NextResponse.json({ success: true, data: video });
     }
 
-    // 3- هل هو طالب مشترك؟
+    // 3- طالب مشترك
     const { data: enrollment, error: enrollError } = await supabase
       .from('enrollments')
       .select('id, status')
@@ -77,7 +76,6 @@ export async function GET(request, { params }) {
       .maybeSingle();
 
     if (!enrollError && enrollment) {
-      // التحقق من اشتراك نشط إذا كان الكورس مدفوعاً
       const { data: subscription, error: subError } = await supabase
         .from('course_subscriptions')
         .select('id')
@@ -90,7 +88,6 @@ export async function GET(request, { params }) {
         return NextResponse.json({ success: true, data: video });
       }
 
-      // إذا كان الكورس مجانيًا
       if (video.courses?.is_free === true) {
         return NextResponse.json({ success: true, data: video });
       }
@@ -110,7 +107,7 @@ export async function GET(request, { params }) {
 }
 
 // ============================================================
-// PUT: تحديث بيانات فيديو (للمعلم أو المساعد فقط)
+// PUT: تحديث فيديو
 // ============================================================
 export async function PUT(request, { params }) {
   try {
@@ -133,7 +130,7 @@ export async function PUT(request, { params }) {
       playlistOrder,
     } = body;
 
-    console.log('📝 PUT /api/videos/[id] - Received:', { id, playlistId, playlistOrder });
+    console.log('📥 PUT /api/videos/[id] - Raw playlistId:', playlistId);
 
     const supabase = await createClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -144,7 +141,7 @@ export async function PUT(request, { params }) {
       );
     }
 
-    // جلب الفيديو الحالي للتأكد من وجوده والحصول على course_id
+    // جلب الفيديو الحالي
     const { data: existingVideo, error: fetchError } = await supabase
       .from('videos')
       .select('id, course_id')
@@ -180,32 +177,45 @@ export async function PUT(request, { params }) {
     // ✅ معالجة playlistId بشكل آمن
     let finalPlaylistId = null;
     if (playlistId !== undefined) {
-      if (playlistId && playlistId !== 'undefined' && playlistId !== 'null' && playlistId.trim() !== '') {
+      // إذا كانت playlistId تساوي null أو undefined أو غير صالحة
+      if (playlistId && playlistId !== 'undefined' && playlistId !== 'null' && String(playlistId).trim() !== '') {
+        const idStr = String(playlistId).trim();
         const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-        if (uuidRegex.test(playlistId)) {
-          const { data: playlistExists } = await supabase
+        
+        if (!uuidRegex.test(idStr)) {
+          console.warn('⚠️ Invalid UUID format for playlistId in PUT:', idStr);
+          finalPlaylistId = null;
+        } else {
+          // التحقق من وجود القائمة
+          const { data: playlistExists, error: checkError } = await supabase
             .from('playlists')
             .select('id')
-            .eq('id', playlistId)
+            .eq('id', idStr)
             .maybeSingle();
 
-          if (playlistExists) {
-            finalPlaylistId = playlistId;
+          if (checkError) {
+            console.error('❌ Error checking playlist existence in PUT:', checkError);
+            finalPlaylistId = null;
+          } else if (playlistExists) {
+            finalPlaylistId = idStr;
+            console.log('✅ Playlist found in PUT:', finalPlaylistId);
           } else {
-            console.warn('⚠️ Playlist not found, setting to null');
+            console.warn('⚠️ Playlist not found in PUT, setting to null');
+            finalPlaylistId = null;
           }
-        } else {
-          console.warn('⚠️ Invalid playlistId format, setting to null');
         }
       }
-      // إذا كانت playlistId تساوي null أو undefined، سيبقى null
+      
+      // تحديث playlist_id
       updateData.playlist_id = finalPlaylistId;
-      // إذا تم إزالة الفيديو من القائمة (finalPlaylistId = null)، نمسح الترتيب أيضاً
+      
+      // إذا تم إزالة الفيديو من القائمة، امسح الترتيب
       if (finalPlaylistId === null) {
         updateData.playlist_order = null;
       }
     }
 
+    // إذا تم تحديد playlistOrder وكانت القائمة موجودة
     if (playlistOrder !== undefined && finalPlaylistId !== null) {
       updateData.playlist_order = playlistOrder !== null ? playlistOrder : null;
     }
@@ -242,7 +252,7 @@ export async function PUT(request, { params }) {
 }
 
 // ============================================================
-// DELETE: حذف فيديو (للمعلم أو المساعد فقط)
+// DELETE: حذف فيديو
 // ============================================================
 export async function DELETE(request, { params }) {
   try {
