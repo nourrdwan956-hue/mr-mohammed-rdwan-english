@@ -1,11 +1,11 @@
 // app/page.js
 // ================================================================
 // 🏛️ الصفحة الرئيسية – منصة مستر محمد رضوان
-// ✅ تأثير طبقات متعددة أسفل البطاقة (3D Layers)
-// ✅ إطار متحرك أخضر فاتح عند Hover
-// ✅ أسهم تنقل معكوسة (يمين → التالي، يسار → السابق)
-// ✅ توقيع المبرمج بتأثير تدرج فريد
-// ✅ الحفاظ على نسبة الصورة 16:9
+// ✅ 6 طبقات متكررة من نفس الكورس (نسخ متراكبة)
+// ✅ إطار أخضر فاتح جداً عند Hover (opacity منخفض)
+// ✅ أسهم معكوسة (يمين → التالي، يسار → السابق)
+// ✅ توقيع المبرمج بتأثير فريد
+// ✅ نسبة الصورة 16:9
 // ================================================================
 
 'use client';
@@ -378,7 +378,7 @@ const ScrollToTopButton = ({ show, onClick }) => (
 );
 
 // ================================================================
-// 🃏 بطاقة الكورس – مع الطبقات المتعددة والإطار الأخضر
+// 🃏 بطاقة الكورس – مع 6 طبقات متكررة وإطار أخضر فاتح
 // ================================================================
 
 const CourseCard3D = ({ course, teacher, index }) => {
@@ -400,9 +400,8 @@ const CourseCard3D = ({ course, teacher, index }) => {
     const rotateX = ((y - centerY) / centerY) * -8;
     const rotateY = ((x - centerX) / centerX) * 8;
     setRotation({ x: rotateX, y: rotateY });
-    // حركة الطبقات حسب اتجاه الماوس
-    const offsetX = ((x - centerX) / centerX) * 10;
-    const offsetY = ((y - centerY) / centerY) * 10;
+    const offsetX = ((x - centerX) / centerX) * 12;
+    const offsetY = ((y - centerY) / centerY) * 12;
     setLayerOffset({ x: offsetX, y: offsetY });
   };
 
@@ -412,7 +411,6 @@ const CourseCard3D = ({ course, teacher, index }) => {
     setIsHovered(false);
   };
 
-  // إحصائيات الكورس
   const stats = [
     { label: 'فيديوهات', count: course.videos_count || 0, icon: Icons.Video, color: 'text-blue-400' },
     { label: 'امتحانات', count: course.exams_count || 0, icon: Icons.FileText, color: 'text-purple-400' },
@@ -421,10 +419,8 @@ const CourseCard3D = ({ course, teacher, index }) => {
 
   const totalItems = stats.reduce((sum, s) => sum + s.count, 0);
 
-  // تعريف الطبقات الخلفية – 5 طبقات بألوان متدرجة وحواف واضحة
-  const layerColors = isDark
-    ? ['#1a2332', '#243447', '#2f405a', '#3a5470', '#456a85']
-    : ['#e8ecf0', '#d5dbe3', '#c2cad6', '#afb9c9', '#9ca8bb'];
+  // ✅ 6 طبقات متكررة من نفس البطاقة (نسخ متراكبة)
+  const LAYER_COUNT = 6;
 
   return (
     <motion.div
@@ -451,7 +447,7 @@ const CourseCard3D = ({ course, teacher, index }) => {
           transformStyle: 'preserve-3d',
         }}
       >
-        {/* الطبقات الخلفية المتعددة – تظهر كبطاقات متراكبة بأطراف واضحة */}
+        {/* ===== الطبقات المتكررة (6 نسخ متراكبة) ===== */}
         <div
           className="absolute inset-0 -z-10"
           style={{
@@ -459,21 +455,25 @@ const CourseCard3D = ({ course, teacher, index }) => {
             transformStyle: 'preserve-3d',
           }}
         >
-          {layerColors.map((color, idx) => {
-            const depth = (idx + 1) * 14;
+          {Array.from({ length: LAYER_COUNT }).map((_, idx) => {
+            const depth = (idx + 1) * 18;
             const scale = 1 - (idx + 1) * 0.025;
-            const opacity = 0.6 - idx * 0.08;
+            const opacity = 0.5 - idx * 0.07;
+
             return (
               <motion.div
                 key={idx}
                 className="absolute rounded-2xl border border-white/20"
                 style={{
-                  backgroundColor: color,
+                  backgroundColor: isDark
+                    ? `rgba(26, 35, 50, ${0.4 + idx * 0.05})`
+                    : `rgba(232, 236, 240, ${0.4 + idx * 0.05})`,
                   width: '100%',
                   height: '100%',
-                  transform: `translateZ(${-depth}px) scale(${scale}) translateX(${layerOffset.x * (idx+1) * 0.6}px) translateY(${layerOffset.y * (idx+1) * 0.6}px)`,
+                  transform: `translateZ(${-depth}px) scale(${scale}) translateX(${layerOffset.x * (idx + 1) * 0.7}px) translateY(${layerOffset.y * (idx + 1) * 0.7}px)`,
                   opacity: opacity,
-                  boxShadow: `0 8px 30px rgba(0,0,0,0.15)`,
+                  boxShadow: `0 8px 30px rgba(0,0,0,0.12)`,
+                  backdropFilter: 'blur(2px)',
                 }}
                 animate={{
                   scale: isHovered ? scale * 1.02 : scale,
@@ -485,11 +485,11 @@ const CourseCard3D = ({ course, teacher, index }) => {
           })}
         </div>
 
-        {/* الإطار المتحرك – أخضر فاتح عند Hover */}
+        {/* ===== الإطار المتحرك – أخضر فاتح جداً ===== */}
         <div className="absolute inset-[-3px] rounded-2xl overflow-hidden pointer-events-none">
           <div className="absolute inset-0 rounded-2xl p-[3px]">
             <div
-              className={`absolute inset-0 rounded-2xl bg-gradient-to-r from-transparent via-green-400/70 to-transparent transition-opacity duration-300 ${
+              className={`absolute inset-0 rounded-2xl bg-gradient-to-r from-transparent via-green-300/30 to-transparent transition-opacity duration-300 ${
                 isHovered ? 'opacity-100' : 'opacity-0'
               }`}
               style={{
@@ -500,7 +500,7 @@ const CourseCard3D = ({ course, teacher, index }) => {
           </div>
         </div>
 
-        {/* البطاقة الأمامية */}
+        {/* ===== البطاقة الأمامية (الظاهرة) ===== */}
         <motion.div
           className={`relative rounded-2xl overflow-hidden transition-all duration-500 ${
             isDark
@@ -547,7 +547,7 @@ const CourseCard3D = ({ course, teacher, index }) => {
               </div>
             )}
 
-            {/* شارات السعر والحالة */}
+            {/* شارات */}
             <div className="absolute top-3 right-3 flex flex-col gap-1.5 z-10">
               <motion.span
                 className={`text-[8px] sm:text-[9px] px-2.5 py-0.5 rounded-full font-bold backdrop-blur-lg border border-white/15 shadow-lg ${
@@ -566,7 +566,6 @@ const CourseCard3D = ({ course, teacher, index }) => {
               )}
             </div>
 
-            {/* شارات المرحلة والصف */}
             <div className="absolute bottom-3 right-3 flex gap-1.5 z-10">
               <span className="text-[7px] sm:text-[8px] px-2 py-0.5 rounded-full bg-black/70 backdrop-blur-sm text-white/90 border border-white/10 shadow-lg">
                 {course?.grade_stage === 'primary' ? 'ابتدائي' :
@@ -580,7 +579,6 @@ const CourseCard3D = ({ course, teacher, index }) => {
               )}
             </div>
 
-            {/* أيقونة تشغيل عند Hover */}
             <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10">
               <div className="p-4 rounded-full bg-black/40 backdrop-blur-md border border-white/20 shadow-2xl group-hover:scale-110 transition-transform duration-300">
                 <Icons.Play className="h-8 w-8 text-white" />
@@ -613,7 +611,6 @@ const CourseCard3D = ({ course, teacher, index }) => {
               {course?.description || 'لا يوجد وصف'}
             </p>
 
-            {/* إحصائيات الكورس */}
             <div className="flex items-center justify-between mt-2 gap-1 flex-wrap">
               {stats.map((stat, idx) => (
                 <div key={idx} className="flex items-center gap-1 text-[8px] sm:text-[9px]">
@@ -672,7 +669,7 @@ const CourseCard3D = ({ course, teacher, index }) => {
 };
 
 // ================================================================
-// 🎠 عرض الكورسات – Carousel مع طبقات 3D وأسهم معكوسة
+// 🎠 عرض الكورسات – Carousel مع 6 طبقات وأسهم معكوسة
 // ================================================================
 
 const CoursesCarousel3D = ({ courses, teachers, isDark, loading }) => {
@@ -716,7 +713,6 @@ const CoursesCarousel3D = ({ courses, teachers, isDark, loading }) => {
 
   const visibleCourses = courses.slice(0, 8);
 
-  // ✅ دوال التنقل المعكوسة: الزر الأيمن يتحرك للأمام (يمين)، والأيسر للخلف (يسار)
   const scrollForward = () => {
     if (containerRef.current) {
       containerRef.current.scrollBy({ left: cardWidth + 20, behavior: 'smooth' });
@@ -754,10 +750,8 @@ const CoursesCarousel3D = ({ courses, teachers, isDark, loading }) => {
         ))}
       </div>
 
-      {/* أسهم التنقل – معكوسة: الأيمن → التالي، الأيسر → السابق */}
       {visibleCourses.length > 3 && (
         <div className="flex justify-center gap-4 mt-6">
-          {/* زر السابق – يشير لليسار (ChevronLeft) */}
           <motion.button
             onClick={scrollBackward}
             whileHover={{ scale: 1.12 }}
@@ -769,8 +763,6 @@ const CoursesCarousel3D = ({ courses, teachers, isDark, loading }) => {
           >
             <Icons.ChevronLeft className="h-6 w-6 text-blue-400" />
           </motion.button>
-
-          {/* زر التالي – يشير لليمين (ChevronRight) */}
           <motion.button
             onClick={scrollForward}
             whileHover={{ scale: 1.12 }}
@@ -961,7 +953,6 @@ const SocialCard = ({ link, index }) => {
 // 📐 أقسام الصفحة الرئيسية
 // ================================================================
 
-// ----- الهيرو -----
 const HeroSection = ({ isDark }) => {
   const { scrollY } = useScroll();
   const y = useTransform(scrollY, [0, 500], [0, 30]);
@@ -1110,7 +1101,6 @@ const HeroSection = ({ isDark }) => {
   );
 };
 
-// ----- الكورسات -----
 const CoursesSection = ({ isDark, courses, teachers, loading }) => {
   return (
     <section id="courses" className={`py-6 sm:py-8 px-3 sm:px-4 ${isDark ? 'bg-[#0a0e1a]' : 'bg-white'}`}>
@@ -1141,7 +1131,6 @@ const CoursesSection = ({ isDark, courses, teachers, loading }) => {
   );
 };
 
-// ----- المميزات -----
 const FeaturesSection = ({ isDark }) => {
   return (
     <section id="features" className={`py-4 sm:py-6 md:py-8 px-3 sm:px-4 ${isDark ? 'bg-[#0a0e1a]/60' : 'bg-white'}`}>
@@ -1171,7 +1160,6 @@ const FeaturesSection = ({ isDark }) => {
   );
 };
 
-// ----- العداد التنازلي -----
 const CountdownSection = ({ isDark }) => {
   return (
     <section id="countdown" className={`py-4 sm:py-6 md:py-8 px-3 sm:px-4 ${isDark ? 'bg-[#0a0e1a]/60' : 'bg-white'}`}>
@@ -1182,7 +1170,6 @@ const CountdownSection = ({ isDark }) => {
   );
 };
 
-// ----- قسم التواصل -----
 const ContactSection = ({ isDark }) => {
   const sortedLinks = useMemo(() => {
     const primary = SOCIAL_LINKS.find(l => l.isPrimary);
@@ -1248,7 +1235,6 @@ const ContactSection = ({ isDark }) => {
   );
 };
 
-// ----- الفوتر مع توقيع المبرمج الفريد -----
 const FooterSection = ({ isDark }) => {
   return (
     <footer className={`${isDark ? 'bg-[#030812]/90 border-white/5' : 'bg-white/90 border-gray-200/40'} border-t py-3 sm:py-4 px-3 sm:px-4 backdrop-blur`}>
@@ -1298,7 +1284,7 @@ const FooterSection = ({ isDark }) => {
           </Link>
         </div>
 
-        {/* توقيع المبرمج – تصميم فريد ومتألق */}
+        {/* توقيع المبرمج – تصميم فريد */}
         <div className={`border-t ${isDark ? 'border-white/5' : 'border-gray-200/40'} mt-2 pt-2`}>
           <motion.div
             initial={{ opacity: 0.8 }}
