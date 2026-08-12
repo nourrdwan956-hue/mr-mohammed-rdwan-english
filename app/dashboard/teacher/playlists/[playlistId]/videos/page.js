@@ -107,8 +107,8 @@ const VideoItem = ({ video, index, total, onMoveUp, onMoveDown, onRemove, isDark
 
 export default function TeacherPlaylistVideosPage() {
   const params = useParams();
+  const playlistId = params?.playlistId; // ✅ استخراج المعرف
   const router = useRouter();
-  const playlistId = params.playlistId;
   const { theme } = useTheme();
   const isDark = theme === 'dark';
 
@@ -123,7 +123,7 @@ export default function TeacherPlaylistVideosPage() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   // بيانات النماذج
-  const [availableVideos, setAvailableVideos] = useState([]); // فيديوهات الكورس غير المرتبطة بقوائم
+  const [availableVideos, setAvailableVideos] = useState([]);
   const [selectedVideoId, setSelectedVideoId] = useState('');
   const [newVideoTitle, setNewVideoTitle] = useState('');
   const [newVideoDescription, setNewVideoDescription] = useState('');
@@ -135,11 +135,15 @@ export default function TeacherPlaylistVideosPage() {
 
   // جلب بيانات القائمة وفيديوهاتها
   const fetchPlaylistData = useCallback(async () => {
-    if (!playlistId) return;
+    if (!playlistId) {
+      setLoading(false);
+      setError('معرف القائمة غير موجود');
+      return;
+    }
+
     setLoading(true);
     setError(null);
     try {
-      // جلب القائمة مع فيديوهاتها
       const res = await fetch(`/api/playlists/${playlistId}`);
       const data = await res.json();
       if (!res.ok || !data.success) {
@@ -177,9 +181,13 @@ export default function TeacherPlaylistVideosPage() {
 
   // تحميل البيانات الأولية
   useEffect(() => {
-    if (!fetchedRef.current && playlistId) {
+    if (playlistId && !fetchedRef.current) {
       fetchedRef.current = true;
       fetchPlaylistData();
+    }
+    if (!playlistId) {
+      setLoading(false);
+      setError('معرف القائمة غير موجود');
     }
   }, [playlistId, fetchPlaylistData]);
 
@@ -195,12 +203,10 @@ export default function TeacherPlaylistVideosPage() {
     const newIndex = direction === 'up' ? index - 1 : index + 1;
     if (newIndex < 0 || newIndex >= videos.length) return;
 
-    // نسخ المصفوفة وتبديل العناصر
     const updated = [...videos];
     const [moved] = updated.splice(index, 1);
     updated.splice(newIndex, 0, moved);
 
-    // تحديث playlist_order لكل فيديو في القائمة
     try {
       for (let i = 0; i < updated.length; i++) {
         const video = updated[i];
@@ -214,7 +220,7 @@ export default function TeacherPlaylistVideosPage() {
       toast.success('تم تحديث ترتيب الفيديوهات');
     } catch (err) {
       toast.error('فشل في تحديث الترتيب');
-      fetchPlaylistData(); // إعادة جلب لتصحيح الحالة
+      fetchPlaylistData();
     }
   };
 
@@ -234,9 +240,7 @@ export default function TeacherPlaylistVideosPage() {
         throw new Error(data.error || 'فشل في إزالة الفيديو');
       }
       toast.success('تم إزالة الفيديو من القائمة');
-      // تحديث القائمة المحلية
       setVideos((prev) => prev.filter((v) => v.id !== videoId));
-      // تحديث قائمة الفيديوهات المتاحة
       fetchAvailableVideos();
     } catch (err) {
       toast.error(err.message);
@@ -252,9 +256,7 @@ export default function TeacherPlaylistVideosPage() {
     }
 
     try {
-      // الحصول على الترتيب التالي
       const nextOrder = videos.length;
-
       const res = await fetch(`/api/videos/${selectedVideoId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -270,7 +272,6 @@ export default function TeacherPlaylistVideosPage() {
       toast.success('تم إضافة الفيديو إلى القائمة');
       setSelectedVideoId('');
       setIsAddModalOpen(false);
-      // تحديث القائمة
       fetchPlaylistData();
       fetchAvailableVideos();
     } catch (err) {
@@ -298,7 +299,7 @@ export default function TeacherPlaylistVideosPage() {
           displayMode: newVideoDisplayMode,
           duration: 0,
           playlistId: playlistId,
-          playlistOrder: videos.length, // يضاف في النهاية
+          playlistOrder: videos.length,
         }),
       });
       const data = await res.json();
@@ -320,7 +321,11 @@ export default function TeacherPlaylistVideosPage() {
 
   // العودة إلى صفحة القوائم
   const goBack = () => {
-    router.push(`/dashboard/teacher/courses/${playlist?.course_id}/playlists`);
+    if (playlist?.course_id) {
+      router.push(`/dashboard/teacher/courses/${playlist.course_id}/playlists`);
+    } else {
+      router.push('/dashboard/teacher/courses');
+    }
   };
 
   // تنسيق الألوان حسب الثيم
@@ -330,6 +335,27 @@ export default function TeacherPlaylistVideosPage() {
   const borderColor = isDark ? 'border-gray-700' : 'border-gray-200';
   const inputBg = isDark ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300';
   const labelColor = isDark ? 'text-gray-300' : 'text-gray-700';
+
+  // ✅ إذا كان playlistId غير موجود، نعرض رسالة خطأ
+  if (!playlistId) {
+    return (
+      <div className={`min-h-screen ${bg} ${text} p-6 flex items-center justify-center`}>
+        <div className="text-center">
+          <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold mb-2">معرف القائمة غير موجود</h2>
+          <p className="text-gray-500 dark:text-gray-400 mb-4">
+            تأكد من أن الرابط صحيح، أو عد إلى قائمة القوائم.
+          </p>
+          <button
+            onClick={() => router.push('/dashboard/teacher/courses')}
+            className="px-4 py-2 bg-amber-500 text-white rounded-lg shadow hover:bg-amber-600 transition"
+          >
+            العودة إلى الكورسات
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
