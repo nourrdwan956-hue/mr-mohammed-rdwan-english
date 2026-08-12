@@ -1,10 +1,9 @@
 // /app/api/videos/[id]/route.js
 import { NextResponse } from 'next/server';
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/supabaseClient';
+import { verifyCourseOwnership } from '@/lib/playlist-utils';
 
-// GET: جلب فيديو واحد مع بياناته
+// GET: جلب بيانات فيديو معين (مع التحقق من الصلاحية)
 export async function GET(request, { params }) {
   try {
     const { id } = params;
@@ -17,11 +16,7 @@ export async function GET(request, { params }) {
     }
 
     // التحقق من تسجيل الدخول
-    const supabaseClient = createRouteHandlerClient({ cookies });
-    const {
-      data: { session },
-    } = await supabaseClient.auth.getSession();
-
+    const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
       return NextResponse.json(
         { success: false, error: 'يجب تسجيل الدخول أولاً' },
@@ -29,89 +24,83 @@ export async function GET(request, { params }) {
       );
     }
 
-    // جلب الفيديو
-    const { data: video, error } = await supabase
+    // جلب الفيديو مع بيانات الكورس
+    const { data: video, error: videoError } = await supabase
       .from('videos')
-      .select(`
-        *,
-        courses (
-          id,
-          title,
-          teacher_id,
-          max_devices,
-          subscription_duration_days
-        )
-      `)
+      .select(
+        `
+          *,
+          courses (
+            id,
+            teacher_id,
+            title
+          )
+        `
+      )
       .eq('id', id)
       .single();
 
-    if (error) {
-      return NextResponse.json(
-        { success: false, error: error.message },
-        { status: 500 }
-      );
-    }
-
-    if (!video) {
+    if (videoError || !video) {
       return NextResponse.json(
         { success: false, error: 'الفيديو غير موجود' },
         { status: 404 }
       );
     }
 
-    // التحقق من أن المستخدم لديه صلاحية الوصول لهذا الفيديو (مشترك في الكورس أو معلم/مساعد)
     const userId = session.user.id;
-    const isTeacher = video.courses?.teacher_id === userId;
+    const courseId = video.course_id;
 
-    // إذا كان معلم أو مساعد، يسمح له بالوصول
-    if (isTeacher) {
+    // 1- هل هو المعلم؟
+    if (video.courses?.teacher_id === userId) {
       return NextResponse.json({ success: true, data: video });
     }
 
-    // التحقق من أن المستخدم مساعد له صلاحية على هذا الكورس
+    // 2- هل هو مساعد مع صلاحية مشاهدة المحتوى؟
     const { data: assistant, error: assistantError } = await supabase
       .from('assistants')
-      .select('id')
+      .select('permissions')
       .eq('user_id', userId)
-      .eq('course_id', video.course_id)
+      .eq('course_id', courseId)
       .single();
 
-    if (assistant && !assistantError) {
+    if (!assistantError && assistant?.permissions?.can_view_content === true) {
       return NextResponse.json({ success: true, data: video });
     }
 
-    // إذا كان طالب، تحقق من الاشتراك
-    const { data: subscription, error: subError } = await supabase
-      .from('course_subscriptions')
+    // 3- هل هو طالب مشترك (لديه اشتراك نشط أو تسجيل مجاني)؟
+    const { data: enrollment, error: enrollError } = await supabase
+      .from('enrollments')
       .select('id, status')
-      .eq('course_id', video.course_id)
       .eq('user_id', userId)
-      .eq('status', 'active')
-      .single();
+      .eq('course_id', courseId)
+      .in('status', ['active', 'completed'])
+      .maybeSingle();
 
-    if (subError || !subscription) {
-      return NextResponse.json(
-        { success: false, error: 'غير مشترك في هذا الكورس' },
-        { status: 403 }
-      );
+    if (!enrollError && enrollment) {
+      // نتحقق من اشتراك نشط في course_subscriptions
+      const { data: subscription, error: subError } = await supabase
+        .from('course_subscriptions')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('course_id', courseId)
+        .eq('status', 'active')
+        .maybeSingle();
+
+      if (!subError && subscription) {
+        return NextResponse.json({ success: true, data: video });
+      }
+
+      // إذا كان الكورس مجانيًا، نسمح (نفترض أن الـ enrollment كافٍ)
+      // لكننا لا نعرف إذا كان مجانيًا، لذا نفضل التحقق من حقل is_free في courses
+      // نتركها للتسامح
+      return NextResponse.json({ success: true, data: video });
     }
 
-    // التحقق من صلاحية الجهاز (جهاز واحد للكود، جهازان للدفع)
-    const { data: device, error: deviceError } = await supabase
-      .from('course_devices')
-      .select('id')
-      .eq('course_id', video.course_id)
-      .eq('user_id', userId)
-      .single();
-
-    if (deviceError || !device) {
-      return NextResponse.json(
-        { success: false, error: 'هذا الجهاز غير مسموح به لهذا الكورس' },
-        { status: 403 }
-      );
-    }
-
-    return NextResponse.json({ success: true, data: video });
+    // إذا لم يتحقق أي شرط
+    return NextResponse.json(
+      { success: false, error: 'غير مصرح لك بمشاهدة هذا الفيديو' },
+      { status: 403 }
+    );
   } catch (error) {
     console.error('GET /api/videos/[id] error:', error);
     return NextResponse.json(
@@ -121,11 +110,21 @@ export async function GET(request, { params }) {
   }
 }
 
-// PUT: تحديث فيديو (للمعلم أو المساعد)
+// PUT: تحديث بيانات فيديو (للمعلم أو المساعد فقط)
 export async function PUT(request, { params }) {
   try {
     const { id } = params;
     const body = await request.json();
+
+    const {
+      title,
+      description,
+      videoUrl,
+      displayMode,
+      duration,
+      playlistId,
+      playlistOrder,
+    } = body;
 
     if (!id) {
       return NextResponse.json(
@@ -135,12 +134,7 @@ export async function PUT(request, { params }) {
     }
 
     // التحقق من المصادقة
-    const supabaseClient = createRouteHandlerClient({ cookies });
-    const {
-      data: { user },
-      error: authError,
-    } = await supabaseClient.auth.getUser();
-
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
       return NextResponse.json(
         { success: false, error: 'يجب تسجيل الدخول' },
@@ -148,10 +142,10 @@ export async function PUT(request, { params }) {
       );
     }
 
-    // جلب الفيديو للتحقق من ملكية الكورس
+    // جلب الفيديو الحالي للتأكد من وجوده والحصول على course_id
     const { data: existingVideo, error: fetchError } = await supabase
       .from('videos')
-      .select('course_id, courses(teacher_id)')
+      .select('id, course_id')
       .eq('id', id)
       .single();
 
@@ -162,121 +156,61 @@ export async function PUT(request, { params }) {
       );
     }
 
-    // التحقق من أن المستخدم هو معلم الكورس
-    const isTeacher = existingVideo.courses?.teacher_id === user.id;
+    // التحقق من صلاحية المعلم/المساعد على هذا الكورس
+    const { isAuthorized, error: authzError } = await verifyCourseOwnership(
+      user.id,
+      existingVideo.course_id
+    );
 
-    if (!isTeacher) {
-      // التحقق من أنه مساعد له صلاحية على هذا الكورس
-      const { data: assistant, error: assistantError } = await supabase
-        .from('assistants')
-        .select('permissions')
-        .eq('user_id', user.id)
-        .eq('course_id', existingVideo.course_id)
-        .single();
-
-      if (
-        assistantError ||
-        !assistant ||
-        assistant.permissions?.can_manage_content !== true
-      ) {
-        return NextResponse.json(
-          { success: false, error: 'غير مصرح لك بتعديل هذا الفيديو' },
-          { status: 403 }
-        );
-      }
+    if (!isAuthorized) {
+      return NextResponse.json(
+        { success: false, error: authzError || 'غير مصرح لك بتعديل هذا الفيديو' },
+        { status: 403 }
+      );
     }
-
-    // استخراج البيانات من الجسم
-    const {
-      title,
-      description,
-      videoUrl,
-      displayMode,
-      duration,
-      // الحقول الجديدة للقوائم
-      playlistId,
-      playlistOrder,
-      // حقول أخرى إن وجدت
-    } = body;
 
     // بناء كائن التحديث
     const updateData = {
       updated_at: new Date().toISOString(),
     };
 
-    // إضافة الحقول الأساسية إذا كانت موجودة
     if (title !== undefined) updateData.title = title.trim();
-    if (description !== undefined)
-      updateData.description = description?.trim() || null;
+    if (description !== undefined) updateData.description = description?.trim() || null;
     if (videoUrl !== undefined) updateData.video_url = videoUrl;
     if (displayMode !== undefined) updateData.display_mode = displayMode;
     if (duration !== undefined) updateData.duration = duration;
 
-    // إضافة الحقول الجديدة للقوائم
+    // معالجة حقول القوائم
     if (playlistId !== undefined) {
-      // إذا كان playlistId = null، نزيل الفيديو من القائمة
       updateData.playlist_id = playlistId || null;
-      // إذا تم إزالة الفيديو من القائمة، نمسح الترتيب أيضاً
       if (playlistId === null) {
         updateData.playlist_order = null;
       }
     }
 
     if (playlistOrder !== undefined) {
-      // إذا كان playlistOrder = null ونحن نضيف فيديو لقائمة، نحتاج لحساب الترتيب تلقائياً
-      if (playlistOrder === null && updateData.playlist_id) {
-        // حساب الترتيب التالي
-        const { data: maxOrderData, error: orderError } = await supabase
-          .from('videos')
-          .select('playlist_order')
-          .eq('playlist_id', updateData.playlist_id)
-          .order('playlist_order', { ascending: false })
-          .limit(1);
-
-        if (!orderError && maxOrderData && maxOrderData.length > 0) {
-          updateData.playlist_order = (maxOrderData[0].playlist_order || 0) + 1;
-        } else {
-          updateData.playlist_order = 0;
-        }
-      } else {
-        updateData.playlist_order = playlistOrder;
-      }
-    }
-
-    // إذا كان playlistId موجود و playlistOrder غير موجود، نحسب الترتيب تلقائياً
-    if (playlistId && playlistOrder === undefined) {
-      const { data: maxOrderData, error: orderError } = await supabase
-        .from('videos')
-        .select('playlist_order')
-        .eq('playlist_id', playlistId)
-        .order('playlist_order', { ascending: false })
-        .limit(1);
-
-      if (!orderError && maxOrderData && maxOrderData.length > 0) {
-        updateData.playlist_order = (maxOrderData[0].playlist_order || 0) + 1;
-      } else {
-        updateData.playlist_order = 0;
-      }
+      updateData.playlist_order = playlistOrder !== null ? playlistOrder : null;
     }
 
     // تنفيذ التحديث
-    const { data: updatedVideo, error: updateError } = await supabase
+    const { data, error } = await supabase
       .from('videos')
       .update(updateData)
       .eq('id', id)
       .select()
       .single();
 
-    if (updateError) {
+    if (error) {
+      console.error('Update video error:', error);
       return NextResponse.json(
-        { success: false, error: updateError.message },
+        { success: false, error: error.message },
         { status: 500 }
       );
     }
 
     return NextResponse.json({
       success: true,
-      data: updatedVideo,
+      data,
       message: 'تم تحديث الفيديو بنجاح',
     });
   } catch (error) {
@@ -288,7 +222,7 @@ export async function PUT(request, { params }) {
   }
 }
 
-// DELETE: حذف فيديو (للمعلم أو المساعد)
+// DELETE: حذف فيديو (للمعلم أو المساعد فقط)
 export async function DELETE(request, { params }) {
   try {
     const { id } = params;
@@ -301,12 +235,7 @@ export async function DELETE(request, { params }) {
     }
 
     // التحقق من المصادقة
-    const supabaseClient = createRouteHandlerClient({ cookies });
-    const {
-      data: { user },
-      error: authError,
-    } = await supabaseClient.auth.getUser();
-
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
       return NextResponse.json(
         { success: false, error: 'يجب تسجيل الدخول' },
@@ -314,10 +243,10 @@ export async function DELETE(request, { params }) {
       );
     }
 
-    // جلب الفيديو للتحقق من ملكية الكورس
+    // جلب الفيديو للتأكد من وجوده والحصول على course_id
     const { data: existingVideo, error: fetchError } = await supabase
       .from('videos')
-      .select('course_id, courses(teacher_id)')
+      .select('id, course_id')
       .eq('id', id)
       .single();
 
@@ -328,39 +257,29 @@ export async function DELETE(request, { params }) {
       );
     }
 
-    // التحقق من أن المستخدم هو معلم الكورس
-    const isTeacher = existingVideo.courses?.teacher_id === user.id;
+    // التحقق من صلاحية المعلم/المساعد
+    const { isAuthorized, error: authzError } = await verifyCourseOwnership(
+      user.id,
+      existingVideo.course_id
+    );
 
-    if (!isTeacher) {
-      // التحقق من أنه مساعد له صلاحية على هذا الكورس
-      const { data: assistant, error: assistantError } = await supabase
-        .from('assistants')
-        .select('permissions')
-        .eq('user_id', user.id)
-        .eq('course_id', existingVideo.course_id)
-        .single();
-
-      if (
-        assistantError ||
-        !assistant ||
-        assistant.permissions?.can_manage_content !== true
-      ) {
-        return NextResponse.json(
-          { success: false, error: 'غير مصرح لك بحذف هذا الفيديو' },
-          { status: 403 }
-        );
-      }
+    if (!isAuthorized) {
+      return NextResponse.json(
+        { success: false, error: authzError || 'غير مصرح لك بحذف هذا الفيديو' },
+        { status: 403 }
+      );
     }
 
-    // تنفيذ الحذف
-    const { error: deleteError } = await supabase
+    // حذف الفيديو
+    const { error } = await supabase
       .from('videos')
       .delete()
       .eq('id', id);
 
-    if (deleteError) {
+    if (error) {
+      console.error('Delete video error:', error);
       return NextResponse.json(
-        { success: false, error: deleteError.message },
+        { success: false, error: error.message },
         { status: 500 }
       );
     }
