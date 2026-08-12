@@ -1,11 +1,11 @@
 // app/page.js
 // ================================================================
-// 🏛️ الصفحة الرئيسية – نسخة 3D بطبقات متعددة
-// ✅ تأثير طبقات خلفية متدرجة تعطي عمقاً للبطاقات
-// ✅ الحفاظ على نسبة الصورة 16:9 (أفقي عريض)
-// ✅ توقيع المبرمج بأناقة بدون تكبير الخط
-// ✅ أسهم تنقل حقيقية مع تأثيرات
-// ✅ جميع الوظائف الأخرى محفوظة
+// 🏛️ الصفحة الرئيسية – منصة مستر محمد رضوان
+// ✅ تأثير طبقات متعددة أسفل البطاقة (3D Layers)
+// ✅ إطار متحرك أخضر فاتح عند Hover
+// ✅ أسهم تنقل معكوسة (يمين → التالي، يسار → السابق)
+// ✅ توقيع المبرمج بتأثير تدرج فريد
+// ✅ الحفاظ على نسبة الصورة 16:9
 // ================================================================
 
 'use client';
@@ -19,7 +19,7 @@ import { useTheme } from '@/lib/hooks/useTheme';
 import { supabase } from '@/lib/supabaseClient';
 
 // ================================================================
-// 📌 مميزات المنصة (بدون تغيير)
+// 📌 مميزات المنصة
 // ================================================================
 
 const PLATFORM_FEATURES = [
@@ -68,7 +68,7 @@ const PLATFORM_FEATURES = [
 ];
 
 // ================================================================
-// 🎁 العرض الترويجي الخاص – لأوائل الطلاب (بدون تغيير)
+// 🎁 العرض الترويجي الخاص – لأوائل الطلاب
 // ================================================================
 
 const PROMO_TOP_STUDENTS = {
@@ -81,7 +81,7 @@ const PROMO_TOP_STUDENTS = {
 };
 
 // ================================================================
-// 🌐 روابط التواصل الاجتماعي (بدون تغيير)
+// 🌐 روابط التواصل الاجتماعي
 // ================================================================
 
 const SOCIAL_LINKS = [
@@ -139,7 +139,7 @@ const SOCIAL_LINKS = [
 ];
 
 // ================================================================
-// ⏳ العداد التنازلي (بدون تغيير)
+// ⏳ العداد التنازلي
 // ================================================================
 
 const CountdownTimer = ({ isDark }) => {
@@ -243,7 +243,7 @@ const CountdownTimer = ({ isDark }) => {
 };
 
 // ================================================================
-// 🎨 خلفية متطورة (بدون تغيير)
+// 🎨 خلفية متطورة
 // ================================================================
 
 const ElegantBackground = ({ isDark }) => {
@@ -319,7 +319,7 @@ const ElegantBackground = ({ isDark }) => {
 };
 
 // ================================================================
-// 🧭 مؤشر التمرير (بدون تغيير)
+// 🧭 مؤشر التمرير
 // ================================================================
 
 const ScrollIndicator = ({ targetId }) => {
@@ -356,7 +356,7 @@ const ScrollIndicator = ({ targetId }) => {
 };
 
 // ================================================================
-// ⬆️ زر العودة للأعلى (بدون تغيير)
+// ⬆️ زر العودة للأعلى
 // ================================================================
 
 const ScrollToTopButton = ({ show, onClick }) => (
@@ -378,7 +378,7 @@ const ScrollToTopButton = ({ show, onClick }) => (
 );
 
 // ================================================================
-// 🃏 بطاقة الكورس – مع تأثير الطبقات 3D المتعددة
+// 🃏 بطاقة الكورس – مع الطبقات المتعددة والإطار الأخضر
 // ================================================================
 
 const CourseCard3D = ({ course, teacher, index }) => {
@@ -388,7 +388,7 @@ const CourseCard3D = ({ course, teacher, index }) => {
   const [isHovered, setIsHovered] = useState(false);
   const cardRef = useRef(null);
   const [rotation, setRotation] = useState({ x: 0, y: 0 });
-  const [layerOffset, setLayerOffset] = useState(0);
+  const [layerOffset, setLayerOffset] = useState({ x: 0, y: 0 });
 
   const handleMouseMove = (e) => {
     if (!cardRef.current) return;
@@ -421,10 +421,10 @@ const CourseCard3D = ({ course, teacher, index }) => {
 
   const totalItems = stats.reduce((sum, s) => sum + s.count, 0);
 
-  // تعريف الطبقات الخلفية (ألوان متدرجة)
+  // تعريف الطبقات الخلفية – 5 طبقات بألوان متدرجة وحواف واضحة
   const layerColors = isDark
-    ? ['#1a2332', '#243447', '#2f405a', '#3a5470']
-    : ['#e8ecf0', '#d5dbe3', '#c2cad6', '#afb9c9'];
+    ? ['#1a2332', '#243447', '#2f405a', '#3a5470', '#456a85']
+    : ['#e8ecf0', '#d5dbe3', '#c2cad6', '#afb9c9', '#9ca8bb'];
 
   return (
     <motion.div
@@ -444,14 +444,14 @@ const CourseCard3D = ({ course, teacher, index }) => {
         animate={{
           scale: isHovered ? 1.04 : 1,
           zIndex: isHovered ? 30 : 10,
-          y: isHovered ? -12 : 0,
+          y: isHovered ? -10 : 0,
         }}
         transition={{ duration: 0.3 }}
         style={{
           transformStyle: 'preserve-3d',
         }}
       >
-        {/* الطبقات الخلفية المتعددة */}
+        {/* الطبقات الخلفية المتعددة – تظهر كبطاقات متراكبة بأطراف واضحة */}
         <div
           className="absolute inset-0 -z-10"
           style={{
@@ -460,18 +460,18 @@ const CourseCard3D = ({ course, teacher, index }) => {
           }}
         >
           {layerColors.map((color, idx) => {
-            const depth = (idx + 1) * 12;
-            const scale = 1 - (idx + 1) * 0.02;
-            const opacity = 0.6 - idx * 0.1;
+            const depth = (idx + 1) * 14;
+            const scale = 1 - (idx + 1) * 0.025;
+            const opacity = 0.6 - idx * 0.08;
             return (
               <motion.div
                 key={idx}
-                className="absolute rounded-2xl border border-white/10"
+                className="absolute rounded-2xl border border-white/20"
                 style={{
                   backgroundColor: color,
                   width: '100%',
                   height: '100%',
-                  transform: `translateZ(${-depth}px) scale(${scale}) translateX(${layerOffset.x * (idx+1) * 0.5}px) translateY(${layerOffset.y * (idx+1) * 0.5}px)`,
+                  transform: `translateZ(${-depth}px) scale(${scale}) translateX(${layerOffset.x * (idx+1) * 0.6}px) translateY(${layerOffset.y * (idx+1) * 0.6}px)`,
                   opacity: opacity,
                   boxShadow: `0 8px 30px rgba(0,0,0,0.15)`,
                 }}
@@ -485,10 +485,18 @@ const CourseCard3D = ({ course, teacher, index }) => {
           })}
         </div>
 
-        {/* الشريط المتحرك الرفيع حول الإطار */}
+        {/* الإطار المتحرك – أخضر فاتح عند Hover */}
         <div className="absolute inset-[-3px] rounded-2xl overflow-hidden pointer-events-none">
           <div className="absolute inset-0 rounded-2xl p-[3px]">
-            <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-transparent via-yellow-400/60 to-transparent animate-border-flow" />
+            <div
+              className={`absolute inset-0 rounded-2xl bg-gradient-to-r from-transparent via-green-400/70 to-transparent transition-opacity duration-300 ${
+                isHovered ? 'opacity-100' : 'opacity-0'
+              }`}
+              style={{
+                animation: isHovered ? 'borderFlow 3s linear infinite' : 'none',
+                backgroundSize: '300% 100%',
+              }}
+            />
           </div>
         </div>
 
@@ -515,7 +523,7 @@ const CourseCard3D = ({ course, teacher, index }) => {
             }}
           />
 
-          {/* صورة الغلاف – نسبة 16:9 (عرض 16 ارتفاع 9) */}
+          {/* صورة الغلاف – نسبة 16:9 */}
           <div className="relative w-full overflow-hidden" style={{ aspectRatio: '16/9' }}>
             {course?.cover_image ? (
               <>
@@ -641,10 +649,6 @@ const CourseCard3D = ({ course, teacher, index }) => {
       </motion.div>
 
       <style jsx>{`
-        .animate-border-flow {
-          animation: borderFlow 3s linear infinite;
-          background-size: 300% 100%;
-        }
         @keyframes borderFlow {
           0% { background-position: 0% 0%; }
           50% { background-position: 100% 0%; }
@@ -668,7 +672,7 @@ const CourseCard3D = ({ course, teacher, index }) => {
 };
 
 // ================================================================
-// 🎠 عرض الكورسات – Carousel مع الطبقات 3D
+// 🎠 عرض الكورسات – Carousel مع طبقات 3D وأسهم معكوسة
 // ================================================================
 
 const CoursesCarousel3D = ({ courses, teachers, isDark, loading }) => {
@@ -712,6 +716,7 @@ const CoursesCarousel3D = ({ courses, teachers, isDark, loading }) => {
 
   const visibleCourses = courses.slice(0, 8);
 
+  // ✅ دوال التنقل المعكوسة: الزر الأيمن يتحرك للأمام (يمين)، والأيسر للخلف (يسار)
   const scrollForward = () => {
     if (containerRef.current) {
       containerRef.current.scrollBy({ left: cardWidth + 20, behavior: 'smooth' });
@@ -749,9 +754,10 @@ const CoursesCarousel3D = ({ courses, teachers, isDark, loading }) => {
         ))}
       </div>
 
-      {/* أسهم التنقل */}
+      {/* أسهم التنقل – معكوسة: الأيمن → التالي، الأيسر → السابق */}
       {visibleCourses.length > 3 && (
         <div className="flex justify-center gap-4 mt-6">
+          {/* زر السابق – يشير لليسار (ChevronLeft) */}
           <motion.button
             onClick={scrollBackward}
             whileHover={{ scale: 1.12 }}
@@ -761,8 +767,10 @@ const CoursesCarousel3D = ({ courses, teachers, isDark, loading }) => {
             } transition shadow-lg hover:shadow-xl flex items-center justify-center`}
             aria-label="السابق"
           >
-            <Icons.ChevronRight className="h-6 w-6 text-blue-400" />
+            <Icons.ChevronLeft className="h-6 w-6 text-blue-400" />
           </motion.button>
+
+          {/* زر التالي – يشير لليمين (ChevronRight) */}
           <motion.button
             onClick={scrollForward}
             whileHover={{ scale: 1.12 }}
@@ -772,7 +780,7 @@ const CoursesCarousel3D = ({ courses, teachers, isDark, loading }) => {
             } transition shadow-lg hover:shadow-xl flex items-center justify-center`}
             aria-label="التالي"
           >
-            <Icons.ChevronLeft className="h-6 w-6 text-blue-400" />
+            <Icons.ChevronRight className="h-6 w-6 text-blue-400" />
           </motion.button>
         </div>
       )}
@@ -801,7 +809,7 @@ const CoursesCarousel3D = ({ courses, teachers, isDark, loading }) => {
 };
 
 // ================================================================
-// 🃏 بطاقة المميزات (بدون تغيير)
+// 🃏 بطاقة المميزات
 // ================================================================
 
 const FeatureCard = ({ feature, index }) => {
@@ -860,7 +868,7 @@ const FeatureCard = ({ feature, index }) => {
 };
 
 // ================================================================
-// 🃏 بطاقة التواصل (بدون تغيير)
+// 🃏 بطاقة التواصل
 // ================================================================
 
 const SocialCard = ({ link, index }) => {
@@ -953,7 +961,7 @@ const SocialCard = ({ link, index }) => {
 // 📐 أقسام الصفحة الرئيسية
 // ================================================================
 
-// ----- الهيرو (بدون تغيير) -----
+// ----- الهيرو -----
 const HeroSection = ({ isDark }) => {
   const { scrollY } = useScroll();
   const y = useTransform(scrollY, [0, 500], [0, 30]);
@@ -1102,7 +1110,7 @@ const HeroSection = ({ isDark }) => {
   );
 };
 
-// ----- الكورسات (مع Carousel 3D) -----
+// ----- الكورسات -----
 const CoursesSection = ({ isDark, courses, teachers, loading }) => {
   return (
     <section id="courses" className={`py-6 sm:py-8 px-3 sm:px-4 ${isDark ? 'bg-[#0a0e1a]' : 'bg-white'}`}>
@@ -1133,7 +1141,7 @@ const CoursesSection = ({ isDark, courses, teachers, loading }) => {
   );
 };
 
-// ----- المميزات (بدون تغيير) -----
+// ----- المميزات -----
 const FeaturesSection = ({ isDark }) => {
   return (
     <section id="features" className={`py-4 sm:py-6 md:py-8 px-3 sm:px-4 ${isDark ? 'bg-[#0a0e1a]/60' : 'bg-white'}`}>
@@ -1163,7 +1171,7 @@ const FeaturesSection = ({ isDark }) => {
   );
 };
 
-// ----- العداد التنازلي (بدون تغيير) -----
+// ----- العداد التنازلي -----
 const CountdownSection = ({ isDark }) => {
   return (
     <section id="countdown" className={`py-4 sm:py-6 md:py-8 px-3 sm:px-4 ${isDark ? 'bg-[#0a0e1a]/60' : 'bg-white'}`}>
@@ -1174,7 +1182,7 @@ const CountdownSection = ({ isDark }) => {
   );
 };
 
-// ----- قسم التواصل (بدون تغيير) -----
+// ----- قسم التواصل -----
 const ContactSection = ({ isDark }) => {
   const sortedLinks = useMemo(() => {
     const primary = SOCIAL_LINKS.find(l => l.isPrimary);
@@ -1240,7 +1248,7 @@ const ContactSection = ({ isDark }) => {
   );
 };
 
-// ----- الفوتر المعدل مع توقيع المبرمج بأناقة -----
+// ----- الفوتر مع توقيع المبرمج الفريد -----
 const FooterSection = ({ isDark }) => {
   return (
     <footer className={`${isDark ? 'bg-[#030812]/90 border-white/5' : 'bg-white/90 border-gray-200/40'} border-t py-3 sm:py-4 px-3 sm:px-4 backdrop-blur`}>
@@ -1290,31 +1298,40 @@ const FooterSection = ({ isDark }) => {
           </Link>
         </div>
 
-        {/* توقيع المبرمج – تصميم أنيق بدون تكبير الخط */}
+        {/* توقيع المبرمج – تصميم فريد ومتألق */}
         <div className={`border-t ${isDark ? 'border-white/5' : 'border-gray-200/40'} mt-2 pt-2`}>
           <motion.div
-            initial={{ opacity: 0.7 }}
+            initial={{ opacity: 0.8 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 2, repeat: Infinity, repeatType: 'reverse' }}
-            className="text-center"
+            className="text-center relative"
           >
-            <p className="text-[7px] sm:text-[9px] font-mono tracking-wider flex items-center justify-center gap-1.5 flex-wrap">
+            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-40 h-8 bg-gradient-to-r from-purple-400/10 via-pink-400/10 to-red-400/10 blur-xl rounded-full" />
+            <p className="text-[7px] sm:text-[9px] font-mono tracking-wider flex items-center justify-center gap-1.5 flex-wrap relative z-10">
               <span className={isDark ? 'text-blue-400/40' : 'text-blue-400/60'}>⚡</span>
               <span className={isDark ? 'text-gray-400' : 'text-gray-500'}>Built with ❤️ by</span>
-              <span
-                className={`font-bold transition-all duration-300 hover:scale-105 inline-block ${
+              <motion.span
+                className={`font-bold transition-all duration-300 inline-block ${
                   isDark
                     ? 'text-transparent bg-clip-text bg-gradient-to-r from-red-400 via-pink-400 to-purple-400'
                     : 'text-transparent bg-clip-text bg-gradient-to-r from-red-600 via-pink-600 to-purple-600'
                 }`}
                 style={{
                   textShadow: isDark
-                    ? '0 0 20px rgba(244, 63, 94, 0.2)'
-                    : '0 0 20px rgba(220, 38, 38, 0.15)',
+                    ? '0 0 30px rgba(244, 63, 94, 0.3)'
+                    : '0 0 30px rgba(220, 38, 38, 0.2)',
+                }}
+                animate={{
+                  backgroundPosition: ['0%', '100%', '0%'],
+                }}
+                transition={{
+                  duration: 4,
+                  repeat: Infinity,
+                  ease: 'linear',
                 }}
               >
                 Nour El-Saeed
-              </span>
+              </motion.span>
               <span className={isDark ? 'text-blue-400/20' : 'text-blue-400/30'}>•</span>
               <span className={`text-[6px] sm:text-[8px] ${isDark ? 'text-blue-400/30' : 'text-blue-400/40'}`}>
                 Developer &amp; Designer
