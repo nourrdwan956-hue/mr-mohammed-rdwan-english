@@ -1,10 +1,12 @@
 // app/dashboard/student/courses/[id]/page.js
 // ================================================================
-// 🏛️ صفحة تفاصيل الكورس – نسخة متطورة
-// ✅ التقدم يعتمد فقط على الامتحانات المجتازة
-// ✅ أيقونات صغيرة (h-3 w-3) في كل مكان
-// ✅ عبارات تحفيزية بالعامية المصرية
-// ✅ معالجة الأخطاء بشكل كامل (بدون 406 أو ReferenceError)
+// 🏛️ صفحة تفاصيل الكورس – نسخة فاخرة وسريعة
+// ✅ التقدم يعتمد على الامتحانات فقط (لا علاقة بالفيديوهات)
+// ✅ إصلاح النسب المئوية (تخزين صحيح)
+// ✅ إصلاح رسالة "لم تبدأ بعد"
+// ✅ شاشة تحميل فاخرة (دائرة متحركة بألوان متغيرة)
+// ✅ أيقونات صغيرة جداً (h-3 w-3)
+// ✅ معالجة الأخطاء (لا 406 ولا ReferenceError)
 // ================================================================
 
 'use client';
@@ -12,7 +14,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Play,
   CheckCircle,
@@ -56,7 +58,7 @@ const getRandomColor = (exclude = []) => {
 };
 
 // ================================================================
-// 2. Wave Border Card (محسن)
+// 2. Wave Border Card
 // ================================================================
 const WaveBorderCard = ({ children, className = '', initialColor = 'blue', onColorChange }) => {
   const [color, setColor] = useState(CARD_COLORS.find(c => c.name === initialColor) || CARD_COLORS[0]);
@@ -126,7 +128,56 @@ const WaveBorderCard = ({ children, className = '', initialColor = 'blue', onCol
 };
 
 // ================================================================
-// 3. دوال مساعدة
+// 3. شاشة تحميل فاخرة
+// ================================================================
+const LoadingScreen = ({ styles }) => {
+  const [colorIndex, setColorIndex] = useState(0);
+  const colors = ['#FACC15', '#D97706', '#60A5FA', '#34D399', '#A78BFA'];
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setColorIndex(prev => (prev + 1) % colors.length);
+    }, 800);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+      <div className="relative">
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
+          className="w-16 h-16 rounded-full border-4 border-t-transparent"
+          style={{
+            borderColor: colors[colorIndex],
+            borderTopColor: 'transparent',
+            boxShadow: `0 0 30px ${colors[colorIndex]}40`,
+          }}
+        />
+        <motion.div
+          animate={{ rotate: -360 }}
+          transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }}
+          className="absolute top-2 left-2 w-12 h-12 rounded-full border-4 border-b-transparent"
+          style={{
+            borderColor: colors[(colorIndex + 2) % colors.length],
+            borderBottomColor: 'transparent',
+            boxShadow: `0 0 20px ${colors[(colorIndex + 2) % colors.length]}30`,
+          }}
+        />
+        <motion.div
+          animate={{ scale: [1, 1.3, 1] }}
+          transition={{ duration: 1, repeat: Infinity }}
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 rounded-full"
+          style={{ backgroundColor: colors[colorIndex], boxShadow: `0 0 20px ${colors[colorIndex]}` }}
+        />
+      </div>
+      <p className="text-xs text-gray-400 animate-pulse">جاري تحميل الكورس...</p>
+    </div>
+  );
+};
+
+// ================================================================
+// 4. دوال مساعدة
 // ================================================================
 const formatDuration = (totalSeconds, language) => {
   if (!totalSeconds || totalSeconds === 0) return language === 'ar' ? 'غير محدد' : 'N/A';
@@ -137,7 +188,7 @@ const formatDuration = (totalSeconds, language) => {
 };
 
 // ================================================================
-// 4. عبارات تحفيزية بالعامية المصرية
+// 5. عبارات تحفيزية بالعامية المصرية
 // ================================================================
 const getMotivationalMessage = (percentage, attemptedExams, totalExams, language) => {
   if (attemptedExams === 0) {
@@ -170,7 +221,7 @@ const getMotivationalMessage = (percentage, attemptedExams, totalExams, language
 };
 
 // ================================================================
-// 5. مكونات العرض – أيقونات صغيرة جداً
+// 6. مكونات العرض – أيقونات صغيرة جداً
 // ================================================================
 
 // ✅ TabButton – أيقونة h-3 w-3
@@ -190,12 +241,12 @@ const TabButton = ({ active, onClick, icon: Icon, label, count, styles }) => (
 );
 
 // ✅ CircularProgress – حجم 44 بكسل
-const CircularProgress = ({ percentage, size = 44, strokeWidth = 3, label, styles }) => {
+const CircularProgress = ({ percentage, size = 44, strokeWidth = 3, styles, label }) => {
   const s = size;
   const sw = Math.max(2, strokeWidth);
   const radius = (s - sw) / 2;
   const circumference = radius * 2 * Math.PI;
-  const offset = circumference - (percentage / 100) * circumference;
+  const offset = circumference - (Math.min(percentage, 100) / 100) * circumference;
 
   return (
     <div className="relative inline-flex items-center justify-center">
@@ -227,7 +278,7 @@ const CircularProgress = ({ percentage, size = 44, strokeWidth = 3, label, style
   );
 };
 
-// ✅ VideoItem – أيقونة h-3 w-3
+// ✅ VideoItem – أيقونات صغيرة
 const VideoItem = memo(({ video, bookmarked, onToggleBookmark, styles, language }) => {
   const [color, setColor] = useState(CARD_COLORS[Math.floor(Math.random() * CARD_COLORS.length)]);
   return (
@@ -257,8 +308,8 @@ const VideoItem = memo(({ video, bookmarked, onToggleBookmark, styles, language 
 });
 VideoItem.displayName = 'VideoItem';
 
-// ✅ ExamItem – أيقونة h-3 w-3
-const ExamItem = memo(({ exam, styles, language, attempted, score, passed }) => {
+// ✅ ExamItem – أيقونات صغيرة مع إصلاح النسبة
+const ExamItem = memo(({ exam, styles, language, attempted, percentage, passed }) => {
   const [color, setColor] = useState(CARD_COLORS[Math.floor(Math.random() * CARD_COLORS.length)]);
   return (
     <WaveBorderCard initialColor={color.name} onColorChange={setColor}>
@@ -270,10 +321,10 @@ const ExamItem = memo(({ exam, styles, language, attempted, score, passed }) => 
           <Link href={`/dashboard/student/exams/${exam.id}`} className="text-[9px] sm:text-[10px] font-bold hover:text-blue-500 transition line-clamp-1">
             {exam.title}
           </Link>
-          {attempted && score !== undefined && (
+          {attempted && percentage !== undefined && (
             <div className="flex items-center gap-1">
               <span className={`text-[7px] sm:text-[8px] font-bold ${passed ? 'text-green-400' : 'text-red-400'}`}>
-                {score}% • {passed ? '✅ ناجح' : '❌ راسب'}
+                {percentage}% • {passed ? '✅ ناجح' : '❌ راسب'}
               </span>
             </div>
           )}
@@ -284,7 +335,7 @@ const ExamItem = memo(({ exam, styles, language, attempted, score, passed }) => 
 });
 ExamItem.displayName = 'ExamItem';
 
-// ✅ BookItem – أيقونة h-3 w-3
+// ✅ BookItem
 const BookItem = memo(({ book, styles, language }) => {
   const [color, setColor] = useState(CARD_COLORS[Math.floor(Math.random() * CARD_COLORS.length)]);
   return (
@@ -304,7 +355,7 @@ const BookItem = memo(({ book, styles, language }) => {
 });
 BookItem.displayName = 'BookItem';
 
-// ✅ OrderToggleButton – أيقونة h-3 w-3
+// ✅ OrderToggleButton
 const OrderToggleButton = ({ order, onToggle, styles, language }) => {
   const isDesc = order === 'desc';
   const Icon = isDesc ? ArrowDown : ArrowUp;
@@ -323,7 +374,7 @@ const OrderToggleButton = ({ order, onToggle, styles, language }) => {
   );
 };
 
-// ✅ MotivationalCard – أيقونة h-4 w-4
+// ✅ MotivationalCard
 const MotivationalCard = ({ message, icon: Icon, styles, color = 'yellow' }) => {
   const colorMap = {
     yellow: 'border-yellow-400/30 bg-yellow-400/10 text-yellow-400',
@@ -347,7 +398,7 @@ const MotivationalCard = ({ message, icon: Icon, styles, color = 'yellow' }) => 
 };
 
 // ================================================================
-// 6. الصفحة الرئيسية
+// 7. الصفحة الرئيسية
 // ================================================================
 export default function StudentCourseDetailsPage() {
   const params = useParams();
@@ -381,10 +432,12 @@ export default function StudentCourseDetailsPage() {
 
   const [headerColor, setHeaderColor] = useState(CARD_COLORS[0]);
 
-  // ===== إحصائيات الامتحانات (التقدم الحقيقي) =====
+  // ===== إحصائيات الامتحانات (محسوبة بشكل صحيح) =====
   const examStats = useMemo(() => {
     const total = exams.length;
-    if (total === 0) return { total, attempted: 0, passed: 0, avgScore: 0, percentage: 0 };
+    if (total === 0) {
+      return { total, attempted: 0, passed: 0, avgScore: 0, percentage: 0 };
+    }
 
     let attemptedCount = 0;
     let passedCount = 0;
@@ -394,7 +447,7 @@ export default function StudentCourseDetailsPage() {
       const attempt = examAttempts[exam.id];
       if (attempt && attempt.attempted) {
         attemptedCount++;
-        scoreSum += attempt.score || 0;
+        scoreSum += attempt.percentage || 0;
         if (attempt.passed) passedCount++;
       }
     });
@@ -417,7 +470,7 @@ export default function StudentCourseDetailsPage() {
     return 'red';
   }, [examStats.percentage]);
 
-  // ===== جلب المحتوى (معدل لإصلاح الأخطاء) =====
+  // ===== جلب المحتوى (معدل بالكامل) =====
   const fetchContent = useCallback(async () => {
     if (!id) return;
     setContentLoading(true);
@@ -444,13 +497,13 @@ export default function StudentCourseDetailsPage() {
       }, 0);
       setTotalDuration(totalSecs);
 
-      // ✅ جلب محاولات الامتحانات فقط (بدون watch_history)
+      // ✅ جلب محاولات الامتحانات فقط
       if (user && enrollment) {
         const examIds = exRes.data?.map(e => e.id) || [];
         if (examIds.length > 0) {
           const { data: attempts, error: attemptsError } = await supabase
             .from('exam_attempts')
-            .select('exam_id, score, total_marks, passed')
+            .select('*')
             .eq('student_id', user.id)
             .in('exam_id', examIds)
             .eq('status', 'completed');
@@ -459,16 +512,23 @@ export default function StudentCourseDetailsPage() {
             console.warn('⚠️ Error fetching attempts:', attemptsError);
           }
 
-          // ✅ تعريف attemptMap داخل هذا النطاق
           const attemptMap = {};
           attempts?.forEach(a => {
             const existing = attemptMap[a.exam_id];
             if (!existing || a.score > existing.score) {
-              const pct = a.total_marks > 0 ? Math.round((a.score / a.total_marks) * 100) : 0;
+              const exam = exRes.data?.find(e => e.id === a.exam_id);
+              const totalMarks = a.total_marks || exam?.total_marks || 1;
+              const score = a.score || 0;
+              const percentage = totalMarks > 0 ? Math.round((score / totalMarks) * 100) : 0;
+              const passingMarks = exam?.passing_marks || 0;
+              const passed = a.passed === true || percentage >= passingMarks;
+
               attemptMap[a.exam_id] = {
                 attempted: true,
-                score: pct,
-                passed: a.passed === true || pct >= (exRes.data?.find(e => e.id === a.exam_id)?.passing_marks || 0),
+                score: score,
+                totalMarks: totalMarks,
+                percentage: percentage,
+                passed: passed,
               };
             }
           });
@@ -486,6 +546,7 @@ export default function StudentCourseDetailsPage() {
   // ===== جلب بيانات الكورس =====
   const fetchCourseData = useCallback(async () => {
     if (!id) return;
+    setLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
@@ -510,7 +571,7 @@ export default function StudentCourseDetailsPage() {
         });
       }
 
-      // ✅ استخدام maybeSingle() لتجنب 406
+      // ✅ جلب الكورس
       const { data: courseData, error: courseError } = await supabase
         .from('courses')
         .select('*, teacher:teacher_id(full_name, email)')
@@ -526,7 +587,7 @@ export default function StudentCourseDetailsPage() {
       setCourse(courseData);
       setTeacher(courseData.teacher);
 
-      // التحقق من صلاحية الوصول
+      // ✅ التحقق من صلاحية الوصول
       if (courseData && !courseData.is_free && courseData.price > 0) {
         setIsCheckingAccess(true);
         const accessResult = await checkCourseAccess(courseData.id, user.id);
@@ -539,7 +600,7 @@ export default function StudentCourseDetailsPage() {
         }
       }
 
-      // ✅ استخدام maybeSingle() لتجنب 406
+      // ✅ جلب التسجيل
       const { data: enrollData } = await supabase
         .from('enrollments')
         .select('*')
@@ -549,7 +610,7 @@ export default function StudentCourseDetailsPage() {
 
       setEnrollment(enrollData);
 
-      // التحقق من اشتراك نشط
+      // ✅ التحقق من اشتراك نشط
       const { data: subscription } = await supabase
         .from('course_subscriptions')
         .select('*')
@@ -571,7 +632,7 @@ export default function StudentCourseDetailsPage() {
         await fetchContent();
       }
 
-      // جلب كورسات ذات صلة
+      // ✅ جلب كورسات ذات صلة
       if (courseData.grade_stage && courseData.grade_level) {
         const { data: related } = await supabase
           .from('courses')
@@ -615,7 +676,7 @@ export default function StudentCourseDetailsPage() {
         return;
       }
 
-      // التحقق من اشتراك نشط
+      // ✅ التحقق من اشتراك نشط
       const { data: subscription } = await supabase
         .from('course_subscriptions')
         .select('*')
@@ -702,13 +763,8 @@ export default function StudentCourseDetailsPage() {
   // ===== شاشات التحميل =====
   if (loading || isCheckingAccess) {
     return (
-      <div className={`min-h-screen flex items-center justify-center ${styles.bg}`}>
-        <div className="flex flex-col items-center gap-2">
-          <div className="w-6 h-6 sm:w-8 sm:h-8 border-3 border-blue-500/20 border-t-blue-500 rounded-full animate-spin" />
-          <p className="text-[10px] sm:text-xs text-gray-400">
-            {isCheckingAccess ? 'جاري التحقق...' : 'جاري التحميل...'}
-          </p>
-        </div>
+      <div className={`w-full min-h-screen ${styles.bg}`}>
+        <LoadingScreen styles={styles} />
       </div>
     );
   }
@@ -931,7 +987,7 @@ export default function StudentCourseDetailsPage() {
                               styles={styles}
                               language={language}
                               attempted={attempt?.attempted || false}
-                              score={attempt?.score}
+                              percentage={attempt?.percentage}
                               passed={attempt?.passed || false}
                             />
                           );

@@ -2,12 +2,14 @@
 // ================================================================
 // 🏛️ صفحة التقدم العام – تقدم الطالب في جميع الكورسات
 // ✅ يعتمد على الامتحانات فقط (لا علاقة بالفيديوهات)
-// ✅ إحصائيات عامة: عدد الكورسات، الامتحانات، المجتازة، المتوسط
+// ✅ إحصائيات عامة سريعة
 // ✅ بطاقات لكل كورس مع تقدمه التفصيلي
 // ✅ رسم بياني مقارن بين الكورسات
-// ✅ عبارات تحفيزية بالعامية المصرية حسب المستوى العام
-// ✅ أيقونات صغيرة جداً (h-3 w-3) في كل مكان
+// ✅ عبارات تحفيزية بالعامية المصرية
+// ✅ أيقونات صغيرة جداً (h-3 w-3)
+// ✅ شاشة تحميل فاخرة
 // ✅ معالجة الأخطاء (لا 406 ولا ReferenceError)
+// ✅ خفيف وسريع جداً
 // ================================================================
 
 'use client';
@@ -34,7 +36,7 @@ import {
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
 // ================================================================
-// 1. ألوان البطاقات (نظام Wave Border)
+// 1. ألوان البطاقات
 // ================================================================
 const CARD_COLORS = [
   { name: 'blue', text: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-500/10' },
@@ -51,7 +53,7 @@ const getRandomColor = (exclude = []) => {
 };
 
 // ================================================================
-// 2. Wave Border Card (محسن)
+// 2. Wave Border Card
 // ================================================================
 const WaveBorderCard = ({ children, className = '', initialColor = 'blue', onColorChange }) => {
   const [color, setColor] = useState(CARD_COLORS.find(c => c.name === initialColor) || CARD_COLORS[0]);
@@ -121,19 +123,56 @@ const WaveBorderCard = ({ children, className = '', initialColor = 'blue', onCol
 };
 
 // ================================================================
-// 3. دوال مساعدة
+// 3. شاشة تحميل فاخرة
 // ================================================================
-const formatDate = (dateString, language) => {
-  if (!dateString) return '-';
-  return new Date(dateString).toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
+const LoadingScreen = ({ styles }) => {
+  const [colorIndex, setColorIndex] = useState(0);
+  const colors = ['#FACC15', '#D97706', '#60A5FA', '#34D399', '#A78BFA'];
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setColorIndex(prev => (prev + 1) % colors.length);
+    }, 800);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+      <div className="relative">
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
+          className="w-16 h-16 rounded-full border-4 border-t-transparent"
+          style={{
+            borderColor: colors[colorIndex],
+            borderTopColor: 'transparent',
+            boxShadow: `0 0 30px ${colors[colorIndex]}40`,
+          }}
+        />
+        <motion.div
+          animate={{ rotate: -360 }}
+          transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }}
+          className="absolute top-2 left-2 w-12 h-12 rounded-full border-4 border-b-transparent"
+          style={{
+            borderColor: colors[(colorIndex + 2) % colors.length],
+            borderBottomColor: 'transparent',
+            boxShadow: `0 0 20px ${colors[(colorIndex + 2) % colors.length]}30`,
+          }}
+        />
+        <motion.div
+          animate={{ scale: [1, 1.3, 1] }}
+          transition={{ duration: 1, repeat: Infinity }}
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 rounded-full"
+          style={{ backgroundColor: colors[colorIndex], boxShadow: `0 0 20px ${colors[colorIndex]}` }}
+        />
+      </div>
+      <p className="text-xs text-gray-400 animate-pulse">جاري تحميل التقدم...</p>
+    </div>
+  );
 };
 
 // ================================================================
-// 4. عبارات تحفيزية بالعامية المصرية (على المستوى العام)
+// 4. عبارات تحفيزية بالعامية المصرية
 // ================================================================
 const getMotivationalMessage = (percentage, attemptedExams, totalExams, language) => {
   if (attemptedExams === 0) {
@@ -166,7 +205,7 @@ const getMotivationalMessage = (percentage, attemptedExams, totalExams, language
 };
 
 // ================================================================
-// 5. مكونات العرض – أيقونات صغيرة
+// 5. مكونات العرض – أيقونات صغيرة جداً
 // ================================================================
 
 // ✅ دائرة التقدم – حجم 44 بكسل
@@ -175,7 +214,7 @@ const CircularProgress = ({ percentage, size = 44, strokeWidth = 3, styles, labe
   const sw = Math.max(2, strokeWidth);
   const radius = (s - sw) / 2;
   const circumference = radius * 2 * Math.PI;
-  const offset = circumference - (percentage / 100) * circumference;
+  const offset = circumference - (Math.min(percentage, 100) / 100) * circumference;
 
   return (
     <div className="relative inline-flex items-center justify-center">
@@ -263,7 +302,7 @@ const MotivationalCard = ({ message, icon: Icon, styles, color = 'yellow' }) => 
   );
 };
 
-// ✅ بطاقة كورس للتقدم العام – أيقونات صغيرة
+// ✅ بطاقة كورس للتقدم العام
 const CourseProgressCard = ({ course, stats, styles, language }) => {
   const [color, setColor] = useState(CARD_COLORS[Math.floor(Math.random() * CARD_COLORS.length)]);
   const handleColorChange = (newColor) => setColor(newColor);
@@ -355,7 +394,7 @@ export default function StudentProgressPage() {
         .eq('student_id', user.id);
 
       if (enrollError) {
-        console.warn('Error fetching enrollments:', enrollError);
+        console.warn('⚠️ Error fetching enrollments:', enrollError);
       }
 
       if (!enrolls || enrolls.length === 0) {
@@ -373,7 +412,7 @@ export default function StudentProgressPage() {
         .eq('is_published', true);
 
       if (coursesError) {
-        console.warn('Error fetching courses:', coursesError);
+        console.warn('⚠️ Error fetching courses:', coursesError);
       }
 
       if (!courses || courses.length === 0) {
@@ -409,7 +448,7 @@ export default function StudentProgressPage() {
         .in('course_id', courseIds);
 
       if (examsError) {
-        console.warn('Error fetching exams:', examsError);
+        console.warn('⚠️ Error fetching exams:', examsError);
       }
 
       const allExams = examsData || [];
@@ -424,10 +463,11 @@ export default function StudentProgressPage() {
         .eq('status', 'completed');
 
       if (attemptsError) {
-        console.warn('Error fetching attempts:', attemptsError);
+        console.warn('⚠️ Error fetching attempts:', attemptsError);
       }
 
-      const attemptMap = {}; // ✅ تعريف attemptMap هنا
+      // ✅ بناء attemptMap بشكل صحيح
+      const attemptMap = {};
       attemptsData?.forEach(a => {
         const existing = attemptMap[a.exam_id];
         if (!existing || a.score > existing.score) {
@@ -457,7 +497,9 @@ export default function StudentProgressPage() {
           const att = attemptMap[exam.id];
           if (att) {
             attempted++;
-            const pct = att.total_marks > 0 ? Math.round((att.score / att.total_marks) * 100) : 0;
+            const totalMarks = att.total_marks || exam.total_marks || 1;
+            const score = att.score || 0;
+            const pct = totalMarks > 0 ? Math.round((score / totalMarks) * 100) : 0;
             scoreSum += pct;
             scores.push(pct);
             if (att.passed === true || pct >= (exam.passing_marks || 0)) passed++;
@@ -530,7 +572,7 @@ export default function StudentProgressPage() {
 
       setLoading(false);
     } catch (err) {
-      console.error('Error fetching progress data:', err);
+      console.error('❌ Error fetching progress data:', err);
       toast.error(language === 'ar' ? 'فشل تحميل التقدم' : 'Failed to load progress');
       setLoading(false);
     }
@@ -551,11 +593,8 @@ export default function StudentProgressPage() {
   // ===== حالة التحميل =====
   if (loading) {
     return (
-      <div className={`w-full min-h-screen flex items-center justify-center ${styles.bg}`}>
-        <div className="flex flex-col items-center gap-2">
-          <div className="w-6 h-6 sm:w-8 sm:h-8 border-3 border-yellow-400/30 border-t-yellow-400 rounded-full animate-spin" />
-          <p className="text-[10px] sm:text-xs text-gray-400">جاري تحميل التقدم...</p>
-        </div>
+      <div className={`w-full min-h-screen ${styles.bg}`}>
+        <LoadingScreen styles={styles} />
       </div>
     );
   }

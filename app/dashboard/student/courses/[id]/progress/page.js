@@ -1,12 +1,11 @@
 // app/dashboard/student/courses/[id]/progress/page.js
 // ================================================================
-// 🏛️ صفحة التقدم الداخلي – تقدم الكورس الحالي فقط
-// ✅ يعتمد على الامتحانات المجتازة من إجمالي الامتحانات
-// ✅ عرض إحصائيات: عدد الامتحانات، المجتاز، المحلول، المتوسط، النسبة
-// ✅ قائمة تفصيلية لكل امتحان مع الدرجة والحالة
-// ✅ رسم بياني لدرجات الامتحانات
-// ✅ عبارات تحفيزية بالعامية المصرية حسب المستوى
-// ✅ أيقونات صغيرة جداً (h-3 w-3) في كل مكان
+// 🏛️ صفحة التقدم الداخلي – نسخة فاخرة وسريعة
+// ✅ التقدم يعتمد على الامتحانات فقط
+// ✅ إصلاح النسب المئوية (تخزين صحيح)
+// ✅ إصلاح رسالة "لم تبدأ بعد"
+// ✅ شاشة تحميل فاخرة (دائرة متحركة مع ألوان متغيرة)
+// ✅ أيقونات صغيرة جداً (h-3 w-3)
 // ✅ معالجة الأخطاء (لا 406 ولا ReferenceError)
 // ================================================================
 
@@ -15,7 +14,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import * as Icons from 'lucide-react';
 import { useTheme } from '@/lib/hooks/useTheme';
 import { supabase } from '@/lib/supabaseClient';
@@ -34,7 +33,7 @@ import {
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
 // ================================================================
-// 1. ألوان البطاقات (نظام Wave Border)
+// 1. ألوان البطاقات
 // ================================================================
 const CARD_COLORS = [
   { name: 'blue', text: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-500/10' },
@@ -51,7 +50,7 @@ const getRandomColor = (exclude = []) => {
 };
 
 // ================================================================
-// 2. Wave Border Card (محسن)
+// 2. Wave Border Card
 // ================================================================
 const WaveBorderCard = ({ children, className = '', initialColor = 'blue', onColorChange }) => {
   const [color, setColor] = useState(CARD_COLORS.find(c => c.name === initialColor) || CARD_COLORS[0]);
@@ -121,7 +120,59 @@ const WaveBorderCard = ({ children, className = '', initialColor = 'blue', onCol
 };
 
 // ================================================================
-// 3. دوال مساعدة
+// 3. شاشة تحميل فاخرة
+// ================================================================
+const LoadingScreen = ({ styles }) => {
+  const [colorIndex, setColorIndex] = useState(0);
+  const colors = ['#FACC15', '#D97706', '#60A5FA', '#34D399', '#A78BFA'];
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setColorIndex(prev => (prev + 1) % colors.length);
+    }, 800);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+      <div className="relative">
+        {/* الحلقة الخارجية المتغيرة */}
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
+          className="w-16 h-16 rounded-full border-4 border-t-transparent"
+          style={{
+            borderColor: colors[colorIndex],
+            borderTopColor: 'transparent',
+            boxShadow: `0 0 30px ${colors[colorIndex]}40`,
+          }}
+        />
+        {/* الحلقة الداخلية العكسية */}
+        <motion.div
+          animate={{ rotate: -360 }}
+          transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }}
+          className="absolute top-2 left-2 w-12 h-12 rounded-full border-4 border-b-transparent"
+          style={{
+            borderColor: colors[(colorIndex + 2) % colors.length],
+            borderBottomColor: 'transparent',
+            boxShadow: `0 0 20px ${colors[(colorIndex + 2) % colors.length]}30`,
+          }}
+        />
+        {/* النقطة المركزية */}
+        <motion.div
+          animate={{ scale: [1, 1.3, 1] }}
+          transition={{ duration: 1, repeat: Infinity }}
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 rounded-full"
+          style={{ backgroundColor: colors[colorIndex], boxShadow: `0 0 20px ${colors[colorIndex]}` }}
+        />
+      </div>
+      <p className="text-xs text-gray-400 animate-pulse">جاري تحميل التقدم...</p>
+    </div>
+  );
+};
+
+// ================================================================
+// 4. دوال مساعدة
 // ================================================================
 const formatDate = (dateString, language) => {
   if (!dateString) return '-';
@@ -133,7 +184,7 @@ const formatDate = (dateString, language) => {
 };
 
 // ================================================================
-// 4. عبارات تحفيزية بالعامية المصرية (مكررة من الملف السابق)
+// 5. عبارات تحفيزية بالعامية المصرية
 // ================================================================
 const getMotivationalMessage = (percentage, attemptedExams, totalExams, language) => {
   if (attemptedExams === 0) {
@@ -166,7 +217,7 @@ const getMotivationalMessage = (percentage, attemptedExams, totalExams, language
 };
 
 // ================================================================
-// 5. مكونات العرض – أيقونات صغيرة
+// 6. مكونات العرض – أيقونات صغيرة جداً
 // ================================================================
 
 // ✅ دائرة التقدم – حجم 44 بكسل
@@ -175,7 +226,7 @@ const CircularProgress = ({ percentage, size = 44, strokeWidth = 3, styles, labe
   const sw = Math.max(2, strokeWidth);
   const radius = (s - sw) / 2;
   const circumference = radius * 2 * Math.PI;
-  const offset = circumference - (percentage / 100) * circumference;
+  const offset = circumference - (Math.min(percentage, 100) / 100) * circumference;
 
   return (
     <div className="relative inline-flex items-center justify-center">
@@ -262,13 +313,17 @@ const MotivationalCard = ({ message, icon: Icon, styles, color = 'yellow' }) => 
   );
 };
 
-// ✅ بطاقة الامتحان التفصيلية
+// ✅ بطاقة الامتحان التفصيلية – مع إصلاح النسبة المئوية
 const ExamProgressCard = ({ exam, attempt, styles, language }) => {
   const attempted = !!attempt;
-  const score = attempt ? Math.round((attempt.score / attempt.total_marks) * 100) : 0;
+  // ✅ استخدم percentage المحسوب مسبقاً، ولا تعيد حسابه
+  const percentage = attempt?.percentage ?? 0;
   const passed = attempt?.passed === true;
   const [color, setColor] = useState(CARD_COLORS[Math.floor(Math.random() * CARD_COLORS.length)]);
   const handleColorChange = (newColor) => setColor(newColor);
+
+  // ✅ عرض الدرجة الفعلية والنسبة المئوية
+  const scoreDisplay = attempt ? `${attempt.score}/${attempt.totalMarks}` : '';
 
   return (
     <WaveBorderCard initialColor={color.name} onColorChange={handleColorChange}>
@@ -295,10 +350,10 @@ const ExamProgressCard = ({ exam, attempt, styles, language }) => {
         <div className="text-right flex-shrink-0">
           {attempted ? (
             <>
-              <span className={`text-[9px] sm:text-[10px] font-bold ${passed ? 'text-green-400' : 'text-red-400'}`}>{score}%</span>
-              <p className={`text-[7px] sm:text-[8px] ${passed ? 'text-green-400' : 'text-red-400'}`}>
-                {passed ? '✅ ناجح' : '❌ راسب'}
-              </p>
+              <span className={`text-[9px] sm:text-[10px] font-bold ${passed ? 'text-green-400' : 'text-red-400'}`}>
+                {percentage}%
+              </span>
+              <p className="text-[6px] sm:text-[7px] text-gray-400">{scoreDisplay}</p>
             </>
           ) : (
             <span className="text-[8px] sm:text-[9px] text-gray-400">لم يحل</span>
@@ -311,7 +366,7 @@ const ExamProgressCard = ({ exam, attempt, styles, language }) => {
 };
 
 // ================================================================
-// 6. الصفحة الرئيسية
+// 7. الصفحة الرئيسية
 // ================================================================
 export default function StudentCourseProgressPage() {
   const params = useParams();
@@ -320,7 +375,6 @@ export default function StudentCourseProgressPage() {
   const { theme, styles, language } = useTheme();
 
   const [course, setCourse] = useState(null);
-  const [teacher, setTeacher] = useState(null);
   const [exams, setExams] = useState([]);
   const [examAttempts, setExamAttempts] = useState({});
   const [loading, setLoading] = useState(true);
@@ -331,7 +385,9 @@ export default function StudentCourseProgressPage() {
   // ===== إحصائيات الامتحانات =====
   const examStats = useMemo(() => {
     const total = exams.length;
-    if (total === 0) return { total, attempted: 0, passed: 0, avgScore: 0, percentage: 0, scores: [] };
+    if (total === 0) {
+      return { total, attempted: 0, passed: 0, avgScore: 0, percentage: 0, scores: [] };
+    }
 
     let attemptedCount = 0;
     let passedCount = 0;
@@ -342,7 +398,7 @@ export default function StudentCourseProgressPage() {
       const attempt = examAttempts[exam.id];
       if (attempt && attempt.attempted) {
         attemptedCount++;
-        const pct = attempt.score || 0;
+        const pct = attempt.percentage || 0;
         scoreSum += pct;
         scores.push(pct);
         if (attempt.passed) passedCount++;
@@ -355,6 +411,7 @@ export default function StudentCourseProgressPage() {
     return { total, attempted: attemptedCount, passed: passedCount, avgScore, percentage, scores };
   }, [exams, examAttempts]);
 
+  // ===== العبارة التحفيزية (مع إصلاح attemptedExams) =====
   const motivationalMessage = useMemo(() => {
     return getMotivationalMessage(examStats.percentage, examStats.attempted, examStats.total, language);
   }, [examStats, language]);
@@ -371,9 +428,10 @@ export default function StudentCourseProgressPage() {
     return exams.filter(e => !examAttempts[e.id]?.attempted);
   }, [exams, examAttempts]);
 
-  // ===== جلب البيانات =====
+  // ===== جلب البيانات (معدل بالكامل) =====
   const fetchData = useCallback(async () => {
     if (!id) return;
+    setLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
@@ -381,7 +439,7 @@ export default function StudentCourseProgressPage() {
         return;
       }
 
-      // جلب التسجيل
+      // 1. جلب التسجيل
       const { data: enrollData, error: enrollError } = await supabase
         .from('enrollments')
         .select('*')
@@ -395,7 +453,7 @@ export default function StudentCourseProgressPage() {
         return;
       }
 
-      // جلب الكورس
+      // 2. جلب الكورس
       const { data: courseData, error: courseError } = await supabase
         .from('courses')
         .select('*')
@@ -409,16 +467,7 @@ export default function StudentCourseProgressPage() {
       }
       setCourse(courseData);
 
-      if (courseData.teacher_id) {
-        const { data: teacherData } = await supabase
-          .from('profiles')
-          .select('full_name')
-          .eq('id', courseData.teacher_id)
-          .maybeSingle();
-        if (teacherData) setTeacher(teacherData);
-      }
-
-      // جلب الامتحانات
+      // 3. جلب الامتحانات
       const { data: examsData, error: examsError } = await supabase
         .from('exams')
         .select('*')
@@ -428,11 +477,12 @@ export default function StudentCourseProgressPage() {
       if (examsError) {
         console.warn('Error fetching exams:', examsError);
       }
-      setExams(examsData || []);
+      const examsList = examsData || [];
+      setExams(examsList);
 
-      // جلب محاولات الامتحانات
-      const examIds = (examsData || []).map(e => e.id);
-      const attemptMap = {}; // ✅ تعريف attemptMap هنا
+      // 4. جلب محاولات الامتحانات
+      const examIds = examsList.map(e => e.id);
+      const attemptMap = {};
 
       if (examIds.length > 0) {
         const { data: attempts, error: attemptsError } = await supabase
@@ -447,28 +497,39 @@ export default function StudentCourseProgressPage() {
           console.warn('Error fetching attempts:', attemptsError);
         }
 
+        // ✅ بناء الـ attemptMap بشكل صحيح
         attempts?.forEach(a => {
           const existing = attemptMap[a.exam_id];
+          // نأخذ أحدث محاولة (أعلى درجة)
           if (!existing || a.score > existing.score) {
-            const pct = a.total_marks > 0 ? Math.round((a.score / a.total_marks) * 100) : 0;
+            // ✅ تخزين البيانات بشكل صحيح
+            const totalMarks = a.total_marks || examsList.find(e => e.id === a.exam_id)?.total_marks || 1;
+            const score = a.score || 0;
+            const percentage = totalMarks > 0 ? Math.round((score / totalMarks) * 100) : 0;
+            const passingMarks = examsList.find(e => e.id === a.exam_id)?.passing_marks || 0;
+            const passed = a.passed === true || percentage >= passingMarks;
+
             attemptMap[a.exam_id] = {
               attempted: true,
-              score: pct,
-              passed: a.passed === true || pct >= (examsData?.find(e => e.id === a.exam_id)?.passing_marks || 0),
-              total_marks: a.total_marks || 0,
+              score: score,           // ✅ الدرجة الفعلية
+              totalMarks: totalMarks, // ✅ الدرجة الكلية
+              percentage: percentage, // ✅ النسبة المئوية (محسوبة)
+              passed: passed,
               created_at: a.created_at,
             };
           }
         });
-        setExamAttempts(attemptMap);
       }
 
-      // إعداد الرسم البياني
-      const examLabels = (examsData || []).map(e => e.title?.substring(0, 12) || 'امتحان');
-      const examScores = (examsData || []).map(e => {
+      setExamAttempts(attemptMap);
+
+      // 5. إعداد الرسم البياني
+      const examLabels = examsList.map(e => e.title?.substring(0, 12) || 'امتحان');
+      const examScores = examsList.map(e => {
         const att = attemptMap[e.id];
-        return att ? att.score : 0;
+        return att ? att.percentage : 0;
       });
+
       if (examLabels.length > 0) {
         setChartData({
           labels: examLabels,
@@ -487,7 +548,7 @@ export default function StudentCourseProgressPage() {
 
       setLoading(false);
     } catch (err) {
-      console.error('Error fetching data:', err);
+      console.error('❌ Error fetching data:', err);
       toast.error(language === 'ar' ? 'فشل تحميل التقدم' : 'Failed to load progress');
       setLoading(false);
     }
@@ -499,21 +560,17 @@ export default function StudentCourseProgressPage() {
     fetchData();
   }, [fetchData]);
 
-  // تحديث عند التركيز
   useEffect(() => {
     const handleFocus = () => { fetchData(); };
     window.addEventListener('focus', handleFocus);
     return () => window.removeEventListener('focus', handleFocus);
   }, [fetchData]);
 
-  // ===== شاشة التحميل =====
+  // ===== شاشة التحميل الفاخرة =====
   if (loading) {
     return (
-      <div className={`w-full min-h-screen flex items-center justify-center ${styles.bg}`}>
-        <div className="flex flex-col items-center gap-2">
-          <div className="w-6 h-6 sm:w-8 sm:h-8 border-3 border-yellow-400/30 border-t-yellow-400 rounded-full animate-spin" />
-          <p className="text-[10px] sm:text-xs text-gray-400">جاري تحميل التقدم...</p>
-        </div>
+      <div className={`w-full min-h-screen ${styles.bg}`}>
+        <LoadingScreen styles={styles} />
       </div>
     );
   }
@@ -533,7 +590,7 @@ export default function StudentCourseProgressPage() {
   }
 
   // ================================================================
-  // 7. العرض الرئيسي
+  // 8. العرض الرئيسي
   // ================================================================
   return (
     <div className={`w-full min-h-screen ${styles.bg}`}>
