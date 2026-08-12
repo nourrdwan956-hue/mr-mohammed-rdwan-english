@@ -15,6 +15,7 @@ import {
   FolderOpen,
   Video,
   ArrowLeft,
+  AlertCircle,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -54,7 +55,7 @@ const Modal = ({ isOpen, onClose, title, children }) => {
 
 export default function TeacherPlaylistsPage() {
   const params = useParams();
-  const courseId = params.id;
+  const courseId = params?.id; // ✅ استخراج المعرف
   const router = useRouter();
   const { theme } = useTheme();
   const isDark = theme === 'dark';
@@ -79,7 +80,13 @@ export default function TeacherPlaylistsPage() {
 
   // جلب القوائم
   const fetchPlaylists = useCallback(async () => {
-    if (!courseId) return;
+    // ✅ التحقق من وجود courseId قبل الطلب
+    if (!courseId) {
+      setLoading(false);
+      setError('معرف الكورس غير موجود');
+      return;
+    }
+
     setLoading(true);
     setError(null);
     try {
@@ -99,15 +106,25 @@ export default function TeacherPlaylistsPage() {
   }, [courseId]);
 
   useEffect(() => {
-    if (!fetchedRef.current && courseId) {
+    // ✅ فقط ننفذ الجلب إذا كان courseId موجوداً ولم يتم جلبه مسبقاً
+    if (courseId && !fetchedRef.current) {
       fetchedRef.current = true;
       fetchPlaylists();
+    }
+    // إذا لم يكن courseId موجوداً، نضع loading = false ونعرض رسالة
+    if (!courseId) {
+      setLoading(false);
+      setError('معرف الكورس غير موجود');
     }
   }, [courseId, fetchPlaylists]);
 
   // إنشاء قائمة جديدة
   const handleCreatePlaylist = async (e) => {
     e.preventDefault();
+    if (!courseId) {
+      toast.error('معرف الكورس غير موجود');
+      return;
+    }
     if (!formTitle.trim()) {
       toast.error('الرجاء إدخال عنوان القائمة');
       return;
@@ -205,8 +222,6 @@ export default function TeacherPlaylistsPage() {
 
     // تحديث order_index لكل قائمة بناءً على الموضع الجديد
     try {
-      // إرسال طلبات تحديث لكل قائمة (أو يمكن تحديث الاثنين المتأثرين فقط)
-      // لكن للبساطة، نحدث جميع القوائم بالترتيب الجديد
       for (let i = 0; i < updated.length; i++) {
         const p = updated[i];
         await fetch(`/api/playlists/${p.id}`, {
@@ -215,12 +230,11 @@ export default function TeacherPlaylistsPage() {
           body: JSON.stringify({ orderIndex: i }),
         });
       }
-      // تحديث الحالة المحلية فوراً لتجنب إعادة الجلب
       setPlaylists(updated);
       toast.success('تم تحديث الترتيب بنجاح');
     } catch (err) {
       toast.error('فشل في تحديث الترتيب');
-      fetchPlaylists(); // إعادة جلب لتصحيح الحالة
+      fetchPlaylists();
     }
   };
 
@@ -235,12 +249,20 @@ export default function TeacherPlaylistsPage() {
 
   // إدارة فيديوهات القائمة
   const manageVideos = (playlistId) => {
+    if (!courseId) {
+      toast.error('معرف الكورس غير موجود');
+      return;
+    }
     router.push(`/dashboard/teacher/playlists/${playlistId}/videos`);
   };
 
   // العودة إلى صفحة الكورس
   const goBack = () => {
-    router.push(`/dashboard/teacher/courses/${courseId}`);
+    if (courseId) {
+      router.push(`/dashboard/teacher/courses/${courseId}`);
+    } else {
+      router.push('/dashboard/teacher/courses');
+    }
   };
 
   // تنسيق الألوان حسب الثيم
@@ -250,6 +272,27 @@ export default function TeacherPlaylistsPage() {
   const borderColor = isDark ? 'border-gray-700' : 'border-gray-200';
   const inputBg = isDark ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300';
   const labelColor = isDark ? 'text-gray-300' : 'text-gray-700';
+
+  // ✅ إذا كان courseId غير موجود، نعرض رسالة خطأ
+  if (!courseId) {
+    return (
+      <div className={`min-h-screen ${bg} ${text} p-6 flex items-center justify-center`}>
+        <div className="text-center">
+          <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold mb-2">معرف الكورس غير موجود</h2>
+          <p className="text-gray-500 dark:text-gray-400 mb-4">
+            تأكد من أن الرابط صحيح، أو عد إلى قائمة الكورسات.
+          </p>
+          <button
+            onClick={() => router.push('/dashboard/teacher/courses')}
+            className="px-4 py-2 bg-amber-500 text-white rounded-lg shadow hover:bg-amber-600 transition"
+          >
+            العودة إلى الكورسات
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`min-h-screen ${bg} ${text} p-6 transition-colors duration-300`}>
@@ -288,11 +331,14 @@ export default function TeacherPlaylistsPage() {
 
         {/* عرض الأخطاء */}
         {error && !loading && (
-          <div className="text-center py-8 text-red-500">
-            <p>حدث خطأ: {error}</p>
+          <div className="text-center py-8">
+            <div className="text-red-500 mb-2">
+              <AlertCircle className="w-12 h-12 mx-auto" />
+            </div>
+            <p className="text-red-500">{error}</p>
             <button
               onClick={fetchPlaylists}
-              className="mt-2 px-4 py-2 bg-amber-500 text-white rounded-lg"
+              className="mt-2 px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition"
             >
               إعادة المحاولة
             </button>
@@ -337,7 +383,7 @@ export default function TeacherPlaylistsPage() {
                         </div>
                       </div>
 
-                      {/* إحصائيات سريعة (عدد الفيديوهات) */}
+                      {/* إحصائيات سريعة */}
                       <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 mb-4">
                         <Video className="w-4 h-4" />
                         <span>
