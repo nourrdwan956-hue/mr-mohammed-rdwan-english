@@ -3,9 +3,6 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { verifyCourseOwnership } from '@/lib/playlist-utils';
 
-// ============================================================
-// GET: جلب فيديو واحد
-// ============================================================
 export async function GET(request, { params }) {
   try {
     const { id } = await params;
@@ -54,7 +51,6 @@ export async function GET(request, { params }) {
       return NextResponse.json({ success: true, data: video });
     }
 
-    // مساعد - تم تبسيطه لتجنب الأخطاء (يمكن إضافته لاحقاً)
     // طالب مشترك
     const { data: enrollment, error: enrollError } = await supabase
       .from('enrollments')
@@ -95,9 +91,6 @@ export async function GET(request, { params }) {
   }
 }
 
-// ============================================================
-// PUT: تحديث فيديو
-// ============================================================
 export async function PUT(request, { params }) {
   try {
     const { id } = await params;
@@ -133,7 +126,6 @@ export async function PUT(request, { params }) {
       );
     }
 
-    // جلب الفيديو الحالي
     const { data: existingVideo, error: fetchError } = await supabase
       .from('videos')
       .select('id, course_id')
@@ -158,7 +150,6 @@ export async function PUT(request, { params }) {
       );
     }
 
-    // بناء كائن التحديث
     const updateData = { updated_at: new Date().toISOString() };
     if (title !== undefined) updateData.title = title.trim();
     if (description !== undefined) updateData.description = description?.trim() || null;
@@ -169,7 +160,6 @@ export async function PUT(request, { params }) {
     // ===================== معالجة playlistId =====================
     let finalPlaylistId = null;
     if (playlistId !== undefined) {
-      // تجاهل القيم غير الصالحة
       if (playlistId !== null && String(playlistId).trim() !== '') {
         const idStr = String(playlistId).trim();
         const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -177,21 +167,22 @@ export async function PUT(request, { params }) {
           console.warn(`⚠️ Invalid UUID in PUT: "${idStr}" — Setting to NULL`);
           finalPlaylistId = null;
         } else {
+          // ✅ التحقق من وجود القيمة في video_playlists
           const { data: playlistExists } = await supabase
-            .from('playlists')
+            .from('video_playlists')
             .select('id')
             .eq('id', idStr)
             .maybeSingle();
 
           if (playlistExists) {
             finalPlaylistId = idStr;
+            console.log(`✅ Playlist found in video_playlists (PUT): ${finalPlaylistId}`);
           } else {
-            console.warn(`⚠️ Playlist not found in PUT: "${idStr}" — Setting to NULL`);
+            console.warn(`⚠️ Playlist not found in video_playlists (PUT): "${idStr}" — Setting to NULL`);
             finalPlaylistId = null;
           }
         }
       }
-      
       updateData.playlist_id = finalPlaylistId;
       if (finalPlaylistId === null) {
         updateData.playlist_order = null;
@@ -233,9 +224,6 @@ export async function PUT(request, { params }) {
   }
 }
 
-// ============================================================
-// DELETE: حذف فيديو
-// ============================================================
 export async function DELETE(request, { params }) {
   try {
     const { id } = await params;
