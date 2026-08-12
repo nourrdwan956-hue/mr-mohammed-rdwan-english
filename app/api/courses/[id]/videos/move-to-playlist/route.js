@@ -1,40 +1,36 @@
+// app/api/courses/[id]/videos/move-to-playlist/route.js
 import { supabase } from '@/lib/supabaseClient';
 import { NextResponse } from 'next/server';
 
 export async function POST(request, { params }) {
   try {
-    const { id: courseId } = params;
-    
-    // جلب البيانات من الطلب
-    let videoId, playlistId;
-    try {
-      const body = await request.json();
-      videoId = body.videoId;
-      playlistId = body.playlistId;
-    } catch (parseError) {
-      return NextResponse.json(
-        { error: 'بيانات الطلب غير صالحة' },
-        { status: 400 }
-      );
+    // 1. التحقق من params
+    const courseId = params?.id;
+    if (!courseId) {
+      return NextResponse.json({ error: 'معرف الكورس مطلوب' }, { status: 400 });
     }
+
+    // 2. قراءة الجسم
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: 'بيانات الطلب غير صالحة' }, { status: 400 });
+    }
+
+    const { videoId, playlistId } = body;
 
     if (!videoId) {
-      return NextResponse.json(
-        { error: 'معرف الفيديو مطلوب' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'معرف الفيديو مطلوب' }, { status: 400 });
     }
 
-    // التحقق من المستخدم
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      return NextResponse.json(
-        { error: 'غير مصرح' },
-        { status: 401 }
-      );
+    // 3. التحقق من المستخدم
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      return NextResponse.json({ error: 'غير مصرح' }, { status: 401 });
     }
 
-    // التحقق من أن الكورس يخص المعلم
+    // 4. التحقق من ملكية الكورس
     const { data: course, error: courseError } = await supabase
       .from('courses')
       .select('teacher_id')
@@ -42,20 +38,14 @@ export async function POST(request, { params }) {
       .single();
 
     if (courseError || !course) {
-      return NextResponse.json(
-        { error: 'الكورس غير موجود' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: 'الكورس غير موجود' }, { status: 404 });
     }
 
     if (course.teacher_id !== user.id) {
-      return NextResponse.json(
-        { error: 'غير مصرح' },
-        { status: 403 }
-      );
+      return NextResponse.json({ error: 'غير مصرح' }, { status: 403 });
     }
 
-    // التحقق من وجود الفيديو في الكورس
+    // 5. التحقق من وجود الفيديو في الكورس
     const { data: video, error: videoError } = await supabase
       .from('videos')
       .select('id')
@@ -64,13 +54,10 @@ export async function POST(request, { params }) {
       .single();
 
     if (videoError || !video) {
-      return NextResponse.json(
-        { error: 'الفيديو غير موجود في هذا الكورس' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: 'الفيديو غير موجود في هذا الكورس' }, { status: 404 });
     }
 
-    // إذا كان playlistId موجوداً، تحقق من وجود القائمة في نفس الكورس
+    // 6. إذا كانت playlistId موجودة، تحقق من وجودها في نفس الكورس
     if (playlistId) {
       const { data: playlist, error: playlistError } = await supabase
         .from('video_playlists')
@@ -80,14 +67,11 @@ export async function POST(request, { params }) {
         .single();
 
       if (playlistError || !playlist) {
-        return NextResponse.json(
-          { error: 'القائمة غير موجودة في هذا الكورس' },
-          { status: 404 }
-        );
+        return NextResponse.json({ error: 'القائمة غير موجودة في هذا الكورس' }, { status: 404 });
       }
     }
 
-    // تحديث الفيديو
+    // 7. تحديث الفيديو
     const { data: updatedVideo, error: updateError } = await supabase
       .from('videos')
       .update({ playlist_id: playlistId || null })
@@ -97,17 +81,15 @@ export async function POST(request, { params }) {
 
     if (updateError) {
       console.error('Supabase update error:', updateError);
-      return NextResponse.json(
-        { error: 'فشل تحديث الفيديو: ' + updateError.message },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: 'فشل تحديث الفيديو: ' + updateError.message }, { status: 500 });
     }
 
     return NextResponse.json({ success: true, video: updatedVideo });
+
   } catch (error) {
-    console.error('Error moving video:', error);
+    console.error('Unhandled error:', error);
     return NextResponse.json(
-      { error: error.message || 'فشل نقل الفيديو' },
+      { error: error.message || 'خطأ داخلي في الخادم' },
       { status: 500 }
     );
   }
