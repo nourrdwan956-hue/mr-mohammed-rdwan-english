@@ -1,13 +1,12 @@
 // /app/api/playlists/[id]/route.js
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabaseClient';
+import { getSupabaseServerClient } from '@/lib/supabaseServer';
 import {
   getPlaylistWithVideos,
   deletePlaylist,
   verifyCourseOwnership,
 } from '@/lib/playlist-utils';
 
-// GET: جلب قائمة واحدة مع فيديوهاتها
 export async function GET(request, { params }) {
   try {
     const { id } = params;
@@ -18,7 +17,9 @@ export async function GET(request, { params }) {
       );
     }
 
+    const supabase = getSupabaseServerClient();
     const { data: { session } } = await supabase.auth.getSession();
+
     if (!session) {
       return NextResponse.json(
         { success: false, error: 'يجب تسجيل الدخول أولاً' },
@@ -49,7 +50,6 @@ export async function GET(request, { params }) {
   }
 }
 
-// PUT: تعديل القائمة
 export async function PUT(request, { params }) {
   try {
     const { id } = params;
@@ -63,7 +63,9 @@ export async function PUT(request, { params }) {
       );
     }
 
+    const supabase = getSupabaseServerClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
+
     if (authError || !user) {
       return NextResponse.json(
         { success: false, error: 'يجب تسجيل الدخول' },
@@ -129,7 +131,6 @@ export async function PUT(request, { params }) {
   }
 }
 
-// DELETE: حذف قائمة
 export async function DELETE(request, { params }) {
   try {
     const { id } = params;
@@ -140,7 +141,9 @@ export async function DELETE(request, { params }) {
       );
     }
 
+    const supabase = getSupabaseServerClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
+
     if (authError || !user) {
       return NextResponse.json(
         { success: false, error: 'يجب تسجيل الدخول' },
