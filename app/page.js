@@ -1,13 +1,14 @@
 // app/page.js
 // ================================================================
-// 🏛️ الصفحة الرئيسية – منصة مستر محمد رضوان (نسخة نهائية فاخرة)
+// 🏛️ الصفحة الرئيسية – منصة مستر محمد رضوان (نسخة 3D فاخرة)
 // ================================================================
-// ✅ عرض الكورسات بشكل 3D أفقي عريض (Carousel)
-// ✅ صور الغلاف بأعلى وضوح وسطوع
-// ✅ شريط متحرك رفيع يدور حول كل بطاقة كورس
-// ✅ عرض إحصائيات الكورس (فيديوهات، امتحانات، كتب) بأيقونات وأعداد حقيقية
-// ✅ جميع البطاقات بنفس الحجم مع تكبير عند Hover
-// ✅ رقم الهاتف الصحيح: 01148553118
+// ✅ عرض الكورسات بشكل 3D مع تأثير بارز (خروج من الشاشة)
+// ✅ أسهم تنقل حقيقية (يسار/يمين) مع اتجاه صحيح
+// ✅ تكبير أزرار تسجيل الدخول وإنشاء حساب على الشاشات الكبيرة
+// ✅ توقيع المبرمج في الفوتر بشكل مميز مع لون متغير
+// ✅ شريط متحرك رفيع حول كل بطاقة
+// ✅ إحصائيات حقيقية (فيديوهات، امتحانات، كتب)
+// ✅ جميع الوظائف الأخرى محفوظة كما هي
 // ================================================================
 
 'use client';
@@ -21,7 +22,7 @@ import { useTheme } from '@/lib/hooks/useTheme';
 import { supabase } from '@/lib/supabaseClient';
 
 // ================================================================
-// 📌 مميزات المنصة
+// 📌 مميزات المنصة (بدون تغيير)
 // ================================================================
 
 const PLATFORM_FEATURES = [
@@ -70,7 +71,7 @@ const PLATFORM_FEATURES = [
 ];
 
 // ================================================================
-// 🎁 العرض الترويجي الخاص – لأوائل الطلاب
+// 🎁 العرض الترويجي الخاص – لأوائل الطلاب (بدون تغيير)
 // ================================================================
 
 const PROMO_TOP_STUDENTS = {
@@ -83,7 +84,7 @@ const PROMO_TOP_STUDENTS = {
 };
 
 // ================================================================
-// 🌐 روابط التواصل الاجتماعي (مع تصحيح رقم الهاتف)
+// 🌐 روابط التواصل الاجتماعي (بدون تغيير)
 // ================================================================
 
 const SOCIAL_LINKS = [
@@ -141,7 +142,7 @@ const SOCIAL_LINKS = [
 ];
 
 // ================================================================
-// ⏳ العداد التنازلي لامتحانات الثانوية العامة
+// ⏳ العداد التنازلي (بدون تغيير)
 // ================================================================
 
 const CountdownTimer = ({ isDark }) => {
@@ -245,7 +246,7 @@ const CountdownTimer = ({ isDark }) => {
 };
 
 // ================================================================
-// 🎨 خلفية متطورة
+// 🎨 خلفية متطورة (بدون تغيير)
 // ================================================================
 
 const ElegantBackground = ({ isDark }) => {
@@ -321,7 +322,7 @@ const ElegantBackground = ({ isDark }) => {
 };
 
 // ================================================================
-// 🧭 مؤشر التمرير
+// 🧭 مؤشر التمرير (بدون تغيير)
 // ================================================================
 
 const ScrollIndicator = ({ targetId }) => {
@@ -358,7 +359,7 @@ const ScrollIndicator = ({ targetId }) => {
 };
 
 // ================================================================
-// ⬆️ زر العودة للأعلى
+// ⬆️ زر العودة للأعلى (بدون تغيير)
 // ================================================================
 
 const ScrollToTopButton = ({ show, onClick }) => (
@@ -380,7 +381,7 @@ const ScrollToTopButton = ({ show, onClick }) => (
 );
 
 // ================================================================
-// 🃏 بطاقة الكورس – نسخة 3D فاخرة مع شريط متحرك رفيع وإحصائيات حقيقية
+// 🃏 بطاقة الكورس – نسخة 3D فاخرة مع شريط متحرك وتأثير خروج من الشاشة
 // ================================================================
 
 const CourseCard3D = ({ course, teacher, index, isActive }) => {
@@ -391,7 +392,6 @@ const CourseCard3D = ({ course, teacher, index, isActive }) => {
   const cardRef = useRef(null);
   const [rotation, setRotation] = useState({ x: 0, y: 0 });
 
-  // تأثير 3D عند تحريك الماوس
   const handleMouseMove = (e) => {
     if (!cardRef.current) return;
     const rect = cardRef.current.getBoundingClientRect();
@@ -399,8 +399,8 @@ const CourseCard3D = ({ course, teacher, index, isActive }) => {
     const y = e.clientY - rect.top;
     const centerX = rect.width / 2;
     const centerY = rect.height / 2;
-    const rotateX = ((y - centerY) / centerY) * -6;
-    const rotateY = ((x - centerX) / centerX) * 6;
+    const rotateX = ((y - centerY) / centerY) * -12; // زيادة الزاوية للتأثير 3D
+    const rotateY = ((x - centerX) / centerX) * 12;
     setRotation({ x: rotateX, y: rotateY });
   };
 
@@ -409,7 +409,6 @@ const CourseCard3D = ({ course, teacher, index, isActive }) => {
     setIsHovered(false);
   };
 
-  // إحصائيات الكورس (الأعداد الحقيقية)
   const stats = [
     { label: 'فيديوهات', count: course.videos_count || 0, icon: Icons.Video, color: 'text-blue-400' },
     { label: 'امتحانات', count: course.exams_count || 0, icon: Icons.FileText, color: 'text-purple-400' },
@@ -421,56 +420,57 @@ const CourseCard3D = ({ course, teacher, index, isActive }) => {
   return (
     <motion.div
       ref={cardRef}
-      initial={{ opacity: 0, scale: 0.9, y: 20 }}
+      initial={{ opacity: 0, scale: 0.9, y: 30 }}
       animate={{ opacity: 1, scale: 1, y: 0 }}
-      transition={{ duration: 0.5, delay: index * 0.05 }}
+      transition={{ duration: 0.6, delay: index * 0.07 }}
       onMouseMove={handleMouseMove}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={handleMouseLeave}
       onClick={() => router.push(`/dashboard/student/courses/${course.id}`)}
       className="group cursor-pointer perspective-1000"
-      style={{ perspective: '1200px' }}
+      style={{ perspective: '1400px' }}
     >
       <motion.div
         className="relative rounded-2xl overflow-visible"
         animate={{
-          scale: isHovered ? 1.03 : 1,
-          zIndex: isHovered ? 20 : 10,
+          scale: isHovered ? 1.04 : 1,
+          zIndex: isHovered ? 30 : 10,
+          y: isHovered ? -12 : 0,
         }}
         transition={{ duration: 0.3 }}
       >
-        {/* الشريط المتحرك الرفيع حول الإطار (Border Stroke) */}
-        <div className="absolute inset-[-2px] rounded-2xl overflow-hidden pointer-events-none">
-          <div className="absolute inset-0 rounded-2xl p-[2px]">
-            <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-transparent via-yellow-400/40 to-transparent animate-border-flow" />
+        {/* الشريط المتحرك الرفيع حول الإطار (Border Stroke) - أكثر وضوحاً */}
+        <div className="absolute inset-[-3px] rounded-2xl overflow-hidden pointer-events-none">
+          <div className="absolute inset-0 rounded-2xl p-[3px]">
+            <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-transparent via-yellow-400/60 to-transparent animate-border-flow" />
           </div>
         </div>
 
         {/* محتوى البطاقة */}
         <motion.div
-          className={`relative rounded-2xl overflow-hidden transition-all duration-400 ${
+          className={`relative rounded-2xl overflow-hidden transition-all duration-500 ${
             isDark
-              ? 'bg-white/8 border-white/12'
-              : 'bg-white/85 border-gray-200/50'
-          } border backdrop-blur-sm shadow-lg hover:shadow-2xl`}
+              ? 'bg-white/10 border-white/15'
+              : 'bg-white/90 border-gray-200/50'
+          } border backdrop-blur-md shadow-xl hover:shadow-2xl`}
           style={{
             transform: `rotateX(${rotation.x}deg) rotateY(${rotation.y}deg)`,
             transformStyle: 'preserve-3d',
-            transition: 'transform 0.1s ease-out',
-            minHeight: '380px',
-            maxHeight: '480px',
+            transition: 'transform 0.15s ease-out',
+            minHeight: '400px',
+            maxHeight: '500px',
           }}
         >
-          {/* تأثير إضاءة 3D */}
+          {/* تأثير إضاءة 3D - محسّن */}
           <div
             className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500"
             style={{
-              background: `radial-gradient(circle at ${50 + rotation.y * 2}% ${50 + rotation.x * 2}%, rgba(255,255,255,0.12) 0%, transparent 80%)`,
+              background: `radial-gradient(circle at ${50 + rotation.y * 3}% ${50 + rotation.x * 3}%, rgba(255,255,255,0.2) 0%, transparent 70%)`,
             }}
           />
 
-          {/* صورة الغلاف – بأعلى وضوح وسطوع */}
-          <div className="relative w-full overflow-hidden" style={{ height: '250px' }}>
+          {/* صورة الغلاف */}
+          <div className="relative w-full overflow-hidden" style={{ height: '260px' }}>
             {course?.cover_image ? (
               <>
                 <motion.img
@@ -481,15 +481,15 @@ const CourseCard3D = ({ course, teacher, index, isActive }) => {
                     filter: 'brightness(1.15) contrast(1.1) saturate(1.08)',
                     backgroundColor: '#e8ecf0',
                   }}
-                  animate={{ scale: isHovered ? 1.06 : 1 }}
-                  transition={{ duration: 0.5 }}
+                  animate={{ scale: isHovered ? 1.08 : 1 }}
+                  transition={{ duration: 0.6 }}
                   loading="lazy"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent" />
               </>
             ) : (
               <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-400/20 to-green-400/20">
-                <Icons.BookOpen className="h-16 w-16 text-gray-400/30" />
+                <Icons.BookOpen className="h-20 w-20 text-gray-400/30" />
               </div>
             )}
 
@@ -514,13 +514,13 @@ const CourseCard3D = ({ course, teacher, index, isActive }) => {
 
             {/* شارات المرحلة والصف */}
             <div className="absolute bottom-3 right-3 flex gap-1.5 z-10">
-              <span className="text-[7px] sm:text-[8px] px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-sm text-white/90 border border-white/10 shadow-lg">
+              <span className="text-[7px] sm:text-[8px] px-2 py-0.5 rounded-full bg-black/70 backdrop-blur-sm text-white/90 border border-white/10 shadow-lg">
                 {course?.grade_stage === 'primary' ? 'ابتدائي' :
                  course?.grade_stage === 'middle' ? 'إعدادي' :
                  course?.grade_stage === 'secondary' ? 'ثانوي' : 'عام'}
               </span>
               {course?.grade_level && (
-                <span className="text-[7px] sm:text-[8px] px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-sm text-white/90 border border-white/10 shadow-lg">
+                <span className="text-[7px] sm:text-[8px] px-2 py-0.5 rounded-full bg-black/70 backdrop-blur-sm text-white/90 border border-white/10 shadow-lg">
                   صف {course.grade_level}
                 </span>
               )}
@@ -528,7 +528,7 @@ const CourseCard3D = ({ course, teacher, index, isActive }) => {
 
             {/* أيقونة تشغيل عند Hover */}
             <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10">
-              <div className="p-4 rounded-full bg-black/30 backdrop-blur-md border border-white/20 shadow-2xl group-hover:scale-110 transition-transform duration-300">
+              <div className="p-4 rounded-full bg-black/40 backdrop-blur-md border border-white/20 shadow-2xl group-hover:scale-110 transition-transform duration-300">
                 <Icons.Play className="h-8 w-8 text-white" />
               </div>
             </div>
@@ -559,7 +559,7 @@ const CourseCard3D = ({ course, teacher, index, isActive }) => {
               {course?.description || 'لا يوجد وصف'}
             </p>
 
-            {/* إحصائيات الكورس (فيديوهات، امتحانات، كتب) */}
+            {/* إحصائيات الكورس */}
             <div className="flex items-center justify-between mt-2 gap-1 flex-wrap">
               {stats.map((stat, idx) => (
                 <div key={idx} className="flex items-center gap-1 text-[8px] sm:text-[9px]">
@@ -594,17 +594,30 @@ const CourseCard3D = ({ course, teacher, index, isActive }) => {
         </motion.div>
       </motion.div>
 
-      {/* أنماط الشريط المتحرك الرفيع */}
       <style jsx>{`
         .animate-border-flow {
           animation: borderFlow 3s linear infinite;
           background-size: 300% 100%;
         }
-
         @keyframes borderFlow {
           0% { background-position: 0% 0%; }
           50% { background-position: 100% 0%; }
           100% { background-position: 200% 0%; }
+        }
+        .perspective-1000 {
+          perspective: 1200px;
+        }
+        .line-clamp-1 {
+          display: -webkit-box;
+          -webkit-line-clamp: 1;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+        }
+        .line-clamp-2 {
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
         }
       `}</style>
     </motion.div>
@@ -612,7 +625,7 @@ const CourseCard3D = ({ course, teacher, index, isActive }) => {
 };
 
 // ================================================================
-// 🎠 عرض الكورسات – Carousel أفقي 3D
+// 🎠 عرض الكورسات – Carousel أفقي 3D مع أسهم تنقل حقيقية
 // ================================================================
 
 const CoursesCarousel3D = ({ courses, teachers, isDark, loading }) => {
@@ -627,7 +640,7 @@ const CoursesCarousel3D = ({ courses, teachers, isDark, loading }) => {
       const w = window.innerWidth;
       if (w < 640) setCardWidth(280);
       else if (w < 1024) setCardWidth(320);
-      else setCardWidth(360);
+      else setCardWidth(370);
     };
     updateWidth();
     window.addEventListener('resize', updateWidth);
@@ -711,23 +724,31 @@ const CoursesCarousel3D = ({ courses, teachers, isDark, loading }) => {
         ))}
       </div>
 
-      {/* أزرار التنقل */}
+      {/* أسهم التنقل - اتجاه حقيقي (يسار/يمين) مع تكبير عند Hover */}
       {visibleCourses.length > 3 && (
-        <div className="flex justify-center gap-3 mt-6">
-          <button
+        <div className="flex justify-center gap-4 mt-6">
+          <motion.button
             onClick={scrollBackward}
-            className={`p-2.5 rounded-full ${isDark ? 'bg-white/15 hover:bg-white/25' : 'bg-gray-200 hover:bg-gray-300'} transition shadow-lg hover:shadow-xl`}
+            whileHover={{ scale: 1.12 }}
+            whileTap={{ scale: 0.9 }}
+            className={`p-3 rounded-full ${
+              isDark ? 'bg-white/15 hover:bg-white/25' : 'bg-gray-200 hover:bg-gray-300'
+            } transition shadow-lg hover:shadow-xl flex items-center justify-center`}
             aria-label="السابق"
           >
-            <Icons.ChevronRight className="h-5 w-5" />
-          </button>
-          <button
+            <Icons.ChevronRight className="h-6 w-6 text-blue-400" />
+          </motion.button>
+          <motion.button
             onClick={scrollForward}
-            className={`p-2.5 rounded-full ${isDark ? 'bg-white/15 hover:bg-white/25' : 'bg-gray-200 hover:bg-gray-300'} transition shadow-lg hover:shadow-xl`}
+            whileHover={{ scale: 1.12 }}
+            whileTap={{ scale: 0.9 }}
+            className={`p-3 rounded-full ${
+              isDark ? 'bg-white/15 hover:bg-white/25' : 'bg-gray-200 hover:bg-gray-300'
+            } transition shadow-lg hover:shadow-xl flex items-center justify-center`}
             aria-label="التالي"
           >
-            <Icons.ChevronLeft className="h-5 w-5" />
-          </button>
+            <Icons.ChevronLeft className="h-6 w-6 text-blue-400" />
+          </motion.button>
         </div>
       )}
 
@@ -755,7 +776,7 @@ const CoursesCarousel3D = ({ courses, teachers, isDark, loading }) => {
 };
 
 // ================================================================
-// 🃏 بطاقة المميزات
+// 🃏 بطاقة المميزات (بدون تغيير)
 // ================================================================
 
 const FeatureCard = ({ feature, index }) => {
@@ -814,7 +835,7 @@ const FeatureCard = ({ feature, index }) => {
 };
 
 // ================================================================
-// 🃏 بطاقة التواصل
+// 🃏 بطاقة التواصل (بدون تغيير)
 // ================================================================
 
 const SocialCard = ({ link, index }) => {
@@ -907,7 +928,7 @@ const SocialCard = ({ link, index }) => {
 // 📐 أقسام الصفحة الرئيسية
 // ================================================================
 
-// ----- الهيرو -----
+// ----- الهيرو (بدون تغيير) -----
 const HeroSection = ({ isDark }) => {
   const { scrollY } = useScroll();
   const y = useTransform(scrollY, [0, 500], [0, 30]);
@@ -1087,7 +1108,7 @@ const CoursesSection = ({ isDark, courses, teachers, loading }) => {
   );
 };
 
-// ----- المميزات -----
+// ----- المميزات (بدون تغيير) -----
 const FeaturesSection = ({ isDark }) => {
   return (
     <section id="features" className={`py-4 sm:py-6 md:py-8 px-3 sm:px-4 ${isDark ? 'bg-[#0a0e1a]/60' : 'bg-white'}`}>
@@ -1117,7 +1138,7 @@ const FeaturesSection = ({ isDark }) => {
   );
 };
 
-// ----- العداد التنازلي -----
+// ----- العداد التنازلي (بدون تغيير) -----
 const CountdownSection = ({ isDark }) => {
   return (
     <section id="countdown" className={`py-4 sm:py-6 md:py-8 px-3 sm:px-4 ${isDark ? 'bg-[#0a0e1a]/60' : 'bg-white'}`}>
@@ -1128,7 +1149,7 @@ const CountdownSection = ({ isDark }) => {
   );
 };
 
-// ----- قسم التواصل -----
+// ----- قسم التواصل (بدون تغيير) -----
 const ContactSection = ({ isDark }) => {
   const sortedLinks = useMemo(() => {
     const primary = SOCIAL_LINKS.find(l => l.isPrimary);
@@ -1194,7 +1215,7 @@ const ContactSection = ({ isDark }) => {
   );
 };
 
-// ----- الفوتر -----
+// ----- الفوتر المعدل مع توقيع المبرمج المميز -----
 const FooterSection = ({ isDark }) => {
   return (
     <footer className={`${isDark ? 'bg-[#030812]/90 border-white/5' : 'bg-white/90 border-gray-200/40'} border-t py-3 sm:py-4 px-3 sm:px-4 backdrop-blur`}>
@@ -1244,6 +1265,7 @@ const FooterSection = ({ isDark }) => {
           </Link>
         </div>
 
+        {/* توقيع المبرمج – مميز في كل الأوضاع */}
         <div className={`border-t ${isDark ? 'border-white/5' : 'border-gray-200/40'} mt-2 pt-2`}>
           <motion.div
             initial={{ opacity: 0.6 }}
@@ -1251,18 +1273,41 @@ const FooterSection = ({ isDark }) => {
             transition={{ duration: 2, repeat: Infinity, repeatType: 'reverse' }}
             className="text-center"
           >
-            <p className="text-[7px] sm:text-[9px] text-blue-400/40 font-mono tracking-widest">
-              ⚡ Built with ❤️ by{' '}
-              <span className="text-red-500 font-extrabold hover:text-red-400 transition-colors duration-300 text-[8px] sm:text-[10px]">
+            <p className="text-[7px] sm:text-[9px] font-mono tracking-widest">
+              <span className={isDark ? 'text-blue-400/40' : 'text-blue-400/60'}>⚡ Built with ❤️ by</span>
+              {' '}
+              <span
+                className={`font-extrabold text-[8px] sm:text-[10px] transition-all duration-300 hover:scale-105 inline-block ${
+                  isDark
+                    ? 'text-transparent bg-clip-text bg-gradient-to-r from-red-400 via-pink-400 to-purple-400 animate-gradient'
+                    : 'text-transparent bg-clip-text bg-gradient-to-r from-red-600 via-pink-600 to-purple-600 animate-gradient'
+                }`}
+                style={{
+                  textShadow: isDark
+                    ? '0 0 30px rgba(244, 63, 94, 0.3)'
+                    : '0 0 30px rgba(220, 38, 38, 0.2)',
+                }}
+              >
                 Nour El-Saeed
               </span>
               {' '}
-              <span className="text-blue-400/20">•</span>
+              <span className={isDark ? 'text-blue-400/20' : 'text-blue-400/30'}>•</span>
               {' '}
-              <span className="text-blue-400/30 text-[6px] sm:text-[8px]">
+              <span className={`text-[6px] sm:text-[8px] ${isDark ? 'text-blue-400/30' : 'text-blue-400/40'}`}>
                 Developer &amp; Designer
               </span>
             </p>
+            <style jsx>{`
+              @keyframes gradient {
+                0% { background-position: 0% 50%; }
+                50% { background-position: 100% 50%; }
+                100% { background-position: 0% 50%; }
+              }
+              .animate-gradient {
+                animation: gradient 4s ease infinite;
+                background-size: 200% 200%;
+              }
+            `}</style>
           </motion.div>
         </div>
       </div>
@@ -1304,7 +1349,6 @@ export default function Home() {
   useEffect(() => {
     const fetchCourses = async () => {
       try {
-        // 1. جلب الكورسات المنشورة
         const { data: coursesData, error: coursesError } = await supabase
           .from('courses')
           .select('*')
@@ -1317,7 +1361,6 @@ export default function Home() {
         if (coursesData?.length) {
           const courseIds = coursesData.map(c => c.id);
 
-          // 2. جلب عدد الفيديوهات لكل كورس
           const { data: videosData, error: videosError } = await supabase
             .from('videos')
             .select('course_id')
@@ -1331,7 +1374,6 @@ export default function Home() {
             videoCounts[v.course_id] = (videoCounts[v.course_id] || 0) + 1;
           });
 
-          // 3. جلب عدد الامتحانات لكل كورس
           const { data: examsData, error: examsError } = await supabase
             .from('exams')
             .select('course_id')
@@ -1345,7 +1387,6 @@ export default function Home() {
             examCounts[e.course_id] = (examCounts[e.course_id] || 0) + 1;
           });
 
-          // 4. جلب عدد الكتب لكل كورس
           const { data: booksData, error: booksError } = await supabase
             .from('books')
             .select('course_id')
@@ -1359,7 +1400,6 @@ export default function Home() {
             bookCounts[b.course_id] = (bookCounts[b.course_id] || 0) + 1;
           });
 
-          // دمج الإحصائيات مع الكورسات
           const coursesWithStats = coursesData.map(course => ({
             ...course,
             videos_count: videoCounts[course.id] || 0,
@@ -1369,7 +1409,6 @@ export default function Home() {
 
           setCourses(coursesWithStats);
 
-          // 5. جلب بيانات المعلمين
           const teacherIds = [...new Set(coursesData.map(c => c.teacher_id).filter(Boolean))];
           if (teacherIds.length) {
             const { data: teachersData } = await supabase
@@ -1472,21 +1511,23 @@ export default function Home() {
               </span>
             </button>
 
+            {/* ✅ زر تسجيل الدخول – أكبر على الشاشات الكبيرة */}
             <Link
               href="/login"
-              className={`px-2 py-0.5 sm:px-2.5 sm:py-0.5 rounded-full text-[7px] sm:text-[9px] font-bold border-2 transition-all duration-300 hover:scale-105 ${
+              className={`px-2 py-0.5 rounded-full text-[7px] sm:text-[9px] lg:text-xs font-bold border-2 transition-all duration-300 hover:scale-105 ${
                 isDark
                   ? 'border-blue-400/30 text-blue-400 hover:bg-blue-400/10'
                   : 'border-blue-400/30 text-blue-600 hover:bg-blue-400/10'
-              }`}
+              } lg:px-3 lg:py-1`}
             >
               <Icons.LogIn className="h-2 w-2 sm:h-2.5 sm:w-2.5 inline ml-0.5" />
               تسجيل الدخول
             </Link>
 
+            {/* ✅ زر إنشاء حساب – أكبر على الشاشات الكبيرة */}
             <Link
               href="/register"
-              className="px-2 py-0.5 sm:px-3 sm:py-0.5 bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-bold rounded-full text-[7px] sm:text-[9px] shadow-lg shadow-blue-500/30 hover:scale-105 transition-all duration-300 flex items-center gap-0.5"
+              className="px-2 py-0.5 rounded-full bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-bold shadow-lg shadow-blue-500/30 hover:scale-105 transition-all duration-300 flex items-center gap-0.5 text-[7px] sm:text-[9px] lg:text-xs lg:px-3 lg:py-1"
             >
               <Icons.UserPlus className="h-2 w-2 sm:h-2.5 sm:w-2.5" />
               انشاء حساب
@@ -1504,7 +1545,7 @@ export default function Home() {
 
       <ScrollToTopButton show={showBackToTop} onClick={scrollToTop} />
 
-      <style jsx>{`
+      <style jsx global>{`
         @keyframes gradient {
           0% { background-position: 0% 50%; }
           50% { background-position: 100% 50%; }
@@ -1530,7 +1571,7 @@ export default function Home() {
           font-family: 'Scheherazade New', 'Amiri', serif;
         }
         .perspective-1000 {
-          perspective: 1000px;
+          perspective: 1200px;
         }
         .tracking-wider {
           letter-spacing: 0.05em;
