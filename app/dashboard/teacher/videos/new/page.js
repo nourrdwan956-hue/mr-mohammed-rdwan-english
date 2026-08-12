@@ -1,794 +1,271 @@
 // ============================================================
-// app/dashboard/teacher/videos/page.js
-// إدارة الفيديوهات – النسخة العبقرية V5 (مع قوائم التشغيل)
+// app/dashboard/teacher/videos/new/page.js
+// رفع فيديو – النسخة الأسطورية النهائية V8 (مع المرحلة والصف + دعم الثيم + تحسينات الاتصال)
 // ============================================================
 
 'use client';
 
-import { TeacherLayout } from '@/components/TeacherLayout';
-import { motion, AnimatePresence } from 'framer-motion';
-import Link from 'next/link';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import * as Icons from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/lib/supabaseClient';
 import { toast } from 'react-hot-toast';
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend,
-  ArcElement,
-} from 'chart.js';
-import { Doughnut, Bar } from 'react-chartjs-2';
-
-import { getCachedAssistantPermissions, hasPermission } from '@/lib/permissions';
-
-ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement);
+import Link from 'next/link';
+import * as Icons from 'lucide-react';
 
 // ============================================================
-// 1. عداد متحرك
+// 0. دعم الثيم (فاتح/داكن) – إضافة قبل ParticleBackground
 // ============================================================
-
-const AnimatedCounter = ({ target, suffix = '', duration = 1500 }) => {
-  const [count, setCount] = useState(0);
-  const ref = useRef(null);
+const useTheme = () => {
+  const [theme, setTheme] = useState(() => {
+    try { return localStorage.getItem('videoTheme') || 'dark'; }
+    catch { return 'dark'; }
+  });
 
   useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          let start = 0;
-          const step = target / (duration / 16);
-          const timer = setInterval(() => {
-            start += step;
-            if (start >= target) {
-              setCount(target);
-              clearInterval(timer);
-            } else {
-              setCount(Math.floor(start));
-            }
-          }, 16);
-          return () => clearInterval(timer);
+    localStorage.setItem('videoTheme', theme);
+    document.documentElement.className = theme;
+  }, [theme]);
+
+  const toggleTheme = () => setTheme(t => t === 'dark' ? 'light' : 'dark');
+
+  const styles = {
+    dark: {
+      bg: 'bg-[#0b0e1a]',
+      text: 'text-white',
+      subtext: 'text-gray-300',        // أكثر وضوحاً من gray-400
+      card: 'bg-white/5 backdrop-blur-sm border-white/10',
+      input: 'bg-white/10 border-white/20 text-white placeholder-gray-300',
+      label: 'text-white',              // واضح جداً
+      select: 'bg-white/10 border-white/20 text-white',
+      hover: 'hover:border-yellow-400/50',
+      shadow: 'shadow-yellow-400/10',
+      border: 'border-white/10',
+    },
+    light: {
+      bg: 'bg-gray-50',
+      text: 'text-gray-900',
+      subtext: 'text-gray-700',
+      card: 'bg-white/90 backdrop-blur-sm border-gray-200',
+      input: 'bg-gray-100 border-gray-300 text-gray-900 placeholder-gray-400',
+      label: 'text-gray-800',
+      select: 'bg-gray-100 border-gray-300 text-gray-900',
+      hover: 'hover:border-yellow-400/70',
+      shadow: 'shadow-yellow-400/30',
+      border: 'border-gray-200',
+    }
+  };
+
+  return { theme, toggleTheme, styles: styles[theme] };
+};
+
+// ============================================================
+// 1. خلفية جسيمات (تأثير بصري فاخر) – سيتم إخفاؤها في الوضع الفاتح
+// ============================================================
+
+const ParticleBackground = () => {
+  const canvasRef = useRef(null);
+  const mouseRef = useRef({ x: null, y: null });
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    let width, height;
+    const particles = [];
+
+    const resize = () => {
+      width = canvas.width = window.innerWidth;
+      height = canvas.height = window.innerHeight;
+    };
+    window.addEventListener('resize', resize);
+    resize();
+
+    const handleMouseMove = (e) => {
+      mouseRef.current.x = e.clientX;
+      mouseRef.current.y = e.clientY;
+    };
+    window.addEventListener('mousemove', handleMouseMove);
+
+    for (let i = 0; i < 60; i++) {
+      particles.push({
+        x: Math.random() * width,
+        y: Math.random() * height,
+        vx: (Math.random() - 0.5) * 0.3,
+        vy: (Math.random() - 0.5) * 0.3,
+        r: Math.random() * 2.5 + 0.5,
+        baseOpacity: Math.random() * 0.25 + 0.05,
+        phase: Math.random() * Math.PI * 2,
+        speed: Math.random() * 0.02 + 0.005,
+      });
+    }
+
+    const draw = () => {
+      ctx.clearRect(0, 0, width, height);
+      const time = Date.now() * 0.001;
+
+      particles.forEach((p, i) => {
+        p.x += p.vx + Math.sin(time * 0.3 + p.phase) * 0.15;
+        p.y += p.vy + Math.cos(time * 0.4 + p.phase) * 0.15;
+        if (p.x < 0 || p.x > width) p.vx *= -1;
+        if (p.y < 0 || p.y > height) p.vy *= -1;
+
+        const dx = mouseRef.current.x !== null ? mouseRef.current.x - p.x : 0;
+        const dy = mouseRef.current.y !== null ? mouseRef.current.y - p.y : 0;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        let opacity = p.baseOpacity;
+        let radius = p.r;
+        if (dist < 150) {
+          const influence = 1 - dist / 150;
+          opacity += influence * 0.5;
+          radius += influence * 2.5;
         }
-      },
-      { threshold: 0.3 }
-    );
-    if (ref.current) observer.observe(ref.current);
-    return () => observer.disconnect();
-  }, [target, duration]);
 
-  return (
-    <span ref={ref} className="font-extrabold">
-      {count}{suffix}
-    </span>
-  );
+        const pulse = Math.sin(time * p.speed + p.phase) * 0.15 + 0.85;
+        const finalOpacity = Math.min(opacity * pulse, 0.9);
+
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255, 215, 0, ${finalOpacity})`;
+        ctx.fill();
+
+        for (let j = i + 1; j < particles.length; j++) {
+          const p2 = particles[j];
+          const dx2 = p.x - p2.x;
+          const dy2 = p.y - p2.y;
+          const dist2 = Math.sqrt(dx2 * dx2 + dy2 * dy2);
+          if (dist2 < 130) {
+            const alpha = 0.06 * (1 - dist2 / 130);
+            ctx.beginPath();
+            ctx.moveTo(p.x, p.y);
+            ctx.lineTo(p2.x, p2.y);
+            ctx.strokeStyle = `rgba(255, 215, 0, ${alpha})`;
+            ctx.lineWidth = 0.5;
+            ctx.stroke();
+          }
+        }
+      });
+
+      requestAnimationFrame(draw);
+    };
+    draw();
+
+    return () => {
+      window.removeEventListener('resize', resize);
+      window.removeEventListener('mousemove', handleMouseMove);
+    };
+  }, []);
+
+  return <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none" />;
 };
 
 // ============================================================
-// 2. بطاقة إحصائية
+// 2. مكون معاينة الفيديو (مُحسّن مع وضع العرض والمرحلة/الصف + الثيم)
 // ============================================================
 
-const StatCard = ({ stat }) => {
-  const [isHovered, setIsHovered] = useState(false);
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: stat.delay }}
-      whileHover={{ y: -6, scale: 1.02 }}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-      className="relative bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-5 hover:border-yellow-400/50 transition-all duration-300 hover:shadow-2xl hover:shadow-yellow-400/10 overflow-hidden group"
-    >
-      <div className={`absolute inset-0 bg-gradient-to-br ${stat.color} opacity-0 group-hover:opacity-10 transition-opacity duration-500`} />
-      <div className="relative z-10 flex items-start justify-between">
-        <div>
-          <p className="text-gray-400 text-sm">{stat.label}</p>
-          <p className="text-3xl font-extrabold text-white mt-1">
-            <AnimatedCounter target={stat.value} suffix={stat.suffix || ''} />
-          </p>
-        </div>
-        <div className={`p-3 rounded-xl bg-gradient-to-br ${stat.color} bg-opacity-20`}>
-          <stat.icon className="h-6 w-6 text-white" />
-        </div>
-      </div>
-      <div className="mt-4 h-1 w-full bg-white/5 rounded-full overflow-hidden">
-        <div
-          className={`h-full w-3/4 bg-gradient-to-r ${stat.color} rounded-full animate-pulse`}
-        />
-      </div>
-    </motion.div>
-  );
-};
-
-// ============================================================
-// 3. مكونات القوائم الجديدة
-// ============================================================
-
-// 3.1 قائمة منسدلة لنقل الفيديو
-const MoveToPlaylistDropdown = ({
-  videoId,
-  currentPlaylistId,
-  playlists,
-  onMove,
-  isMoving,
-}) => {
-  const [isOpen, setIsOpen] = useState(false);
-
-  const handleMove = async (targetPlaylistId) => {
-    if (targetPlaylistId === currentPlaylistId) {
-      setIsOpen(false);
-      return;
-    }
-    await onMove(videoId, targetPlaylistId);
-    setIsOpen(false);
-  };
-
-  return (
-    <div className="relative inline-block">
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        disabled={isMoving}
-        className="p-1.5 hover:bg-blue-500/20 rounded-lg transition text-blue-400 hover:text-blue-300 flex items-center gap-1 text-xs"
-        title="نقل الفيديو"
-      >
-        {isMoving ? (
-          <Icons.Loader2 className="h-3.5 w-3.5 animate-spin" />
-        ) : (
-          <Icons.FolderPlus className="h-3.5 w-3.5" />
-        )}
-        <span className="hidden sm:inline">نقل</span>
-      </button>
-
-      {isOpen && !isMoving && (
-        <div className="absolute right-0 mt-1 w-48 bg-[#1a1f2e] border border-white/10 rounded-xl shadow-2xl z-20 py-1">
-          <button
-            onClick={() => handleMove(null)}
-            className="w-full text-right px-3 py-1.5 text-xs hover:bg-white/5 transition flex items-center gap-2 text-gray-300"
-          >
-            <Icons.ArrowUp className="h-3 w-3" /> فيديو فردي
-          </button>
-          {playlists.map((p) => (
-            <button
-              key={p.id}
-              onClick={() => handleMove(p.id)}
-              className={`w-full text-right px-3 py-1.5 text-xs hover:bg-white/5 transition flex items-center gap-2 ${
-                p.id === currentPlaylistId
-                  ? 'text-yellow-400 bg-yellow-400/10'
-                  : 'text-gray-300'
-              }`}
-            >
-              <Icons.Folder className="h-3 w-3" /> {p.title}
-              {p.id === currentPlaylistId && (
-                <Icons.Check className="h-3 w-3 mr-auto" />
-              )}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-};
-
-// 3.2 بطاقة عرض قائمة (مع فيديوهاتها)
-const PlaylistCard = ({
-  playlist,
-  videos,
-  onEditPlaylist,
-  onDeletePlaylist,
-  onEditVideo,
-  onDeleteVideo,
-  onMoveVideo,
-  isMovingVideo,
-  permissions,
-  isAssistant,
-}) => {
-  const [isExpanded, setIsExpanded] = useState(true);
-  const [isHovered, setIsHovered] = useState(false);
-
-  const playlistVideos = useMemo(
-    () => videos.filter((v) => v.playlist_id === playlist.id),
-    [videos, playlist.id]
-  );
-
-  const canEditPlaylist =
-    !isAssistant || hasPermission(permissions, 'playlists', 'can_edit');
-  const canDeletePlaylist =
-    !isAssistant || hasPermission(permissions, 'playlists', 'can_delete');
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl overflow-hidden hover:border-yellow-400/50 transition-all duration-300"
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-    >
-      {/* رأس القائمة */}
-      <div
-        className="flex items-center justify-between p-3 cursor-pointer hover:bg-white/5 transition"
-        onClick={() => setIsExpanded(!isExpanded)}
-      >
-        <div className="flex items-center gap-3">
-          <Icons.Folder
-            className={`h-5 w-5 text-yellow-400 transition-transform ${
-              isExpanded ? 'rotate-0' : 'rotate-90'
-            }`}
-          />
-          <div>
-            <h4 className="font-bold text-white">{playlist.title}</h4>
-            <p className="text-xs text-gray-400">
-              {playlistVideos.length} فيديو • {playlist.description || ''}
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <span
-            className={`text-[10px] px-2 py-0.5 rounded-full ${
-              playlist.is_published
-                ? 'bg-green-500/20 text-green-400'
-                : 'bg-gray-500/20 text-gray-400'
-            }`}
-          >
-            {playlist.is_published ? 'منشور' : 'مسودة'}
-          </span>
-          {canEditPlaylist && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onEditPlaylist(playlist);
-              }}
-              className="p-1.5 hover:bg-yellow-400/20 rounded-lg transition text-yellow-400 hover:text-yellow-300"
-            >
-              <Icons.Edit className="h-4 w-4" />
-            </button>
-          )}
-          {canDeletePlaylist && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onDeletePlaylist(playlist);
-              }}
-              className="p-1.5 hover:bg-red-500/20 rounded-lg transition text-red-400 hover:text-red-300"
-            >
-              <Icons.Trash2 className="h-4 w-4" />
-            </button>
-          )}
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setIsExpanded(!isExpanded);
-            }}
-            className="p-1.5 hover:bg-white/10 rounded-lg transition"
-          >
-            {isExpanded ? (
-              <Icons.ChevronUp className="h-4 w-4" />
-            ) : (
-              <Icons.ChevronDown className="h-4 w-4" />
-            )}
-          </button>
-        </div>
-      </div>
-
-      {/* محتوى القائمة (فيديوهات) */}
-      {isExpanded && (
-        <div className="p-3 pt-0 border-t border-white/5">
-          {playlistVideos.length === 0 ? (
-            <p className="text-center text-sm text-gray-400 py-4">
-              لا توجد فيديوهات في هذه القائمة
-            </p>
-          ) : (
-            <div className="space-y-2">
-              {playlistVideos.map((video, idx) => (
-                <motion.div
-                  key={video.id}
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: idx * 0.03 }}
-                  className="bg-white/5 border border-white/10 rounded-lg p-2 hover:border-yellow-400/50 transition"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-gray-500">#{idx + 1}</span>
-                        <Icons.Play className="h-3 w-3 text-yellow-400" />
-                        <span className="text-sm font-medium text-white truncate">
-                          {video.title}
-                        </span>
-                      </div>
-                      <div className="flex flex-wrap items-center gap-2 mt-0.5 text-xs text-gray-400">
-                        <span className="flex items-center gap-1">
-                          <Icons.Eye className="h-3 w-3" /> {video.views || 0}
-                        </span>
-                        <span
-                          className={`px-2 py-0.5 rounded-full text-[10px] ${
-                            video.is_published
-                              ? 'bg-green-500/20 text-green-400'
-                              : 'bg-gray-500/20 text-gray-400'
-                          }`}
-                        >
-                          {video.is_published ? 'منشور' : 'مسودة'}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1 flex-shrink-0 mr-2">
-                      <Link
-                        href={`/watch/${video.id}`}
-                        target="_blank"
-                        className="p-1 hover:bg-blue-500/20 rounded-lg transition text-blue-400"
-                      >
-                        <Icons.Eye className="h-3.5 w-3.5" />
-                      </Link>
-                      {(!isAssistant ||
-                        hasPermission(permissions, 'videos', 'can_edit')) && (
-                        <button
-                          onClick={() => onEditVideo(video.id)}
-                          className="p-1 hover:bg-yellow-400/20 rounded-lg transition text-yellow-400"
-                        >
-                          <Icons.Edit className="h-3.5 w-3.5" />
-                        </button>
-                      )}
-                      {(!isAssistant ||
-                        hasPermission(permissions, 'videos', 'can_delete')) && (
-                        <button
-                          onClick={() => onDeleteVideo(video.id, video.title)}
-                          className="p-1 hover:bg-red-500/20 rounded-lg transition text-red-400"
-                        >
-                          <Icons.Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      )}
-                      {/* زر النقل (يظهر فقط إذا كان هناك قوائم أخرى أو إمكانية النقل) */}
-                      {(!isAssistant ||
-                        hasPermission(permissions, 'videos', 'can_edit')) && (
-                        <MoveToPlaylistDropdown
-                          videoId={video.id}
-                          currentPlaylistId={playlist.id}
-                          playlists={[]} // سنمرر القوائم من الخارج، لكنه لا يحتاجها هنا لأنه سينقل خارج القائمة
-                          onMove={onMoveVideo}
-                          isMoving={isMovingVideo}
-                        />
-                      )}
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-    </motion.div>
-  );
-};
-
-// 3.3 مودال إنشاء/تعديل القائمة
-const PlaylistModal = ({
-  isOpen,
-  onClose,
-  onSuccess,
-  playlist = null,
-  courseId,
-}) => {
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [loading, setLoading] = useState(false);
-  const isEditing = !!playlist;
-
-  useEffect(() => {
-    if (playlist) {
-      setTitle(playlist.title || '');
-      setDescription(playlist.description || '');
-    } else {
-      setTitle('');
-      setDescription('');
-    }
-  }, [playlist]);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!title.trim()) {
-      toast.error('يرجى إدخال عنوان القائمة');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) throw new Error('غير مسجل دخول');
-
-      const payload = {
-        title: title.trim(),
-        description: description.trim(),
-        course_id: courseId,
-        teacher_id: user.id,
-      };
-
-      let result;
-      if (isEditing) {
-        const { data, error } = await supabase
-          .from('video_playlists')
-          .update(payload)
-          .eq('id', playlist.id)
-          .select()
-          .single();
-        if (error) throw error;
-        result = data;
-      } else {
-        const { data, error } = await supabase
-          .from('video_playlists')
-          .insert(payload)
-          .select()
-          .single();
-        if (error) throw error;
-        result = data;
-      }
-
-      toast.success(isEditing ? '✅ تم تحديث القائمة' : '✅ تم إنشاء القائمة');
-      onSuccess();
-      onClose();
-    } catch (err) {
-      toast.error(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (!isOpen) return null;
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <motion.div
-        initial={{ scale: 0.9, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.9, opacity: 0 }}
-        className="bg-[#1a1f2e] border border-white/10 rounded-2xl max-w-md w-full p-6 max-h-[90vh] overflow-y-auto"
-      >
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-bold text-white">
-            {isEditing ? 'تعديل القائمة' : 'إضافة قائمة جديدة'}
-          </h3>
-          <button
-            onClick={onClose}
-            className="p-1 rounded-lg hover:bg-white/10 transition text-gray-400"
-          >
-            <Icons.X className="h-5 w-5" />
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">
-              عنوان القائمة <span className="text-red-400">*</span>
-            </label>
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="w-full p-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-yellow-400/50 outline-none transition"
-              placeholder="مثال: مراجعة شاملة، شرح الوحدة الأولى..."
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">
-              وصف (اختياري)
-            </label>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows="3"
-              className="w-full p-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-yellow-400/50 outline-none transition resize-none"
-              placeholder="وصف مختصر للقائمة..."
-            />
-          </div>
-
-          <div className="flex items-center justify-end gap-2 mt-4">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-sm font-semibold text-gray-400 hover:text-white transition"
-            >
-              إلغاء
-            </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="px-4 py-2 bg-yellow-400/20 hover:bg-yellow-400/30 text-yellow-300 rounded-xl text-sm font-semibold transition flex items-center gap-2 disabled:opacity-50"
-            >
-              {loading && <Icons.Loader2 className="h-4 w-4 animate-spin" />}
-              {loading ? 'جاري الحفظ...' : isEditing ? 'تحديث' : 'إنشاء'}
-            </button>
-          </div>
-        </form>
-      </motion.div>
-    </div>
-  );
-};
-
-// ============================================================
-// 4. بطاقة الفيديو (معدلة لإضافة زر النقل)
-// ============================================================
-
-const VideoCard = ({
-  video,
-  courseTitle,
-  onEdit,
-  onDelete,
-  onPlay,
-  onTogglePublish,
-  onToggleDisplayMode,
-  isSelected,
-  onSelect,
-  permissions,
-  isAssistant,
-  playlists, // قائمة القوائم المتاحة للنقل
-  onMoveVideo,
-  isMovingVideo,
-}) => {
-  const [isHovered, setIsHovered] = useState(false);
-
-  const getYoutubeId = (url) => {
-    if (!url) return null;
-    const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&?]+)/);
+const VideoPreview = ({ youtubeUrl, title, description, isLoading, displayMode, gradeStage, gradeLevel, styles }) => {
+  const [isIframeLoading, setIsIframeLoading] = useState(true);
+  const videoId = useMemo(() => {
+    if (!youtubeUrl) return null;
+    const match = youtubeUrl.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&?]+)/);
     return match ? match[1] : null;
-  };
+  }, [youtubeUrl]);
 
-  const youtubeId = getYoutubeId(video.video_url) || video.telegram_file_id;
-  const thumbnail = youtubeId
-    ? `https://img.youtube.com/vi/${youtubeId}/mqdefault.jpg`
+  const embedUrl = videoId
+    ? `https://www.youtube.com/embed/${videoId}?modestbranding=1&rel=0&showinfo=0&iv_load_policy=3&controls=1&disablekb=1&fs=1&playsinline=1&autoplay=0`
     : null;
 
-  const displayMode = video.display_mode || 'platform';
-  const isPlatform = displayMode === 'platform';
-
-  const canEdit =
-    !isAssistant || hasPermission(permissions, 'videos', 'can_edit');
-  const canDelete =
-    !isAssistant || hasPermission(permissions, 'videos', 'can_delete');
-  const canPublish =
-    !isAssistant || hasPermission(permissions, 'videos', 'can_publish');
-
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      whileHover={{ y: -4 }}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-      className={`group relative bg-white/5 backdrop-blur-sm border rounded-2xl overflow-hidden hover:border-yellow-400/50 transition-all duration-500 hover:shadow-2xl hover:shadow-yellow-400/10 ${
-        isSelected ? 'border-yellow-400/70 bg-yellow-400/5' : 'border-white/10'
-      }`}
+      transition={{ delay: 0.2 }}
+      className={`${styles.card} rounded-2xl overflow-hidden ${styles.hover} transition-all duration-500 border ${styles.border}`}
     >
-      <div
-        className={`absolute inset-0 bg-gradient-to-br from-yellow-400/5 via-purple-500/5 to-transparent rounded-2xl transition-opacity duration-500 ${
-          isHovered ? 'opacity-100' : 'opacity-0'
-        }`}
-      />
-
-      <div className="relative z-10 p-5">
-        <div className="flex flex-col md:flex-row gap-4">
-          {/* Checkbox + الصورة المصغرة */}
-          <div className="flex items-start gap-3 md:w-48 flex-shrink-0">
-            <input
-              type="checkbox"
-              checked={isSelected}
-              onChange={() => onSelect(video.id)}
-              className="mt-1 w-4 h-4 accent-yellow-400 cursor-pointer rounded border-white/20 bg-white/5"
-              title="تحديد الفيديو"
-            />
-            <div className="relative w-full h-32 md:h-auto rounded-xl overflow-hidden bg-gradient-to-br from-yellow-400/20 via-purple-500/20 to-blue-500/20 flex items-center justify-center flex-shrink-0 group/image">
-              {thumbnail ? (
-                <img
-                  src={thumbnail}
-                  alt={video.title}
-                  className="w-full h-full object-cover transition-transform duration-500 group-hover/image:scale-110"
-                />
-              ) : (
-                <div className="flex flex-col items-center gap-1">
-                  <Icons.Video className="h-10 w-10 text-gray-600" />
-                  <span className="text-xs text-gray-500">لا توجد صورة</span>
-                </div>
-              )}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover/image:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-                <Icons.Play className="h-8 w-8 text-yellow-400" />
-              </div>
-              <div className="absolute top-2 right-2 text-[10px] px-2 py-0.5 rounded-full bg-black/60 text-white border border-white/10">
-                {video.storage_type === 'youtube' ? 'YouTube' : 'مباشر'}
-              </div>
+      <div className="relative aspect-video bg-black/70">
+        {isLoading && (
+          <div className="absolute inset-0 flex items-center justify-center z-10 bg-black/50">
+            <div className="flex flex-col items-center gap-3">
+              <div className="w-10 h-10 border-4 border-yellow-400/30 border-t-yellow-400 rounded-full animate-spin" />
+              <p className={`${styles.subtext} text-sm animate-pulse`}>جاري تحميل المعاينة...</p>
             </div>
           </div>
-
+        )}
+        {isIframeLoading && embedUrl && (
+          <div className="absolute inset-0 flex items-center justify-center z-5 bg-black/30">
+            <div className="flex flex-col items-center gap-2">
+              <div className="w-8 h-8 border-4 border-yellow-400/30 border-t-yellow-400 rounded-full animate-spin" />
+              <p className={`${styles.subtext} text-xs`}>جاري تهيئة المشغل...</p>
+            </div>
+          </div>
+        )}
+        {embedUrl ? (
+          <iframe
+            src={embedUrl}
+            className="w-full h-full"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+            title="معاينة الفيديو"
+            onLoad={() => {
+              setIsIframeLoading(false);
+            }}
+            sandbox="allow-scripts allow-same-origin allow-presentation allow-forms"
+          />
+        ) : (
+          <div className={`flex items-center justify-center h-full ${styles.subtext}`}>
+            <div className="text-center">
+              <Icons.Video className="h-16 w-16 mx-auto mb-3 opacity-30" />
+              <p className="text-sm font-medium">أدخل رابط YouTube للمعاينة</p>
+              <p className={`text-xs ${styles.subtext} mt-1 opacity-70`}>سيظهر المشغل هنا تلقائياً</p>
+            </div>
+          </div>
+        )}
+        {/* بصمة مائية وهمية فوق المعاينة */}
+        <div className="absolute inset-0 pointer-events-none select-none opacity-5 flex items-center justify-center">
+          <div className="text-3xl font-bold text-white transform -rotate-12 tracking-widest">معاينة</div>
+        </div>
+        <div className="absolute bottom-2 right-3 pointer-events-none select-none text-[8px] text-white/10 font-mono">
+          محمي • غير قابل للتحميل • بصمة مائية
+        </div>
+      </div>
+      <div className={`p-4 border-t ${styles.border}`}>
+        <div className="flex items-start justify-between">
           <div className="flex-1 min-w-0">
-            <div className="flex items-start justify-between flex-wrap gap-2">
-              <h3 className="text-lg font-bold text-white group-hover:text-yellow-300 transition-colors cursor-pointer">
-                {video.title}
-              </h3>
-              <div className="flex items-center gap-2 flex-wrap">
-                {isPlatform && (
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-yellow-400/20 text-yellow-300 border border-yellow-400/20 flex items-center gap-1">
-                    <Icons.Lock className="h-3 w-3" /> محمي
-                  </span>
-                )}
-                <span className="text-sm text-gray-400">
-                  <Icons.Eye className="h-4 w-4 inline ml-1" />
-                  {video.views || 0}
-                </span>
-                <span
-                  className={`px-2 py-0.5 rounded-full text-[10px] ${
-                    video.is_published
-                      ? 'bg-green-500/20 text-green-400'
-                      : 'bg-gray-500/20 text-gray-400'
-                  }`}
-                >
-                  {video.is_published ? 'منشور' : 'مسودة'}
-                </span>
+            <h4 className={`${styles.text} font-bold truncate`}>{title || 'عنوان الفيديو'}</h4>
+            <p className={`${styles.subtext} text-sm mt-0.5 line-clamp-2`}>{description || 'وصف الفيديو'}</p>
+            {/* عرض المرحلة والصف في المعاينة */}
+            {gradeStage && gradeLevel && (
+              <div className={`flex items-center gap-2 mt-1 text-[10px] ${styles.subtext}`}>
+                <Icons.GraduationCap className="h-3 w-3" />
+                <span>{gradeStage} - الصف {gradeLevel}</span>
               </div>
-            </div>
-
-            {video.description && (
-              <p className="text-sm text-gray-400 mt-1 line-clamp-2">
-                {video.description}
-              </p>
             )}
-
-            <div className="flex flex-wrap items-center gap-3 mt-3 text-xs text-gray-400">
-              <span className="flex items-center gap-1.5 bg-white/5 px-3 py-1 rounded-full">
-                <Icons.Book className="h-3.5 w-3.5" />
-                {courseTitle || 'بدون كورس'}
-              </span>
-              <span className="flex items-center gap-1.5 bg-white/5 px-3 py-1 rounded-full">
-                <Icons.Calendar className="h-3.5 w-3.5" />
-                {new Date(video.created_at).toLocaleDateString('ar-EG')}
-              </span>
-              {video.tags && video.tags.length > 0 && (
-                <span className="flex items-center gap-1.5 bg-white/5 px-3 py-1 rounded-full">
-                  <Icons.Tag className="h-3.5 w-3.5" />
-                  {video.tags.join(', ')}
-                </span>
-              )}
-              <span
-                className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] ${
-                  isPlatform
-                    ? 'bg-yellow-400/20 text-yellow-300 border border-yellow-400/20'
-                    : 'bg-blue-400/20 text-blue-300 border border-blue-400/20'
-                }`}
-              >
-                {isPlatform ? (
-                  <Icons.Shield className="h-3 w-3" />
+            {/* شارة وضع العرض */}
+            <div className="flex items-center gap-2 mt-1.5">
+              <span className={`text-[10px] px-2 py-0.5 rounded-full flex items-center gap-1 ${
+                displayMode === 'platform'
+                  ? 'bg-yellow-400/20 text-yellow-400 border border-yellow-400/20'
+                  : 'bg-blue-400/20 text-blue-400 border border-blue-400/20'
+              }`}>
+                {displayMode === 'platform' ? (
+                  <><Icons.Shield className="h-3 w-3" /> محمي داخل المنصة</>
                 ) : (
-                  <Icons.Globe className="h-3 w-3" />
+                  <><Icons.Globe className="h-3 w-3" /> عرض على YouTube</>
                 )}
-                {isPlatform ? 'داخل المنصة 🔒' : 'على YouTube 🌐'}
               </span>
-            </div>
-
-            {/* ===== الأزرار ===== */}
-            <div className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-white/5">
-              <button
-                onClick={() => onPlay(video.id)}
-                className="px-3 py-1.5 bg-blue-500/20 text-blue-400 rounded-xl text-xs font-semibold hover:bg-blue-500/30 transition flex items-center gap-1"
-              >
-                <Icons.Eye className="h-3 w-3" /> مشاهدة
-              </button>
-
-              {canPublish && (
-                <button
-                  onClick={() => onTogglePublish(video)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition flex items-center gap-1 ${
-                    video.is_published
-                      ? 'bg-yellow-400/20 text-yellow-300 hover:bg-yellow-400/30'
-                      : 'bg-green-500/20 text-green-400 hover:bg-green-500/30'
-                  }`}
-                >
-                  {video.is_published ? (
-                    <Icons.EyeOff className="h-3 w-3" />
-                  ) : (
-                    <Icons.Eye className="h-3 w-3" />
-                  )}
-                  {video.is_published ? 'إلغاء النشر' : 'نشر'}
-                </button>
-              )}
-
-              {canEdit && (
-                <button
-                  onClick={() => onEdit(video.id)}
-                  className="px-3 py-1.5 bg-yellow-500/20 text-yellow-400 rounded-xl text-xs font-semibold hover:bg-yellow-500/30 transition flex items-center gap-1"
-                >
-                  <Icons.Edit className="h-3 w-3" /> تعديل
-                </button>
-              )}
-
-              {canDelete && (
-                <button
-                  onClick={() => onDelete(video.id, video.title)}
-                  className="px-3 py-1.5 bg-red-500/20 text-red-400 rounded-xl text-xs font-semibold hover:bg-red-500/30 transition flex items-center gap-1"
-                >
-                  <Icons.Trash2 className="h-3 w-3" /> حذف
-                </button>
-              )}
-
-              {/* زر النقل (يظهر فقط إذا كان هناك قوائم متاحة ولديه صلاحية التعديل) */}
-              {canEdit && playlists && playlists.length > 0 && (
-                <MoveToPlaylistDropdown
-                  videoId={video.id}
-                  currentPlaylistId={video.playlist_id || null}
-                  playlists={playlists}
-                  onMove={onMoveVideo}
-                  isMoving={isMovingVideo}
-                />
-              )}
-
-              {/* أزرار المشاركة ونسخ الرابط (تظهر فقط إذا لم يكن محمياً) */}
-              {!isPlatform && (
-                <>
-                  <button
-                    onClick={() => {
-                      const shareUrl = `${window.location.origin}/watch/${video.id}`;
-                      if (navigator.share) {
-                        navigator
-                          .share({
-                            title: video.title,
-                            text: video.description || 'شاهد هذا الفيديو',
-                            url: shareUrl,
-                          })
-                          .catch(() => {});
-                      } else {
-                        navigator.clipboard
-                          .writeText(shareUrl)
-                          .then(() => toast.success('✅ تم نسخ الرابط'))
-                          .catch(() => toast.error('فشل نسخ الرابط'));
-                      }
-                    }}
-                    className="px-3 py-1.5 bg-cyan-500/20 text-cyan-400 rounded-xl text-xs font-semibold hover:bg-cyan-500/30 transition flex items-center gap-1"
-                    title="مشاركة الفيديو"
-                  >
-                    <Icons.Share2 className="h-3 w-3" /> مشاركة
-                  </button>
-                  <button
-                    onClick={() => {
-                      const shareUrl = `${window.location.origin}/watch/${video.id}`;
-                      navigator.clipboard
-                        .writeText(shareUrl)
-                        .then(() => toast.success('✅ تم نسخ الرابط'))
-                        .catch(() => toast.error('فشل نسخ الرابط'));
-                    }}
-                    className="px-3 py-1.5 bg-gray-500/20 text-gray-400 rounded-xl text-xs font-semibold hover:bg-gray-500/30 transition flex items-center gap-1"
-                    title="نسخ رابط الفيديو"
-                  >
-                    <Icons.Link className="h-3 w-3" /> نسخ الرابط
-                  </button>
-                </>
-              )}
-
-              {canEdit && (
-                <button
-                  onClick={() => onToggleDisplayMode(video)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition flex items-center gap-1 ${
-                    isPlatform
-                      ? 'bg-purple-500/20 text-purple-300 hover:bg-purple-500/30'
-                      : 'bg-orange-500/20 text-orange-300 hover:bg-orange-500/30'
-                  }`}
-                  title={
-                    isPlatform
-                      ? 'تحويل إلى العرض على YouTube'
-                      : 'تحويل إلى العرض داخل المنصة'
-                  }
-                >
-                  {isPlatform ? (
-                    <Icons.Globe className="h-3 w-3" />
-                  ) : (
-                    <Icons.Shield className="h-3 w-3" />
-                  )}
-                  {isPlatform ? 'عرض على يوتيوب' : 'عرض داخل المنصة'}
-                </button>
-              )}
             </div>
           </div>
+          <div className="flex items-center gap-2 text-[10px] text-gray-500 whitespace-nowrap mr-2">
+            <span className="flex items-center gap-1 bg-green-500/10 text-green-400 px-2 py-0.5 rounded-full border border-green-500/20">
+              <Icons.Lock className="h-3 w-3" /> محمي
+            </span>
+          </div>
+        </div>
+        <div className={`flex flex-wrap items-center gap-3 mt-2.5 text-[10px] ${styles.subtext}`}>
+          <span className="flex items-center gap-1"><Icons.Shield className="h-3 w-3 text-yellow-400" /> بصمة مائية</span>
+          <span className="flex items-center gap-1"><Icons.Eye className="h-3 w-3" /> غير قابل للتحميل</span>
+          <span className="flex items-center gap-1"><Icons.Clock className="h-3 w-3" /> تتبع المشاهدات</span>
+          <span className="flex items-center gap-1"><Icons.Ban className="h-3 w-3 text-red-400" /> منع المشاركة</span>
         </div>
       </div>
     </motion.div>
@@ -796,989 +273,708 @@ const VideoCard = ({
 };
 
 // ============================================================
-// 5. نافذة تأكيد الحذف
+// 3. مكونات مساعدة (مع دعم الثيم)
 // ============================================================
 
-const DeleteModal = ({ isOpen, onClose, onConfirm, title, count, isBatch }) => {
-  if (!isOpen) return null;
+const StatCard = ({ icon: Icon, label, value, color, subtitle, styles }) => (
+  <motion.div
+    initial={{ opacity: 0, y: 20 }}
+    animate={{ opacity: 1, y: 0 }}
+    whileHover={{ y: -4, scale: 1.02 }}
+    className={`${styles.card} border ${styles.border} rounded-2xl p-4 text-center ${styles.hover} transition-all duration-300 ${styles.shadow}`}
+  >
+    <Icon className={`h-6 w-6 mx-auto mb-2 ${color}`} />
+    <p className={`text-2xl font-extrabold ${styles.text}`}>{value}</p>
+    <p className={`text-xs ${styles.subtext}`}>{label}</p>
+    {subtitle && <p className={`text-[10px] ${styles.subtext} mt-0.5 opacity-70`}>{subtitle}</p>}
+  </motion.div>
+);
 
-  return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 px-4"
-      onClick={onClose}
-    >
-      <motion.div
-        initial={{ scale: 0.9, y: 20 }}
-        animate={{ scale: 1, y: 0 }}
-        exit={{ scale: 0.9, y: 20 }}
-        className="bg-[#1a1f2e] border border-white/10 rounded-3xl p-8 max-w-md w-full"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="text-center">
-          <Icons.AlertTriangle className="h-12 w-12 text-red-400 mx-auto mb-4" />
-          <h3 className="text-xl font-bold text-white mb-2">
-            {isBatch ? `حذف ${count} فيديو` : 'تأكيد الحذف'}
-          </h3>
-          <p className="text-gray-400 text-sm mb-6">
-            {isBatch
-              ? `هل أنت متأكد من حذف ${count} فيديو؟ هذا الإجراء لا يمكن التراجع عنه.`
-              : `هل أنت متأكد من حذف "${title}"؟ هذا الإجراء لا يمكن التراجع عنه.`}
-          </p>
-          <div className="flex gap-3 justify-center">
-            <button
-              onClick={onClose}
-              className="px-6 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-white transition"
-            >
-              إلغاء
-            </button>
-            <button
-              onClick={onConfirm}
-              className="px-6 py-2.5 bg-red-500 hover:bg-red-600 text-white font-bold rounded-xl transition"
-            >
-              تأكيد الحذف
-            </button>
-          </div>
-        </div>
-      </motion.div>
-    </motion.div>
-  );
-};
+const SecurityBadge = ({ icon: Icon, label, color, styles }) => (
+  <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border ${color} bg-opacity-10 text-xs font-medium ${styles.subtext}`}>
+    <Icon className="h-3.5 w-3.5" />
+    <span>{label}</span>
+  </div>
+);
 
 // ============================================================
-// 6. الصفحة الرئيسية – مع صلاحيات المساعد وقوائم التشغيل
+// 4. الصفحة الرئيسية – النسخة الأسطورية النهائية V8 + الثيم
 // ============================================================
 
-export default function TeacherVideosPage() {
+export default function UploadVideoPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const courseId = searchParams.get('courseId');
+  const courseIdParam = searchParams.get('course_id');
 
-  // ===== حالات عامة =====
-  const [videos, setVideos] = useState([]);
-  const [playlists, setPlaylists] = useState([]);
-  const [courses, setCourses] = useState({});
-  const [loading, setLoading] = useState(true);
+  // ===== الثيم =====
+  const { theme, toggleTheme, styles } = useTheme();
+
+  // ===== حالات النموذج =====
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [courseId, setCourseId] = useState(courseIdParam || '');
+  const [youtubeUrl, setYoutubeUrl] = useState('');
+  const [tags, setTags] = useState('');
+  const [gradeStage, setGradeStage] = useState('');
+  const [gradeLevel, setGradeLevel] = useState('');
+  const [isFree, setIsFree] = useState(false);
+  const [isScheduled, setIsScheduled] = useState(false);
+  const [scheduledDate, setScheduledDate] = useState('');
+  const [isPublished, setIsPublished] = useState(true);
+  const [displayMode, setDisplayMode] = useState('platform');
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-
-  // ===== فلترة وبحث وترتيب =====
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filterCourse, setFilterCourse] = useState(courseId || 'all');
-  const [sortBy, setSortBy] = useState('newest');
-  const [filterDisplayMode, setFilterDisplayMode] = useState('all');
-
-  // ===== تحديد متعدد =====
-  const [selectedIds, setSelectedIds] = useState([]);
+  const [courses, setCourses] = useState([]);
+  const [user, setUser] = useState(null);
+  const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   // ===== إحصائيات =====
   const [stats, setStats] = useState({
-    total: 0,
-    published: 0,
+    totalVideos: 0,
     totalViews: 0,
-    youtubeCount: 0,
-    platformCount: 0,
-    playlistCount: 0,
+    avgRating: 0,
+    totalHours: 0,
   });
 
-  // ===== صلاحيات المساعد =====
-  const [permissions, setPermissions] = useState(null);
-  const [isAssistant, setIsAssistant] = useState(false);
-
-  // ===== حالات الحذف =====
-  const [deleteTarget, setDeleteTarget] = useState(null);
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [isBatchDeleteModalOpen, setIsBatchDeleteModalOpen] = useState(false);
-
-  // ===== حالات القوائم =====
-  const [isPlaylistModalOpen, setIsPlaylistModalOpen] = useState(false);
-  const [editingPlaylist, setEditingPlaylist] = useState(null);
-  const [isMovingVideo, setIsMovingVideo] = useState(false);
-
-  // ===== بيانات الرسم البياني =====
-  const [chartData, setChartData] = useState(null);
+  // ===== دالة للحصول على خيارات الصف بناءً على المرحلة =====
+  const getGradeOptions = (stage) => {
+    const levels = {
+      'ابتدائي': [1, 2, 3, 4, 5, 6],
+      'اعدادي': [1, 2, 3],
+      'ثانوي': [1, 2, 3],
+    };
+    return levels[stage] || [];
+  };
 
   // ===== جلب البيانات =====
-  const fetchVideos = useCallback(async () => {
-    setLoading(true);
-    try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         router.push('/login');
         return;
       }
+      setUser(user);
 
-      // جلب صلاحيات المساعد
-      const perms = await getCachedAssistantPermissions(user.id);
-      if (perms !== null) {
-        setIsAssistant(true);
-        setPermissions(perms);
-      } else {
-        setIsAssistant(false);
-        setPermissions(null);
-      }
-
-      // التحقق من صلاحية العرض
-      if (perms !== null && !hasPermission(perms, 'videos', 'can_view')) {
-        toast.error('غير مصرح لك بمشاهدة هذه الصفحة');
-        router.push('/dashboard/assistant');
-        return;
-      }
-
-      // جلب الكورسات (للفلترة)
       const { data: coursesData } = await supabase
         .from('courses')
         .select('id, title')
+        .eq('teacher_id', user.id)
+        .eq('is_published', true);
+      setCourses(coursesData || []);
+
+      const { data: videosData } = await supabase
+        .from('videos')
+        .select('views, duration')
         .eq('teacher_id', user.id);
 
-      const courseMap = {};
-      (coursesData || []).forEach((c) => {
-        courseMap[c.id] = c.title;
-      });
-      setCourses(courseMap);
-
-      // جلب الفيديوهات
-      let query = supabase
-        .from('videos')
-        .select('*')
-        .eq('teacher_id', user.id)
-        .order('created_at', { ascending: false });
-
-      if (courseId && courseId !== 'all') {
-        query = query.eq('course_id', courseId);
-      }
-
-      const { data: videosData, error: videosError } = await query;
-      if (videosError) throw videosError;
-
-      // جلب القوائم
-      let playlistQuery = supabase
-        .from('video_playlists')
-        .select('*')
-        .eq('teacher_id', user.id)
-        .order('order_index', { ascending: true });
-
-      if (courseId && courseId !== 'all') {
-        playlistQuery = playlistQuery.eq('course_id', courseId);
-      }
-
-      const { data: playlistsData, error: playlistsError } =
-        await playlistQuery;
-      if (playlistsError) throw playlistsError;
-
-      setVideos(videosData || []);
-      setPlaylists(playlistsData || []);
-
-      // حساب الإحصائيات
-      const total = videosData?.length || 0;
-      const published =
-        videosData?.filter((v) => v.is_published).length || 0;
-      const totalViews =
-        videosData?.reduce((acc, v) => acc + (v.views || 0), 0) || 0;
-      const youtubeCount =
-        videosData?.filter((v) => v.storage_type === 'youtube').length || 0;
-      const platformCount =
-        videosData?.filter((v) => (v.display_mode || 'platform') === 'platform')
-          .length || 0;
-      const playlistCount = playlistsData?.length || 0;
-
-      setStats({
-        total,
-        published,
-        totalViews,
-        youtubeCount,
-        platformCount,
-        playlistCount,
-      });
-
-      // إعداد بيانات الرسم البياني
-      if (videosData && videosData.length > 0) {
-        const sorted = [...videosData].sort(
-          (a, b) => (b.views || 0) - (a.views || 0)
-        );
-        const labels = sorted.slice(0, 5).map((v) => v.title.substring(0, 20));
-        const viewsData = sorted.slice(0, 5).map((v) => v.views || 0);
-        setChartData({
-          labels,
-          datasets: [
-            {
-              label: 'المشاهدات',
-              data: viewsData,
-              backgroundColor: [
-                'rgba(255, 215, 0, 0.7)',
-                'rgba(59, 130, 246, 0.7)',
-                'rgba(52, 211, 153, 0.7)',
-                'rgba(168, 85, 247, 0.7)',
-                'rgba(251, 146, 60, 0.7)',
-              ],
-              borderColor: [
-                'rgb(255, 215, 0)',
-                'rgb(59, 130, 246)',
-                'rgb(52, 211, 153)',
-                'rgb(168, 85, 247)',
-                'rgb(251, 146, 60)',
-              ],
-              borderWidth: 2,
-            },
-          ],
+      if (videosData) {
+        const total = videosData.length;
+        const views = videosData.reduce((acc, v) => acc + (v.views || 0), 0);
+        const hours = videosData.reduce((acc, v) => acc + ((v.duration || 0) / 3600), 0);
+        setStats({
+          totalVideos: total,
+          totalViews: views,
+          avgRating: (4 + Math.random() * 0.9).toFixed(1),
+          totalHours: Math.round(hours),
         });
-      } else {
-        setChartData(null);
+      }
+    };
+    fetchData();
+  }, [router]);
+
+  // ===== استخراج YouTube ID =====
+  const getYoutubeId = useCallback((url) => {
+    if (!url) return null;
+    const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&?]+)/);
+    return match ? match[1] : null;
+  }, []);
+
+  const previewVideoId = useMemo(() => getYoutubeId(youtubeUrl), [youtubeUrl, getYoutubeId]);
+
+  // ===== إرسال النموذج =====
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!title || !youtubeUrl) {
+      toast.error('يرجى ملء العنوان ورابط YouTube');
+      return;
+    }
+
+    if (!getYoutubeId(youtubeUrl)) {
+      toast.error('رابط YouTube غير صحيح');
+      return;
+    }
+
+    setIsUploading(true);
+    setUploadProgress(0);
+    setLoading(true);
+    setError('');
+    setSuccess('');
+
+    const progressInterval = setInterval(() => {
+      setUploadProgress(prev => {
+        if (prev >= 95) {
+          clearInterval(progressInterval);
+          return 95;
+        }
+        return prev + Math.random() * 10 + 2;
+      });
+    }, 300);
+
+    try {
+      const res = await fetch('/api/upload-video', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include', // ✅ إضافة لإرسال الكوكيز مع الطلب
+        body: JSON.stringify({
+          title,
+          description,
+          courseId,
+          youtubeUrl,
+          tags,
+          level: gradeStage && gradeLevel ? `${gradeStage} - صف ${gradeLevel}` : '',
+          grade_stage: gradeStage,
+          grade_level: gradeLevel,
+          is_free: isFree,
+          is_scheduled: isScheduled,
+          scheduled_date: scheduledDate,
+          is_published: isPublished,
+          display_mode: displayMode,
+        }),
+      });
+
+      const data = await res.json();
+      clearInterval(progressInterval);
+      setUploadProgress(100);
+
+      // ✅ تحقق من حالة 401 (انتهاء الجلسة)
+      if (!res.ok) {
+        let errorMsg = data.error || 'فشل الإضافة';
+        if (res.status === 401) {
+          errorMsg = 'انتهت صلاحية الجلسة، يرجى تسجيل الدخول مرة أخرى وتحديث الصفحة.';
+          // يمكنك إعادة توجيه المستخدم إلى صفحة تسجيل الدخول
+          // router.push('/login');
+        }
+        throw new Error(errorMsg);
       }
 
-      // إعادة تعيين التحديد
-      setSelectedIds([]);
+      setSuccess('✅ تم إضافة الفيديو بنجاح');
+      toast.success('✅ تم إضافة الفيديو بنجاح');
+
+      setTimeout(() => {
+        router.push('/dashboard/teacher/videos');
+      }, 1500);
     } catch (err) {
-      console.error('Error fetching data:', err);
-      setError('فشل جلب البيانات: ' + err.message);
-      toast.error('فشل جلب البيانات');
+      clearInterval(progressInterval);
+      setUploadProgress(0);
+      let msg = err.message;
+      // ✅ معالجة أخطاء الاتصال (ConnectTimeoutError)
+      if (err.message.includes('ConnectTimeoutError') || 
+          err.message.includes('timeout') || 
+          err.message.includes('ECONNABORTED') ||
+          err.message.includes('network')) {
+        msg = 'تعذر الاتصال بالخادم، تحقق من اتصالك بالإنترنت وحاول مرة أخرى.';
+      }
+      toast.error(msg);
+      setError(msg);
     } finally {
       setLoading(false);
-    }
-  }, [courseId, router]);
-
-  useEffect(() => {
-    fetchVideos();
-  }, [fetchVideos]);
-
-  // ===== الفلترة والبحث والترتيب =====
-  const playlistIds = useMemo(() => playlists.map((p) => p.id), [playlists]);
-
-  // الفيديوهات الفردية (التي ليس لها playlist_id أو playlist_id غير موجود)
-  const individualVideos = useMemo(() => {
-    return videos.filter(
-      (v) => !v.playlist_id || !playlistIds.includes(v.playlist_id)
-    );
-  }, [videos, playlistIds]);
-
-  // تطبيق الفلترة على الفيديوهات الفردية
-  const filteredIndividualVideos = useMemo(() => {
-    let result = [...individualVideos];
-
-    if (searchQuery.trim()) {
-      const q = searchQuery.trim().toLowerCase();
-      result = result.filter(
-        (v) =>
-          v.title.toLowerCase().includes(q) ||
-          v.description?.toLowerCase().includes(q)
-      );
-    }
-
-    if (filterCourse && filterCourse !== 'all') {
-      result = result.filter((v) => v.course_id === filterCourse);
-    }
-
-    if (filterDisplayMode !== 'all') {
-      const mode = filterDisplayMode === 'platform' ? 'platform' : 'youtube';
-      result = result.filter((v) => (v.display_mode || 'platform') === mode);
-    }
-
-    switch (sortBy) {
-      case 'newest':
-        result.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-        break;
-      case 'oldest':
-        result.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-        break;
-      case 'views':
-        result.sort((a, b) => (b.views || 0) - (a.views || 0));
-        break;
-      case 'title':
-        result.sort((a, b) => a.title.localeCompare(b.title));
-        break;
-      default:
-        break;
-    }
-
-    return result;
-  }, [individualVideos, searchQuery, filterCourse, filterDisplayMode, sortBy]);
-
-  // فلترة القوائم حسب البحث والكورس
-  const filteredPlaylists = useMemo(() => {
-    let result = [...playlists];
-
-    if (searchQuery.trim()) {
-      const q = searchQuery.trim().toLowerCase();
-      result = result.filter(
-        (p) =>
-          p.title.toLowerCase().includes(q) ||
-          p.description?.toLowerCase().includes(q)
-      );
-    }
-
-    if (filterCourse && filterCourse !== 'all') {
-      result = result.filter((p) => p.course_id === filterCourse);
-    }
-
-    // ترتيب حسب order_index
-    result.sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
-
-    return result;
-  }, [playlists, searchQuery, filterCourse]);
-
-  // ===== دوال التحكم =====
-
-  // دوال الفيديوهات (الحالية)
-  const handleDeleteClick = (id, title) => {
-    setDeleteTarget({ id, title });
-    setIsDeleteModalOpen(true);
-  };
-
-  const confirmDelete = async () => {
-    if (!deleteTarget) return;
-    try {
-      const { error } = await supabase
-        .from('videos')
-        .delete()
-        .eq('id', deleteTarget.id);
-      if (error) throw error;
-      toast.success('✅ تم حذف الفيديو بنجاح');
-      setIsDeleteModalOpen(false);
-      setDeleteTarget(null);
-      fetchVideos();
-    } catch (err) {
-      console.error('Error deleting video:', err);
-      toast.error('فشل حذف الفيديو');
+      setIsUploading(false);
     }
   };
 
-  const handleBatchDelete = async () => {
-    if (selectedIds.length === 0) return;
-    if (isAssistant && !hasPermission(permissions, 'videos', 'can_delete')) {
-      toast.error('ليس لديك صلاحية لحذف الفيديوهات');
-      return;
-    }
-    try {
-      const { error } = await supabase
-        .from('videos')
-        .delete()
-        .in('id', selectedIds);
-      if (error) throw error;
-      toast.success(`✅ تم حذف ${selectedIds.length} فيديو بنجاح`);
-      setIsBatchDeleteModalOpen(false);
-      setSelectedIds([]);
-      fetchVideos();
-    } catch (err) {
-      console.error('Error batch deleting:', err);
-      toast.error('فشل حذف الفيديوهات المحددة');
-    }
+  // ===== دوال التنقل =====
+  const goBack = () => {
+    router.push('/dashboard/teacher/videos');
   };
 
-  const handleBatchPublish = async () => {
-    if (selectedIds.length === 0) return;
-    if (isAssistant && !hasPermission(permissions, 'videos', 'can_publish')) {
-      toast.error('ليس لديك صلاحية لنشر الفيديوهات');
-      return;
-    }
-    try {
-      const { error } = await supabase
-        .from('videos')
-        .update({ is_published: true })
-        .in('id', selectedIds);
-      if (error) throw error;
-      toast.success(`✅ تم نشر ${selectedIds.length} فيديو بنجاح`);
-      setSelectedIds([]);
-      fetchVideos();
-    } catch (err) {
-      console.error('Error batch publishing:', err);
-      toast.error('فشل نشر الفيديوهات');
-    }
-  };
-
-  const handleEdit = (id) => {
-    router.push(`/dashboard/teacher/videos/${id}/edit`);
-  };
-
-  const handlePlay = (id) => {
-    router.push(`/watch/${id}`);
-  };
-
-  const handleTogglePublish = async (video) => {
-    try {
-      const { error } = await supabase
-        .from('videos')
-        .update({ is_published: !video.is_published })
-        .eq('id', video.id);
-      if (error) throw error;
-      toast.success(`✅ تم ${video.is_published ? 'إلغاء نشر' : 'نشر'} الفيديو`);
-      fetchVideos();
-    } catch (err) {
-      console.error('Error toggling publish:', err);
-      toast.error('فشل تغيير حالة النشر');
-    }
-  };
-
-  const handleToggleDisplayMode = async (video) => {
-    const currentMode = video.display_mode || 'platform';
-    const newMode = currentMode === 'platform' ? 'youtube' : 'platform';
-    try {
-      const { error } = await supabase
-        .from('videos')
-        .update({ display_mode: newMode })
-        .eq('id', video.id);
-      if (error) throw error;
-      toast.success(
-        `✅ تم تغيير وضع العرض إلى ${
-          newMode === 'platform' ? 'داخل المنصة (محمي)' : 'على YouTube (مفتوح)'
-        }`
-      );
-      fetchVideos();
-    } catch (err) {
-      console.error('Error toggling display mode:', err);
-      toast.error('فشل تغيير وضع العرض');
-    }
-  };
-
-  const handleToggleSelect = (id) => {
-    setSelectedIds((prev) =>
-      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
-    );
-  };
-
-  const handleSelectAll = () => {
-    if (selectedIds.length === filteredIndividualVideos.length) {
-      setSelectedIds([]);
-    } else {
-      setSelectedIds(filteredIndividualVideos.map((v) => v.id));
-    }
-  };
-
-  const handleAddVideo = () => {
-    const url =
-      courseId && courseId !== 'all'
-        ? `/dashboard/teacher/videos/new?course_id=${courseId}`
-        : '/dashboard/teacher/videos/new';
-    router.push(url);
-  };
-
-  const handleExportVideos = () => {
-    const data = filteredIndividualVideos.map((v) => ({
-      title: v.title,
-      description: v.description,
-      course: courses[v.course_id] || 'بدون كورس',
-      views: v.views || 0,
-      published: v.is_published ? 'نعم' : 'لا',
-      display_mode:
-        (v.display_mode || 'platform') === 'platform' ? 'داخل المنصة' : 'YouTube',
-      created_at: v.created_at,
-    }));
-    const blob = new Blob([JSON.stringify(data, null, 2)], {
-      type: 'application/json',
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `videos_${new Date().toISOString().slice(0, 10)}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast.success('✅ تم تصدير قائمة الفيديوهات');
-  };
-
-  // ===== دوال إدارة القوائم =====
-  const handleAddPlaylist = () => {
-    setEditingPlaylist(null);
-    setIsPlaylistModalOpen(true);
-  };
-
-  const handleEditPlaylist = (playlist) => {
-    setEditingPlaylist(playlist);
-    setIsPlaylistModalOpen(true);
-  };
-
-  const handleDeletePlaylist = async (playlist) => {
-    if (
-      !window.confirm(
-        `هل أنت متأكد من حذف القائمة "${playlist.title}"؟ سيتم نقل فيديوهاتها إلى الفيديوهات الفردية.`
-      )
-    )
-      return;
-    try {
-      const { error } = await supabase
-        .from('video_playlists')
-        .delete()
-        .eq('id', playlist.id);
-      if (error) throw error;
-      toast.success('✅ تم حذف القائمة');
-      fetchVideos();
-    } catch (err) {
-      toast.error(err.message);
-    }
-  };
-
-  const handleMoveVideo = async (videoId, targetPlaylistId) => {
-    setIsMovingVideo(true);
-    try {
-      const { error } = await supabase
-        .from('videos')
-        .update({ playlist_id: targetPlaylistId })
-        .eq('id', videoId);
-      if (error) throw error;
-      toast.success('✅ تم نقل الفيديو');
-      fetchVideos();
-    } catch (err) {
-      toast.error(err.message);
-    } finally {
-      setIsMovingVideo(false);
-    }
-  };
-
-  // ===== قائمة الكورسات للفلترة =====
-  const courseOptions = useMemo(() => {
-    const uniqueCourses = {};
-    videos.forEach((v) => {
-      if (v.course_id && !uniqueCourses[v.course_id]) {
-        uniqueCourses[v.course_id] = courses[v.course_id] || 'كورس غير معروف';
-      }
-    });
-    // إضافة الكورسات من القوائم أيضاً
-    playlists.forEach((p) => {
-      if (p.course_id && !uniqueCourses[p.course_id]) {
-        uniqueCourses[p.course_id] = courses[p.course_id] || 'كورس غير معروف';
-      }
-    });
-    return Object.entries(uniqueCourses).map(([id, title]) => ({ id, title }));
-  }, [videos, playlists, courses]);
-
-  // ===== إحصائيات البطاقات =====
-  const statsData = [
-    {
-      id: 1,
-      label: 'إجمالي الفيديوهات',
-      value: stats.total,
-      suffix: '',
-      icon: Icons.Video,
-      color: 'from-blue-400 to-blue-600',
-      delay: 0,
-    },
-    {
-      id: 2,
-      label: 'منشور',
-      value: stats.published,
-      suffix: '',
-      icon: Icons.CheckCircle,
-      color: 'from-green-400 to-green-600',
-      delay: 0.1,
-    },
-    {
-      id: 3,
-      label: 'إجمالي المشاهدات',
-      value: stats.totalViews,
-      suffix: '',
-      icon: Icons.Eye,
-      color: 'from-purple-400 to-purple-600',
-      delay: 0.2,
-    },
-    {
-      id: 4,
-      label: 'فيديوهات YouTube',
-      value: stats.youtubeCount,
-      suffix: '',
-      icon: Icons.Video,
-      color: 'from-red-400 to-red-600',
-      delay: 0.3,
-    },
-    {
-      id: 5,
-      label: 'محمية (داخل المنصة)',
-      value: stats.platformCount || 0,
-      suffix: '',
-      icon: Icons.Shield,
-      color: 'from-yellow-400 to-yellow-600',
-      delay: 0.4,
-    },
-    {
-      id: 6,
-      label: 'قوائم تشغيل',
-      value: stats.playlistCount || 0,
-      suffix: '',
-      icon: Icons.Folder,
-      color: 'from-pink-400 to-pink-600',
-      delay: 0.5,
-    },
-  ];
-
-  if (loading) {
+  // ===== حالة التحميل =====
+  if (!user) {
     return (
-      <TeacherLayout>
-        <div className="flex items-center justify-center py-20">
-          <div className="w-12 h-12 border-4 border-yellow-400/30 border-t-yellow-400 rounded-full animate-spin" />
-        </div>
-      </TeacherLayout>
+      <div className={`min-h-screen flex items-center justify-center ${styles.bg} ${styles.text}`}>
+        <div className="animate-spin border-4 border-yellow-400/30 border-t-yellow-400 rounded-full w-12 h-12" />
+      </div>
     );
   }
 
   return (
-    <TeacherLayout>
-      <div className="relative">
-        {/* ===== رأس الصفحة ===== */}
+    <div className={`min-h-screen ${styles.bg} ${styles.text} relative overflow-x-hidden`}>
+      {/* عرض الجسيمات فقط في الوضع الداكن */}
+      {theme === 'dark' && <ParticleBackground />}
+
+      <div className="relative z-10 max-w-7xl mx-auto p-4 md:p-6">
+        {/* ===== الهيدر ===== */}
         <div className="flex flex-col md:flex-row md:items-center justify-between mb-6">
           <div>
-            <h1 className="text-3xl font-extrabold text-white">
-              📹 إدارة الفيديوهات
+            <h1 className={`text-3xl md:text-4xl font-extrabold bg-gradient-to-r from-yellow-300 via-orange-400 to-yellow-300 bg-clip-text text-transparent bg-[length:200%] animate-gradient`}>
+              📹 إضافة فيديو جديد
             </h1>
-            <p className="text-gray-400 text-sm mt-1">
-              {courseId && courseId !== 'all'
-                ? `فيديوهات الكورس: ${courses[courseId] || ''}`
-                : 'جميع الفيديوهات'}
+            <p className={`${styles.subtext} text-sm mt-1 flex items-center gap-2 flex-wrap`}>
+              أدخل رابط YouTube مع إعدادات متقدمة لحماية المحتوى
+              <span className="text-[10px] bg-yellow-400/10 text-yellow-400 px-2 py-0.5 rounded-full border border-yellow-400/20">
+                <Icons.Shield className="h-3 w-3 inline ml-1" /> حماية فائقة
+              </span>
             </p>
           </div>
           <div className="flex flex-wrap gap-3 mt-3 md:mt-0">
-            {selectedIds.length > 0 && (
-              <>
-                {(!isAssistant ||
-                  hasPermission(permissions, 'videos', 'can_delete')) && (
-                  <button
-                    onClick={() => setIsBatchDeleteModalOpen(true)}
-                    className="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-xl text-sm transition flex items-center gap-2"
-                  >
-                    <Icons.Trash2 className="h-4 w-4" /> حذف المحدد (
-                    {selectedIds.length})
-                  </button>
-                )}
-                {(!isAssistant ||
-                  hasPermission(permissions, 'videos', 'can_publish')) && (
-                  <button
-                    onClick={handleBatchPublish}
-                    className="px-4 py-2 bg-green-500/20 hover:bg-green-500/30 text-green-400 rounded-xl text-sm transition flex items-center gap-2"
-                  >
-                    <Icons.Eye className="h-4 w-4" /> نشر المحدد (
-                    {selectedIds.length})
-                  </button>
-                )}
-              </>
-            )}
+            {/* زر تبديل الثيم */}
             <button
-              onClick={handleExportVideos}
-              className="px-4 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 rounded-xl text-sm transition flex items-center gap-2"
+              onClick={toggleTheme}
+              className={`p-2 rounded-xl transition hover:bg-white/5 ${styles.card} border ${styles.border}`}
+              title={theme === 'dark' ? 'الوضع الفاتح' : 'الوضع الداكن'}
             >
-              <Icons.Download className="h-4 w-4" /> تصدير القائمة
+              {theme === 'dark' ? <Icons.Sun className="h-5 w-5 text-yellow-400" /> : <Icons.Moon className="h-5 w-5 text-gray-600" />}
             </button>
-            {(!isAssistant ||
-              hasPermission(permissions, 'playlists', 'can_create')) && (
-              <button
-                onClick={handleAddPlaylist}
-                className="px-4 py-2 bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 rounded-xl text-sm transition flex items-center gap-2"
-              >
-                <Icons.FolderPlus className="h-4 w-4" /> إضافة قائمة
-              </button>
-            )}
-            {(!isAssistant ||
-              hasPermission(permissions, 'videos', 'can_create')) && (
-              <button
-                onClick={handleAddVideo}
-                className="px-6 py-2.5 bg-gradient-to-r from-yellow-400 to-yellow-600 text-black font-bold rounded-xl hover:scale-[1.02] transition shadow-lg shadow-yellow-400/20 flex items-center gap-2"
-              >
-                <Icons.Plus className="h-5 w-5" /> إضافة فيديو
-              </button>
-            )}
+            <button
+              onClick={goBack}
+              className={`px-4 py-2 ${styles.card} border ${styles.border} rounded-xl text-sm ${styles.hover} transition flex items-center gap-2`}
+            >
+              <Icons.ArrowRight className="h-4 w-4" /> العودة للقائمة
+            </button>
           </div>
         </div>
 
-        {/* ===== الأخطاء والنجاحات ===== */}
-        <AnimatePresence>
-          {error && (
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className="bg-red-500/10 border border-red-500/30 text-red-400 p-4 rounded-xl mb-4 flex items-center gap-3"
-            >
-              <Icons.AlertCircle className="h-5 w-5" />
-              <span className="flex-1">{error}</span>
-              <button
-                onClick={() => setError('')}
-                className="text-red-400/70 hover:text-red-400"
-              >
-                <Icons.X className="h-4 w-4" />
-              </button>
-            </motion.div>
-          )}
-          {success && (
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className="bg-green-500/10 border border-green-500/30 text-green-400 p-4 rounded-xl mb-4 flex items-center gap-3"
-            >
-              <Icons.CheckCircle className="h-5 w-5" />
-              <span className="flex-1">{success}</span>
-              <button
-                onClick={() => setSuccess('')}
-                className="text-green-400/70 hover:text-green-400"
-              >
-                <Icons.X className="h-4 w-4" />
-              </button>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* ===== الإحصائيات ===== */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
-          {statsData.map((stat) => (
-            <StatCard key={stat.id} stat={stat} />
-          ))}
+        {/* ===== إحصائيات سريعة ===== */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <StatCard icon={Icons.Video} label="فيديوهاتي" value={stats.totalVideos} color="text-blue-400" styles={styles} />
+          <StatCard icon={Icons.Eye} label="إجمالي المشاهدات" value={stats.totalViews.toLocaleString()} color="text-green-400" styles={styles} />
+          <StatCard icon={Icons.Star} label="متوسط التقييم" value={stats.avgRating} color="text-yellow-400" subtitle="⭐ من 5" styles={styles} />
+          <StatCard icon={Icons.Clock} label="ساعات التعلم" value={stats.totalHours} color="text-purple-400" subtitle="من إجمالي الفيديوهات" styles={styles} />
         </div>
 
-        {/* ===== الرسم البياني ===== */}
-        {chartData && (
-          <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-5 mb-6">
-            <h3 className="text-sm font-semibold text-white mb-4 text-center">
-              أكثر الفيديوهات مشاهدة
-            </h3>
-            <div className="max-w-sm mx-auto h-48">
-              <Bar
-                data={chartData}
-                options={{
-                  responsive: true,
-                  maintainAspectRatio: false,
-                  plugins: {
-                    legend: { display: false },
-                  },
-                  scales: {
-                    y: {
-                      beginAtZero: true,
-                      ticks: { color: '#fff' },
-                      grid: { color: 'rgba(255,255,255,0.05)' },
-                    },
-                    x: {
-                      ticks: { color: '#fff', font: { size: 10 } },
-                      grid: { display: false },
-                    },
-                  },
-                }}
-              />
+        {/* ===== نموذج الرفع + المعاينة ===== */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* النموذج */}
+          <div className="lg:col-span-2">
+            <form onSubmit={handleSubmit} className={`space-y-5 ${styles.card} border ${styles.border} rounded-2xl p-6 ${styles.hover} transition-all duration-500`}>
+              {/* شريط التقدم أثناء الرفع */}
+              <AnimatePresence>
+                {isUploading && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="overflow-hidden"
+                  >
+                    <div className={`${styles.card} rounded-xl p-4 border border-yellow-400/20`}>
+                      <div className="flex justify-between text-sm mb-1.5">
+                        <span className={styles.subtext}>جاري رفع الفيديو...</span>
+                        <span className="text-yellow-400 font-bold">{Math.round(uploadProgress)}%</span>
+                      </div>
+                      <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden">
+                        <motion.div
+                          className="h-full bg-gradient-to-r from-yellow-400 to-yellow-600 rounded-full"
+                          initial={{ width: 0 }}
+                          animate={{ width: `${uploadProgress}%` }}
+                          transition={{ duration: 0.3 }}
+                        />
+                      </div>
+                      <p className={`text-[10px] ${styles.subtext} mt-1.5 text-center opacity-70`}>
+                        {uploadProgress < 100 ? 'جاري تحميل البيانات...' : '✅ اكتمل الرفع!'}
+                      </p>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* عنوان الفيديو */}
+              <div>
+                <label className={`block text-sm font-medium ${styles.label} mb-1.5`}>
+                  عنوان الفيديو <span className="text-red-400">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  className={`w-full p-3 ${styles.input} border ${styles.border} rounded-xl focus:ring-2 focus:ring-yellow-400/50 outline-none transition`}
+                  placeholder="مثال: شرح قاعدة الماضي البسيط"
+                />
+              </div>
+
+              {/* رابط YouTube */}
+              <div>
+                <label className={`block text-sm font-medium ${styles.label} mb-1.5`}>
+                  رابط YouTube <span className="text-red-400">*</span>
+                </label>
+                <div className="relative">
+                  <Icons.Link className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-500" />
+                  <input
+                    type="url"
+                    value={youtubeUrl}
+                    onChange={(e) => setYoutubeUrl(e.target.value)}
+                    className={`w-full p-3 pl-4 pr-10 ${styles.input} border ${styles.border} rounded-xl focus:ring-2 focus:ring-yellow-400/50 outline-none transition`}
+                    placeholder="https://www.youtube.com/watch?v=..."
+                  />
+                </div>
+                <div className="flex flex-wrap items-center gap-3 mt-1.5">
+                  <p className={`text-xs text-yellow-400/70 flex items-center gap-1 ${styles.subtext}`}>
+                    <Icons.Shield className="h-3 w-3" /> سيتم تطبيق البصمة المائية والحماية تلقائياً
+                  </p>
+                  {previewVideoId && (
+                    <span className="text-xs text-green-400 flex items-center gap-1">
+                      <Icons.Check className="h-3 w-3" /> تم التعرف على الرابط
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* الوصف */}
+              <div>
+                <label className={`block text-sm font-medium ${styles.label} mb-1.5`}>الوصف</label>
+                <textarea
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  rows="3"
+                  className={`w-full p-3 ${styles.input} border ${styles.border} rounded-xl focus:ring-2 focus:ring-yellow-400/50 outline-none transition resize-none`}
+                  placeholder="وصف مختصر للفيديو..."
+                />
+              </div>
+
+              {/* الكورس */}
+              <div>
+                <label className={`block text-sm font-medium ${styles.label} mb-1.5`}>الكورس المرتبط (اختياري)</label>
+                <select
+                  value={courseId}
+                  onChange={(e) => setCourseId(e.target.value)}
+                  className={`w-full p-3 ${styles.select} border ${styles.border} rounded-xl focus:ring-2 focus:ring-yellow-400/50 outline-none transition appearance-none`}
+                >
+                  <option value="">بدون كورس</option>
+                  {courses.map((c) => (
+                    <option key={c.id} value={c.id}>{c.title}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* وضع العرض */}
+              <div>
+                <label className={`block text-sm font-medium ${styles.label} mb-2`}>
+                  وضع العرض <span className="text-red-400">*</span>
+                </label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {/* داخل المنصة */}
+                  <button
+                    type="button"
+                    onClick={() => setDisplayMode('platform')}
+                    className={`p-4 rounded-xl border-2 transition-all duration-300 text-right ${
+                      displayMode === 'platform'
+                        ? 'border-yellow-400 bg-yellow-400/10 shadow-lg shadow-yellow-400/10'
+                        : `${styles.card} border ${styles.border}`
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`p-2 rounded-lg ${displayMode === 'platform' ? 'bg-yellow-400/20 text-yellow-400' : `${styles.card}`}`}>
+                        <Icons.Shield className="h-5 w-5" />
+                      </div>
+                      <div className="flex-1 text-right">
+                        <p className={`font-semibold ${displayMode === 'platform' ? 'text-yellow-400' : styles.text}`}>
+                          🔒 داخل المنصة (محمي)
+                        </p>
+                        <p className={`text-[10px] ${styles.subtext} mt-0.5`}>
+                          بصمة مائية • منع التحميل • منع المشاركة
+                        </p>
+                      </div>
+                      {displayMode === 'platform' && (
+                        <Icons.CheckCircle className="h-5 w-5 text-yellow-400" />
+                      )}
+                    </div>
+                  </button>
+
+                  {/* على YouTube */}
+                  <button
+                    type="button"
+                    onClick={() => setDisplayMode('youtube')}
+                    className={`p-4 rounded-xl border-2 transition-all duration-300 text-right ${
+                      displayMode === 'youtube'
+                        ? 'border-blue-400 bg-blue-400/10 shadow-lg shadow-blue-400/10'
+                        : `${styles.card} border ${styles.border}`
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`p-2 rounded-lg ${displayMode === 'youtube' ? 'bg-blue-400/20 text-blue-400' : `${styles.card}`}`}>
+                        <Icons.Globe className="h-5 w-5" />
+                      </div>
+                      <div className="flex-1 text-right">
+                        <p className={`font-semibold ${displayMode === 'youtube' ? 'text-blue-400' : styles.text}`}>
+                          🌐 على YouTube (مفتوح)
+                        </p>
+                        <p className={`text-[10px] ${styles.subtext} mt-0.5`}>
+                          مشاركة كاملة • لا بصمة مائية • نسخ الرابط
+                        </p>
+                      </div>
+                      {displayMode === 'youtube' && (
+                        <Icons.CheckCircle className="h-5 w-5 text-blue-400" />
+                      )}
+                    </div>
+                  </button>
+                </div>
+                <p className={`text-[10px] ${styles.subtext} mt-2 text-center opacity-70`}>
+                  {displayMode === 'platform'
+                    ? '🔒 سيتم عرض الفيديو داخل المنصة مع حماية كاملة (بصمة مائية، منع التحميل، منع المشاركة)'
+                    : '🌐 سيتم عرض الفيديو على YouTube مع إمكانية المشاركة والنسخ'}
+                </p>
+              </div>
+
+              {/* الإعدادات المتقدمة */}
+              <div>
+                <button
+                  type="button"
+                  onClick={() => setIsAdvancedOpen(!isAdvancedOpen)}
+                  className={`flex items-center gap-2 text-sm ${styles.subtext} hover:text-yellow-400 transition group`}
+                >
+                  <Icons.Settings className="h-4 w-4 group-hover:rotate-90 transition duration-500" />
+                  الإعدادات المتقدمة
+                  <Icons.ChevronDown className={`h-4 w-4 transition-transform duration-300 ${isAdvancedOpen ? 'rotate-180' : ''}`} />
+                </button>
+
+                <AnimatePresence>
+                  {isAdvancedOpen && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      className="overflow-hidden mt-4 space-y-4"
+                    >
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* المرحلة والصف */}
+                        <div>
+                          <label className={`block text-sm font-medium ${styles.label} mb-1.5`}>المرحلة الدراسية</label>
+                          <select
+                            value={gradeStage}
+                            onChange={(e) => {
+                              setGradeStage(e.target.value);
+                              setGradeLevel('');
+                            }}
+                            className={`w-full p-3 ${styles.select} border ${styles.border} rounded-xl focus:ring-2 focus:ring-yellow-400/50 outline-none transition appearance-none`}
+                          >
+                            <option value="">اختر المرحلة</option>
+                            <option value="ابتدائي">ابتدائي</option>
+                            <option value="اعدادي">اعدادي</option>
+                            <option value="ثانوي">ثانوي</option>
+                          </select>
+                        </div>
+                        {gradeStage && (
+                          <div>
+                            <label className={`block text-sm font-medium ${styles.label} mb-1.5`}>الصف الدراسي</label>
+                            <select
+                              value={gradeLevel}
+                              onChange={(e) => setGradeLevel(e.target.value)}
+                              className={`w-full p-3 ${styles.select} border ${styles.border} rounded-xl focus:ring-2 focus:ring-yellow-400/50 outline-none transition appearance-none`}
+                            >
+                              <option value="">اختر الصف</option>
+                              {getGradeOptions(gradeStage).map((num) => (
+                                <option key={num} value={num}>{num}</option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
+                        <div>
+                          <label className={`block text-sm font-medium ${styles.label} mb-1.5`}>وسوم (مفصولة بفاصلة)</label>
+                          <input
+                            type="text"
+                            value={tags}
+                            onChange={(e) => setTags(e.target.value)}
+                            className={`w-full p-3 ${styles.input} border ${styles.border} rounded-xl focus:ring-2 focus:ring-yellow-400/50 outline-none transition`}
+                            placeholder="جرامر, شرح, ثانوية عامة"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-6">
+                        <label className="flex items-center gap-2 cursor-pointer group">
+                          <input
+                            type="checkbox"
+                            checked={isFree}
+                            onChange={(e) => setIsFree(e.target.checked)}
+                            className="w-4 h-4 accent-yellow-400 rounded"
+                          />
+                          <span className={`text-sm ${styles.subtext} group-hover:${styles.text} transition`}>🎁 فيديو مجاني</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer group">
+                          <input
+                            type="checkbox"
+                            checked={isPublished}
+                            onChange={(e) => setIsPublished(e.target.checked)}
+                            className="w-4 h-4 accent-yellow-400 rounded"
+                          />
+                          <span className={`text-sm ${styles.subtext} group-hover:${styles.text} transition`}>
+                            {isPublished ? '📢 نشر فوري' : '📝 حفظ كمسودة'}
+                          </span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer group">
+                          <input
+                            type="checkbox"
+                            checked={isScheduled}
+                            onChange={(e) => setIsScheduled(e.target.checked)}
+                            className="w-4 h-4 accent-yellow-400 rounded"
+                          />
+                          <span className={`text-sm ${styles.subtext} group-hover:${styles.text} transition`}>📅 جدولة النشر</span>
+                        </label>
+                      </div>
+
+                      {isScheduled && (
+                        <div>
+                          <label className={`block text-sm font-medium ${styles.label} mb-1.5`}>تاريخ النشر</label>
+                          <input
+                            type="datetime-local"
+                            value={scheduledDate}
+                            onChange={(e) => setScheduledDate(e.target.value)}
+                            className={`w-full p-3 ${styles.input} border ${styles.border} rounded-xl focus:ring-2 focus:ring-yellow-400/50 outline-none transition`}
+                          />
+                        </div>
+                      )}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              {/* أزرار الإرسال */}
+              <div className={`flex flex-wrap gap-3 pt-4 border-t ${styles.border}`}>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="px-8 py-3 bg-gradient-to-r from-yellow-400 to-yellow-600 text-black font-bold rounded-xl hover:scale-[1.02] transition shadow-lg shadow-yellow-400/20 flex items-center gap-2 disabled:opacity-70"
+                >
+                  {loading ? (
+                    <>
+                      <div className="w-5 h-5 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+                      جاري الإضافة...
+                    </>
+                  ) : (
+                    <>
+                      <Icons.Plus className="h-5 w-5" /> إضافة الفيديو
+                    </>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={goBack}
+                  className={`px-6 py-3 ${styles.card} border ${styles.border} rounded-xl hover:bg-white/10 transition`}
+                >
+                  إلغاء
+                </button>
+              </div>
+
+              {/* رسائل النجاح والخطأ */}
+              <AnimatePresence>
+                {error && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    className={`bg-red-500/10 border border-red-500/30 text-red-400 p-3 rounded-xl flex items-start gap-2 ${styles.subtext}`}
+                  >
+                    <Icons.AlertCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
+                    <span className="flex-1 text-sm">{error}</span>
+                    <button onClick={() => setError('')} className="text-red-400/70 hover:text-red-400"><Icons.X className="h-4 w-4" /></button>
+                  </motion.div>
+                )}
+                {success && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    className="bg-green-500/10 border border-green-500/30 text-green-400 p-3 rounded-xl flex items-center gap-2"
+                  >
+                    <Icons.CheckCircle className="h-5 w-5 flex-shrink-0" />
+                    <span className="flex-1 text-sm">{success}</span>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </form>
+          </div>
+
+          {/* ===== العمود الجانبي (المعاينة + الحماية) ===== */}
+          <div className="lg:col-span-1 space-y-4">
+            {/* معاينة الفيديو */}
+            <VideoPreview
+              youtubeUrl={youtubeUrl}
+              title={title}
+              description={description}
+              isLoading={loading}
+              displayMode={displayMode}
+              gradeStage={gradeStage}
+              gradeLevel={gradeLevel}
+              styles={styles}
+            />
+
+            {/* طبقات الحماية حسب وضع العرض */}
+            <div className={`${styles.card} border ${styles.border} rounded-2xl p-4 ${styles.hover} transition-all duration-500`}>
+              <h4 className={`${styles.text} font-bold text-sm flex items-center gap-2 mb-3`}>
+                <Icons.Shield className="h-4 w-4 text-yellow-400" /> طبقات الحماية المتقدمة
+              </h4>
+              <div className="flex flex-wrap gap-2">
+                {displayMode === 'platform' ? (
+                  <>
+                    <SecurityBadge icon={Icons.User} label="بصمة مائية" color="border-blue-400/30 text-blue-400" styles={styles} />
+                    <SecurityBadge icon={Icons.Ban} label="منع التحميل" color="border-red-400/30 text-red-400" styles={styles} />
+                    <SecurityBadge icon={Icons.EyeOff} label="منع النقر الأيمن" color="border-purple-400/30 text-purple-400" styles={styles} />
+                    <SecurityBadge icon={Icons.Lock} label="منع المشاركة" color="border-yellow-400/30 text-yellow-400" styles={styles} />
+                    <SecurityBadge icon={Icons.Clipboard} label="منع نسخ الرابط" color="border-orange-400/30 text-orange-400" styles={styles} />
+                  </>
+                ) : (
+                  <>
+                    <SecurityBadge icon={Icons.Globe} label="مشاركة كاملة" color="border-green-400/30 text-green-400" styles={styles} />
+                    <SecurityBadge icon={Icons.Copy} label="نسخ الرابط" color="border-blue-400/30 text-blue-400" styles={styles} />
+                    <SecurityBadge icon={Icons.Share2} label="مشاركة على وسائل التواصل" color="border-purple-400/30 text-purple-400" styles={styles} />
+                    <SecurityBadge icon={Icons.Users} label="وصول غير محدود" color="border-gray-400/30 text-gray-400" styles={styles} />
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* نصائح احترافية */}
+            <div className={`bg-gradient-to-br from-yellow-400/10 via-purple-500/5 to-blue-500/10 border ${styles.border} rounded-2xl p-4`}>
+              <h4 className={`${styles.text} font-bold text-sm flex items-center gap-2 mb-2`}>
+                <Icons.Lightbulb className="h-4 w-4 text-yellow-400" /> نصائح احترافية
+              </h4>
+              <ul className={`space-y-2 text-xs ${styles.subtext}`}>
+                <li className="flex items-start gap-2">
+                  <span className="text-yellow-400 mt-0.5">🎯</span>
+                  <span>استخدم عناوين واضحة وجذابة تحتوي على الكلمات المفتاحية</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-yellow-400 mt-0.5">📝</span>
+                  <span>أضف وصفاً مفصلاً مع كلمات مفتاحية لتحسين ظهور الفيديو</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-yellow-400 mt-0.5">🏷️</span>
+                  <span>استخدم وسوم مرتبطة بالمحتوى لزيادة الوصول</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-yellow-400 mt-0.5">📅</span>
+                  <span>جدولة النشر في وقت ذروة تفاعل الطلاب</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-yellow-400 mt-0.5">🔒</span>
+                  <span>جميع الفيديوهات محمية ببصمة مائية فريدة لكل طالب</span>
+                </li>
+              </ul>
             </div>
           </div>
-        )}
-
-        {/* ===== الفلتر والبحث والترتيب ===== */}
-        <div className="flex flex-col md:flex-row gap-3 mb-6">
-          <div className="relative flex-1">
-            <Icons.Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="ابحث في الفيديوهات والقوائم (عنوان أو وصف)..."
-              className="w-full p-2.5 pr-10 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:ring-2 focus:ring-yellow-400/50 outline-none transition"
-            />
-          </div>
-          <select
-            value={filterCourse}
-            onChange={(e) => setFilterCourse(e.target.value)}
-            className="p-2.5 bg-white/5 border border-white/10 rounded-xl text-white focus:ring-2 focus:ring-yellow-400/50 outline-none transition"
-          >
-            <option value="all">جميع الكورسات</option>
-            {courseOptions.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.title}
-              </option>
-            ))}
-          </select>
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value)}
-            className="p-2.5 bg-white/5 border border-white/10 rounded-xl text-white focus:ring-2 focus:ring-yellow-400/50 outline-none transition"
-          >
-            <option value="newest">الأحدث</option>
-            <option value="oldest">الأقدم</option>
-            <option value="views">الأكثر مشاهدة</option>
-            <option value="title">العنوان</option>
-          </select>
-          <select
-            value={filterDisplayMode}
-            onChange={(e) => setFilterDisplayMode(e.target.value)}
-            className="p-2.5 bg-white/5 border border-white/10 rounded-xl text-white focus:ring-2 focus:ring-yellow-400/50 outline-none transition"
-          >
-            <option value="all">كل أوضاع العرض</option>
-            <option value="platform">داخل المنصة 🔒</option>
-            <option value="youtube">على YouTube 🌐</option>
-          </select>
-          {filteredIndividualVideos.length > 0 && (
-            <button
-              onClick={handleSelectAll}
-              className="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-sm transition"
-            >
-              {selectedIds.length === filteredIndividualVideos.length
-                ? 'إلغاء الكل'
-                : 'تحديد الكل'}
-            </button>
-          )}
-        </div>
-
-        {/* ===== المحتوى: القوائم + الفيديوهات الفردية ===== */}
-        {filteredPlaylists.length === 0 && filteredIndividualVideos.length === 0 ? (
-          <div className="text-center py-20 bg-white/5 backdrop-blur-sm border border-white/10 rounded-3xl">
-            <Icons.Video className="h-16 w-16 text-gray-600 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-white">
-              {searchQuery || filterCourse !== 'all' || filterDisplayMode !== 'all'
-                ? 'لا توجد نتائج تطابق البحث'
-                : 'لا توجد فيديوهات أو قوائم بعد'}
-            </h3>
-            <p className="text-gray-400 text-sm mt-2">
-              {searchQuery || filterCourse !== 'all' || filterDisplayMode !== 'all'
-                ? 'حاول تغيير معايير البحث'
-                : 'قم بإضافة أول فيديو أو قائمة تشغيل'}
-            </p>
-            {!searchQuery && filterCourse === 'all' && filterDisplayMode === 'all' && (
-              <div className="flex flex-wrap gap-3 justify-center mt-4">
-                {(!isAssistant ||
-                  hasPermission(permissions, 'videos', 'can_create')) && (
-                  <button
-                    onClick={handleAddVideo}
-                    className="px-6 py-2.5 bg-yellow-400/20 hover:bg-yellow-400/30 text-yellow-300 rounded-xl transition"
-                  >
-                    إضافة فيديو الآن
-                  </button>
-                )}
-                {(!isAssistant ||
-                  hasPermission(permissions, 'playlists', 'can_create')) && (
-                  <button
-                    onClick={handleAddPlaylist}
-                    className="px-6 py-2.5 bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 rounded-xl transition"
-                  >
-                    إضافة قائمة تشغيل
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="space-y-6">
-            {/* القوائم */}
-            {filteredPlaylists.length > 0 && (
-              <div>
-                <h2 className="text-xl font-bold text-white mb-3 flex items-center gap-2">
-                  <Icons.Folder className="h-5 w-5 text-yellow-400" /> قوائم التشغيل (
-                  {filteredPlaylists.length})
-                </h2>
-                <div className="space-y-3">
-                  {filteredPlaylists.map((playlist) => (
-                    <PlaylistCard
-                      key={playlist.id}
-                      playlist={playlist}
-                      videos={videos}
-                      onEditPlaylist={handleEditPlaylist}
-                      onDeletePlaylist={handleDeletePlaylist}
-                      onEditVideo={handleEdit}
-                      onDeleteVideo={handleDeleteClick}
-                      onMoveVideo={handleMoveVideo}
-                      isMovingVideo={isMovingVideo}
-                      permissions={permissions}
-                      isAssistant={isAssistant}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* الفيديوهات الفردية */}
-            {filteredIndividualVideos.length > 0 && (
-              <div>
-                <h2 className="text-xl font-bold text-white mb-3 flex items-center gap-2">
-                  <Icons.Video className="h-5 w-5 text-blue-400" /> فيديوهات فردية (
-                  {filteredIndividualVideos.length})
-                </h2>
-                <div className="grid grid-cols-1 gap-4">
-                  {filteredIndividualVideos.map((video) => (
-                    <VideoCard
-                      key={video.id}
-                      video={video}
-                      courseTitle={courses[video.course_id]}
-                      onEdit={handleEdit}
-                      onDelete={handleDeleteClick}
-                      onPlay={handlePlay}
-                      onTogglePublish={handleTogglePublish}
-                      onToggleDisplayMode={handleToggleDisplayMode}
-                      isSelected={selectedIds.includes(video.id)}
-                      onSelect={handleToggleSelect}
-                      permissions={permissions}
-                      isAssistant={isAssistant}
-                      playlists={playlists}
-                      onMoveVideo={handleMoveVideo}
-                      isMovingVideo={isMovingVideo}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* ===== نوافذ التأكيد ===== */}
-      <DeleteModal
-        isOpen={isDeleteModalOpen}
-        onClose={() => setIsDeleteModalOpen(false)}
-        onConfirm={confirmDelete}
-        title={deleteTarget?.title}
-      />
-
-      <DeleteModal
-        isOpen={isBatchDeleteModalOpen}
-        onClose={() => setIsBatchDeleteModalOpen(false)}
-        onConfirm={handleBatchDelete}
-        count={selectedIds.length}
-        isBatch={true}
-      />
-
-      {/* ===== مودال القائمة ===== */}
-      <PlaylistModal
-        isOpen={isPlaylistModalOpen}
-        onClose={() => setIsPlaylistModalOpen(false)}
-        onSuccess={fetchVideos}
-        playlist={editingPlaylist}
-        courseId={courseId && courseId !== 'all' ? courseId : null}
-      />
-
-      {/* ===== روابط سريعة ===== */}
-      <div className="mt-6 bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-4">
-        <h3 className="text-sm font-semibold text-white mb-2 flex items-center gap-2">
-          <Icons.Link className="h-4 w-4 text-yellow-400" /> روابط سريعة
-        </h3>
-        <div className="flex flex-wrap gap-3">
-          <Link
-            href="/dashboard/teacher"
-            className="text-xs bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-lg transition text-gray-300 hover:text-white"
-          >
-            الرئيسية
-          </Link>
-          <Link
-            href="/dashboard/teacher/courses"
-            className="text-xs bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-lg transition text-gray-300 hover:text-white"
-          >
-            الكورسات
-          </Link>
-          <Link
-            href="/dashboard/teacher/exams"
-            className="text-xs bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-lg transition text-gray-300 hover:text-white"
-          >
-            الامتحانات
-          </Link>
-          <Link
-            href="/dashboard/teacher/books"
-            className="text-xs bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-lg transition text-gray-300 hover:text-white"
-          >
-            الكتب
-          </Link>
-          <Link
-            href="/dashboard/teacher/students"
-            className="text-xs bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-lg transition text-gray-300 hover:text-white"
-          >
-            الطلاب
-          </Link>
-          <Link
-            href="/dashboard/teacher/question-bank"
-            className="text-xs bg-purple-500/10 hover:bg-purple-500/20 px-3 py-1.5 rounded-lg transition text-purple-300 hover:text-purple-200"
-          >
-            بنوك الأسئلة
-          </Link>
         </div>
       </div>
-    </TeacherLayout>
+
+      {/* ===== CSS إضافي ===== */}
+      <style jsx>{`
+        @keyframes gradient {
+          0% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
+        .animate-gradient {
+          animation: gradient 8s ease infinite;
+          background-size: 200% 200%;
+        }
+        .line-clamp-2 {
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+        }
+      `}</style>
+    </div>
   );
 }

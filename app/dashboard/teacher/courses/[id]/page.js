@@ -1,10 +1,12 @@
 // ============================================================
 // app/dashboard/teacher/courses/[id]/page.js
-// مركز القيادة المتكامل للكورس – النسخة الأسطورية V11 (مع القوائم)
-// ✅ إضافة نظام قوائم الفيديوهات (Playlists)
-// ✅ إضافة دوال إنشاء وتعديل وحذف القوائم
-// ✅ إضافة زر "نقل إلى قائمة" بجانب كل فيديو فردي
-// ✅ عرض القوائم مع فيديوهاتها بشكل منظم
+// مركز القيادة المتكامل للكورس – النسخة الأسطورية V10
+// ✅ تم التعديل لاستخدام الثيم المركزي من useTheme
+// ✅ إضافة معلومات الكورسات المدفوعة والإحصائيات المرتبطة
+// ✅ إضافة useRef لتتبع التثبيت ومنع تحديث الحالة بعد فك التثبيت
+// ✅ إصلاح مشكلة عدم ظهور الفيديوهات (إضافة setVideos)
+// ✅ استبدال أيقونة Devices بـ Monitor
+// ✅ تعديل إحصائيات الدفع لتشمل مدفوعات الأكواد في totalRevenue
 // ============================================================
 
 'use client';
@@ -31,7 +33,7 @@ import {
   Filler,
 } from 'chart.js';
 import { Bar, Doughnut, Line } from 'react-chartjs-2';
-import { useTheme } from '@/lib/hooks/useTheme';
+import { useTheme } from '@/lib/hooks/useTheme'; // ✅ الثيم المركزي
 
 ChartJS.register(
   CategoryScale,
@@ -50,6 +52,7 @@ ChartJS.register(
 // 0. دوال مساعدة لتنسيق الملفات
 // ============================================================
 
+// دالة لتنسيق حجم الملف
 const formatFileSize = (bytes) => {
   if (!bytes || bytes === 0) return 'غير محدد';
   const k = 1024;
@@ -58,6 +61,7 @@ const formatFileSize = (bytes) => {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 };
 
+// دالة للحصول على أيقونة حسب نوع الملف
 const getFileIcon = (fileName) => {
   if (!fileName) return Icons.File;
   const ext = fileName.split('.').pop()?.toLowerCase();
@@ -81,6 +85,7 @@ const getFileIcon = (fileName) => {
   return icons[ext] || Icons.File;
 };
 
+// دالة للحصول على لون حسب نوع الملف
 const getFileColor = (fileName) => {
   if (!fileName) return 'text-gray-400';
   const ext = fileName.split('.').pop()?.toLowerCase();
@@ -104,7 +109,7 @@ const getFileColor = (fileName) => {
 };
 
 // ============================================================
-// 1. خلفية الجسيمات
+// 2. خلفية الجسيمات (أنيقة)
 // ============================================================
 
 const ParticleBackground = () => {
@@ -173,7 +178,7 @@ const ParticleBackground = () => {
 };
 
 // ============================================================
-// 2. عداد متحرك
+// 3. عداد متحرك
 // ============================================================
 
 const AnimatedCounter = ({ target, suffix = '', duration = 1500 }) => {
@@ -212,7 +217,7 @@ const AnimatedCounter = ({ target, suffix = '', duration = 1500 }) => {
 };
 
 // ============================================================
-// 3. بطاقة إحصائية
+// 4. بطاقة إحصائية (مدعومة بالثيم المركزي)
 // ============================================================
 
 const StatCard = ({ stat, styles }) => {
@@ -253,334 +258,20 @@ const StatCard = ({ stat, styles }) => {
 };
 
 // ============================================================
-// 4. مكونات القوائم (NEW)
+// 5. مكونات التبويبات (جميعها معدلة لقبول styles)
 // ============================================================
 
-// 4.1 قائمة منسدلة لنقل الفيديو إلى قائمة (NEW)
-const MoveToPlaylistDropdown = ({ videoId, currentPlaylistId, playlists, onMove, styles }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-
-  const handleMove = async (targetPlaylistId) => {
-    if (targetPlaylistId === currentPlaylistId) {
-      setIsOpen(false);
-      return;
-    }
-    setIsLoading(true);
-    try {
-      await onMove(videoId, targetPlaylistId);
-      setIsOpen(false);
-    } catch (err) {
-      toast.error('فشل النقل');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  return (
-    <div className="relative">
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        disabled={isLoading}
-        className="p-1.5 hover:bg-blue-500/20 rounded-lg transition text-blue-400 hover:text-blue-300 flex items-center gap-1 text-xs"
-      >
-        {isLoading ? <Icons.Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Icons.FolderPlus className="h-3.5 w-3.5" />}
-        <span className="hidden sm:inline">نقل</span>
-      </button>
-
-      {isOpen && (
-        <div className="absolute right-0 mt-1 w-48 bg-[#1a1f2e] border border-white/10 rounded-xl shadow-2xl z-20 py-1">
-          <button
-            onClick={() => handleMove(null)}
-            className="w-full text-right px-3 py-1.5 text-xs hover:bg-white/5 transition flex items-center gap-2 text-gray-300"
-          >
-            <Icons.ArrowUp className="h-3 w-3" /> فيديو فردي
-          </button>
-          {playlists.map(p => (
-            <button
-              key={p.id}
-              onClick={() => handleMove(p.id)}
-              className={`w-full text-right px-3 py-1.5 text-xs hover:bg-white/5 transition flex items-center gap-2 ${
-                p.id === currentPlaylistId ? 'text-yellow-400 bg-yellow-400/10' : 'text-gray-300'
-              }`}
-            >
-              <Icons.Folder className="h-3 w-3" /> {p.title}
-              {p.id === currentPlaylistId && <Icons.Check className="h-3 w-3 mr-auto" />}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-};
-
-// 4.2 بطاقة عرض القائمة مع فيديوهاتها (NEW)
-const PlaylistCard = ({ playlist, videos, onEditPlaylist, onDeletePlaylist, onEditVideo, onDeleteVideo, onMoveVideo, styles }) => {
-  const [isExpanded, setIsExpanded] = useState(true);
-  const playlistVideos = useMemo(() => videos.filter(v => v.playlist_id === playlist.id), [videos, playlist.id]);
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      className={`${styles.card} border ${styles.border} rounded-xl overflow-hidden hover:border-yellow-400/50 transition-all duration-300`}
-    >
-      {/* رأس القائمة */}
-      <div
-        className="flex items-center justify-between p-3 cursor-pointer hover:bg-white/5 transition"
-        onClick={() => setIsExpanded(!isExpanded)}
-      >
-        <div className="flex items-center gap-3">
-          <Icons.Folder className={`h-5 w-5 text-yellow-400 transition-transform ${isExpanded ? 'rotate-0' : 'rotate-90'}`} />
-          <div>
-            <h4 className={`font-bold ${styles.text}`}>{playlist.title}</h4>
-            <p className={`text-xs ${styles.subtext}`}>
-              {playlistVideos.length} فيديو • {playlist.description || ''}
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className={`text-[10px] px-2 py-0.5 rounded-full ${playlist.is_published ? 'bg-green-500/20 text-green-400' : 'bg-gray-500/20 text-gray-400'}`}>
-            {playlist.is_published ? 'منشور' : 'مسودة'}
-          </span>
-          <button
-            onClick={(e) => { e.stopPropagation(); onEditPlaylist(playlist); }}
-            className="p-1.5 hover:bg-yellow-400/20 rounded-lg transition text-yellow-400 hover:text-yellow-300"
-          >
-            <Icons.Edit className="h-4 w-4" />
-          </button>
-          <button
-            onClick={(e) => { e.stopPropagation(); onDeletePlaylist(playlist); }}
-            className="p-1.5 hover:bg-red-500/20 rounded-lg transition text-red-400 hover:text-red-300"
-          >
-            <Icons.Trash2 className="h-4 w-4" />
-          </button>
-          <button
-            onClick={(e) => { e.stopPropagation(); setIsExpanded(!isExpanded); }}
-            className="p-1.5 hover:bg-white/10 rounded-lg transition"
-          >
-            {isExpanded ? <Icons.ChevronUp className="h-4 w-4" /> : <Icons.ChevronDown className="h-4 w-4" />}
-          </button>
-        </div>
-      </div>
-
-      {/* محتوى القائمة (فيديوهات) */}
-      {isExpanded && (
-        <div className="p-3 pt-0 border-t border-white/5">
-          {playlistVideos.length === 0 ? (
-            <p className={`text-center text-sm ${styles.subtext} py-4`}>
-              لا توجد فيديوهات في هذه القائمة
-            </p>
-          ) : (
-            <div className="space-y-2">
-              {playlistVideos.map((video, idx) => (
-                <motion.div
-                  key={video.id}
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: idx * 0.03 }}
-                  className={`${styles.card} border ${styles.border} rounded-lg p-2 hover:border-yellow-400/50 transition`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-gray-500">#{idx + 1}</span>
-                        <Icons.Play className="h-3 w-3 text-yellow-400" />
-                        <span className={`text-sm font-medium ${styles.text} truncate`}>{video.title}</span>
-                      </div>
-                      <div className={`flex flex-wrap items-center gap-2 mt-0.5 text-xs ${styles.subtext}`}>
-                        <span className="flex items-center gap-1"><Icons.Eye className="h-3 w-3" /> {video.views || 0}</span>
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] ${video.is_published ? 'bg-green-500/20 text-green-400' : 'bg-gray-500/20 text-gray-400'}`}>
-                          {video.is_published ? 'منشور' : 'مسودة'}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1 flex-shrink-0 mr-2">
-                      <Link href={`/watch/${video.id}`} target="_blank" className="p-1 hover:bg-blue-500/20 rounded-lg transition text-blue-400">
-                        <Icons.Eye className="h-3.5 w-3.5" />
-                      </Link>
-                      <button onClick={() => onEditVideo(video.id, 'video')} className="p-1 hover:bg-yellow-400/20 rounded-lg transition text-yellow-400">
-                        <Icons.Edit className="h-3.5 w-3.5" />
-                      </button>
-                      <button onClick={() => onDeleteVideo(video.id, 'video')} className="p-1 hover:bg-red-500/20 rounded-lg transition text-red-400">
-                        <Icons.Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                      <button
-                        onClick={() => onMoveVideo(video.id, null)}
-                        className="p-1 hover:bg-blue-500/20 rounded-lg transition text-blue-400"
-                        title="نقل إلى الفيديوهات الفردية"
-                      >
-                        <Icons.ArrowUp className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-    </motion.div>
-  );
-};
-
-// 4.3 مودال إنشاء/تعديل القائمة (NEW)
-const PlaylistModal = ({ isOpen, onClose, onSuccess, playlist = null, courseId, styles }) => {
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [loading, setLoading] = useState(false);
-  const isEditing = !!playlist;
-
-  useEffect(() => {
-    if (playlist) {
-      setTitle(playlist.title || '');
-      setDescription(playlist.description || '');
-    } else {
-      setTitle('');
-      setDescription('');
-    }
-  }, [playlist]);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!title.trim()) {
-      toast.error('يرجى إدخال عنوان القائمة');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      const url = isEditing
-        ? `/api/courses/${courseId}/playlists/${playlist.id}`
-        : `/api/courses/${courseId}/playlists`;
-      const method = isEditing ? 'PUT' : 'POST';
-      const body = JSON.stringify({
-        title: title.trim(),
-        description: description.trim(),
-      });
-
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          'x-user-id': user.id,
-        },
-        body,
-      });
-
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error || 'فشل الحفظ');
-
-      toast.success(isEditing ? '✅ تم تحديث القائمة' : '✅ تم إنشاء القائمة');
-      onSuccess();
-      onClose();
-    } catch (err) {
-      toast.error(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (!isOpen) return null;
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <motion.div
-        initial={{ scale: 0.9, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.9, opacity: 0 }}
-        className={`${styles.card} border ${styles.border} rounded-2xl max-w-md w-full p-6 max-h-[90vh] overflow-y-auto`}
-      >
-        <div className="flex items-center justify-between mb-4">
-          <h3 className={`text-lg font-bold ${styles.text}`}>
-            {isEditing ? 'تعديل القائمة' : 'إضافة قائمة جديدة'}
-          </h3>
-          <button onClick={onClose} className={`p-1 rounded-lg hover:bg-white/10 transition ${styles.subtext}`}>
-            <Icons.X className="h-5 w-5" />
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className={`block text-sm font-medium ${styles.label} mb-1`}>
-              عنوان القائمة <span className="text-red-400">*</span>
-            </label>
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className={`w-full p-2 ${styles.input} border ${styles.border} rounded-lg focus:ring-2 focus:ring-yellow-400/50 outline-none transition`}
-              placeholder="مثال: مراجعة شاملة، شرح الوحدة الأولى..."
-            />
-          </div>
-
-          <div>
-            <label className={`block text-sm font-medium ${styles.label} mb-1`}>
-              وصف (اختياري)
-            </label>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows="3"
-              className={`w-full p-2 ${styles.input} border ${styles.border} rounded-lg focus:ring-2 focus:ring-yellow-400/50 outline-none transition resize-none`}
-              placeholder="وصف مختصر للقائمة..."
-            />
-          </div>
-
-          <div className="flex items-center justify-end gap-2 mt-4">
-            <button
-              type="button"
-              onClick={onClose}
-              className={`px-4 py-2 ${styles.card} border ${styles.border} rounded-xl text-sm font-semibold ${styles.subtext} hover:text-white transition`}
-            >
-              إلغاء
-            </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="px-4 py-2 bg-yellow-400/20 hover:bg-yellow-400/30 text-yellow-300 rounded-xl text-sm font-semibold transition flex items-center gap-2 disabled:opacity-50"
-            >
-              {loading && <Icons.Loader2 className="h-4 w-4 animate-spin" />}
-              {loading ? 'جاري الحفظ...' : isEditing ? 'تحديث' : 'إنشاء'}
-            </button>
-          </div>
-        </form>
-      </motion.div>
-    </div>
-  );
-};
-
-// ============================================================
-// 5. مكونات التبويبات (معدلة)
-// ============================================================
-
-// 5.1 تبويب الفيديوهات (معدل بالكامل لدعم القوائم)
-const VideosTab = ({ videos, playlists, courseId, onDelete, onEdit, onAdd, onAddPlaylist, onEditPlaylist, onDeletePlaylist, onMoveVideo, styles }) => {
+// 5.1 تبويب الفيديوهات
+const VideosTab = ({ videos, courseId, onDelete, onEdit, onAdd, styles }) => {
   const [searchTerm, setSearchTerm] = useState('');
 
-  // فصل الفيديوهات حسب playlist_id
-  const playlistIds = useMemo(() => playlists.map(p => p.id), [playlists]);
-  const videosInPlaylist = useMemo(() => videos.filter(v => v.playlist_id && playlistIds.includes(v.playlist_id)), [videos, playlistIds]);
-  const videosWithoutPlaylist = useMemo(() => videos.filter(v => !v.playlist_id || !playlistIds.includes(v.playlist_id)), [videos, playlistIds]);
-
-  // فلترة حسب البحث
-  const filteredVideosWithoutPlaylist = useMemo(() => {
-    if (!searchTerm.trim()) return videosWithoutPlaylist;
-    return videosWithoutPlaylist.filter(v => v.title.toLowerCase().includes(searchTerm.trim().toLowerCase()));
-  }, [videosWithoutPlaylist, searchTerm]);
-
-  const filteredPlaylists = useMemo(() => {
-    if (!searchTerm.trim()) return playlists;
-    return playlists.filter(p => 
-      p.title.toLowerCase().includes(searchTerm.trim().toLowerCase()) ||
-      p.description?.toLowerCase().includes(searchTerm.trim().toLowerCase())
-    );
-  }, [playlists, searchTerm]);
+  const filteredVideos = useMemo(() => {
+    if (!searchTerm.trim()) return videos;
+    return videos.filter(v => v.title.toLowerCase().includes(searchTerm.trim().toLowerCase()));
+  }, [videos, searchTerm]);
 
   return (
     <div>
-      {/* رأس مع أزرار */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
         <div className="relative flex-1 max-w-xs">
           <Icons.Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
@@ -588,119 +279,91 @@ const VideosTab = ({ videos, playlists, courseId, onDelete, onEdit, onAdd, onAdd
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="ابحث في الفيديوهات والقوائم..."
+            placeholder="ابحث في الفيديوهات..."
             className={`w-full p-2 pr-8 ${styles.input} border ${styles.border} rounded-lg text-sm focus:ring-2 focus:ring-yellow-400/50 outline-none transition`}
           />
         </div>
-        <div className="flex gap-2">
-          <button
-            onClick={onAddPlaylist}
-            className="px-4 py-2 bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 rounded-xl text-sm font-semibold transition flex items-center gap-1 whitespace-nowrap"
-          >
-            <Icons.FolderPlus className="h-4 w-4" /> إضافة قائمة
-          </button>
-          <button
-            onClick={onAdd}
-            className="px-4 py-2 bg-yellow-400/20 hover:bg-yellow-400/30 text-yellow-300 rounded-xl text-sm font-semibold transition flex items-center gap-1 whitespace-nowrap"
-          >
-            <Icons.Plus className="h-4 w-4" /> إضافة فيديو
-          </button>
-        </div>
+        <button
+          onClick={onAdd}
+          className="px-4 py-2 bg-yellow-400/20 hover:bg-yellow-400/30 text-yellow-300 rounded-xl text-sm font-semibold transition flex items-center gap-1 whitespace-nowrap"
+        >
+          <Icons.Plus className="h-4 w-4" /> إضافة فيديو
+        </button>
       </div>
 
-      {/* عرض القوائم */}
-      {filteredPlaylists.length > 0 && (
-        <div className="space-y-3 mb-4">
-          <h3 className={`text-sm font-bold ${styles.text} flex items-center gap-2`}>
-            <Icons.Folder className="h-4 w-4 text-yellow-400" /> قوائم التشغيل
-          </h3>
-          {filteredPlaylists.map(playlist => (
-            <PlaylistCard
-              key={playlist.id}
-              playlist={playlist}
-              videos={videos}
-              onEditPlaylist={onEditPlaylist}
-              onDeletePlaylist={onDeletePlaylist}
-              onEditVideo={onEdit}
-              onDeleteVideo={onDelete}
-              onMoveVideo={onMoveVideo}
-              styles={styles}
-            />
-          ))}
+      {filteredVideos.length === 0 ? (
+        <div className="text-center py-8">
+          <Icons.Video className="h-12 w-12 text-gray-600 mx-auto mb-2" />
+          <p className={`${styles.subtext}`}>
+            {searchTerm ? 'لا توجد نتائج تطابق البحث' : 'لا توجد فيديوهات في هذا الكورس'}
+          </p>
+          {!searchTerm && (
+            <button
+              onClick={onAdd}
+              className="mt-3 px-4 py-2 bg-yellow-400/20 hover:bg-yellow-400/30 text-yellow-300 rounded-xl text-sm font-semibold transition"
+            >
+              أضف أول فيديو
+            </button>
+          )}
         </div>
-      )}
-
-      {/* الفيديوهات الفردية */}
-      {filteredVideosWithoutPlaylist.length > 0 && (
+      ) : (
         <div className="space-y-2">
-          <h3 className={`text-sm font-bold ${styles.text} flex items-center gap-2`}>
-            <Icons.Video className="h-4 w-4 text-blue-400" /> فيديوهات فردية ({filteredVideosWithoutPlaylist.length})
-          </h3>
-          {filteredVideosWithoutPlaylist.map((video, index) => (
+          {filteredVideos.map((video, index) => (
             <motion.div
               key={video.id}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.03 }}
-              className={`${styles.card} border ${styles.border} rounded-xl p-3 hover:border-yellow-400/50 transition-all duration-300`}
+              className={`${styles.card} border ${styles.border} rounded-xl p-4 hover:border-yellow-400/50 transition-all duration-300`}
             >
               <div className="flex items-center justify-between">
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-3">
                     <span className="text-xs text-gray-500">#{index + 1}</span>
-                    <Icons.Play className="h-3.5 w-3.5 text-yellow-400 flex-shrink-0" />
-                    <span className={`text-sm font-medium ${styles.text} truncate`}>{video.title}</span>
+                    <Icons.Play className="h-4 w-4 text-yellow-400 flex-shrink-0" />
+                    <span className={`font-medium ${styles.text} truncate`}>{video.title}</span>
                   </div>
-                  <div className={`flex flex-wrap items-center gap-2 mt-0.5 text-xs ${styles.subtext}`}>
-                    <span className="flex items-center gap-1"><Icons.Eye className="h-3 w-3" /> {video.views || 0}</span>
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] ${video.is_published ? 'bg-green-500/20 text-green-400' : 'bg-gray-500/20 text-gray-400'}`}>
+                  <div className={`flex flex-wrap items-center gap-3 mt-1 text-xs ${styles.subtext}`}>
+                    <span className="flex items-center gap-1">
+                      <Icons.Eye className="h-3 w-3" /> {video.views || 0}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Icons.Clock className="h-3 w-3" />{' '}
+                      {video.duration ? `${Math.floor(video.duration / 60)} د` : 'غير محدد'}
+                    </span>
+                    <span
+                      className={`px-2 py-0.5 rounded-full text-[10px] ${
+                        video.is_published ? 'bg-green-500/20 text-green-400' : 'bg-gray-500/20 text-gray-400'
+                      }`}
+                    >
                       {video.is_published ? 'منشور' : 'مسودة'}
                     </span>
                   </div>
                 </div>
-                <div className="flex items-center gap-1 flex-shrink-0 mr-2">
-                  <Link href={`/watch/${video.id}`} target="_blank" className="p-1 hover:bg-blue-500/20 rounded-lg transition text-blue-400">
-                    <Icons.Eye className="h-3.5 w-3.5" />
+                <div className="flex items-center gap-2 flex-shrink-0 mr-4">
+                  <Link
+                    href={`/watch/${video.id}`}
+                    target="_blank"
+                    className="p-1.5 hover:bg-blue-500/20 rounded-lg transition text-blue-400 hover:text-blue-300"
+                  >
+                    <Icons.Eye className="h-4 w-4" />
                   </Link>
-                  <button onClick={() => onEdit(video.id, 'video')} className="p-1 hover:bg-yellow-400/20 rounded-lg transition text-yellow-400">
-                    <Icons.Edit className="h-3.5 w-3.5" />
+                  <button
+                    onClick={() => onEdit(video.id, 'video')}
+                    className="p-1.5 hover:bg-yellow-400/20 rounded-lg transition text-yellow-400 hover:text-yellow-300"
+                  >
+                    <Icons.Edit className="h-4 w-4" />
                   </button>
-                  <button onClick={() => onDelete(video.id, 'video')} className="p-1 hover:bg-red-500/20 rounded-lg transition text-red-400">
-                    <Icons.Trash2 className="h-3.5 w-3.5" />
+                  <button
+                    onClick={() => onDelete(video.id, 'video')}
+                    className="p-1.5 hover:bg-red-500/20 rounded-lg transition text-red-400 hover:text-red-300"
+                  >
+                    <Icons.Trash2 className="h-4 w-4" />
                   </button>
-                  {playlists.length > 0 && (
-                    <MoveToPlaylistDropdown
-                      videoId={video.id}
-                      currentPlaylistId={null}
-                      playlists={playlists}
-                      onMove={onMoveVideo}
-                      styles={styles}
-                    />
-                  )}
                 </div>
               </div>
             </motion.div>
           ))}
-        </div>
-      )}
-
-      {/* لا يوجد محتوى */}
-      {filteredPlaylists.length === 0 && filteredVideosWithoutPlaylist.length === 0 && (
-        <div className="text-center py-8">
-          <Icons.Video className="h-12 w-12 text-gray-600 mx-auto mb-2" />
-          <p className={`${styles.subtext}`}>
-            {searchTerm ? 'لا توجد نتائج تطابق البحث' : 'لا توجد فيديوهات أو قوائم في هذا الكورس'}
-          </p>
-          {!searchTerm && (
-            <div className="flex flex-col sm:flex-row gap-2 justify-center mt-3">
-              <button onClick={onAdd} className="px-4 py-2 bg-yellow-400/20 hover:bg-yellow-400/30 text-yellow-300 rounded-xl text-sm font-semibold transition">
-                أضف فيديو
-              </button>
-              <button onClick={onAddPlaylist} className="px-4 py-2 bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 rounded-xl text-sm font-semibold transition">
-                أضف قائمة
-              </button>
-            </div>
-          )}
         </div>
       )}
     </div>
@@ -819,7 +482,7 @@ const ExamsTab = ({ exams, courseId, onDelete, onEdit, onAdd, styles }) => {
   );
 };
 
-// 5.3 تبويب الكتب
+// 5.3 تبويب الكتب (النسخة المتطورة)
 const BooksTab = ({ books, courseId, onDelete, onAdd, styles }) => {
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -961,6 +624,7 @@ const StudentsTab = ({ students, courseId, onRefresh, styles }) => {
         s => s.full_name.toLowerCase().includes(q) || s.email?.toLowerCase().includes(q)
       );
     }
+    // ترتيب
     result = [...result].sort((a, b) => {
       if (sortBy === 'progress') return (b.progress || 0) - (a.progress || 0);
       if (sortBy === 'name') return a.full_name.localeCompare(b.full_name);
@@ -1179,11 +843,11 @@ const BanksTab = ({ banks, courseId, onDelete, onEdit, onAdd, onViewQuestions, s
 };
 
 // ============================================================
-// 6. مودال رفع الكتب
+// 6. مودال رفع الكتب (UploadBookModal) – معدل للثيم المركزي
 // ============================================================
 
 const UploadBookModal = ({ isOpen, onClose, courseId, onSuccess, styles }) => {
-  const [uploadMethod, setUploadMethod] = useState('file');
+  const [uploadMethod, setUploadMethod] = useState('file'); // 'file' or 'link'
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [file, setFile] = useState(null);
@@ -1194,6 +858,7 @@ const UploadBookModal = ({ isOpen, onClose, courseId, onSuccess, styles }) => {
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef(null);
 
+  // إعادة تعيين الحقول عند الإغلاق
   const resetForm = () => {
     setTitle('');
     setDescription('');
@@ -1269,6 +934,7 @@ const UploadBookModal = ({ isOpen, onClose, courseId, onSuccess, styles }) => {
           body: formData,
         });
       } else {
+        // رابط خارجي
         if (!externalUrl.trim()) {
           toast.error('يرجى إدخال رابط خارجي');
           setLoading(false);
@@ -1328,6 +994,7 @@ const UploadBookModal = ({ isOpen, onClose, courseId, onSuccess, styles }) => {
 
         <form onSubmit={handleSubmit}>
           <div className="space-y-4">
+            {/* طريقة الرفع */}
             <div className="flex gap-2 border-b border-white/10 pb-3">
               <button
                 type="button"
@@ -1353,6 +1020,7 @@ const UploadBookModal = ({ isOpen, onClose, courseId, onSuccess, styles }) => {
               </button>
             </div>
 
+            {/* حقل العنوان */}
             <div>
               <label className={`block text-sm font-medium ${styles.label} mb-1`}>
                 عنوان الكتاب *
@@ -1367,6 +1035,7 @@ const UploadBookModal = ({ isOpen, onClose, courseId, onSuccess, styles }) => {
               />
             </div>
 
+            {/* حقل الوصف */}
             <div>
               <label className={`block text-sm font-medium ${styles.label} mb-1`}>
                 وصف (اختياري)
@@ -1381,45 +1050,49 @@ const UploadBookModal = ({ isOpen, onClose, courseId, onSuccess, styles }) => {
             </div>
 
             {uploadMethod === 'file' ? (
-              <div
-                className={`border-2 border-dashed rounded-xl p-6 text-center transition ${dragOver ? 'border-yellow-400 bg-yellow-400/10' : styles.border} hover:border-yellow-400/50`}
-                onDrop={handleDrop}
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-              >
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  onChange={handleFileChange}
-                  className="hidden"
-                  id="file-upload"
-                />
-                <label htmlFor="file-upload" className="cursor-pointer block">
-                  <Icons.Upload className="h-10 w-10 text-gray-500 mx-auto mb-2" />
-                  <p className={`text-sm ${styles.subtext}`}>
-                    اسحب الملف هنا أو <span className="text-yellow-400">اختر ملف</span>
-                  </p>
-                  <p className={`text-xs ${styles.subtext} mt-1`}>
-                    جميع الملفات مقبولة (بدون حد للحجم)
-                  </p>
-                </label>
-                {file && (
-                  <div className="mt-3 p-2 bg-white/5 rounded-lg flex items-center gap-2 text-sm">
-                    <Icons.File className="h-4 w-4 text-yellow-400" />
-                    <span className={`${styles.text}`}>{fileName}</span>
-                    <span className={`${styles.subtext} text-xs`}>({fileSize})</span>
-                    <button
-                      type="button"
-                      onClick={() => { setFile(null); setFileName(''); setFileSize(''); if (fileInputRef.current) fileInputRef.current.value = ''; }}
-                      className="mr-auto text-red-400 hover:text-red-300"
-                    >
-                      <Icons.X className="h-4 w-4" />
-                    </button>
-                  </div>
-                )}
-              </div>
+              <>
+                {/* منطقة السحب والإفلات */}
+                <div
+                  className={`border-2 border-dashed rounded-xl p-6 text-center transition ${dragOver ? 'border-yellow-400 bg-yellow-400/10' : styles.border} hover:border-yellow-400/50`}
+                  onDrop={handleDrop}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                >
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    onChange={handleFileChange}
+                    className="hidden"
+                    id="file-upload"
+                  />
+                  <label htmlFor="file-upload" className="cursor-pointer block">
+                    <Icons.Upload className="h-10 w-10 text-gray-500 mx-auto mb-2" />
+                    <p className={`text-sm ${styles.subtext}`}>
+                      اسحب الملف هنا أو <span className="text-yellow-400">اختر ملف</span>
+                    </p>
+                    <p className={`text-xs ${styles.subtext} mt-1`}>
+                      جميع الملفات مقبولة (بدون حد للحجم)
+                    </p>
+                  </label>
+                  {file && (
+                    <div className="mt-3 p-2 bg-white/5 rounded-lg flex items-center gap-2 text-sm">
+                      <Icons.File className="h-4 w-4 text-yellow-400" />
+                      <span className={`${styles.text}`}>{fileName}</span>
+                      <span className={`${styles.subtext} text-xs`}>({fileSize})</span>
+                      <button
+                        type="button"
+                        onClick={() => { setFile(null); setFileName(''); setFileSize(''); if (fileInputRef.current) fileInputRef.current.value = ''; }}
+                        className="mr-auto text-red-400 hover:text-red-300"
+                      >
+                        <Icons.X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </>
             ) : (
               <>
+                {/* رابط خارجي */}
                 <div>
                   <label className={`block text-sm font-medium ${styles.label} mb-1`}>
                     الرابط الخارجي *
@@ -1461,6 +1134,7 @@ const UploadBookModal = ({ isOpen, onClose, courseId, onSuccess, styles }) => {
             )}
           </div>
 
+          {/* أزرار الإجراء */}
           <div className="flex items-center justify-end gap-2 mt-6">
             <button
               type="button"
@@ -1485,7 +1159,7 @@ const UploadBookModal = ({ isOpen, onClose, courseId, onSuccess, styles }) => {
 };
 
 // ============================================================
-// 7. الصفحة الرئيسية
+// 7. الصفحة الرئيسية – مركز القيادة المتكامل للكورس
 // ============================================================
 
 export default function TeacherCourseDetailPage() {
@@ -1494,6 +1168,7 @@ export default function TeacherCourseDetailPage() {
   const courseId = params.id;
   const { theme, toggleTheme, language, toggleLanguage, styles } = useTheme();
 
+  // ✅ إضافة useRef لتتبع التثبيت
   const isMounted = useRef(true);
 
   // ===== حالات عامة =====
@@ -1511,12 +1186,6 @@ export default function TeacherCourseDetailPage() {
   const [students, setStudents] = useState([]);
   const [banks, setBanks] = useState([]);
 
-  // ===== حالات القوائم (NEW) =====
-  const [playlists, setPlaylists] = useState([]);
-  const [isPlaylistModalOpen, setIsPlaylistModalOpen] = useState(false);
-  const [editingPlaylist, setEditingPlaylist] = useState(null);
-  const [isMovingVideo, setIsMovingVideo] = useState(false);
-
   // ===== إحصائيات متقدمة =====
   const [stats, setStats] = useState({
     totalStudents: 0,
@@ -1532,7 +1201,7 @@ export default function TeacherCourseDetailPage() {
     totalBankQuestions: 0,
   });
 
-  // ===== إحصائيات الدفع والاشتراكات =====
+  // ===== ✅ إحصائيات الدفع والاشتراكات =====
   const [paymentStats, setPaymentStats] = useState({
     totalRevenue: 0,
     paidStudents: 0,
@@ -1549,7 +1218,7 @@ export default function TeacherCourseDetailPage() {
     weeklyActivity: { labels: [], datasets: [] },
   });
 
-  // ===== بيانات المرحلة =====
+  // ===== بيانات المرحلة (للرسم البياني) =====
   const gradeChartData = useMemo(() => {
     const stages = {};
     if (course?.grade_stage) {
@@ -1571,6 +1240,7 @@ export default function TeacherCourseDetailPage() {
     };
   }, [course]);
 
+  // ✅ useEffect للتثبيت / إلغاء التثبيت
   useEffect(() => {
     isMounted.current = true;
     return () => {
@@ -1578,7 +1248,7 @@ export default function TeacherCourseDetailPage() {
     };
   }, []);
 
-  // ===== جلب البيانات =====
+  // ===== جلب البيانات (النسخة المعدلة مع إصلاح setVideos) =====
   const fetchCourseData = useCallback(async () => {
     if (!isMounted.current) return;
 
@@ -1623,7 +1293,7 @@ export default function TeacherCourseDetailPage() {
         .order('order_index', { ascending: true });
 
       if (!isMounted.current) return;
-      setVideos(videosData || []);
+      setVideos(videosData || []); // ✅ التصحيح الأساسي
 
       // 3. جلب الامتحانات
       const { data: examsData } = await supabase
@@ -1667,7 +1337,7 @@ export default function TeacherCourseDetailPage() {
       }));
       setStudents(studentsList);
 
-      // 6. جلب محاولات الامتحانات
+      // 6. جلب محاولات الامتحانات لحساب متوسط الدرجات
       const examIds = (examsData || []).map(e => e.id);
       let avgExamScore = 0;
       let attemptsData = [];
@@ -1688,7 +1358,7 @@ export default function TeacherCourseDetailPage() {
       }
       if (!isMounted.current) return;
 
-      // 7. جلب بنوك الأسئلة
+      // 7. جلب بنوك الأسئلة المرتبطة بالكورس
       const { data: banksData } = await supabase
         .from('question_banks')
         .select('id, title, questions:questions(count), is_published')
@@ -1703,17 +1373,9 @@ export default function TeacherCourseDetailPage() {
       }));
       setBanks(banksWithCount || []);
 
-      // ===== 8. جلب القوائم (NEW) =====
-      const { data: playlistsData } = await supabase
-        .from('video_playlists')
-        .select('*')
-        .eq('course_id', courseId)
-        .order('order_index', { ascending: true });
-
-      if (!isMounted.current) return;
-      setPlaylists(playlistsData || []);
-
-      // 9. جلب إحصائيات الدفع
+      // ================================================================
+      // ✅ 8. جلب إحصائيات الدفع والاشتراكات (بعد التعديل)
+      // ================================================================
       const { data: paymentsData } = await supabase
         .from('course_payments')
         .select('amount, payment_status, payment_method')
@@ -1727,6 +1389,7 @@ export default function TeacherCourseDetailPage() {
 
       if (!isMounted.current) return;
 
+      // حساب الإيرادات (تشمل كل المدفوعات الناجحة، بما فيها code)
       const totalRevenue = (paymentsData || [])
         .filter(p => p.payment_status === 'paid')
         .reduce((sum, p) => sum + (p.amount / 100), 0);
@@ -1746,7 +1409,7 @@ export default function TeacherCourseDetailPage() {
         activeSubscriptions: subscriptionsData?.length || 0,
       });
 
-      // 10. حساب الإحصائيات العامة
+      // 9. حساب الإحصائيات العامة
       const total = studentsList.length;
       const completed = studentsList.filter(s => s.completed_at !== null).length;
       const notStarted = studentsList.filter(s => s.progress === 0).length;
@@ -1771,7 +1434,7 @@ export default function TeacherCourseDetailPage() {
         totalBankQuestions,
       });
 
-      // 11. إعداد بيانات الرسوم البيانية
+      // 10. إعداد بيانات الرسوم البيانية
       const progressRanges = { '0-20': 0, '21-40': 0, '41-60': 0, '61-80': 0, '81-100': 0 };
       studentsList.forEach(s => {
         const p = s.progress || 0;
@@ -1846,7 +1509,7 @@ export default function TeacherCourseDetailPage() {
     if (courseId) fetchCourseData();
   }, [courseId, fetchCourseData]);
 
-  // ===== دوال الإدارة الأساسية =====
+  // ===== دوال الإدارة =====
   const handleDelete = async (id, type) => {
     const typeMap = { video: 'فيديو', exam: 'امتحان', book: 'كتاب', bank: 'بنك أسئلة' };
     if (!confirm(`هل أنت متأكد من حذف هذا ${typeMap[type] || 'العنصر'}؟`)) return;
@@ -1870,6 +1533,7 @@ export default function TeacherCourseDetailPage() {
     }
   };
 
+  // حذف كتاب عبر API
   const handleDeleteBook = async (bookId) => {
     if (!confirm('هل أنت متأكد من حذف هذا الكتاب؟')) return;
     try {
@@ -1922,57 +1586,6 @@ export default function TeacherCourseDetailPage() {
   };
 
   const goToCoursesList = () => router.push('/dashboard/teacher/courses');
-
-  // ===== دوال إدارة القوائم (NEW) =====
-  const handleAddPlaylist = () => {
-    setEditingPlaylist(null);
-    setIsPlaylistModalOpen(true);
-  };
-
-  const handleEditPlaylist = (playlist) => {
-    setEditingPlaylist(playlist);
-    setIsPlaylistModalOpen(true);
-  };
-
-  const handleDeletePlaylist = async (playlist) => {
-    if (!confirm(`هل أنت متأكد من حذف القائمة "${playlist.title}"؟ سيتم نقل فيديوهاتها إلى الفيديوهات الفردية.`)) return;
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      const response = await fetch(`/api/courses/${courseId}/playlists/${playlist.id}`, {
-        method: 'DELETE',
-        headers: { 'x-user-id': user.id },
-      });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error || 'فشل الحذف');
-      toast.success('✅ تم حذف القائمة');
-      fetchCourseData();
-    } catch (err) {
-      toast.error(err.message);
-    }
-  };
-
-  const handleMoveVideo = async (videoId, targetPlaylistId) => {
-    try {
-      setIsMovingVideo(true);
-      const { data: { user } } = await supabase.auth.getUser();
-      const response = await fetch(`/api/courses/${courseId}/videos/move-to-playlist`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-user-id': user.id,
-        },
-        body: JSON.stringify({ videoId, playlistId: targetPlaylistId }),
-      });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error || 'فشل النقل');
-      toast.success('✅ تم نقل الفيديو');
-      fetchCourseData();
-    } catch (err) {
-      toast.error(err.message);
-    } finally {
-      setIsMovingVideo(false);
-    }
-  };
 
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
 
@@ -2427,15 +2040,10 @@ export default function TeacherCourseDetailPage() {
                 >
                   <VideosTab
                     videos={videos}
-                    playlists={playlists}
                     courseId={courseId}
                     onDelete={handleDelete}
                     onEdit={navigateToEdit}
                     onAdd={() => navigateToAdd('video')}
-                    onAddPlaylist={handleAddPlaylist}
-                    onEditPlaylist={handleEditPlaylist}
-                    onDeletePlaylist={handleDeletePlaylist}
-                    onMoveVideo={handleMoveVideo}
                     styles={styles}
                   />
                 </motion.div>
@@ -2651,16 +2259,6 @@ export default function TeacherCourseDetailPage() {
           onClose={() => setIsUploadModalOpen(false)}
           courseId={courseId}
           onSuccess={fetchCourseData}
-          styles={styles}
-        />
-
-        {/* ===== مودال إنشاء/تعديل القائمة (NEW) ===== */}
-        <PlaylistModal
-          isOpen={isPlaylistModalOpen}
-          onClose={() => setIsPlaylistModalOpen(false)}
-          onSuccess={fetchCourseData}
-          playlist={editingPlaylist}
-          courseId={courseId}
           styles={styles}
         />
       </div>
