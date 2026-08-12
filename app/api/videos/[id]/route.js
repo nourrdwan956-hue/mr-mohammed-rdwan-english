@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { verifyCourseOwnership } from '@/lib/playlist-utils';
 
 // ============================================================
-// GET: جلب فيديو واحد مع بياناته
+// GET: جلب فيديو واحد
 // ============================================================
 export async function GET(request, { params }) {
   try {
@@ -49,12 +49,12 @@ export async function GET(request, { params }) {
     const userId = session.user.id;
     const courseId = video.course_id;
 
-    // 1- المعلم
+    // معلم
     if (video.courses?.teacher_id === userId) {
       return NextResponse.json({ success: true, data: video });
     }
 
-    // 2- مساعد
+    // مساعد
     const { data: assistant, error: assistantError } = await supabase
       .from('assistants')
       .select('permissions')
@@ -66,7 +66,7 @@ export async function GET(request, { params }) {
       return NextResponse.json({ success: true, data: video });
     }
 
-    // 3- طالب مشترك
+    // طالب مشترك
     const { data: enrollment, error: enrollError } = await supabase
       .from('enrollments')
       .select('id, status')
@@ -177,16 +177,14 @@ export async function PUT(request, { params }) {
     // ✅ معالجة playlistId بشكل آمن
     let finalPlaylistId = null;
     if (playlistId !== undefined) {
-      // إذا كانت playlistId تساوي null أو undefined أو غير صالحة
-      if (playlistId && playlistId !== 'undefined' && playlistId !== 'null' && String(playlistId).trim() !== '') {
-        const idStr = String(playlistId).trim();
+      const idStr = playlistId !== null ? String(playlistId).trim() : '';
+      
+      if (idStr && idStr !== '' && idStr !== 'undefined' && idStr !== 'null') {
         const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-        
         if (!uuidRegex.test(idStr)) {
-          console.warn('⚠️ Invalid UUID format for playlistId in PUT:', idStr);
+          console.warn(`⚠️ Invalid UUID format in PUT: "${idStr}" — setting to NULL`);
           finalPlaylistId = null;
         } else {
-          // التحقق من وجود القائمة
           const { data: playlistExists, error: checkError } = await supabase
             .from('playlists')
             .select('id')
@@ -194,33 +192,29 @@ export async function PUT(request, { params }) {
             .maybeSingle();
 
           if (checkError) {
-            console.error('❌ Error checking playlist existence in PUT:', checkError);
+            console.error('❌ Error checking playlist in PUT:', checkError);
             finalPlaylistId = null;
           } else if (playlistExists) {
             finalPlaylistId = idStr;
-            console.log('✅ Playlist found in PUT:', finalPlaylistId);
+            console.log(`✅ Playlist found in PUT: ${finalPlaylistId}`);
           } else {
-            console.warn('⚠️ Playlist not found in PUT, setting to null');
+            console.warn(`⚠️ Playlist not found in PUT: "${idStr}" — setting to NULL`);
             finalPlaylistId = null;
           }
         }
       }
       
-      // تحديث playlist_id
       updateData.playlist_id = finalPlaylistId;
-      
-      // إذا تم إزالة الفيديو من القائمة، امسح الترتيب
       if (finalPlaylistId === null) {
         updateData.playlist_order = null;
       }
     }
 
-    // إذا تم تحديد playlistOrder وكانت القائمة موجودة
     if (playlistOrder !== undefined && finalPlaylistId !== null) {
       updateData.playlist_order = playlistOrder !== null ? playlistOrder : null;
     }
 
-    console.log('📝 Updating video with data:', updateData);
+    console.log('📝 Final updateData:', updateData);
 
     const { data, error } = await supabase
       .from('videos')
