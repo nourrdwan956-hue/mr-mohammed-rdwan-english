@@ -33,6 +33,7 @@
 // ✅ تحسين التجاوب مع الشاشات الصغيرة دون الحاجة للتقليص
 // ✅ إضافة دعم LTR للنصوص الإنجليزية (dir="ltr", textAlign: 'left') لجميع العناصر النصية
 // ✅ إضافة dir="auto" لعنوان الامتحان واسم الطالب
+// ✅ التعديل الجديد: استبدال أيقونة 💪 بـ 📚 لمستوى ضعيف لتجنب سوء الفهم
 
 'use client';
 
@@ -122,12 +123,13 @@ const formatDate = (date) => {
   });
 };
 
+// ✅ التعديل: استبدال 💪 بـ 📚 لمستوى ضعيف
 const getGrade = (percentage) => {
   if (percentage >= 90) return { label: 'ممتاز', color: 'text-emerald-400', emoji: '🌟', bg: 'bg-emerald-500/20', border: 'border-emerald-500/30' };
   if (percentage >= 75) return { label: 'جيد جداً', color: 'text-blue-400', emoji: '⭐', bg: 'bg-blue-500/20', border: 'border-blue-500/30' };
   if (percentage >= 60) return { label: 'جيد', color: 'text-yellow-400', emoji: '👍', bg: 'bg-yellow-500/20', border: 'border-yellow-500/30' };
   if (percentage >= 40) return { label: 'مقبول', color: 'text-orange-400', emoji: '📖', bg: 'bg-orange-500/20', border: 'border-orange-500/30' };
-  return { label: 'ضعيف', color: 'text-red-400', emoji: '💪', bg: 'bg-red-500/20', border: 'border-red-500/30' };
+  return { label: 'ضعيف', color: 'text-red-400', emoji: '📚', bg: 'bg-red-500/20', border: 'border-red-500/30' };
 };
 
 const getScoreColor = (score, passingMarks) => {

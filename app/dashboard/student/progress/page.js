@@ -1,3 +1,4 @@
+//app/dashboard/student/progress/page.js
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
