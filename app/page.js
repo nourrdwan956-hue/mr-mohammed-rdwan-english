@@ -707,24 +707,24 @@ const CourseCard3D = ({ course, teacher, index }) => {
           to { opacity: 1; transform: translateY(0) scale(1); }
         }
         .course-layer {
-          transform: translate(6px, 6px) rotate(0.4deg);
+          transform: translate(6px, 6px);
           transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.35s ease;
           will-change: transform;
         }
         .course-layer:nth-child(2) {
-          transform: translate(12px, 12px) rotate(-0.6deg);
+          transform: translate(12px, 12px);
         }
         .course-layer:nth-child(3) {
-          transform: translate(18px, 18px) rotate(0.9deg);
+          transform: translate(18px, 18px);
         }
         .course-stack.is-hovered .course-layer:nth-child(1) {
-          transform: translate(10px, 10px) rotate(1deg);
+          transform: translate(9px, 9px);
         }
         .course-stack.is-hovered .course-layer:nth-child(2) {
-          transform: translate(20px, 18px) rotate(-1.6deg);
+          transform: translate(18px, 18px);
         }
         .course-stack.is-hovered .course-layer:nth-child(3) {
-          transform: translate(30px, 26px) rotate(2.2deg);
+          transform: translate(27px, 27px);
         }
         .course-clip {
           transform: rotate(-5deg) scale(1);
@@ -824,11 +824,10 @@ const CoursesCarousel3D = ({ courses, teachers, isDark, loading }) => {
     <div className="relative w-full overflow-visible">
       <div
         ref={containerRef}
-        className="flex gap-5 overflow-x-auto pb-6 snap-x snap-mandatory scrollbar-hide px-4 py-4"
+        className="flex gap-5 overflow-x-auto pb-6 snap-x snap-mandatory scrollbar-hide px-4 pt-8 pb-10"
         style={{
           scrollbarWidth: 'none',
           msOverflowStyle: 'none',
-          overflow: 'visible',
         }}
       >
         {visibleCourses.map((course, index) => (
