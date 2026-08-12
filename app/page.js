@@ -3,11 +3,12 @@
 // 🏛️ الصفحة الرئيسية – منصة مستر محمد رضوان
 // ✅ 6 طبقات مرئية فوق بعضها (كل طبقة تظهر كبطاقة مستقلة)
 // ✅ البطاقة الأمامية تتصدر للأمام عند Hover مع تأثير 3D
-// ✅ مشبك ورق (Paperclip) في الزاوية العلوية اليسرى
+// ✅ مشبك ورق (Paperclip) في الزاوية العلوية اليسرى (لون موحد)
 // ✅ إطار أخضر فاتح جداً عند Hover
 // ✅ أسهم معكوسة (يمين → التالي، يسار → السابق)
 // ✅ توقيع المبرمج بتأثير فريد
 // ✅ نسبة الصورة 16:9
+// ✅ إزالة الحاوية التي تسبب اختلاف درجة اللون
 // ================================================================
 
 'use client';
@@ -380,30 +381,13 @@ const ScrollToTopButton = ({ show, onClick }) => (
 );
 
 // ================================================================
-// 🎨 ألوان المشابك المختلفة لكل كورس
+// 🎨 لون المشبك الموحد (ذهبي فاتح)
 // ================================================================
 
-const CLIP_COLORS = [
-  '#FF6B6B', // أحمر
-  '#FF9F43', // برتقالي
-  '#FECA57', // أصفر
-  '#48DBFB', // أزرق فاتح
-  '#0ABDE3', // أزرق متوسط
-  '#10AC84', // أخضر
-  '#EE5A24', // أحمر غامق
-  '#A29BFE', // بنفسجي فاتح
-  '#6C5CE7', // بنفسجي
-  '#FD79A8', // وردي
-  '#00CEC9', // تركواز
-  '#FDCB6E', // ذهبي
-  '#E17055', // مرجاني
-  '#00B894', // أخضر زمردي
-  '#6C5CE7', // نيلي
-  '#FDA7DF', // وردي فاتح
-];
+const UNIFIED_CLIP_COLOR = '#FBBF24'; // لون ذهبي موحد لجميع الكورسات
 
 // ================================================================
-// 🃏 بطاقة الكورس – مع 6 طبقات ظاهرة ومشبك ورق
+// 🃏 بطاقة الكورس – مع 6 طبقات ظاهرة ومشبك ورق (لون موحد)
 // ================================================================
 
 const CourseCard3D = ({ course, teacher, index }) => {
@@ -444,7 +428,8 @@ const CourseCard3D = ({ course, teacher, index }) => {
 
   const totalItems = stats.reduce((sum, s) => sum + s.count, 0);
 
-  const clipColor = CLIP_COLORS[index % CLIP_COLORS.length];
+  // استخدام اللون الموحد للمشبك
+  const clipColor = UNIFIED_CLIP_COLOR;
   const LAYER_COUNT = 6;
 
   return (
@@ -458,7 +443,7 @@ const CourseCard3D = ({ course, teacher, index }) => {
       onMouseLeave={handleMouseLeave}
       onClick={() => router.push(`/dashboard/student/courses/${course.id}`)}
       className="group cursor-pointer relative"
-      style={{ perspective: '1600px' }}
+      style={{ perspective: '1600px', overflow: 'visible' }}
     >
       <motion.div
         className="relative rounded-2xl overflow-visible"
@@ -470,6 +455,7 @@ const CourseCard3D = ({ course, teacher, index }) => {
         transition={{ duration: 0.3 }}
         style={{
           transformStyle: 'preserve-3d',
+          overflow: 'visible',
         }}
       >
         {/* ============================================================== */}
@@ -480,6 +466,7 @@ const CourseCard3D = ({ course, teacher, index }) => {
           style={{
             transformStyle: 'preserve-3d',
             transform: `rotateX(${rotation.x * 0.3}deg) rotateY(${rotation.y * 0.3}deg)`,
+            overflow: 'visible',
           }}
         >
           {Array.from({ length: LAYER_COUNT }).map((_, idx) => {
@@ -488,6 +475,7 @@ const CourseCard3D = ({ course, teacher, index }) => {
             const opacity = 0.7 - idx * 0.08;
             const offsetFactor = (idx + 1) * 0.5;
 
+            // لون الطبقات موحد (يعتمد على الوضع الفاتح/الداكن)
             const layerColor = isDark
               ? `rgba(15, 25, 45, ${0.5 + idx * 0.06})`
               : `rgba(210, 215, 225, ${0.5 + idx * 0.06})`;
@@ -514,6 +502,7 @@ const CourseCard3D = ({ course, teacher, index }) => {
                   opacity: opacity,
                   boxShadow: `0 8px 30px rgba(0,0,0,0.12)`,
                   backdropFilter: 'blur(1px)',
+                  overflow: 'visible',
                 }}
                 animate={{
                   scale: isHovered ? scale * 1.02 : scale,
@@ -532,7 +521,7 @@ const CourseCard3D = ({ course, teacher, index }) => {
         </div>
 
         {/* ============================================================== */}
-        {/* 📌 مشبك ورق (Paperclip) – جزء أمامي وخلفي */}
+        {/* 📌 مشبك ورق (Paperclip) – لون موحد */}
         {/* ============================================================== */}
         <div className="absolute -top-4 -left-2 z-20">
           <motion.div
@@ -861,20 +850,21 @@ const CoursesCarousel3D = ({ courses, teachers, isDark, loading }) => {
   };
 
   return (
-    <div className="relative w-full overflow-hidden">
+    <div className="relative w-full overflow-visible">
       <div
         ref={containerRef}
-        className="flex gap-5 overflow-x-auto pb-6 snap-x snap-mandatory scrollbar-hide"
+        className="flex gap-5 overflow-x-auto pb-6 snap-x snap-mandatory scrollbar-hide px-4 py-4"
         style={{
           scrollbarWidth: 'none',
           msOverflowStyle: 'none',
+          overflow: 'visible',
         }}
       >
         {visibleCourses.map((course, index) => (
           <div
             key={course.id}
             className="snap-center flex-shrink-0"
-            style={{ width: 'clamp(280px, 32vw, 400px)' }}
+            style={{ width: 'clamp(280px, 32vw, 400px)', overflow: 'visible' }}
           >
             <CourseCard3D
               course={course}
