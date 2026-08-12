@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { useTheme } from '@/hooks/useTheme';
+import { useTheme } from '@/lib/hooks/useTheme';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plus,

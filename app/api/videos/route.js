@@ -2,7 +2,7 @@
 import { NextResponse } from 'next/server';
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/supabaseClient';
 import { verifyCourseOwnership } from '@/lib/playlist-utils'; // استيراد دالة التحقق من الصلاحية (موجودة في playlist-utils)
 import { getNextPlaylistOrder } from '@/lib/playlist-utils';
 

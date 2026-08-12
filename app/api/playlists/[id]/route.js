@@ -1,8 +1,6 @@
 // /app/api/playlists/[id]/route.js
 import { NextResponse } from 'next/server';
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/supabaseClient';
 import {
   getPlaylistWithVideos,
   deletePlaylist,
@@ -13,7 +11,6 @@ import {
 export async function GET(request, { params }) {
   try {
     const { id } = params;
-
     if (!id) {
       return NextResponse.json(
         { success: false, error: 'معرف القائمة مطلوب' },
@@ -21,12 +18,7 @@ export async function GET(request, { params }) {
       );
     }
 
-    // التحقق من تسجيل الدخول
-    const supabaseClient = createRouteHandlerClient({ cookies });
-    const {
-      data: { session },
-    } = await supabaseClient.auth.getSession();
-
+    const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
       return NextResponse.json(
         { success: false, error: 'يجب تسجيل الدخول أولاً' },
@@ -35,21 +27,18 @@ export async function GET(request, { params }) {
     }
 
     const { data, error } = await getPlaylistWithVideos(id);
-
     if (error) {
       return NextResponse.json(
         { success: false, error: error },
         { status: 500 }
       );
     }
-
     if (!data) {
       return NextResponse.json(
         { success: false, error: 'القائمة غير موجودة' },
         { status: 404 }
       );
     }
-
     return NextResponse.json({ success: true, data });
   } catch (error) {
     console.error('GET /api/playlists/[id] error:', error);
@@ -60,7 +49,7 @@ export async function GET(request, { params }) {
   }
 }
 
-// PUT: تعديل بيانات القائمة (العنوان، الوصف، الترتيب)
+// PUT: تعديل القائمة
 export async function PUT(request, { params }) {
   try {
     const { id } = params;
@@ -74,13 +63,7 @@ export async function PUT(request, { params }) {
       );
     }
 
-    // التحقق من المصادقة
-    const supabaseClient = createRouteHandlerClient({ cookies });
-    const {
-      data: { user },
-      error: authError,
-    } = await supabaseClient.auth.getUser();
-
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
       return NextResponse.json(
         { success: false, error: 'يجب تسجيل الدخول' },
@@ -88,7 +71,7 @@ export async function PUT(request, { params }) {
       );
     }
 
-    // جلب الـ course_id من القائمة للتحقق من الصلاحية
+    // جلب course_id للتحقق
     const { data: playlist, error: fetchError } = await supabase
       .from('playlists')
       .select('course_id')
@@ -106,7 +89,6 @@ export async function PUT(request, { params }) {
       user.id,
       playlist.course_id
     );
-
     if (!isAuthorized) {
       return NextResponse.json(
         { success: false, error: authzError || 'غير مصرح لك' },
@@ -114,16 +96,11 @@ export async function PUT(request, { params }) {
       );
     }
 
-    // بناء كائن التحديث
-    const updateData = {
-      updated_at: new Date().toISOString(),
-    };
+    const updateData = { updated_at: new Date().toISOString() };
     if (title !== undefined) updateData.title = title.trim();
-    if (description !== undefined)
-      updateData.description = description?.trim() || null;
+    if (description !== undefined) updateData.description = description?.trim() || null;
     if (orderIndex !== undefined) updateData.order_index = orderIndex;
 
-    // تنفيذ التحديث
     const { data, error } = await supabase
       .from('playlists')
       .update(updateData)
@@ -152,11 +129,10 @@ export async function PUT(request, { params }) {
   }
 }
 
-// DELETE: حذف قائمة (مع إعادة ترتيب القوائم المتبقية)
+// DELETE: حذف قائمة
 export async function DELETE(request, { params }) {
   try {
     const { id } = params;
-
     if (!id) {
       return NextResponse.json(
         { success: false, error: 'معرف القائمة مطلوب' },
@@ -164,13 +140,7 @@ export async function DELETE(request, { params }) {
       );
     }
 
-    // التحقق من المصادقة
-    const supabaseClient = createRouteHandlerClient({ cookies });
-    const {
-      data: { user },
-      error: authError,
-    } = await supabaseClient.auth.getUser();
-
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
       return NextResponse.json(
         { success: false, error: 'يجب تسجيل الدخول' },
@@ -178,7 +148,6 @@ export async function DELETE(request, { params }) {
       );
     }
 
-    // جلب الـ course_id من القائمة للتحقق من الصلاحية
     const { data: playlist, error: fetchError } = await supabase
       .from('playlists')
       .select('course_id')
@@ -196,7 +165,6 @@ export async function DELETE(request, { params }) {
       user.id,
       playlist.course_id
     );
-
     if (!isAuthorized) {
       return NextResponse.json(
         { success: false, error: authzError || 'غير مصرح لك' },
@@ -204,9 +172,7 @@ export async function DELETE(request, { params }) {
       );
     }
 
-    // استدعاء دالة الحذف مع إعادة الترتيب
     const { data, error } = await deletePlaylist(id);
-
     if (error) {
       return NextResponse.json(
         { success: false, error: error },
