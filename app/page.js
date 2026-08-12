@@ -1,8 +1,9 @@
 // app/page.js
 // ================================================================
 // 🏛️ الصفحة الرئيسية – منصة مستر محمد رضوان
-// ✅ 6 طبقات فعلية متراكبة (نسخ من نفس البطاقة متحركة)
-// ✅ دبوس ملون في الطرف العلوي الأيسر لكل كورس (لون مختلف لكل كورس)
+// ✅ 6 طبقات متراكبة فوق بعضها (كل طبقة تظهر بوضوح)
+// ✅ البطاقة الأمامية تتصدر للأمام عند Hover (translateZ + scale)
+// ✅ دبوس ملون في الطرف العلوي الأيسر (لون مختلف لكل كورس)
 // ✅ إطار أخضر فاتح جداً عند Hover
 // ✅ أسهم معكوسة (يمين → التالي، يسار → السابق)
 // ✅ توقيع المبرمج بتأثير فريد
@@ -402,7 +403,7 @@ const PIN_COLORS = [
 ];
 
 // ================================================================
-// 🃏 بطاقة الكورس – مع 6 طبقات فعلية ودبوس ملون
+// 🃏 بطاقة الكورس – مع طبقات متصدرة (Stacked Cards)
 // ================================================================
 
 const CourseCard3D = ({ course, teacher, index }) => {
@@ -421,11 +422,11 @@ const CourseCard3D = ({ course, teacher, index }) => {
     const y = e.clientY - rect.top;
     const centerX = rect.width / 2;
     const centerY = rect.height / 2;
-    const rotateX = ((y - centerY) / centerY) * -10;
-    const rotateY = ((x - centerX) / centerX) * 10;
+    const rotateX = ((y - centerY) / centerY) * -8;
+    const rotateY = ((x - centerX) / centerX) * 8;
     setRotation({ x: rotateX, y: rotateY });
-    const offsetX = ((x - centerX) / centerX) * 15;
-    const offsetY = ((y - centerY) / centerY) * 15;
+    const offsetX = ((x - centerX) / centerX) * 12;
+    const offsetY = ((y - centerY) / centerY) * 12;
     setLayerOffset({ x: offsetX, y: offsetY });
   };
 
@@ -444,10 +445,10 @@ const CourseCard3D = ({ course, teacher, index }) => {
 
   const totalItems = stats.reduce((sum, s) => sum + s.count, 0);
 
-  // ✅ لون الدبوس لكل كورس بناءً على الـ index
+  // لون الدبوس لكل كورس
   const pinColor = PIN_COLORS[index % PIN_COLORS.length];
 
-  // ✅ 6 طبقات فعلية متراكبة
+  // عدد الطبقات (6)
   const LAYER_COUNT = 6;
 
   return (
@@ -461,14 +462,14 @@ const CourseCard3D = ({ course, teacher, index }) => {
       onMouseLeave={handleMouseLeave}
       onClick={() => router.push(`/dashboard/student/courses/${course.id}`)}
       className="group cursor-pointer relative"
-      style={{ perspective: '1400px' }}
+      style={{ perspective: '1800px' }}
     >
       <motion.div
         className="relative rounded-2xl overflow-visible"
         animate={{
           scale: isHovered ? 1.04 : 1,
           zIndex: isHovered ? 30 : 10,
-          y: isHovered ? -12 : 0,
+          y: isHovered ? -8 : 0,
         }}
         transition={{ duration: 0.3 }}
         style={{
@@ -476,25 +477,34 @@ const CourseCard3D = ({ course, teacher, index }) => {
         }}
       >
         {/* ============================================================== */}
-        {/* 🔥 الطبقات المتكررة الفعلية – 6 طبقات مرئية متراكبة */}
+        {/* 🔥 الطبقات المتصدرة – كل طبقة تظهر كبطاقة مستقلة */}
         {/* ============================================================== */}
         <div
           className="absolute inset-0 -z-10"
           style={{
-            transform: `translateZ(-20px) rotateX(${rotation.x * 0.4}deg) rotateY(${rotation.y * 0.4}deg)`,
             transformStyle: 'preserve-3d',
+            transform: `rotateX(${rotation.x * 0.3}deg) rotateY(${rotation.y * 0.3}deg)`,
           }}
         >
           {Array.from({ length: LAYER_COUNT }).map((_, idx) => {
-            // كل طبقة تختلف في الإزاحة والعمق والحجم
-            const depth = (idx + 1) * 20;
-            const scale = 1 - (idx + 1) * 0.028;
+            // عمق كل طبقة (كلما زاد الرقم، كلما ابتعدت للخلف)
+            const depth = (idx + 1) * 18;
+            // مقياس الحجم (تقل كلما ابتعدت)
+            const scale = 1 - (idx + 1) * 0.025;
+            // الشفافية (تقل كلما ابتعدت)
             const opacity = 0.7 - idx * 0.08;
+            // الإزاحة الأفقية والرأسية (تزيد كلما ابتعدت)
+            const offsetFactor = (idx + 1) * 0.5;
 
-            // لون مختلف لكل طبقة (أغمق كلما ابتعدت)
+            // لون الخلفية (أغمق كلما ابتعدت)
             const layerColor = isDark
-              ? `rgba(20, 30, 50, ${0.5 + idx * 0.06})`
-              : `rgba(220, 225, 235, ${0.5 + idx * 0.06})`;
+              ? `rgba(15, 25, 45, ${0.5 + idx * 0.06})`
+              : `rgba(210, 215, 225, ${0.5 + idx * 0.06})`;
+
+            // حدود الطبقة (تظهر بشكل أوضح كلما ابتعدت)
+            const borderColor = isDark
+              ? `rgba(255,255,255,${0.05 + idx * 0.02})`
+              : `rgba(0,0,0,${0.05 + idx * 0.02})`;
 
             return (
               <motion.div
@@ -502,24 +512,34 @@ const CourseCard3D = ({ course, teacher, index }) => {
                 className="absolute rounded-2xl border-2"
                 style={{
                   backgroundColor: layerColor,
-                  borderColor: isDark
-                    ? `rgba(255,255,255,${0.05 + idx * 0.02})`
-                    : `rgba(0,0,0,${0.05 + idx * 0.02})`,
+                  borderColor: borderColor,
                   width: '100%',
                   height: '100%',
-                  transform: `translateZ(${-depth}px) scale(${scale}) translateX(${layerOffset.x * (idx + 1) * 0.8}px) translateY(${layerOffset.y * (idx + 1) * 0.8}px)`,
+                  transform: `
+                    translateZ(${-depth}px)
+                    scale(${scale})
+                    translateX(${layerOffset.x * offsetFactor}px)
+                    translateY(${layerOffset.y * offsetFactor}px)
+                  `,
                   opacity: opacity,
-                  boxShadow: `0 8px 40px rgba(0,0,0,0.15)`,
+                  boxShadow: `0 8px 30px rgba(0,0,0,0.12)`,
                   backdropFilter: 'blur(1px)',
+                  // إضافة حدود داخلية لإظهار التكرار بشكل أوضح
                 }}
                 animate={{
-                  scale: isHovered ? scale * 1.025 : scale,
-                  opacity: isHovered ? opacity + 0.12 : opacity,
+                  scale: isHovered ? scale * 1.02 : scale,
+                  opacity: isHovered ? opacity + 0.1 : opacity,
+                  // عند Hover، نحرك الطبقات الخلفية قليلاً للخلف لتعزيز العمق
+                  translateZ: isHovered ? -depth - 10 : -depth,
                 }}
                 transition={{ duration: 0.3 }}
               >
-                {/* إضافة حدود داخلية للطبقات لإظهار التكرار بوضوح */}
+                {/* حدود داخلية شفافة لإظهار التكرار */}
                 <div className="absolute inset-2 rounded-xl border border-white/5" />
+                {/* محتوى وهمي للطبقات (عناوين وهمية) */}
+                <div className="absolute bottom-4 right-4 text-[6px] font-bold opacity-20 text-gray-500">
+                  #{idx + 1}
+                </div>
               </motion.div>
             );
           })}
@@ -579,7 +599,7 @@ const CourseCard3D = ({ course, teacher, index }) => {
         <div className="absolute inset-[-3px] rounded-2xl overflow-hidden pointer-events-none">
           <div className="absolute inset-0 rounded-2xl p-[3px]">
             <div
-              className={`absolute inset-0 rounded-2xl bg-gradient-to-r from-transparent via-green-300/25 to-transparent transition-opacity duration-300 ${
+              className={`absolute inset-0 rounded-2xl bg-gradient-to-r from-transparent via-green-300/20 to-transparent transition-opacity duration-300 ${
                 isHovered ? 'opacity-100' : 'opacity-0'
               }`}
               style={{
@@ -591,7 +611,7 @@ const CourseCard3D = ({ course, teacher, index }) => {
         </div>
 
         {/* ============================================================== */}
-        {/* البطاقة الأمامية (الظاهرة) */}
+        {/* البطاقة الأمامية (الظاهرة) – تتصدر للأمام عند Hover */}
         {/* ============================================================== */}
         <motion.div
           className={`relative rounded-2xl overflow-hidden transition-all duration-500 ${
@@ -605,7 +625,14 @@ const CourseCard3D = ({ course, teacher, index }) => {
             transition: 'transform 0.15s ease-out',
             minHeight: '400px',
             maxHeight: '500px',
+            // عند Hover، نرفع البطاقة للأمام بقوة
           }}
+          animate={{
+            // زيادة translateZ عند Hover لجعلها تتصدر
+            z: isHovered ? 40 : 0,
+            scale: isHovered ? 1.04 : 1,
+          }}
+          transition={{ duration: 0.3 }}
         >
           {/* تأثير إضاءة 3D */}
           <div
@@ -764,7 +791,7 @@ const CourseCard3D = ({ course, teacher, index }) => {
 };
 
 // ================================================================
-// 🎠 عرض الكورسات – Carousel مع طبقات فعلية ودبابيس
+// 🎠 عرض الكورسات – Carousel مع طبقات متصدرة وأسهم معكوسة
 // ================================================================
 
 const CoursesCarousel3D = ({ courses, teachers, isDark, loading }) => {
@@ -1045,7 +1072,7 @@ const SocialCard = ({ link, index }) => {
 };
 
 // ================================================================
-// 📐 أقسام الصفحة الرئيسية
+// 📐 أقسام الصفحة الرئيسية (بدون تغيير)
 // ================================================================
 
 const HeroSection = ({ isDark }) => {
