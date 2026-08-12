@@ -198,7 +198,7 @@ const CountdownTimer = ({ isDark }) => {
     <div className="relative">
       <div className="absolute inset-0 bg-gradient-to-br from-yellow-400/5 via-blue-400/5 to-green-400/5 blur-2xl -z-10" />
       
-      <div className={`relative overflow-hidden rounded-3xl border border-yellow-400/30 p-6 sm:p-8 lg:p-10 text-center backdrop-blur-xl ${
+      <div className={`relative overflow-hidden rounded-2xl border border-yellow-400/30 p-4 sm:p-6 text-center backdrop-blur-xl ${
         isDark ? 'bg-white/5' : 'bg-white/70'
       } shadow-lg shadow-yellow-400/10`}>
         
@@ -217,26 +217,26 @@ const CountdownTimer = ({ isDark }) => {
             </h3>
           </div>
 
-          <div className="grid grid-cols-4 gap-2 sm:gap-3 lg:gap-4 max-w-lg lg:max-w-2xl mx-auto">
+          <div className="grid grid-cols-4 gap-2 sm:gap-3 max-w-lg mx-auto">
             {items.map((item, idx) => (
               <motion.div
                 key={item.label}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: idx * 0.08 }}
-                className={`relative p-2 sm:p-3 lg:p-4 rounded-xl bg-gradient-to-br ${item.color} bg-opacity-15 border border-white/10 backdrop-blur-sm`}
+                className={`relative p-2 sm:p-3 rounded-xl bg-gradient-to-br ${item.color} bg-opacity-15 border border-white/10 backdrop-blur-sm`}
               >
-                <div className="text-3xl sm:text-4xl md:text-5xl font-black tabular-nums text-white drop-shadow-lg">
+                <div className="text-2xl sm:text-3xl md:text-4xl font-black tabular-nums text-white drop-shadow-lg">
                   {String(item.value).padStart(2, '0')}
                 </div>
-                <div className="text-sm sm:text-base font-bold text-white/70 mt-0.5 uppercase tracking-wider">
+                <div className="text-[8px] sm:text-[10px] font-bold text-white/70 mt-0.5 uppercase tracking-wider">
                   {item.label}
                 </div>
               </motion.div>
             ))}
           </div>
 
-          <p className={`text-xs sm:text-sm mt-4 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+          <p className={`text-[10px] sm:text-xs mt-3 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
             📅 يبدأ الامتحان يوم <span className="font-bold text-yellow-400">السبت 26 يونيو 2027</span> الساعة <span className="font-bold text-blue-400">9:00 صباحاً</span>
           </p>
         </div>
@@ -467,7 +467,7 @@ const CourseCard3D = ({ course, teacher, index }) => {
       {/* لا يوجد blur ولا framer-motion هنا => صفر تكلفة عند التحريك   */}
       {/* ============================================================== */}
       <div
-        className={`course-layer absolute inset-0 rounded-3xl border-2 ${
+        className={`course-layer absolute inset-0 rounded-2xl border-2 ${
           isDark ? 'border-white/8' : 'border-black/8'
         }`}
         style={{
@@ -476,7 +476,7 @@ const CourseCard3D = ({ course, teacher, index }) => {
         }}
       />
       <div
-        className={`course-layer absolute inset-0 rounded-3xl border-2 ${
+        className={`course-layer absolute inset-0 rounded-2xl border-2 ${
           isDark ? 'border-white/9' : 'border-black/9'
         }`}
         style={{
@@ -485,7 +485,7 @@ const CourseCard3D = ({ course, teacher, index }) => {
         }}
       />
       <div
-        className={`course-layer absolute inset-0 rounded-3xl border-2 ${
+        className={`course-layer absolute inset-0 rounded-2xl border-2 ${
           isDark ? 'border-white/10' : 'border-black/10'
         }`}
         style={{
@@ -555,9 +555,9 @@ const CourseCard3D = ({ course, teacher, index }) => {
       {/* ============================================================== */}
       {/* الإطار المتحرك – أخضر فاتح جداً (CSS فقط عبر group-hover) */}
       {/* ============================================================== */}
-      <div className="absolute inset-[-3px] rounded-3xl overflow-hidden pointer-events-none">
-        <div className="absolute inset-0 rounded-3xl p-[3px]">
-          <div className="course-border-glow absolute inset-0 rounded-3xl bg-gradient-to-r from-transparent via-green-300/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+      <div className="absolute inset-[-3px] rounded-2xl overflow-hidden pointer-events-none">
+        <div className="absolute inset-0 rounded-2xl p-[3px]">
+          <div className="course-border-glow absolute inset-0 rounded-2xl bg-gradient-to-r from-transparent via-green-300/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
         </div>
       </div>
 
@@ -566,7 +566,7 @@ const CourseCard3D = ({ course, teacher, index }) => {
       {/* ============================================================== */}
       <div
         ref={frontRef}
-        className={`relative rounded-3xl overflow-hidden transition-all duration-500 z-10 ${
+        className={`relative rounded-2xl overflow-hidden transition-all duration-500 z-10 ${
           isDark
             ? 'bg-white/10 border-white/15'
             : 'bg-white/90 border-gray-200/50'
@@ -574,8 +574,8 @@ const CourseCard3D = ({ course, teacher, index }) => {
         style={{
           transformStyle: 'preserve-3d',
           transition: 'transform 0.15s ease-out, box-shadow 0.3s ease',
-          minHeight: '440px',
-          maxHeight: '540px',
+          minHeight: '400px',
+          maxHeight: '500px',
           willChange: 'transform',
         }}
       >
@@ -607,7 +607,7 @@ const CourseCard3D = ({ course, teacher, index }) => {
           {/* شارات السعر والحالة */}
           <div className="absolute top-3 right-3 flex flex-col gap-1.5 z-10">
             <span
-              className={`text-sm sm:text-base px-2.5 py-0.5 rounded-full font-bold backdrop-blur-lg border border-white/15 shadow-lg transition-transform duration-200 hover:scale-105 ${
+              className={`text-[8px] sm:text-[9px] px-2.5 py-0.5 rounded-full font-bold backdrop-blur-lg border border-white/15 shadow-lg transition-transform duration-200 hover:scale-105 ${
                 course?.is_free
                   ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white'
                   : 'bg-gradient-to-r from-blue-500 to-blue-600 text-white'
@@ -616,7 +616,7 @@ const CourseCard3D = ({ course, teacher, index }) => {
               {course?.is_free ? 'مجاني' : `${course?.price} ج.م`}
             </span>
             {course?.is_published && (
-              <span className="text-sm sm:text-base px-2.5 py-0.5 rounded-full bg-gradient-to-r from-blue-400 to-cyan-500 text-white font-bold backdrop-blur-lg border border-white/15 shadow-lg">
+              <span className="text-[8px] sm:text-[9px] px-2.5 py-0.5 rounded-full bg-gradient-to-r from-blue-400 to-cyan-500 text-white font-bold backdrop-blur-lg border border-white/15 shadow-lg">
                 متاح
               </span>
             )}
@@ -624,13 +624,13 @@ const CourseCard3D = ({ course, teacher, index }) => {
 
           {/* شارات المرحلة والصف */}
           <div className="absolute bottom-3 right-3 flex gap-1.5 z-10">
-            <span className="text-xs sm:text-sm px-2 py-0.5 rounded-full bg-black/70 backdrop-blur-sm text-white/90 border border-white/10 shadow-lg">
+            <span className="text-[7px] sm:text-[8px] px-2 py-0.5 rounded-full bg-black/70 backdrop-blur-sm text-white/90 border border-white/10 shadow-lg">
               {course?.grade_stage === 'primary' ? 'ابتدائي' :
                course?.grade_stage === 'middle' ? 'إعدادي' :
                course?.grade_stage === 'secondary' ? 'ثانوي' : 'عام'}
             </span>
             {course?.grade_level && (
-              <span className="text-xs sm:text-sm px-2 py-0.5 rounded-full bg-black/70 backdrop-blur-sm text-white/90 border border-white/10 shadow-lg">
+              <span className="text-[7px] sm:text-[8px] px-2 py-0.5 rounded-full bg-black/70 backdrop-blur-sm text-white/90 border border-white/10 shadow-lg">
                 صف {course.grade_level}
               </span>
             )}
@@ -645,34 +645,34 @@ const CourseCard3D = ({ course, teacher, index }) => {
         </div>
 
         {/* محتوى البطاقة */}
-        <div className="p-5 sm:p-6 flex flex-col flex-1">
+        <div className="p-4 flex flex-col flex-1">
           <div className="flex items-start justify-between gap-2">
             <div className="flex-1 min-w-0">
-              <h3 className={`text-base sm:text-lg font-bold mb-1 line-clamp-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+              <h3 className={`text-sm sm:text-base font-bold mb-0.5 line-clamp-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
                 {course?.title || 'كورس'}
               </h3>
               {teacher && (
-                <p className={`text-sm sm:text-base ${isDark ? 'text-gray-400' : 'text-gray-500'} flex items-center gap-1`}>
+                <p className={`text-[9px] sm:text-[10px] ${isDark ? 'text-gray-400' : 'text-gray-500'} flex items-center gap-1`}>
                   <Icons.User className="h-3 w-3 text-blue-400" />
                   {teacher.full_name}
                 </p>
               )}
             </div>
             <div className="flex-shrink-0">
-              <span className="text-xs sm:text-sm font-extrabold text-yellow-400 bg-yellow-400/10 px-2.5 py-1 rounded-full border border-yellow-400/20">
+              <span className="text-[10px] sm:text-xs font-extrabold text-yellow-400 bg-yellow-400/10 px-2 py-0.5 rounded-full border border-yellow-400/20">
                 {totalItems} عنصر
               </span>
             </div>
           </div>
 
-          <p className={`text-sm sm:text-base ${isDark ? 'text-gray-400' : 'text-gray-500'} leading-relaxed line-clamp-2 mt-1 flex-1`}>
+          <p className={`text-[9px] sm:text-[10px] ${isDark ? 'text-gray-400' : 'text-gray-500'} leading-relaxed line-clamp-2 mt-1 flex-1`}>
             {course?.description || 'لا يوجد وصف'}
           </p>
 
           {/* إحصائيات الكورس */}
           <div className="flex items-center justify-between mt-2 gap-1 flex-wrap">
             {stats.map((stat, idx) => (
-              <div key={idx} className="flex items-center gap-1 text-sm sm:text-base">
+              <div key={idx} className="flex items-center gap-1 text-[8px] sm:text-[9px]">
                 <stat.icon className={`h-3 w-3 ${stat.color}`} />
                 <span className={`${isDark ? 'text-gray-300' : 'text-gray-700'} font-bold`}>{stat.count}</span>
                 <span className={`${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{stat.label}</span>
@@ -681,7 +681,7 @@ const CourseCard3D = ({ course, teacher, index }) => {
           </div>
 
           <div className="flex items-center justify-between mt-2 pt-2 border-t border-white/10">
-            <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-400">
+            <div className="flex items-center gap-2 text-[7px] sm:text-[8px] text-gray-400">
               <span className="flex items-center gap-0.5">
                 <Icons.Clock className="h-3 w-3" />
                 {course?.subscription_duration_days || 30} يوم
@@ -692,7 +692,7 @@ const CourseCard3D = ({ course, teacher, index }) => {
               </span>
             </div>
             <span
-              className={`text-sm sm:text-base font-bold ${isDark ? 'text-blue-400' : 'text-blue-600'} flex items-center gap-0.5 transition-transform duration-200 group-hover:-translate-x-1`}
+              className={`text-[8px] sm:text-[9px] font-bold ${isDark ? 'text-blue-400' : 'text-blue-600'} flex items-center gap-0.5 transition-transform duration-200 group-hover:-translate-x-1`}
             >
               {course?.is_free ? 'ابدأ مجاناً' : 'اشترك'}
               <Icons.ArrowLeft className="h-3 w-3" />
@@ -766,8 +766,7 @@ const CoursesCarousel3D = ({ courses, teachers, isDark, loading }) => {
       const w = window.innerWidth;
       if (w < 640) setCardWidth(280);
       else if (w < 1024) setCardWidth(320);
-      else if (w < 1536) setCardWidth(370);
-      else setCardWidth(410);
+      else setCardWidth(370);
     };
     updateWidth();
     window.addEventListener('resize', updateWidth);
@@ -824,7 +823,7 @@ const CoursesCarousel3D = ({ courses, teachers, isDark, loading }) => {
     <div className="relative w-full overflow-visible">
       <div
         ref={containerRef}
-        className="flex gap-5 lg:gap-6 overflow-x-auto pb-6 snap-x snap-mandatory scrollbar-hide px-4 lg:px-6 pt-8 pb-10"
+        className="flex gap-5 overflow-x-auto pb-6 snap-x snap-mandatory scrollbar-hide px-4 pt-8 pb-10"
         style={{
           scrollbarWidth: 'none',
           msOverflowStyle: 'none',
@@ -834,7 +833,7 @@ const CoursesCarousel3D = ({ courses, teachers, isDark, loading }) => {
           <div
             key={course.id}
             className="snap-center flex-shrink-0"
-            style={{ width: 'clamp(280px, 26vw, 420px)', overflow: 'visible' }}
+            style={{ width: 'clamp(280px, 32vw, 400px)', overflow: 'visible' }}
           >
             <CourseCard3D
               course={course}
@@ -916,7 +915,7 @@ const FeatureCard = ({ feature, index }) => {
       onMouseLeave={() => setIsHovered(false)}
     >
       <div
-        className={`p-5 lg:p-6 rounded-2xl border transition-all duration-300 h-full hover:-translate-y-1 ${
+        className={`p-3 rounded-xl border transition-all duration-300 ${
           isDark
             ? 'bg-white/8 border-white/10 hover:border-blue-400/40 hover:shadow-lg hover:shadow-blue-400/10'
             : 'bg-white/70 border-gray-200/40 hover:border-blue-400/50 hover:shadow-lg hover:shadow-blue-400/10'
@@ -929,22 +928,22 @@ const FeatureCard = ({ feature, index }) => {
           transition={{ duration: 0.4 }}
         />
 
-        <div className="flex items-start gap-3 relative z-10">
+        <div className="flex items-start gap-2 relative z-10">
           <motion.div
-            className={`flex-shrink-0 p-2.5 rounded-xl bg-gradient-to-br ${feature.gradient} bg-opacity-20`}
+            className={`flex-shrink-0 p-1.5 rounded-lg bg-gradient-to-br ${feature.gradient} bg-opacity-20`}
             animate={{
               rotate: isHovered ? [0, 4, -4, 0] : 0,
               scale: isHovered ? 1.08 : 1,
             }}
             transition={{ duration: 0.3 }}
           >
-            <feature.icon className={`h-5 w-5 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} />
+            <feature.icon className={`h-4 w-4 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} />
           </motion.div>
           <div>
-            <h3 className={`text-sm xs:text-base font-bold mb-1.5 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+            <h3 className={`text-[10px] xs:text-xs font-bold mb-0.5 ${isDark ? 'text-white' : 'text-gray-900'}`}>
               {feature.title}
             </h3>
-            <p className={`text-xs xs:text-sm sm:text-base ${isDark ? 'text-gray-400' : 'text-gray-500'} leading-relaxed`}>
+            <p className={`text-[8px] xs:text-[9px] sm:text-[10px] ${isDark ? 'text-gray-400' : 'text-gray-500'} leading-relaxed`}>
               {feature.description}
             </p>
           </div>
@@ -972,17 +971,17 @@ const SocialCard = ({ link, index }) => {
         transition={{ delay: index * 0.03, duration: 0.3 }}
         viewport={{ once: true }}
         whileHover={{ scale: 1.02, y: -1 }}
-        className={`flex items-center gap-3 p-3.5 xs:p-4 lg:p-5 rounded-2xl border transition-all duration-300 h-full hover:-translate-y-1 ${
+        className={`flex items-center gap-2 p-2 xs:p-2.5 rounded-xl border transition-all duration-300 ${
           isDark
             ? 'bg-white/8 border-white/10 hover:border-blue-400/40 hover:bg-white/12'
             : 'bg-white/70 border-gray-200/40 hover:border-blue-400/50 hover:bg-white/85'
         } backdrop-blur-sm`}
       >
-        <div className={`p-2.5 rounded-xl ${link.color} bg-opacity-15 flex-shrink-0`}>
-          <link.icon className={`h-4 w-4 ${link.textColor}`} />
+        <div className={`p-1 rounded-lg ${link.color} bg-opacity-15 flex-shrink-0`}>
+          <link.icon className={`h-3 w-3 ${link.textColor}`} />
         </div>
         <div className="flex-1 min-w-0">
-          <p className={`text-sm xs:text-base font-bold ${isDark ? 'text-white' : 'text-gray-900'} whitespace-nowrap`}>
+          <p className={`text-[9px] xs:text-[10px] font-bold ${isDark ? 'text-white' : 'text-gray-900'} whitespace-nowrap`}>
             {link.label}
           </p>
           <div className="flex flex-col gap-0.5">
@@ -990,7 +989,7 @@ const SocialCard = ({ link, index }) => {
               <a
                 key={idx}
                 href={`tel:${phone}`}
-                className={`text-xs xs:text-sm ${isDark ? 'text-gray-400 hover:text-blue-400' : 'text-gray-500 hover:text-blue-600'} transition font-mono`}
+                className={`text-[7px] xs:text-[8px] ${isDark ? 'text-gray-400 hover:text-blue-400' : 'text-gray-500 hover:text-blue-600'} transition font-mono`}
                 dir="ltr"
               >
                 {phone}
@@ -998,7 +997,7 @@ const SocialCard = ({ link, index }) => {
             ))}
           </div>
         </div>
-        <Icons.Phone className={`h-3.5 w-3.5 flex-shrink-0 ${isDark ? 'text-gray-500' : 'text-gray-400'}`} />
+        <Icons.Phone className={`h-2 w-2 flex-shrink-0 ${isDark ? 'text-gray-500' : 'text-gray-400'}`} />
       </motion.div>
     );
   }
@@ -1013,7 +1012,7 @@ const SocialCard = ({ link, index }) => {
       transition={{ delay: index * 0.03, duration: 0.3 }}
       viewport={{ once: true }}
       whileHover={{ scale: 1.02, y: -1 }}
-      className={`flex items-center gap-3 p-3.5 xs:p-4 lg:p-5 rounded-2xl border transition-all duration-300 h-full hover:-translate-y-1 ${
+      className={`flex items-center gap-2 p-2 xs:p-2.5 rounded-xl border transition-all duration-300 ${
         isPrimary
           ? isDark
             ? 'bg-blue-400/15 border-blue-400/30 hover:border-blue-400/70 hover:bg-blue-400/25'
@@ -1023,23 +1022,23 @@ const SocialCard = ({ link, index }) => {
             : 'bg-white/70 border-gray-200/40 hover:border-blue-400/50 hover:bg-white/85'
       } backdrop-blur-sm`}
     >
-      <div className={`p-2.5 rounded-xl ${link.color} bg-opacity-15 flex-shrink-0`}>
-        <link.icon className={`h-4 w-4 ${link.textColor}`} />
+      <div className={`p-1 rounded-lg ${link.color} bg-opacity-15 flex-shrink-0`}>
+        <link.icon className={`h-3 w-3 ${link.textColor}`} />
       </div>
       <div className="flex-1 min-w-0">
-        <p className={`text-sm xs:text-base font-bold ${isDark ? 'text-white' : 'text-gray-900'} ${isPrimary ? 'text-blue-400' : ''} whitespace-nowrap`}>
+        <p className={`text-[9px] xs:text-[10px] font-bold ${isDark ? 'text-white' : 'text-gray-900'} ${isPrimary ? 'text-blue-400' : ''} whitespace-nowrap`}>
           {link.label}
           {isPrimary && (
-            <span className="mr-1 text-[11px] xs:text-xs bg-blue-400/20 text-blue-400 px-1 py-0.5 rounded-full whitespace-nowrap">
+            <span className="mr-1 text-[5px] xs:text-[6px] bg-blue-400/20 text-blue-400 px-1 py-0.5 rounded-full whitespace-nowrap">
               رئيسي
             </span>
           )}
         </p>
-        <p className={`text-xs xs:text-sm ${isDark ? 'text-gray-500' : 'text-gray-400'} truncate`}>
+        <p className={`text-[6px] xs:text-[7px] ${isDark ? 'text-gray-500' : 'text-gray-400'} truncate`}>
           {link.url.replace(/^https?:\/\//, '').replace(/\/.*$/, '')}
         </p>
       </div>
-      <Icons.ExternalLink className={`h-3.5 w-3.5 flex-shrink-0 ${isDark ? 'text-gray-500' : 'text-gray-400'}`} />
+      <Icons.ExternalLink className={`h-2 w-2 flex-shrink-0 ${isDark ? 'text-gray-500' : 'text-gray-400'}`} />
     </motion.a>
   );
 };
@@ -1053,8 +1052,8 @@ const HeroSection = ({ isDark }) => {
   const y = useTransform(scrollY, [0, 500], [0, 30]);
 
   return (
-    <section className="relative min-h-[85vh] flex items-center justify-center px-3 sm:px-4 lg:px-8 xl:px-12 pt-10 sm:pt-12 pb-4 sm:pb-6 overflow-hidden">
-      <motion.div style={{ y }} className="container mx-auto max-w-4xl lg:max-w-5xl xl:max-w-6xl text-center relative z-10">
+    <section className="relative min-h-[85vh] flex items-center justify-center px-3 sm:px-4 pt-10 sm:pt-12 pb-4 sm:pb-6 overflow-hidden">
+      <motion.div style={{ y }} className="container mx-auto max-w-4xl text-center relative z-10">
         <motion.div
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
@@ -1067,7 +1066,7 @@ const HeroSection = ({ isDark }) => {
             className="mb-2 sm:mb-3"
           >
             <div className="inline-block px-3 py-0.5 sm:px-4 sm:py-1 rounded-full bg-blue-400/10 border border-blue-400/20 backdrop-blur">
-              <p className="text-xs sm:text-base text-blue-400 font-arabic tracking-wider">
+              <p className="text-[7px] sm:text-[10px] text-blue-400 font-arabic tracking-wider">
                 اللهم صل على سيدنا محمد
               </p>
             </div>
@@ -1077,13 +1076,13 @@ const HeroSection = ({ isDark }) => {
             initial={{ opacity: 0, y: -3 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.25, duration: 0.3 }}
-            className="inline-flex items-center gap-1 px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full bg-blue-400/15 border border-blue-400/20 text-blue-400 text-xs sm:text-base mb-2 sm:mb-3"
+            className="inline-flex items-center gap-1 px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full bg-blue-400/15 border border-blue-400/20 text-blue-400 text-[7px] sm:text-[9px] mb-2 sm:mb-3"
           >
             <Icons.Sparkles className="h-2 w-2 sm:h-2.5 sm:w-2.5 animate-pulse" />
             <span>تعلم اللغة الإنجليزية بطريقة مختلفة</span>
           </motion.div>
 
-          <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-extrabold leading-[1.05] mb-4 sm:mb-6 tracking-tight">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold leading-[1.05] mb-1.5 sm:mb-3 tracking-tight">
             <span className="bg-gradient-to-r from-blue-400 via-cyan-400 to-green-400 bg-clip-text text-transparent bg-[length:200%] animate-gradient">
               مستر محمد رضوان
             </span>
@@ -1093,7 +1092,7 @@ const HeroSection = ({ isDark }) => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.35, duration: 0.4 }}
-            className={`text-sm sm:text-base md:text-lg lg:text-xl max-w-2xl lg:max-w-3xl mx-auto leading-relaxed mb-8 sm:mb-10 ${
+            className={`text-xs sm:text-sm md:text-base max-w-2xl mx-auto leading-relaxed mb-3 sm:mb-4 ${
               isDark ? 'text-gray-300' : 'text-gray-600'
             }`}
           >
@@ -1105,28 +1104,28 @@ const HeroSection = ({ isDark }) => {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.45, duration: 0.35 }}
-            className="flex flex-wrap justify-center gap-3 sm:gap-4 mb-8 sm:mb-10"
+            className="flex flex-wrap justify-center gap-2 sm:gap-3 mb-3 sm:mb-4"
           >
             <motion.a
               whileHover={{ scale: 1.04 }}
               whileTap={{ scale: 0.95 }}
               href="#courses"
-              className="inline-flex items-center gap-1 bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-bold px-7 py-3 sm:px-9 sm:py-4 rounded-full shadow-lg shadow-blue-500/40 hover:shadow-blue-500/60 transition-all duration-300 text-sm sm:text-base md:text-lg"
+              className="inline-flex items-center gap-1 bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-bold px-4 py-1.5 sm:px-6 sm:py-2 rounded-full shadow-lg shadow-blue-500/40 hover:shadow-blue-500/60 transition-all duration-300 text-[9px] sm:text-xs md:text-sm"
             >
-              <Icons.Play className="h-4 w-4 sm:h-5 sm:w-5" />
+              <Icons.Play className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
               شوف الكورسات
             </motion.a>
             <motion.a
               whileHover={{ scale: 1.04 }}
               whileTap={{ scale: 0.95 }}
               href="#features"
-              className={`inline-flex items-center gap-1 px-7 py-3 sm:px-9 sm:py-4 rounded-full border-2 transition-all duration-300 text-sm sm:text-base md:text-lg font-bold ${
+              className={`inline-flex items-center gap-1 px-4 py-1.5 sm:px-6 sm:py-2 rounded-full border-2 transition-all duration-300 text-[9px] sm:text-xs md:text-sm font-bold ${
                 isDark
                   ? 'border-blue-400/30 bg-white/5 hover:bg-white/10 hover:border-blue-400/60 text-white'
                   : 'border-blue-400/30 bg-white/40 hover:bg-white hover:border-blue-400/60 text-gray-800'
               }`}
             >
-              <Icons.Eye className="h-4 w-4 sm:h-5 sm:w-5" />
+              <Icons.Eye className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
               شوف المميزات
             </motion.a>
           </motion.div>
@@ -1135,10 +1134,10 @@ const HeroSection = ({ isDark }) => {
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.55, duration: 0.4 }}
-            className="max-w-2xl lg:max-w-3xl mx-auto"
+            className="max-w-2xl mx-auto"
           >
             <div
-              className={`relative p-4 sm:p-6 lg:p-8 rounded-2xl border-2 ${
+              className={`relative p-3 sm:p-4 rounded-xl border-2 ${
                 isDark
                   ? 'bg-gradient-to-br from-amber-500/20 to-yellow-500/20 border-yellow-400/40'
                   : 'bg-gradient-to-br from-amber-100/80 to-yellow-100/80 border-yellow-400/60'
@@ -1166,10 +1165,10 @@ const HeroSection = ({ isDark }) => {
                   <p className={`text-xs sm:text-sm font-bold ${isDark ? 'text-yellow-300' : 'text-amber-700'}`}>
                     {PROMO_TOP_STUDENTS.title}
                   </p>
-                  <p className={`text-sm sm:text-base font-bold ${isDark ? 'text-amber-300' : 'text-amber-600'}`}>
+                  <p className={`text-[10px] sm:text-xs font-bold ${isDark ? 'text-amber-300' : 'text-amber-600'}`}>
                     {PROMO_TOP_STUDENTS.subtitle}
                   </p>
-                  <p className={`text-sm sm:text-base ${isDark ? 'text-gray-300' : 'text-gray-600'} max-w-lg mx-auto sm:mx-0 mt-0.5 leading-relaxed`}>
+                  <p className={`text-[8px] sm:text-[10px] ${isDark ? 'text-gray-300' : 'text-gray-600'} max-w-lg mx-auto sm:mx-0 mt-0.5 leading-relaxed`}>
                     {PROMO_TOP_STUDENTS.description}
                   </p>
                 </div>
@@ -1178,11 +1177,11 @@ const HeroSection = ({ isDark }) => {
                   href={PROMO_TOP_STUDENTS.ctaLink}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex-shrink-0 px-5 py-2.5 sm:px-6 sm:py-3 bg-gradient-to-r from-yellow-500 to-amber-500 text-white font-bold rounded-xl hover:from-yellow-600 hover:to-amber-600 transition shadow-lg shadow-yellow-500/30 hover:shadow-yellow-500/50 text-sm sm:text-base flex items-center gap-2"
+                  className="flex-shrink-0 px-3 py-1.5 sm:px-4 sm:py-2 bg-gradient-to-r from-yellow-500 to-amber-500 text-white font-bold rounded-lg hover:from-yellow-600 hover:to-amber-600 transition shadow-lg shadow-yellow-500/30 hover:shadow-yellow-500/50 text-[8px] sm:text-[10px] flex items-center gap-1"
                   whileHover={{ scale: 1.04 }}
                   whileTap={{ scale: 0.95 }}
                 >
-                  <Icons.MessageCircle className="h-4 w-4 sm:h-5 sm:w-5" />
+                  <Icons.MessageCircle className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
                   {PROMO_TOP_STUDENTS.cta}
                 </motion.a>
               </div>
@@ -1198,19 +1197,19 @@ const HeroSection = ({ isDark }) => {
 
 const CoursesSection = ({ isDark, courses, teachers, loading }) => {
   return (
-    <section id="courses" className={`py-14 sm:py-20 lg:py-28 px-3 sm:px-4 lg:px-8 xl:px-12 ${isDark ? 'bg-[#0a0e1a]' : 'bg-white'}`}>
-      <div className="container mx-auto max-w-7xl 2xl:max-w-[96rem]">
+    <section id="courses" className={`py-6 sm:py-8 px-3 sm:px-4 ${isDark ? 'bg-[#0a0e1a]' : 'bg-white'}`}>
+      <div className="container mx-auto max-w-7xl">
         <motion.div
           initial={{ opacity: 0 }}
           whileInView={{ opacity: 1 }}
           transition={{ duration: 0.35 }}
           viewport={{ once: true }}
-          className="text-center mb-10 sm:mb-14"
+          className="text-center mb-4 sm:mb-6"
         >
-          <h2 className={`text-3xl sm:text-4xl md:text-5xl font-extrabold mb-3 tracking-tight ${isDark ? 'text-white' : 'text-gray-900'}`}>
+          <h2 className={`text-xl sm:text-2xl md:text-3xl font-bold mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
             كورسات <span className="text-blue-400">مستر محمد رضوان</span>
           </h2>
-          <p className={`text-sm sm:text-base md:text-lg max-w-2xl mx-auto leading-relaxed ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+          <p className={`text-[10px] sm:text-xs max-w-2xl mx-auto ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
             اختار الكورس المناسب ليك، وابدأ رحلة التعلم بخطوات مدروسة.
           </p>
         </motion.div>
@@ -1228,24 +1227,24 @@ const CoursesSection = ({ isDark, courses, teachers, loading }) => {
 
 const FeaturesSection = ({ isDark }) => {
   return (
-    <section id="features" className={`py-14 sm:py-20 lg:py-28 px-3 sm:px-4 lg:px-8 xl:px-12 ${isDark ? 'bg-[#0a0e1a]/60' : 'bg-white'}`}>
-      <div className="container mx-auto max-w-6xl xl:max-w-7xl">
+    <section id="features" className={`py-4 sm:py-6 md:py-8 px-3 sm:px-4 ${isDark ? 'bg-[#0a0e1a]/60' : 'bg-white'}`}>
+      <div className="container mx-auto max-w-6xl">
         <motion.div
           initial={{ opacity: 0 }}
           whileInView={{ opacity: 1 }}
           transition={{ duration: 0.35 }}
           viewport={{ once: true }}
-          className="text-center mb-10 sm:mb-14"
+          className="text-center mb-3 sm:mb-4"
         >
-          <h2 className={`text-2xl sm:text-3xl md:text-4xl font-extrabold mb-3 tracking-tight ${isDark ? 'text-white' : 'text-gray-900'}`}>
+          <h2 className={`text-lg sm:text-xl md:text-2xl font-bold mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
             إيه اللي هتستفيده معانا؟
           </h2>
-          <p className={`text-sm sm:text-base md:text-lg max-w-2xl mx-auto leading-relaxed ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+          <p className={`text-[10px] sm:text-xs max-w-2xl mx-auto ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
             نظام تعليمي متكامل مصمم عشان تتعلم بسهولة وتوصل لهدفك.
           </p>
         </motion.div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-2.5 sm:gap-3 lg:gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-3">
           {PLATFORM_FEATURES.map((feature, index) => (
             <FeatureCard key={feature.id} feature={feature} index={index} />
           ))}
@@ -1257,8 +1256,8 @@ const FeaturesSection = ({ isDark }) => {
 
 const CountdownSection = ({ isDark }) => {
   return (
-    <section id="countdown" className={`py-14 sm:py-20 lg:py-28 px-3 sm:px-4 lg:px-8 xl:px-12 ${isDark ? 'bg-[#0a0e1a]/60' : 'bg-white'}`}>
-      <div className="container mx-auto max-w-3xl lg:max-w-4xl">
+    <section id="countdown" className={`py-4 sm:py-6 md:py-8 px-3 sm:px-4 ${isDark ? 'bg-[#0a0e1a]/60' : 'bg-white'}`}>
+      <div className="container mx-auto max-w-3xl">
         <CountdownTimer isDark={isDark} />
       </div>
     </section>
@@ -1274,24 +1273,24 @@ const ContactSection = ({ isDark }) => {
   }, []);
 
   return (
-    <section id="contact" className={`py-14 sm:py-20 lg:py-28 px-3 sm:px-4 lg:px-8 xl:px-12 ${isDark ? 'bg-[#0a0e1a]/60' : 'bg-white'}`}>
-      <div className="container mx-auto max-w-4xl xl:max-w-6xl">
+    <section id="contact" className={`py-4 sm:py-6 md:py-8 px-3 sm:px-4 ${isDark ? 'bg-[#0a0e1a]/60' : 'bg-white'}`}>
+      <div className="container mx-auto max-w-4xl">
         <motion.div
           initial={{ opacity: 0 }}
           whileInView={{ opacity: 1 }}
           transition={{ duration: 0.35 }}
           viewport={{ once: true }}
-          className="text-center mb-10 sm:mb-14"
+          className="text-center mb-3 sm:mb-4"
         >
-          <h2 className={`text-2xl sm:text-3xl md:text-4xl font-extrabold mb-3 tracking-tight ${isDark ? 'text-white' : 'text-gray-900'}`}>
+          <h2 className={`text-lg sm:text-xl md:text-2xl font-bold mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
             تواصل <span className="text-blue-400">مع مستر محمد رضوان</span>
           </h2>
-          <p className={`text-sm sm:text-base md:text-lg max-w-2xl mx-auto leading-relaxed ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+          <p className={`text-[10px] sm:text-xs max-w-2xl mx-auto ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
             تابعنا على منصات التواصل، أو تواصل مباشرة مع المستر.
           </p>
         </motion.div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-2 sm:gap-3 lg:gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
           {sortedLinks.map((link, index) => (
             <SocialCard key={link.id} link={link} index={index} />
           ))}
@@ -1302,7 +1301,7 @@ const ContactSection = ({ isDark }) => {
           whileInView={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.35, delay: 0.15 }}
           viewport={{ once: true }}
-          className={`mt-6 sm:mt-8 p-5 sm:p-7 lg:p-9 rounded-2xl border text-center ${
+          className={`mt-3 sm:mt-4 p-3 sm:p-4 rounded-xl border text-center ${
             isDark ? 'bg-white/8 border-white/10' : 'bg-white/70 border-gray-200/40'
           } backdrop-blur-sm`}
         >
@@ -1310,13 +1309,13 @@ const ContactSection = ({ isDark }) => {
             <div className="flex justify-center mb-1">
               <Icons.MessageCircle className="h-4 w-4 sm:h-5 sm:w-5 text-blue-400" />
             </div>
-            <p className={`text-sm sm:text-base leading-relaxed ${isDark ? 'text-gray-300' : 'text-gray-600'} font-arabic`}>
+            <p className={`text-[9px] sm:text-[10px] leading-relaxed ${isDark ? 'text-gray-300' : 'text-gray-600'} font-arabic`}>
               عن أبي سعيدٍ الخدري رضي الله عنه عن رسول الله صلى الله عليه وسلم قال:
             </p>
-            <p className={`text-sm sm:text-base md:text-lg font-bold leading-relaxed mt-1 sm:mt-2 ${isDark ? 'text-blue-300' : 'text-blue-700'} font-arabic`}>
+            <p className={`text-[10px] sm:text-xs md:text-sm font-bold leading-relaxed mt-0.5 sm:mt-1 ${isDark ? 'text-blue-300' : 'text-blue-700'} font-arabic`}>
               "سيأتيكم أقوامٌ يطلبون العلم، فإذا رأيتموهم فقولوا لهم: مرحبًا مرحبًا بوصية رسول الله صلى الله عليه وسلم، واقْنُوهم"
             </p>
-            <div className="flex justify-center gap-2 mt-1 text-xs sm:text-sm text-gray-400">
+            <div className="flex justify-center gap-2 mt-1 text-[7px] sm:text-[8px] text-gray-400">
               <span>📖 صحيح</span>
               <span>•</span>
               <span>🤲 دعاء</span>
@@ -1332,8 +1331,8 @@ const ContactSection = ({ isDark }) => {
 
 const FooterSection = ({ isDark }) => {
   return (
-    <footer className={`${isDark ? 'bg-[#030812]/90 border-white/5' : 'bg-white/90 border-gray-200/40'} border-t py-8 sm:py-10 px-3 sm:px-4 lg:px-8 xl:px-12 backdrop-blur`}>
-      <div className="container mx-auto max-w-6xl xl:max-w-7xl">
+    <footer className={`${isDark ? 'bg-[#030812]/90 border-white/5' : 'bg-white/90 border-gray-200/40'} border-t py-3 sm:py-4 px-3 sm:px-4 backdrop-blur`}>
+      <div className="container mx-auto max-w-6xl">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <div className="md:col-span-2">
             <div className="flex items-center gap-2 mb-1">
@@ -1344,19 +1343,19 @@ const FooterSection = ({ isDark }) => {
                 مستر محمد رضوان
               </h3>
             </div>
-            <p className={`text-sm sm:text-base max-w-md leading-relaxed ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+            <p className={`text-[9px] sm:text-[10px] max-w-md leading-relaxed ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
               منصة تعليمية متخصصة في تدريس اللغة الإنجليزية، نقدم تجربة تعلم مختلفة ومتطورة تجمع بين التقنية والتميز.
             </p>
             <div className="mt-1">
-              <p className={`text-xs sm:text-sm ${isDark ? 'text-blue-400/30' : 'text-blue-600/30'} font-arabic tracking-wider`}>
+              <p className={`text-[7px] sm:text-[8px] ${isDark ? 'text-blue-400/30' : 'text-blue-600/30'} font-arabic tracking-wider`}>
                 اللهم صل على سيدنا محمد
               </p>
             </div>
           </div>
 
           <div>
-            <h4 className={`font-bold mb-3 text-sm sm:text-base ${isDark ? 'text-white' : 'text-gray-900'}`}>روابط سريعة</h4>
-            <ul className="space-y-1 text-sm sm:text-base">
+            <h4 className={`font-bold mb-1.5 text-[10px] sm:text-xs ${isDark ? 'text-white' : 'text-gray-900'}`}>روابط سريعة</h4>
+            <ul className="space-y-1 text-[9px] sm:text-[10px]">
               <li><a href="#courses" className={`${isDark ? 'text-gray-400 hover:text-blue-400' : 'text-gray-500 hover:text-blue-600'} transition`}>الكورسات</a></li>
               <li><a href="#features" className={`${isDark ? 'text-gray-400 hover:text-blue-400' : 'text-gray-500 hover:text-blue-600'} transition`}>المميزات</a></li>
               <li><a href="#countdown" className={`${isDark ? 'text-gray-400 hover:text-yellow-400' : 'text-gray-500 hover:text-yellow-600'} transition`}>⏳المتبقي على امتحانات الثانوية العامة</a></li>
@@ -1368,7 +1367,7 @@ const FooterSection = ({ isDark }) => {
         <div className={`flex justify-center mt-3 pt-2 border-t ${isDark ? 'border-white/5' : 'border-gray-200/40'}`}>
           <Link
             href="/assistant-login"
-            className={`inline-flex items-center gap-1.5 px-3 py-1 sm:px-4 sm:py-1.5 rounded-full border-2 transition-all duration-300 hover:scale-105 text-xs sm:text-base font-bold ${
+            className={`inline-flex items-center gap-1.5 px-3 py-1 sm:px-4 sm:py-1.5 rounded-full border-2 transition-all duration-300 hover:scale-105 text-[7px] sm:text-[9px] font-bold ${
               isDark
                 ? 'border-green-400/20 text-green-400 hover:bg-green-400/10 hover:border-green-400/40'
                 : 'border-green-400/20 text-green-600 hover:bg-green-400/10 hover:border-green-400/40'
@@ -1388,7 +1387,7 @@ const FooterSection = ({ isDark }) => {
             className="text-center relative"
           >
             <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-40 h-8 bg-gradient-to-r from-purple-400/10 via-pink-400/10 to-red-400/10 blur-xl rounded-full" />
-            <p className="text-xs sm:text-base font-mono tracking-wider flex items-center justify-center gap-1.5 flex-wrap relative z-10">
+            <p className="text-[7px] sm:text-[9px] font-mono tracking-wider flex items-center justify-center gap-1.5 flex-wrap relative z-10">
               <span className={isDark ? 'text-blue-400/40' : 'text-blue-400/60'}>⚡</span>
               <span className={isDark ? 'text-gray-400' : 'text-gray-500'}>Built with ❤️ by</span>
               <motion.span
@@ -1414,7 +1413,7 @@ const FooterSection = ({ isDark }) => {
                 Nour El-Saeed
               </motion.span>
               <span className={isDark ? 'text-blue-400/20' : 'text-blue-400/30'}>•</span>
-              <span className={`text-xs sm:text-sm ${isDark ? 'text-blue-400/30' : 'text-blue-400/40'}`}>
+              <span className={`text-[6px] sm:text-[8px] ${isDark ? 'text-blue-400/30' : 'text-blue-400/40'}`}>
                 Developer &amp; Designer
               </span>
             </p>
@@ -1575,22 +1574,22 @@ export default function Home() {
       />
 
       <header className={`fixed top-0 left-0 right-0 z-40 transition-all duration-400 ${headerBg}`}>
-        <div className="container mx-auto max-w-7xl 2xl:max-w-[96rem] px-3 sm:px-4 lg:px-8 xl:px-12 py-3 sm:py-4 flex items-center justify-between">
+        <div className="container mx-auto px-3 sm:px-4 py-1.5 sm:py-2 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-1.5 sm:gap-2 group">
-            <div className="h-10 w-10 sm:h-11 sm:w-11 md:h-12 md:w-12 rounded-full overflow-hidden shadow-lg shadow-blue-400/20 ring-2 ring-blue-400/20 group-hover:scale-105 transition duration-300">
+            <div className="h-7 w-7 sm:h-8 sm:w-8 md:h-9 md:w-9 rounded-full overflow-hidden shadow-lg shadow-blue-400/20 group-hover:scale-105 transition duration-300">
               <img src="/images/logo.png" alt="مستر محمد رضوان" className="w-full h-full object-cover" />
             </div>
             <div>
-              <h1 className="text-sm sm:text-base md:text-lg font-extrabold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent leading-none">
+              <h1 className="text-[10px] sm:text-xs md:text-sm font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent leading-none">
                 مستر محمد رضوان
               </h1>
-              <p className={`text-[11px] sm:text-xs md:text-xs leading-none mt-0.5 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+              <p className={`text-[5px] sm:text-[6px] md:text-[7px] leading-none mt-0.5 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
                 منصة تعليمية متكاملة
               </p>
             </div>
           </Link>
 
-          <div className="hidden md:flex items-center gap-4 lg:gap-6 text-sm lg:text-base font-bold">
+          <div className="hidden md:flex items-center gap-3 text-[9px] sm:text-[10px] font-bold">
             {[
               { label: 'الكورسات', href: '#courses' },
               { label: 'المميزات', href: '#features' },
@@ -1607,14 +1606,14 @@ export default function Home() {
             ))}
           </div>
 
-          <div className="flex items-center gap-1 sm:gap-1.5 lg:gap-2">
+          <div className="flex items-center gap-1 sm:gap-1.5">
             <button
               onClick={toggleTheme}
-              className="relative w-10 h-5 sm:w-12 sm:h-6 rounded-full bg-gradient-to-r from-blue-400 to-cyan-400 shadow-inner shadow-black/10 transition-all duration-500 hover:scale-105"
+              className="relative w-7 h-3.5 sm:w-8 sm:h-4 rounded-full bg-gradient-to-r from-blue-400 to-cyan-400 shadow-inner shadow-black/10 transition-all duration-500 hover:scale-105"
             >
               <span
-                className={`absolute top-0.5 left-0.5 w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-white shadow-md transition-all duration-500 flex items-center justify-center text-[9px] sm:text-[10px] ${
-                  isDark ? 'translate-x-[20px] sm:translate-x-[24px]' : 'translate-x-0'
+                className={`absolute top-0.5 left-0.5 w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-white shadow-md transition-all duration-500 flex items-center justify-center text-[5px] sm:text-[6px] ${
+                  isDark ? 'translate-x-[14px] sm:translate-x-[17px]' : 'translate-x-0'
                 }`}
               >
                 {isDark ? '🌙' : '☀️'}
@@ -1623,21 +1622,21 @@ export default function Home() {
 
             <Link
               href="/login"
-              className={`px-4 py-2 rounded-full text-xs sm:text-sm font-bold border-2 transition-all duration-300 hover:scale-105 ${
+              className={`px-2 py-0.5 rounded-full text-[7px] sm:text-[9px] lg:text-xs font-bold border-2 transition-all duration-300 hover:scale-105 ${
                 isDark
                   ? 'border-blue-400/30 text-blue-400 hover:bg-blue-400/10'
                   : 'border-blue-400/30 text-blue-600 hover:bg-blue-400/10'
-              } lg:px-5 lg:py-2.5`}
+              } lg:px-3 lg:py-1`}
             >
-              <Icons.LogIn className="h-3.5 w-3.5 inline ml-1" />
+              <Icons.LogIn className="h-2 w-2 sm:h-2.5 sm:w-2.5 inline ml-0.5" />
               تسجيل الدخول
             </Link>
 
             <Link
               href="/register"
-              className="px-4 py-2 rounded-full bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-bold shadow-lg shadow-blue-500/30 hover:scale-105 transition-all duration-300 flex items-center gap-1.5 text-xs sm:text-sm lg:px-5 lg:py-2.5"
+              className="px-2 py-0.5 rounded-full bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-bold shadow-lg shadow-blue-500/30 hover:scale-105 transition-all duration-300 flex items-center gap-0.5 text-[7px] sm:text-[9px] lg:text-xs lg:px-3 lg:py-1"
             >
-              <Icons.UserPlus className="h-3.5 w-3.5" />
+              <Icons.UserPlus className="h-2 w-2 sm:h-2.5 sm:w-2.5" />
               انشاء حساب
             </Link>
           </div>
