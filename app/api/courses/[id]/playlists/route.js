@@ -92,6 +92,7 @@ export async function POST(request, { params }) {
       .from('video_playlists')
       .insert({
         course_id: courseId,
+        teacher_id: user.id,
         title: title.trim(),
         description: description?.trim() || '',
         order_index: newOrder,
