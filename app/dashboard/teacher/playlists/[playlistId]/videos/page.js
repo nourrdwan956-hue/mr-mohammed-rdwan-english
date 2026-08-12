@@ -33,10 +33,7 @@ const Modal = ({ isOpen, onClose, title, children }) => {
       >
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-xl font-bold dark:text-white">{title}</h3>
-          <button
-            onClick={onClose}
-            className="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition"
-          >
+          <button onClick={onClose} className="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition">
             <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
           </button>
         </div>
@@ -60,18 +57,14 @@ const VideoItem = ({ video, index, total, onMoveUp, onMoveDown, onRemove, isDark
     >
       <div className="flex items-center gap-2">
         <GripVertical className="w-4 h-4 text-gray-400 cursor-move" />
-        <span className="text-sm font-medium text-gray-500 dark:text-gray-400 w-6">
-          {index + 1}
-        </span>
+        <span className="text-sm font-medium text-gray-500 dark:text-gray-400 w-6">{index + 1}</span>
       </div>
-
       <div className="flex-1 min-w-0">
         <h4 className="font-medium truncate">{video.title}</h4>
         <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
           {video.duration ? `المدة: ${video.duration}s` : 'بدون مدة'}
         </p>
       </div>
-
       <div className="flex items-center gap-1">
         <button
           onClick={() => onMoveUp(index)}
@@ -107,22 +100,20 @@ const VideoItem = ({ video, index, total, onMoveUp, onMoveDown, onRemove, isDark
 
 export default function TeacherPlaylistVideosPage() {
   const params = useParams();
-  const playlistId = params?.playlistId; // ✅ استخراج المعرف
+  // ✅ استخراج playlistId من params (لأن المسار هو [playlistId])
+  const playlistId = params?.playlistId;
   const router = useRouter();
   const { theme } = useTheme();
   const isDark = theme === 'dark';
 
-  // حالات الصفحة
   const [playlist, setPlaylist] = useState(null);
   const [videos, setVideos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // حالات المودال
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
-  // بيانات النماذج
   const [availableVideos, setAvailableVideos] = useState([]);
   const [selectedVideoId, setSelectedVideoId] = useState('');
   const [newVideoTitle, setNewVideoTitle] = useState('');
@@ -130,25 +121,24 @@ export default function TeacherPlaylistVideosPage() {
   const [newVideoUrl, setNewVideoUrl] = useState('');
   const [newVideoDisplayMode, setNewVideoDisplayMode] = useState('platform');
 
-  // منع التكرار
   const fetchedRef = useRef(false);
 
-  // جلب بيانات القائمة وفيديوهاتها
   const fetchPlaylistData = useCallback(async () => {
     if (!playlistId) {
       setLoading(false);
       setError('معرف القائمة غير موجود');
       return;
     }
-
     setLoading(true);
     setError(null);
     try {
       const res = await fetch(`/api/playlists/${playlistId}`);
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || 'فشل في جلب بيانات القائمة');
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || 'فشل في جلب بيانات القائمة');
       }
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || 'فشل في جلب بيانات القائمة');
       setPlaylist(data.data);
       setVideos(data.data.videos || []);
     } catch (err) {
@@ -160,26 +150,20 @@ export default function TeacherPlaylistVideosPage() {
     }
   }, [playlistId]);
 
-  // جلب فيديوهات الكورس المتاحة (غير المرتبطة بأي قائمة)
   const fetchAvailableVideos = useCallback(async () => {
     if (!playlist) return;
     try {
-      const res = await fetch(
-        `/api/videos?courseId=${playlist.course_id}&unassigned=true`
-      );
+      const res = await fetch(`/api/videos?courseId=${playlist.course_id}&unassigned=true`);
+      if (!res.ok) throw new Error('فشل في جلب الفيديوهات المتاحة');
       const data = await res.json();
-      if (res.ok && data.success) {
-        setAvailableVideos(data.data || []);
-      } else {
-        setAvailableVideos([]);
-      }
+      if (data.success) setAvailableVideos(data.data || []);
+      else setAvailableVideos([]);
     } catch (err) {
       console.error('Error fetching available videos:', err);
       setAvailableVideos([]);
     }
   }, [playlist]);
 
-  // تحميل البيانات الأولية
   useEffect(() => {
     if (playlistId && !fetchedRef.current) {
       fetchedRef.current = true;
@@ -191,30 +175,25 @@ export default function TeacherPlaylistVideosPage() {
     }
   }, [playlistId, fetchPlaylistData]);
 
-  // تحديث قائمة الفيديوهات المتاحة عند تغير القائمة
   useEffect(() => {
-    if (playlist) {
-      fetchAvailableVideos();
-    }
+    if (playlist) fetchAvailableVideos();
   }, [playlist, fetchAvailableVideos]);
 
-  // إعادة ترتيب الفيديوهات (رفع/خفض)
   const handleMoveVideo = async (index, direction) => {
     const newIndex = direction === 'up' ? index - 1 : index + 1;
     if (newIndex < 0 || newIndex >= videos.length) return;
-
     const updated = [...videos];
     const [moved] = updated.splice(index, 1);
     updated.splice(newIndex, 0, moved);
-
     try {
       for (let i = 0; i < updated.length; i++) {
         const video = updated[i];
-        await fetch(`/api/videos/${video.id}`, {
+        const res = await fetch(`/api/videos/${video.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ playlistOrder: i }),
         });
+        if (!res.ok) throw new Error('فشل تحديث الترتيب');
       }
       setVideos(updated);
       toast.success('تم تحديث ترتيب الفيديوهات');
@@ -224,20 +203,17 @@ export default function TeacherPlaylistVideosPage() {
     }
   };
 
-  // إزالة فيديو من القائمة (جعله فردياً)
   const handleRemoveVideo = async (videoId) => {
-    if (!confirm('هل أنت متأكد من إزالة هذا الفيديو من القائمة؟ سيصبح فيديو فردياً.'))
-      return;
-
+    if (!confirm('هل أنت متأكد من إزالة هذا الفيديو من القائمة؟ سيصبح فيديو فردياً.')) return;
     try {
       const res = await fetch(`/api/videos/${videoId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ playlistId: null }),
       });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || 'فشل في إزالة الفيديو');
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'فشل في إزالة الفيديو');
       }
       toast.success('تم إزالة الفيديو من القائمة');
       setVideos((prev) => prev.filter((v) => v.id !== videoId));
@@ -247,14 +223,12 @@ export default function TeacherPlaylistVideosPage() {
     }
   };
 
-  // إضافة فيديو موجود إلى القائمة
   const handleAddExistingVideo = async (e) => {
     e.preventDefault();
     if (!selectedVideoId) {
       toast.error('الرجاء اختيار فيديو');
       return;
     }
-
     try {
       const nextOrder = videos.length;
       const res = await fetch(`/api/videos/${selectedVideoId}`, {
@@ -265,9 +239,9 @@ export default function TeacherPlaylistVideosPage() {
           playlistOrder: nextOrder,
         }),
       });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || 'فشل في إضافة الفيديو');
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'فشل في إضافة الفيديو');
       }
       toast.success('تم إضافة الفيديو إلى القائمة');
       setSelectedVideoId('');
@@ -279,11 +253,16 @@ export default function TeacherPlaylistVideosPage() {
     }
   };
 
-  // إنشاء فيديو جديد وإضافته مباشرة إلى القائمة
   const handleCreateVideo = async (e) => {
     e.preventDefault();
     if (!newVideoTitle.trim() || !newVideoUrl.trim()) {
       toast.error('العنوان ورابط الفيديو مطلوبان');
+      return;
+    }
+
+    // ✅ تأكد من أن playlistId صحيح
+    if (!playlistId) {
+      toast.error('معرف القائمة غير صالح');
       return;
     }
 
@@ -298,14 +277,24 @@ export default function TeacherPlaylistVideosPage() {
           videoUrl: newVideoUrl.trim(),
           displayMode: newVideoDisplayMode,
           duration: 0,
-          playlistId: playlistId,
+          playlistId: playlistId, // ✅ إرسال المعرف الصحيح
           playlistOrder: videos.length,
         }),
       });
-      const data = await res.json();
+
+      // ✅ التحقق من الاستجابة حتى لو كانت خطأ
+      let data;
+      try {
+        data = await res.json();
+      } catch (parseError) {
+        // إذا لم تكن استجابة JSON، نعرض رسالة عامة
+        throw new Error('حدث خطأ في الخادم، يرجى المحاولة مرة أخرى');
+      }
+
       if (!res.ok || !data.success) {
         throw new Error(data.error || 'فشل في إنشاء الفيديو');
       }
+
       toast.success('تم إنشاء الفيديو وإضافته إلى القائمة');
       setNewVideoTitle('');
       setNewVideoDescription('');
@@ -315,11 +304,11 @@ export default function TeacherPlaylistVideosPage() {
       fetchPlaylistData();
       fetchAvailableVideos();
     } catch (err) {
-      toast.error(err.message);
+      console.error('Create video error:', err);
+      toast.error(err.message || 'حدث خطأ أثناء إنشاء الفيديو');
     }
   };
 
-  // العودة إلى صفحة القوائم
   const goBack = () => {
     if (playlist?.course_id) {
       router.push(`/dashboard/teacher/courses/${playlist.course_id}/playlists`);
@@ -328,7 +317,6 @@ export default function TeacherPlaylistVideosPage() {
     }
   };
 
-  // تنسيق الألوان حسب الثيم
   const bg = isDark ? 'bg-gray-900' : 'bg-gray-50';
   const text = isDark ? 'text-white' : 'text-gray-900';
   const cardBg = isDark ? 'bg-gray-800' : 'bg-white';
@@ -336,16 +324,13 @@ export default function TeacherPlaylistVideosPage() {
   const inputBg = isDark ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300';
   const labelColor = isDark ? 'text-gray-300' : 'text-gray-700';
 
-  // ✅ إذا كان playlistId غير موجود، نعرض رسالة خطأ
   if (!playlistId) {
     return (
       <div className={`min-h-screen ${bg} ${text} p-6 flex items-center justify-center`}>
         <div className="text-center">
           <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
           <h2 className="text-2xl font-bold mb-2">معرف القائمة غير موجود</h2>
-          <p className="text-gray-500 dark:text-gray-400 mb-4">
-            تأكد من أن الرابط صحيح، أو عد إلى قائمة القوائم.
-          </p>
+          <p className="text-gray-500 dark:text-gray-400 mb-4">تأكد من أن الرابط صحيح، أو عد إلى قائمة القوائم.</p>
           <button
             onClick={() => router.push('/dashboard/teacher/courses')}
             className="px-4 py-2 bg-amber-500 text-white rounded-lg shadow hover:bg-amber-600 transition"
@@ -371,10 +356,7 @@ export default function TeacherPlaylistVideosPage() {
         <div className="text-center">
           <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
           <p className="text-xl font-semibold text-red-500">{error || 'القائمة غير موجودة'}</p>
-          <button
-            onClick={goBack}
-            className="mt-4 px-4 py-2 bg-amber-500 text-white rounded-lg"
-          >
+          <button onClick={goBack} className="mt-4 px-4 py-2 bg-amber-500 text-white rounded-lg">
             العودة إلى القوائم
           </button>
         </div>
@@ -388,18 +370,13 @@ export default function TeacherPlaylistVideosPage() {
         {/* شريط العنوان */}
         <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
           <div className="flex items-center gap-3">
-            <button
-              onClick={goBack}
-              className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition"
-            >
+            <button onClick={goBack} className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition">
               <ArrowLeft className="w-6 h-6" />
             </button>
             <div>
               <h1 className="text-2xl font-bold">{playlist.title}</h1>
               {playlist.description && (
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  {playlist.description}
-                </p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">{playlist.description}</p>
               )}
             </div>
           </div>
@@ -411,8 +388,7 @@ export default function TeacherPlaylistVideosPage() {
               }}
               className="flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg shadow transition"
             >
-              <Plus className="w-5 h-5" />
-              إضافة فيديو موجود
+              <Plus className="w-5 h-5" /> إضافة فيديو موجود
             </button>
             <button
               onClick={() => {
@@ -424,8 +400,7 @@ export default function TeacherPlaylistVideosPage() {
               }}
               className="flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg shadow transition"
             >
-              <Plus className="w-5 h-5" />
-              فيديو جديد
+              <Plus className="w-5 h-5" /> فيديو جديد
             </button>
           </div>
         </div>
@@ -448,12 +423,8 @@ export default function TeacherPlaylistVideosPage() {
         {videos.length === 0 ? (
           <div className="text-center py-16">
             <Video className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-500 dark:text-gray-400 text-lg">
-              لا توجد فيديوهات في هذه القائمة
-            </p>
-            <p className="text-sm text-gray-400 mt-1">
-              أضف فيديوهات باستخدام الأزرار أعلاه
-            </p>
+            <p className="text-gray-500 dark:text-gray-400 text-lg">لا توجد فيديوهات في هذه القائمة</p>
+            <p className="text-sm text-gray-400 mt-1">أضف فيديوهات باستخدام الأزرار أعلاه</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -474,24 +445,17 @@ export default function TeacherPlaylistVideosPage() {
           </div>
         )}
 
-        {/* رابط لمشاهدة الفيديوهات (للطالب) */}
         <div className="mt-8 text-center text-sm text-gray-500 dark:text-gray-400">
           <ExternalLink className="inline-block w-4 h-4 mr-1" />
           يتم عرض هذه القائمة للطلاب في صفحة الكورس
         </div>
       </div>
 
-      {/* ======== مودال إضافة فيديو موجود ======== */}
-      <Modal
-        isOpen={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
-        title="إضافة فيديو موجود إلى القائمة"
-      >
+      {/* مودال إضافة فيديو موجود */}
+      <Modal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} title="إضافة فيديو موجود إلى القائمة">
         <form onSubmit={handleAddExistingVideo} className="space-y-4">
           <div>
-            <label className={`block text-sm font-medium ${labelColor} mb-1`}>
-              اختر فيديو من الكورس *
-            </label>
+            <label className={`block text-sm font-medium ${labelColor} mb-1`}>اختر فيديو من الكورس *</label>
             <select
               value={selectedVideoId}
               onChange={(e) => setSelectedVideoId(e.target.value)}
@@ -506,9 +470,7 @@ export default function TeacherPlaylistVideosPage() {
               ))}
             </select>
             {availableVideos.length === 0 && (
-              <p className="text-xs text-amber-500 mt-1">
-                لا توجد فيديوهات فردية متاحة. يمكنك إنشاء فيديو جديد.
-              </p>
+              <p className="text-xs text-amber-500 mt-1">لا توجد فيديوهات فردية متاحة. يمكنك إنشاء فيديو جديد.</p>
             )}
           </div>
           <div className="flex justify-end gap-3 pt-2">
@@ -526,24 +488,17 @@ export default function TeacherPlaylistVideosPage() {
                 availableVideos.length === 0 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-blue-600'
               }`}
             >
-              <Plus className="w-4 h-4" />
-              إضافة
+              <Plus className="w-4 h-4" /> إضافة
             </button>
           </div>
         </form>
       </Modal>
 
-      {/* ======== مودال إنشاء فيديو جديد ======== */}
-      <Modal
-        isOpen={isCreateModalOpen}
-        onClose={() => setIsCreateModalOpen(false)}
-        title="إنشاء فيديو جديد وإضافته للقائمة"
-      >
+      {/* مودال إنشاء فيديو جديد */}
+      <Modal isOpen={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} title="إنشاء فيديو جديد وإضافته للقائمة">
         <form onSubmit={handleCreateVideo} className="space-y-4">
           <div>
-            <label className={`block text-sm font-medium ${labelColor} mb-1`}>
-              عنوان الفيديو *
-            </label>
+            <label className={`block text-sm font-medium ${labelColor} mb-1`}>عنوان الفيديو *</label>
             <input
               type="text"
               value={newVideoTitle}
@@ -554,9 +509,7 @@ export default function TeacherPlaylistVideosPage() {
             />
           </div>
           <div>
-            <label className={`block text-sm font-medium ${labelColor} mb-1`}>
-              الوصف (اختياري)
-            </label>
+            <label className={`block text-sm font-medium ${labelColor} mb-1`}>الوصف (اختياري)</label>
             <textarea
               value={newVideoDescription}
               onChange={(e) => setNewVideoDescription(e.target.value)}
@@ -566,9 +519,7 @@ export default function TeacherPlaylistVideosPage() {
             />
           </div>
           <div>
-            <label className={`block text-sm font-medium ${labelColor} mb-1`}>
-              رابط الفيديو *
-            </label>
+            <label className={`block text-sm font-medium ${labelColor} mb-1`}>رابط الفيديو *</label>
             <input
               type="url"
               value={newVideoUrl}
@@ -579,9 +530,7 @@ export default function TeacherPlaylistVideosPage() {
             />
           </div>
           <div>
-            <label className={`block text-sm font-medium ${labelColor} mb-1`}>
-              وضع العرض
-            </label>
+            <label className={`block text-sm font-medium ${labelColor} mb-1`}>وضع العرض</label>
             <select
               value={newVideoDisplayMode}
               onChange={(e) => setNewVideoDisplayMode(e.target.value)}
@@ -603,8 +552,7 @@ export default function TeacherPlaylistVideosPage() {
               type="submit"
               className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg shadow transition flex items-center gap-2"
             >
-              <Save className="w-4 h-4" />
-              إنشاء وإضافة
+              <Save className="w-4 h-4" /> إنشاء وإضافة
             </button>
           </div>
         </form>
