@@ -1,20 +1,6 @@
 'use client';
 
-// ================================================================
-// 📁 app/dashboard/assistant/page.js
-// 🎯 لوحة تحكم المساعد الرئيسية – النسخة المتطورة V4
-// ================================================================
-// - دعم كامل للثيم (فاتح/داكن)
-// - إحصائيات حقيقية من API مع أعداد غير صفرية
-// - رسم بياني متقدم (Bar Chart) مع تفاعل
-// - آخر النشاطات مع توقيت
-// - إجراءات سريعة لكل وحدة
-// - إشعارات حقيقية (عدد التذاكر المفتوحة، الرسائل غير المقروءة)
-// - تحسين الأداء للأجهزة الصغيرة
-// ================================================================
-import React from 'react';
-
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -40,8 +26,10 @@ import {
   Grid,
   TrendingUp,
   Award,
-  AlertCircle,
+  Crown,
+  Sparkles,
   CheckCircle,
+  AlertCircle,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Bar } from 'react-chartjs-2';
@@ -57,9 +45,6 @@ import {
 } from 'chart.js';
 import { useTheme } from '@/lib/hooks/useTheme';
 
-// ================================================================
-// تسجيل مكونات Chart.js
-// ================================================================
 ChartJS.register(
   CategoryScale,
   LinearScale,
@@ -70,10 +55,8 @@ ChartJS.register(
   ArcElement
 );
 
-// ================================================================
-// 🧮 مكون عداد متحرك محسّن
-// ================================================================
-const AnimatedCounter = ({ target, suffix = '', duration = 1500, prefix = '' }) => {
+// ===== مكون العداد المتحرك (محسّن للسرعة) =====
+const AnimatedCounter = React.memo(({ target, suffix = '', duration = 1200, prefix = '' }) => {
   const [count, setCount] = useState(0);
   const [visible, setVisible] = useState(false);
   const ref = useRef(null);
@@ -112,11 +95,10 @@ const AnimatedCounter = ({ target, suffix = '', duration = 1500, prefix = '' }) 
       {suffix}
     </span>
   );
-};
+});
+AnimatedCounter.displayName = 'AnimatedCounter';
 
-// ================================================================
-// 📊 بطاقة الإحصاء (معدلة لاستخدام styles مع أنيميشن)
-// ================================================================
+// ===== بطاقة الإحصاء (V5 – أكثر فخامة) =====
 const StatCard = React.memo(({ stat, styles }) => {
   const [hover, setHover] = useState(false);
 
@@ -125,17 +107,21 @@ const StatCard = React.memo(({ stat, styles }) => {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: stat.delay || 0, type: 'spring', damping: 20 }}
-      whileHover={{ y: -6, scale: 1.03 }}
+      whileHover={{ y: -8, scale: 1.04 }}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
-      className={`relative rounded-2xl p-5 transition-all duration-300 ${styles.card} border ${styles.border} hover:border-yellow-400/50 hover:shadow-2xl hover:shadow-yellow-400/10`}
+      className={`relative rounded-2xl p-5 transition-all duration-300 ${styles.card} border ${styles.border} hover:border-yellow-400/60 hover:shadow-2xl hover:shadow-yellow-400/20 overflow-hidden`}
     >
-      <div className="flex items-start justify-between">
+      <div className={`absolute inset-0 bg-gradient-to-br ${stat.color} opacity-0 transition-opacity duration-500 ${hover ? 'opacity-5' : ''}`} />
+      <div className="relative z-10 flex items-start justify-between">
         <div>
           <p className={`text-sm ${styles.subtext}`}>{stat.label}</p>
           <p className={`text-2xl font-extrabold mt-1 ${styles.text}`}>
             <AnimatedCounter target={stat.value} />
           </p>
+          {stat.subtitle && (
+            <p className={`text-[10px] ${styles.subtext} mt-1`}>{stat.subtitle}</p>
+          )}
         </div>
         <div
           className={`p-3 rounded-xl bg-gradient-to-br ${stat.color} bg-opacity-20 flex-shrink-0 shadow-lg`}
@@ -143,7 +129,7 @@ const StatCard = React.memo(({ stat, styles }) => {
           <stat.icon className="w-5 h-5 text-white" />
         </div>
       </div>
-      <div className="mt-3 h-1 w-full bg-white/5 rounded-full overflow-hidden">
+      <div className="relative z-10 mt-3 h-1 w-full bg-white/5 rounded-full overflow-hidden">
         <motion.div
           className={`h-full bg-gradient-to-r ${stat.color} rounded-full`}
           initial={{ width: 0 }}
@@ -160,9 +146,7 @@ const StatCard = React.memo(({ stat, styles }) => {
 });
 StatCard.displayName = 'StatCard';
 
-// ================================================================
-// ⚡ الإجراء السريع (معدل لاستخدام styles)
-// ================================================================
+// ===== الإجراء السريع (V5 – أكثر جاذبية) =====
 const QuickAction = React.memo(({ action, styles, onClick }) => {
   const [hover, setHover] = useState(false);
 
@@ -175,11 +159,12 @@ const QuickAction = React.memo(({ action, styles, onClick }) => {
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       onClick={() => onClick(action.path)}
-      className={`relative rounded-2xl p-5 cursor-pointer transition-all duration-300 overflow-hidden ${styles.card} border ${styles.border} hover:border-yellow-400/50 hover:shadow-2xl hover:shadow-yellow-400/10`}
+      className={`relative rounded-2xl p-5 cursor-pointer transition-all duration-300 overflow-hidden ${styles.card} border ${styles.border} hover:border-yellow-400/50 hover:shadow-2xl hover:shadow-yellow-400/10 group`}
     >
-      <div className="flex items-center gap-4">
+      <div className={`absolute inset-0 bg-gradient-to-br ${action.color} opacity-0 group-hover:opacity-5 transition-opacity duration-500`} />
+      <div className="relative z-10 flex items-center gap-4">
         <div
-          className={`p-3 rounded-xl bg-gradient-to-br ${action.color} bg-opacity-20 flex-shrink-0 shadow-lg`}
+          className={`p-3 rounded-xl bg-gradient-to-br ${action.color} bg-opacity-20 flex-shrink-0 shadow-lg group-hover:scale-110 transition-transform duration-300`}
         >
           <action.icon className="w-6 h-6 text-white" />
         </div>
@@ -188,11 +173,11 @@ const QuickAction = React.memo(({ action, styles, onClick }) => {
           <p className={`text-sm ${styles.subtext}`}>{action.description}</p>
         </div>
         <ChevronLeft
-          className={`w-5 h-5 ${styles.subtext} transition-transform duration-300 ${hover ? 'translate-x-1' : ''}`}
+          className={`w-5 h-5 ${styles.subtext} transition-all duration-300 ${hover ? 'translate-x-1 opacity-100' : 'opacity-50'}`}
         />
       </div>
       {action.count !== undefined && action.count > 0 && (
-        <div className="absolute top-3 right-3 text-xs bg-yellow-400/20 text-yellow-400 px-2 py-1 rounded-full shadow-lg">
+        <div className="absolute top-3 right-3 text-xs bg-yellow-400/20 text-yellow-400 px-2 py-1 rounded-full shadow-lg border border-yellow-400/10">
           {action.count}
         </div>
       )}
@@ -202,7 +187,7 @@ const QuickAction = React.memo(({ action, styles, onClick }) => {
 QuickAction.displayName = 'QuickAction';
 
 // ================================================================
-// 📄 الصفحة الرئيسية
+// الصفحة الرئيسية (V5)
 // ================================================================
 export default function AssistantDashboardPage() {
   const router = useRouter();
@@ -218,7 +203,6 @@ export default function AssistantDashboardPage() {
   const [isMobile, setIsMobile] = useState(false);
   const fetched = useRef(false);
 
-  // كشف الشاشات الصغيرة
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768);
     checkMobile();
@@ -242,7 +226,6 @@ export default function AssistantDashboardPage() {
         const parsed = JSON.parse(sessionData);
         setAssistant(parsed);
 
-        // جلب بيانات لوحة التحكم
         const res = await fetch('/api/assistant/dashboard-data', {
           headers: { 'x-assistant-id': parsed.id },
         });
@@ -273,19 +256,19 @@ export default function AssistantDashboardPage() {
         ];
 
         const map = [
-          { key: 'courses', label: 'كورسات', icon: '📚' },
-          { key: 'videos', label: 'فيديوهات', icon: '🎬' },
-          { key: 'exams', label: 'امتحانات', icon: '📝' },
-          { key: 'books', label: 'كتب', icon: '📖' },
-          { key: 'questionBanks', label: 'بنوك أسئلة', icon: '🗂️' },
-          { key: 'students', label: 'طلاب', icon: '👨‍🎓' },
-          { key: 'support', label: 'دعم', icon: '💬' },
+          { key: 'courses', label: 'كورسات' },
+          { key: 'videos', label: 'فيديوهات' },
+          { key: 'exams', label: 'امتحانات' },
+          { key: 'books', label: 'كتب' },
+          { key: 'questionBanks', label: 'بنوك أسئلة' },
+          { key: 'students', label: 'طلاب' },
+          { key: 'support', label: 'دعم' },
         ];
 
         let idx = 0;
         map.forEach(item => {
           if (s[item.key] > 0) {
-            labels.push(`${item.icon} ${item.label}`);
+            labels.push(item.label);
             values.push(s[item.key]);
             idx++;
           }
@@ -298,7 +281,7 @@ export default function AssistantDashboardPage() {
               {
                 label: 'المحتوى التعليمي',
                 data: values,
-                backgroundColor: colors.slice(0, labels.length).map(c => c.replace('0.8', '0.7')),
+                backgroundColor: colors.slice(0, labels.length).map(c => c.replace('0.8', '0.6')),
                 borderColor: colors.slice(0, labels.length).map(c => c.replace('0.8', '1')),
                 borderWidth: 2,
                 borderRadius: 8,
@@ -318,13 +301,12 @@ export default function AssistantDashboardPage() {
     fetchData();
   }, [router]);
 
-  // ===== دوال التحقق من الصلاحيات =====
   const hasView = useCallback((module) => {
     const perm = permissions.find((p) => p.module === module);
     return perm?.can_view || perm?.can_manage || false;
   }, [permissions]);
 
-  // ===== تجهيز بيانات الإحصائيات =====
+  // ===== إحصائيات مع لمسات فلسفية =====
   const statsData = useMemo(() => {
     const items = [];
     const s = stats;
@@ -335,6 +317,7 @@ export default function AssistantDashboardPage() {
       color: 'from-blue-400 to-blue-600',
       delay: 0,
       max: 50,
+      subtitle: 'منارات المعرفة',
     });
     if (hasView('videos')) items.push({
       label: 'الفيديوهات',
@@ -343,6 +326,7 @@ export default function AssistantDashboardPage() {
       color: 'from-purple-400 to-purple-600',
       delay: 0.1,
       max: 50,
+      subtitle: 'بوابات التعلم',
     });
     if (hasView('exams')) items.push({
       label: 'الامتحانات',
@@ -351,6 +335,7 @@ export default function AssistantDashboardPage() {
       color: 'from-red-400 to-red-600',
       delay: 0.2,
       max: 50,
+      subtitle: 'محكات التقييم',
     });
     if (hasView('books')) items.push({
       label: 'الكتب',
@@ -359,6 +344,7 @@ export default function AssistantDashboardPage() {
       color: 'from-green-400 to-green-600',
       delay: 0.3,
       max: 50,
+      subtitle: 'كنوز المعرفة',
     });
     if (hasView('question_bank')) items.push({
       label: 'بنوك الأسئلة',
@@ -367,6 +353,7 @@ export default function AssistantDashboardPage() {
       color: 'from-orange-400 to-orange-600',
       delay: 0.4,
       max: 50,
+      subtitle: 'ذخيرة التميز',
     });
     if (hasView('students')) items.push({
       label: 'الطلاب',
@@ -375,14 +362,16 @@ export default function AssistantDashboardPage() {
       color: 'from-indigo-400 to-indigo-600',
       delay: 0.5,
       max: 100,
+      subtitle: 'أجيال الغد',
     });
     if (hasView('support') || hasView('tickets')) items.push({
-      label: 'دعم (مفتوح)',
+      label: 'الدعم (مفتوح)',
       value: unreadCounts.support || s.supportOpen || 0,
       icon: HelpCircle,
       color: 'from-yellow-400 to-yellow-600',
       delay: 0.6,
       max: 20,
+      subtitle: 'صوت المستفيدين',
     });
     return items;
   }, [permissions, stats, unreadCounts, hasView]);
@@ -475,7 +464,7 @@ export default function AssistantDashboardPage() {
     return actions;
   }, [permissions, stats, unreadCounts, hasView]);
 
-  // ===== خيارات الرسم البياني (يعتمد على الثيم) =====
+  // ===== خيارات الرسم البياني =====
   const isDark = theme === 'dark';
   const barOptions = useMemo(
     () => ({
@@ -511,22 +500,20 @@ export default function AssistantDashboardPage() {
         x: {
           ticks: {
             color: isDark ? '#9ca3af' : '#6b7280',
-            font: { size: 9 },
+            font: { size: 10 },
           },
           grid: { display: false },
         },
       },
       animation: {
-        duration: isMobile ? 0 : 800, // تعطيل الأنيميشن على الموبايل
+        duration: isMobile ? 0 : 600,
       },
     }),
     [isDark, isMobile]
   );
 
-  // ===== التنقل =====
   const navigate = useCallback((path) => router.push(path), [router]);
 
-  // ===== حالة التحميل =====
   if (loading) {
     return (
       <div className={`min-h-screen flex items-center justify-center ${styles.bg}`}>
@@ -538,39 +525,63 @@ export default function AssistantDashboardPage() {
     );
   }
 
-  // ===== عرض المحتوى =====
   return (
     <div className={`min-h-screen ${styles.bg} ${styles.text} transition-colors duration-300`}>
-      <div className="max-w-7xl mx-auto px-4 md:px-6 py-6">
-        {/* ===== الهيدر ===== */}
+      <div className="max-w-7xl mx-auto px-4 md:px-6 py-4 md:py-6">
+        {/* ===== الهيدر الفخم ===== */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex flex-col md:flex-row md:items-center justify-between mb-8"
+          className="flex flex-col md:flex-row md:items-center justify-between mb-6 md:mb-8"
         >
           <div>
-            <h1 className="text-2xl md:text-3xl font-extrabold flex items-center gap-2">
-              <LayoutDashboard className="h-8 w-8 text-yellow-400" />
-              لوحة التحكم
+            <h1 className="text-2xl md:text-3xl font-extrabold flex items-center gap-3">
+              <Crown className="h-8 w-8 text-yellow-400" />
+              لوحة القيادة
+              <span className="text-xs bg-yellow-400/20 text-yellow-400 px-3 py-1 rounded-full font-medium border border-yellow-400/20">
+                القائد الواعي
+              </span>
             </h1>
-            <p className={`text-sm ${styles.subtext} mt-1`}>
-              مرحباً {assistant?.display_name || assistant?.full_name || 'المساعد'}
-              {assistant?.role && ` • ${assistant.role}`}
+            <p className={`text-sm ${styles.subtext} mt-1 flex items-center gap-2`}>
+              <Sparkles className="w-4 h-4 text-yellow-400" />
+              مرحباً، {assistant?.display_name || assistant?.full_name || 'المساعد'}
+              {assistant?.role && (
+                <span className="text-yellow-400/70">• {assistant.role}</span>
+              )}
             </p>
           </div>
           <div className="flex items-center gap-3 mt-3 md:mt-0">
             <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full ${styles.card} border ${styles.border}`}>
               <TrendingUp className="w-4 h-4 text-green-400" />
-              <span className={`text-sm ${styles.subtext}`}>
-                آخر تحديث: {new Date().toLocaleTimeString()}
+              <span className={`text-xs ${styles.subtext}`}>
+                تحديث: {new Date().toLocaleTimeString('ar-EG')}
               </span>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* ===== رسالة القائد ===== */}
+        <motion.div
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          className={`mb-6 p-4 rounded-2xl ${styles.card} border ${styles.border} border-yellow-400/20 bg-gradient-to-r from-yellow-400/5 to-transparent`}
+        >
+          <div className="flex items-start gap-3">
+            <Shield className="w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className={`text-sm font-medium ${styles.text}`}>
+                أنت المسؤول عن نظام تعليمي متكامل. كل قرار يتخذ هنا يُشكّل مستقبل الأجيال.
+              </p>
+              <p className={`text-xs ${styles.subtext} mt-1`}>
+                العدالة، الكفاءة، والشفافية هي أعمدة هذه المنصة.
+              </p>
             </div>
           </div>
         </motion.div>
 
         {/* ===== الإحصائيات ===== */}
         {statsData.length > 0 ? (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-8">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4 mb-6 md:mb-8">
             {statsData.map((stat) => (
               <StatCard key={stat.label} stat={stat} styles={styles} />
             ))}
@@ -583,19 +594,18 @@ export default function AssistantDashboardPage() {
         )}
 
         {/* ===== الرسم البياني والنشاطات ===== */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-          {/* الرسم البياني */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 mb-6 md:mb-8">
           {chartData ? (
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
-              className={`lg:col-span-2 rounded-2xl p-5 ${styles.card} border ${styles.border}`}
+              className={`lg:col-span-2 rounded-2xl p-4 md:p-5 ${styles.card} border ${styles.border}`}
             >
               <h3 className="text-base font-bold mb-3 flex items-center gap-2">
                 <BarChart3 className="w-5 h-5 text-yellow-400" />
                 توزيع المحتوى
               </h3>
-              <div className="h-56">
+              <div className="h-48 md:h-56">
                 <Bar data={chartData} options={barOptions} />
               </div>
             </motion.div>
@@ -606,39 +616,38 @@ export default function AssistantDashboardPage() {
             </div>
           )}
 
-          {/* النشاطات الأخيرة */}
           <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
-            className={`rounded-2xl p-5 ${styles.card} border ${styles.border}`}
+            className={`rounded-2xl p-4 md:p-5 ${styles.card} border ${styles.border}`}
           >
             <h3 className="text-base font-bold mb-3 flex items-center gap-2">
               <Clock className="w-5 h-5 text-yellow-400" />
               آخر النشاطات
             </h3>
             {logs.length === 0 ? (
-              <div className="text-center py-8">
+              <div className="text-center py-6">
                 <History className="w-8 h-8 mx-auto mb-2 text-gray-400" />
                 <p className={`text-sm ${styles.subtext}`}>لا توجد نشاطات حديثة</p>
               </div>
             ) : (
-              <div className="space-y-2 max-h-56 overflow-y-auto custom-scrollbar">
-                {logs.slice(0, 8).map((log) => (
+              <div className="space-y-2 max-h-48 md:max-h-56 overflow-y-auto custom-scrollbar">
+                {logs.slice(0, 6).map((log) => (
                   <motion.div
                     key={log.id}
                     initial={{ opacity: 0, x: -10 }}
                     animate={{ opacity: 1, x: 0 }}
                     className={`flex items-center gap-3 p-2 rounded-xl ${styles.hoverBg || 'hover:bg-white/5'}`}
                   >
-                    <div className="w-8 h-8 rounded-full bg-yellow-400/10 flex items-center justify-center flex-shrink-0">
-                      {log.type === 'exam' && <FileText className="w-4 h-4 text-red-400" />}
-                      {log.type === 'support' && <HelpCircle className="w-4 h-4 text-yellow-400" />}
-                      {log.type === 'course' && <BookOpen className="w-4 h-4 text-blue-400" />}
-                      {!log.type && <History className="w-4 h-4 text-yellow-400" />}
+                    <div className="w-7 h-7 rounded-full bg-yellow-400/10 flex items-center justify-center flex-shrink-0">
+                      {log.type === 'exam' && <FileText className="w-3.5 h-3.5 text-red-400" />}
+                      {log.type === 'support' && <HelpCircle className="w-3.5 h-3.5 text-yellow-400" />}
+                      {log.type === 'course' && <BookOpen className="w-3.5 h-3.5 text-blue-400" />}
+                      {!log.type && <History className="w-3.5 h-3.5 text-yellow-400" />}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm truncate">{log.action}</p>
-                      <p className={`text-[10px] ${styles.subtext}`}>
+                      <p className="text-xs md:text-sm truncate">{log.action}</p>
+                      <p className={`text-[9px] md:text-[10px] ${styles.subtext}`}>
                         {new Date(log.created_at).toLocaleString('ar-EG')}
                       </p>
                     </div>
@@ -661,18 +670,18 @@ export default function AssistantDashboardPage() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
+          className="mb-6 md:mb-8"
         >
-          <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
+          <h2 className="text-lg font-bold mb-3 md:mb-4 flex items-center gap-2">
             <Grid className="w-5 h-5 text-yellow-400" />
             الخدمات الرئيسية
           </h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
             {[
               { 
                 label: 'الدعم', 
                 icon: HelpCircle, 
-                desc: 'إدارة الشكاوى والأسئلة', 
+                desc: 'الشكاوى والأسئلة', 
                 path: '/dashboard/assistant/support', 
                 color: 'from-yellow-400 to-orange-500',
                 count: unreadCounts.support || 0,
@@ -680,7 +689,7 @@ export default function AssistantDashboardPage() {
               { 
                 label: 'المراسلات', 
                 icon: Mail, 
-                desc: 'الرسائل الخاصة مع الطلاب', 
+                desc: 'الرسائل الخاصة', 
                 path: '/dashboard/assistant/messages', 
                 color: 'from-emerald-400 to-teal-500',
                 count: unreadCounts.messages || 0,
@@ -688,7 +697,7 @@ export default function AssistantDashboardPage() {
               { 
                 label: 'الإعلانات', 
                 icon: Megaphone, 
-                desc: 'إرسال الإعلانات للطلاب', 
+                desc: 'للطلاب', 
                 path: '/dashboard/assistant/announcements', 
                 color: 'from-pink-400 to-rose-500',
                 count: stats.announcements || 0,
@@ -696,7 +705,7 @@ export default function AssistantDashboardPage() {
               { 
                 label: 'الطلاب', 
                 icon: Users, 
-                desc: 'إدارة الطلاب المسجلين', 
+                desc: 'إدارة الطلاب', 
                 path: '/dashboard/assistant/students', 
                 color: 'from-indigo-400 to-purple-500',
                 count: stats.students || 0,
@@ -704,19 +713,19 @@ export default function AssistantDashboardPage() {
             ].map((item) => (
               <Link key={item.path} href={item.path}>
                 <motion.div
-                  whileHover={{ scale: 1.05, y: -4 }}
+                  whileHover={{ scale: 1.04, y: -4 }}
                   whileTap={{ scale: 0.95 }}
-                  className={`relative rounded-2xl p-5 ${styles.card} border ${styles.border} hover:border-yellow-400/50 transition-all duration-300 cursor-pointer overflow-hidden group`}
+                  className={`relative rounded-2xl p-4 md:p-5 ${styles.card} border ${styles.border} hover:border-yellow-400/50 transition-all duration-300 cursor-pointer overflow-hidden group`}
                 >
                   <div className={`absolute inset-0 bg-gradient-to-br ${item.color} opacity-0 group-hover:opacity-10 transition-opacity duration-500`} />
                   <div className="relative z-10 flex flex-col items-center text-center">
-                    <div className={`p-3 rounded-2xl bg-gradient-to-br ${item.color} bg-opacity-20 mb-2 shadow-lg`}>
-                      <item.icon className="w-6 h-6 text-white" />
+                    <div className={`p-2.5 md:p-3 rounded-2xl bg-gradient-to-br ${item.color} bg-opacity-20 mb-2 shadow-lg`}>
+                      <item.icon className="w-5 h-5 md:w-6 md:h-6 text-white" />
                     </div>
-                    <h3 className={`text-base font-bold ${styles.text}`}>{item.label}</h3>
-                    <p className={`text-xs ${styles.subtext} mt-1`}>{item.desc}</p>
+                    <h3 className={`text-sm md:text-base font-bold ${styles.text}`}>{item.label}</h3>
+                    <p className={`text-[10px] md:text-xs ${styles.subtext} mt-0.5`}>{item.desc}</p>
                     {item.count > 0 && (
-                      <span className="mt-2 text-xs bg-red-500/20 text-red-400 px-2 py-0.5 rounded-full">
+                      <span className="mt-1.5 text-[10px] bg-red-500/20 text-red-400 px-2 py-0.5 rounded-full">
                         {item.count} جديدة
                       </span>
                     )}
@@ -731,10 +740,10 @@ export default function AssistantDashboardPage() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          className="mb-8"
+          transition={{ delay: 0.2 }}
+          className="mb-6 md:mb-8"
         >
-          <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
+          <h2 className="text-lg font-bold mb-3 md:mb-4 flex items-center gap-2">
             <Zap className="w-5 h-5 text-yellow-400" />
             الإجراءات السريعة
           </h2>
@@ -744,7 +753,7 @@ export default function AssistantDashboardPage() {
               <p>لا توجد صلاحيات متاحة</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
               {quickActions.map((action) => (
                 <QuickAction
                   key={action.path}
@@ -758,21 +767,20 @@ export default function AssistantDashboardPage() {
         </motion.div>
 
         {/* ===== تذييل ===== */}
-        <div className={`text-center text-xs ${styles.subtext} border-t ${styles.border} pt-4`}>
-          منصة محمد رضوان التعليمية v4.0 – نظام إدارة المساعدين
+        <div className={`text-center text-[10px] md:text-xs ${styles.subtext} border-t ${styles.border} pt-3 md:pt-4`}>
+          منصة محمد رضوان التعليمية v5.0 – نظام إدارة المساعدين
         </div>
       </div>
 
-      {/* أنماط CSS مخصصة للتمرير */}
       <style jsx>{`
         .custom-scrollbar::-webkit-scrollbar {
-          width: 4px;
+          width: 3px;
         }
         .custom-scrollbar::-webkit-scrollbar-track {
           background: transparent;
         }
         .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: rgba(250, 204, 21, 0.3);
+          background: rgba(250, 204, 21, 0.25);
           border-radius: 10px;
         }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover {

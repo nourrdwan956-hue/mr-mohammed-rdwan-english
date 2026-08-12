@@ -41,7 +41,6 @@ const Sidebar = React.memo(({ isOpen, onClose, assistant, permissions, styles, p
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
-  // كشف الشاشات الصغيرة
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768);
     checkMobile();
@@ -49,14 +48,12 @@ const Sidebar = React.memo(({ isOpen, onClose, assistant, permissions, styles, p
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // تصفية الوحدات المسموح بها مع إشعارات
   const allowedModules = useMemo(() => {
     return Object.keys(MODULES).filter(module =>
       hasPermission(permissions, module, 'can_view')
     );
   }, [permissions]);
 
-  // ===== دوال الترجمة =====
   const t = {
     dashboard: 'لوحة التحكم',
     profile: 'الملف الشخصي',
@@ -67,21 +64,18 @@ const Sidebar = React.memo(({ isOpen, onClose, assistant, permissions, styles, p
     themeToggle: 'تبديل الثيم',
   };
 
-  // ===== معالج الخروج =====
   const handleLogout = useCallback(() => {
     sessionStorage.removeItem('assistantData');
     sessionStorage.removeItem('assistantPermissions');
     window.location.href = '/assistant-login';
   }, []);
 
-  // ===== العودة للمنصة الرئيسية =====
   const handleBackToMain = useCallback(() => {
     window.location.href = '/';
   }, []);
 
   return (
     <>
-      {/* خلفية مظللة للجوال */}
       <AnimatePresence>
         {isOpen && isMobile && (
           <motion.div
@@ -103,7 +97,7 @@ const Sidebar = React.memo(({ isOpen, onClose, assistant, permissions, styles, p
         } ${styles.card} border-l ${styles.border} ${styles.bg} overflow-y-auto flex flex-col shadow-2xl`}
         style={{ direction: 'rtl' }}
       >
-        {/* رأس الشريط الجانبي – مع زر الثيم */}
+        {/* رأس الشريط الجانبي */}
         <div className={`flex items-center justify-between p-3 border-b ${styles.border}`}>
           {!isCollapsed && (
             <motion.div
@@ -116,20 +110,16 @@ const Sidebar = React.memo(({ isOpen, onClose, assistant, permissions, styles, p
             </motion.div>
           )}
           <div className="flex items-center gap-1">
-            {/* زر الثيم – يظهر دائماً */}
             <button
               onClick={onToggleTheme}
               className={`p-1.5 rounded-lg transition hover:bg-white/10 ${styles.subtext}`}
               aria-label={t.themeToggle}
               title={t.themeToggle}
             >
-              {theme === 'dark' ? (
-                <Icons.Sun className="h-4 w-4 text-yellow-400" />
-              ) : (
-                <Icons.Moon className="h-4 w-4 text-gray-600" />
-              )}
+              {theme === 'dark' && <Icons.Moon className="h-4 w-4" />}
+              {theme === 'light' && <Icons.Sun className="h-4 w-4 text-yellow-500" />}
+              {theme === 'green' && <Icons.Sun className="h-4 w-4 text-emerald-500" />}
             </button>
-            {/* زر الطي */}
             <button
               onClick={() => setIsCollapsed(!isCollapsed)}
               className={`p-1 rounded-lg hover:bg-white/10 transition ${styles.subtext}`}
@@ -137,7 +127,6 @@ const Sidebar = React.memo(({ isOpen, onClose, assistant, permissions, styles, p
             >
               {isCollapsed ? <Icons.ChevronLeft className="h-5 w-5" /> : <Icons.ChevronRight className="h-5 w-5" />}
             </button>
-            {/* زر الإغلاق (للجوال) */}
             {isMobile && (
               <button
                 onClick={onClose}
@@ -150,7 +139,7 @@ const Sidebar = React.memo(({ isOpen, onClose, assistant, permissions, styles, p
           </div>
         </div>
 
-        {/* معلومات المساعد (تظهر فقط عند التوسيع) */}
+        {/* معلومات المساعد */}
         {assistant && !isCollapsed && (
           <motion.div
             initial={{ opacity: 0, y: -10 }}
@@ -187,7 +176,6 @@ const Sidebar = React.memo(({ isOpen, onClose, assistant, permissions, styles, p
 
         {/* القائمة */}
         <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
-          {/* لوحة التحكم */}
           <Link
             href="/dashboard/assistant"
             className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 ${
@@ -200,7 +188,6 @@ const Sidebar = React.memo(({ isOpen, onClose, assistant, permissions, styles, p
             {!isCollapsed && <span className="text-sm font-medium">{t.dashboard}</span>}
           </Link>
 
-          {/* الوحدات المسموح بها مع إشعارات */}
           {allowedModules.map((module) => {
             const info = MODULES[module];
             const Icon = info.icon;
@@ -237,7 +224,6 @@ const Sidebar = React.memo(({ isOpen, onClose, assistant, permissions, styles, p
             );
           })}
 
-          {/* روابط إضافية */}
           <Link
             href="/dashboard/assistant/profile"
             className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 ${
@@ -277,7 +263,6 @@ const Sidebar = React.memo(({ isOpen, onClose, assistant, permissions, styles, p
 
         {/* أزرار أسفل الشريط الجانبي */}
         <div className={`p-3 border-t ${styles.border} space-y-2`}>
-          {/* زر العودة للمنصة الرئيسية */}
           <button
             onClick={handleBackToMain}
             className={`flex items-center gap-3 w-full px-3 py-2.5 rounded-xl transition hover:bg-blue-500/20 text-blue-400`}
@@ -286,7 +271,6 @@ const Sidebar = React.memo(({ isOpen, onClose, assistant, permissions, styles, p
             {!isCollapsed && <span className="text-sm font-medium">{t.backToMain}</span>}
           </button>
 
-          {/* زر تسجيل الخروج */}
           <button
             onClick={handleLogout}
             className={`flex items-center gap-3 w-full px-3 py-2.5 rounded-xl transition hover:bg-red-500/20 text-red-400`}
@@ -303,7 +287,7 @@ const Sidebar = React.memo(({ isOpen, onClose, assistant, permissions, styles, p
 Sidebar.displayName = 'Sidebar';
 
 // ================================================================
-// التخطيط الرئيسي (AssistantLayout)
+// التخطيط الرئيسي (AssistantLayout) – مع فتح الشريط افتراضياً
 // ================================================================
 export function AssistantLayout({ children }) {
   const router = useRouter();
@@ -314,7 +298,25 @@ export function AssistantLayout({ children }) {
   const [permissions, setPermissions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const [unreadCounts, setUnreadCounts] = useState({});
+
+  // كشف الشاشات الصغيرة
+  useEffect(() => {
+    const checkMobile = () => {
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+      // على الشاشات الكبيرة، افتح الشريط تلقائياً
+      if (!mobile) {
+        setIsSidebarOpen(true);
+      } else {
+        setIsSidebarOpen(false);
+      }
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // جلب بيانات المساعد والصلاحيات والإشعارات
   useEffect(() => {
@@ -331,7 +333,6 @@ export function AssistantLayout({ children }) {
         const perms = JSON.parse(sessionStorage.getItem('assistantPermissions') || '[]');
         setPermissions(perms);
 
-        // جلب الإشعارات (عدد التذاكر المفتوحة، الرسائل غير المقروءة، إلخ)
         try {
           const res = await fetch('/api/assistant/notifications', {
             headers: { 'x-assistant-id': parsed.id },
@@ -341,7 +342,6 @@ export function AssistantLayout({ children }) {
             setUnreadCounts(data.counts || {});
           }
         } catch (e) {
-          // تجاهل خطأ الإشعارات (غير حرج)
           console.log('Notifications not available');
         }
       } catch (err) {
@@ -355,7 +355,6 @@ export function AssistantLayout({ children }) {
     fetchData();
   }, [router]);
 
-  // تبديل الثيم (يُمرر إلى Sidebar)
   const handleToggleTheme = useCallback(() => {
     toggleTheme();
   }, [toggleTheme]);
@@ -389,22 +388,23 @@ export function AssistantLayout({ children }) {
         theme={theme}
       />
 
-      <div className={`flex-1 transition-all duration-300 md:mr-64`}>
-        {/* الهيدر – بدون زر الثيم (الآن في الشريط الجانبي) */}
+      <div className={`flex-1 transition-all duration-300 ${!isMobile && 'md:mr-64'}`}>
+        {/* الهيدر – فقط زر القائمة للموبايل */}
         <header className={`sticky top-0 z-30 ${styles.card} border-b ${styles.border} px-4 py-3 flex items-center justify-between backdrop-blur-md`}>
           <div className="flex items-center gap-3">
-            <button
-              onClick={() => setIsSidebarOpen(true)}
-              className="md:hidden p-2 rounded-lg hover:bg-white/5 transition"
-              aria-label="فتح القائمة"
-            >
-              <Icons.Menu className="h-5 w-5" />
-            </button>
+            {isMobile && (
+              <button
+                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                className="p-2 rounded-lg hover:bg-white/5 transition"
+                aria-label="فتح القائمة"
+              >
+                <Icons.Menu className="h-5 w-5" />
+              </button>
+            )}
             <span className={`text-sm font-semibold ${styles.subtext}`}>
               مرحباً، {assistant.display_name || assistant.full_name}
             </span>
           </div>
-          {/* تم إزالة زر الثيم من هنا */}
         </header>
 
         <main className="p-4 md:p-6">
