@@ -521,9 +521,9 @@ const CourseCard3D = ({ course, teacher, index }) => {
         </div>
 
         {/* ============================================================== */}
-        {/* 📌 مشبك ورق (Paperclip) – لون موحد */}
+        {/* 📌 مشبك ورق (Paperclip) – لون موحد - z-index عالي جداً */}
         {/* ============================================================== */}
-        <div className="absolute -top-4 -left-2 z-20">
+        <div className="absolute -top-4 -left-2 z-[100]">
           <motion.div
             animate={{
               scale: isHovered ? 1.1 : 1,
@@ -837,15 +837,28 @@ const CoursesCarousel3D = ({ courses, teachers, isDark, loading }) => {
 
   const visibleCourses = courses.slice(0, 8);
 
+  // ============================================================
+  // التعديل: دوال التمرير المحسّنة
+  // ============================================================
   const scrollForward = () => {
     if (containerRef.current) {
-      containerRef.current.scrollBy({ left: cardWidth + 20, behavior: 'smooth' });
+      const currentScroll = containerRef.current.scrollLeft;
+      const targetScroll = currentScroll + cardWidth + 20;
+      containerRef.current.scrollTo({
+        left: targetScroll,
+        behavior: 'smooth',
+      });
     }
   };
 
   const scrollBackward = () => {
     if (containerRef.current) {
-      containerRef.current.scrollBy({ left: -(cardWidth + 20), behavior: 'smooth' });
+      const currentScroll = containerRef.current.scrollLeft;
+      const targetScroll = Math.max(0, currentScroll - (cardWidth + 20));
+      containerRef.current.scrollTo({
+        left: targetScroll,
+        behavior: 'smooth',
+      });
     }
   };
 
