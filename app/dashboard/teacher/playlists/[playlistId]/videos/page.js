@@ -1,4 +1,5 @@
 'use client';
+
 // app/dashboard/teacher/playlists/[playlistId]/videos/page.js
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -101,7 +102,7 @@ const VideoItem = ({ video, index, total, onMoveUp, onMoveDown, onRemove, isDark
 
 export default function TeacherPlaylistVideosPage() {
   const params = useParams();
-  // ⚠️ إذا كان اسم المجلد [id] استخدم params.id
+  // ⚠️ تأكد من اسم المجلد: إذا كان [id] استخدم params.id
   const playlistId = params?.playlistId;
   const router = useRouter();
   const { theme } = useTheme();
@@ -134,7 +135,7 @@ export default function TeacherPlaylistVideosPage() {
     setError(null);
     try {
       const res = await fetch(`/api/playlists/${playlistId}`, {
-        cache: 'no-store', // منع التخزين المؤقت
+        cache: 'no-store',
       });
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
@@ -219,7 +220,9 @@ export default function TeacherPlaylistVideosPage() {
         throw new Error(errData.error || 'فشل في إزالة الفيديو');
       }
       toast.success('تم إزالة الفيديو من القائمة');
+      // تحديث القائمة محلياً
       setVideos((prev) => prev.filter((v) => v.id !== videoId));
+      // تحديث الفيديوهات المتاحة
       fetchAvailableVideos();
     } catch (err) {
       toast.error(err.message);
@@ -246,11 +249,14 @@ export default function TeacherPlaylistVideosPage() {
         const errData = await res.json().catch(() => ({}));
         throw new Error(errData.error || 'فشل في إضافة الفيديو');
       }
+      const data = await res.json();
       toast.success('تم إضافة الفيديو إلى القائمة');
       setSelectedVideoId('');
       setIsAddModalOpen(false);
-      fetchPlaylistData();
-      fetchAvailableVideos();
+      
+      // تحديث القائمة والفيديوهات المتاحة
+      await fetchPlaylistData();
+      await fetchAvailableVideos();
     } catch (err) {
       toast.error(err.message);
     }
@@ -303,7 +309,7 @@ export default function TeacherPlaylistVideosPage() {
       setIsCreateModalOpen(false);
 
       // تحديث قائمة الفيديوهات المتاحة
-      fetchAvailableVideos();
+      await fetchAvailableVideos();
     } catch (err) {
       console.error('❌ Create video error:', err);
       toast.error(err.message || 'حدث خطأ أثناء إنشاء الفيديو');
