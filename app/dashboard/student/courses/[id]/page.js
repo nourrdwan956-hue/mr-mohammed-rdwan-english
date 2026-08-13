@@ -5,6 +5,7 @@
 // ✅ إضافة دعم قوائم التشغيل (Playlists) مع عرض فيديوهاتها
 // ✅ تبويب "فيديوهات" يعرض الفيديوهات الفردية فقط
 // ✅ تبويب "قوائم" يعرض القوائم مع فيديوهاتها (قابلة للتوسيع)
+// ✅ تسجيل الجهاز تلقائياً عند دخول الكورس (للمدفوع فقط)
 // ================================================================
 
 'use client';
@@ -39,7 +40,7 @@ import {
 import { useTheme } from '@/lib/hooks/useTheme';
 import { supabase } from '@/lib/supabaseClient';
 import { toast } from 'react-hot-toast';
-import { checkCourseAccess } from '@/lib/course-access';
+import { checkCourseAccess, registerDeviceIfNeeded } from '@/lib/course-access';
 
 // ================================================================
 // 1. ألوان البطاقات
@@ -487,6 +488,53 @@ export default function StudentCourseDetailsPage() {
   const [isCheckingAccess, setIsCheckingAccess] = useState(false);
 
   const [headerColor, setHeaderColor] = useState(CARD_COLORS[0]);
+
+  // ✅ تسجيل الجهاز تلقائياً عند دخول الطالب إلى صفحة الكورس (بغض النظر عن مشاهدة فيديو)
+  useEffect(() => {
+    const registerDeviceOnCourseEntry = async () => {
+      // التحقق من وجود تسجيل واشتراك
+      if (!enrollment) return;
+      if (!course) return;
+      // ✅ لا نسجل للكورسات المجانية (لأن نظام الأجهزة للكورسات المدفوعة فقط)
+      if (course.is_free) return;
+
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        // التحقق من وجود أجهزة مسجلة للطالب في هذا الكورس
+        const { data: devices, error: devError } = await supabase
+          .from('course_devices')
+          .select('id')
+          .eq('student_id', user.id)
+          .eq('course_id', id)
+          .eq('is_active', true)
+          .limit(1);
+
+        if (devError) {
+          console.warn('Error checking devices:', devError);
+          return;
+        }
+
+        // ✅ إذا لم يكن هناك أجهزة، نسجل الجهاز الحالي فوراً
+        if (!devices || devices.length === 0) {
+          console.log('🔍 No devices found for this course, registering current device...');
+          const result = await registerDeviceIfNeeded(user.id, id);
+          if (result.success) {
+            console.log('✅ Device registered successfully from course page!');
+          } else {
+            console.warn('⚠️ Device registration failed:', result.message);
+          }
+        } else {
+          console.log('✅ Device already registered for this course');
+        }
+      } catch (err) {
+        console.error('❌ Error in auto-register device:', err);
+      }
+    };
+
+    registerDeviceOnCourseEntry();
+  }, [enrollment, course, id]);
 
   // ===== إحصائيات الامتحانات =====
   const examStats = useMemo(() => {
