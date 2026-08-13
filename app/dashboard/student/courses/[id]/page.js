@@ -6,6 +6,7 @@
 // ✅ تبويب "فيديوهات" يعرض الفيديوهات الفردية فقط
 // ✅ تبويب "قوائم" يعرض القوائم مع فيديوهاتها (قابلة للتوسيع)
 // ✅ تسجيل الجهاز تلقائياً عند دخول الكورس (للمدفوع فقط)
+// ✅ إضافة سجلات مفصلة لتتبع عملية تسجيل الجهاز
 // ================================================================
 
 'use client';
@@ -489,20 +490,40 @@ export default function StudentCourseDetailsPage() {
 
   const [headerColor, setHeaderColor] = useState(CARD_COLORS[0]);
 
-  // ✅ تسجيل الجهاز تلقائياً عند دخول الطالب إلى صفحة الكورس (بغض النظر عن مشاهدة فيديو)
+  // ================================================================
+  // 🔥 تسجيل الجهاز تلقائياً عند دخول الطالب إلى صفحة الكورس
+  // (بدون مشاهدة فيديو) مع سجلات مفصلة
+  // ================================================================
   useEffect(() => {
     const registerDeviceOnCourseEntry = async () => {
-      // التحقق من وجود تسجيل واشتراك
-      if (!enrollment) return;
-      if (!course) return;
-      // ✅ لا نسجل للكورسات المجانية (لأن نظام الأجهزة للكورسات المدفوعة فقط)
-      if (course.is_free) return;
+      console.log('🔍 [Device Registration] useEffect triggered');
+      
+      // 1. التحقق من وجود الكورس والتسجيل
+      if (!course) {
+        console.log('⚠️ [Device Registration] No course loaded yet');
+        return;
+      }
+      if (!enrollment) {
+        console.log('⚠️ [Device Registration] No enrollment found');
+        return;
+      }
+      if (course.is_free) {
+        console.log('ℹ️ [Device Registration] Course is FREE, skipping device registration');
+        return;
+      }
+
+      console.log('✅ [Device Registration] Course is paid, proceeding...');
 
       try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
+        // 2. جلب المستخدم الحالي
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        if (userError || !user) {
+          console.error('❌ [Device Registration] Failed to get user:', userError);
+          return;
+        }
+        console.log('👤 [Device Registration] User ID:', user.id);
 
-        // التحقق من وجود أجهزة مسجلة للطالب في هذا الكورس
+        // 3. التحقق من وجود أجهزة مسجلة مسبقاً
         const { data: devices, error: devError } = await supabase
           .from('course_devices')
           .select('id')
@@ -512,29 +533,34 @@ export default function StudentCourseDetailsPage() {
           .limit(1);
 
         if (devError) {
-          console.warn('Error checking devices:', devError);
+          console.error('❌ [Device Registration] Error checking devices:', devError);
           return;
         }
 
-        // ✅ إذا لم يكن هناك أجهزة، نسجل الجهاز الحالي فوراً
-        if (!devices || devices.length === 0) {
-          console.log('🔍 No devices found for this course, registering current device...');
-          const result = await registerDeviceIfNeeded(user.id, id);
-          if (result.success) {
-            console.log('✅ Device registered successfully from course page!');
-          } else {
-            console.warn('⚠️ Device registration failed:', result.message);
-          }
+        if (devices && devices.length > 0) {
+          console.log('✅ [Device Registration] Device already registered for this course');
+          return;
+        }
+
+        // 4. لا يوجد جهاز → نسجله
+        console.log('🔍 [Device Registration] No device found, registering current device...');
+        const result = await registerDeviceIfNeeded(user.id, id);
+        console.log('📝 [Device Registration] RegisterDeviceIfNeeded result:', result);
+
+        if (result.success) {
+          console.log('✅ [Device Registration] Device registered successfully!');
+          toast.success('تم تسجيل جهازك تلقائياً لهذا الكورس');
         } else {
-          console.log('✅ Device already registered for this course');
+          console.warn('⚠️ [Device Registration] Registration failed:', result.message);
+          toast.error('فشل تسجيل الجهاز: ' + result.message);
         }
       } catch (err) {
-        console.error('❌ Error in auto-register device:', err);
+        console.error('❌ [Device Registration] Unexpected error:', err);
       }
     };
 
     registerDeviceOnCourseEntry();
-  }, [enrollment, course, id]);
+  }, [course, enrollment, id]); // يعتمد على course و enrollment للتأكد من تحميلهما
 
   // ===== إحصائيات الامتحانات =====
   const examStats = useMemo(() => {
