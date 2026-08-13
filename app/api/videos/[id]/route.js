@@ -1,41 +1,8 @@
 // app/api/videos/[id]/route.js
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { verifyCourseOwnership } from '@/lib/playlist-utils';
+import { verifyCourseOwnership, ensurePlaylistInVideoPlaylists } from '@/lib/playlist-utils';
 
-// ===================== دالة مساعدة للتحقق من وجود القائمة في video_playlists =====================
-async function ensurePlaylistInVideoPlaylists(supabase, playlistId) {
-  // التحقق من وجود القائمة في video_playlists
-  const { data: existing, error: checkError } = await supabase
-    .from('video_playlists')
-    .select('id')
-    .eq('id', playlistId)
-    .maybeSingle();
-
-  if (checkError) {
-    console.error('❌ Error checking video_playlists:', checkError);
-    return false;
-  }
-
-  if (existing) {
-    return true; // موجود بالفعل
-  }
-
-  // إذا غير موجود، نقوم بإدراجه
-  const { error: insertError } = await supabase
-    .from('video_playlists')
-    .insert({ id: playlistId });
-
-  if (insertError) {
-    console.error('❌ Error inserting into video_playlists:', insertError);
-    return false;
-  }
-
-  console.log(`✅ Inserted playlist ${playlistId} into video_playlists`);
-  return true;
-}
-
-// ===================== GET =====================
 export async function GET(request, { params }) {
   try {
     const { id } = await params;
@@ -122,7 +89,6 @@ export async function GET(request, { params }) {
   }
 }
 
-// ===================== PUT =====================
 export async function PUT(request, { params }) {
   try {
     const { id } = await params;
@@ -229,7 +195,6 @@ export async function PUT(request, { params }) {
       }
     }
 
-    // إذا تم إرسال playlistOrder وكان هناك playlist_id صالح، نقوم بتحديثه
     if (playlistOrder !== undefined && finalPlaylistId !== null) {
       updateData.playlist_order = playlistOrder;
     }
@@ -274,7 +239,6 @@ export async function PUT(request, { params }) {
   }
 }
 
-// ===================== DELETE =====================
 export async function DELETE(request, { params }) {
   try {
     const { id } = await params;

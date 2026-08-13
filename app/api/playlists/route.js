@@ -1,11 +1,12 @@
+// app/api/playlists/route.js
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import {
   getCoursePlaylists,
   verifyCourseOwnership,
+  ensurePlaylistInVideoPlaylists,
 } from '@/lib/playlist-utils';
 
-// GET: جلب جميع قوائم التشغيل لكورس معين
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -47,7 +48,6 @@ export async function GET(request) {
   }
 }
 
-// POST: إنشاء قائمة تشغيل جديدة
 export async function POST(request) {
   try {
     const body = await request.json();
@@ -94,7 +94,7 @@ export async function POST(request) {
       finalOrder = existing?.length || 0;
     }
 
-    // إدراج القائمة في جدول playlists
+    // 1. إدراج القائمة في playlists
     const { data: playlist, error: playlistError } = await supabase
       .from('playlists')
       .insert({
@@ -114,21 +114,11 @@ export async function POST(request) {
       );
     }
 
-    // ✅ بعد إنشاء القائمة في playlists، نقوم بإدراج سجل في video_playlists بنفس المعرف
-    // هذا يضمن عدم انتهاك القيد الخارجي عند ربط الفيديوهات
-    const { error: vpError } = await supabase
-      .from('video_playlists')
-      .insert({
-        id: playlist.id, // نفس معرف القائمة
-        // إذا كان هناك أعمدة أخرى مطلوبة مثل course_id، نضيفها هنا
-        // لكن من هيكل الجدول يبدو أنه يحتوي فقط على id
-      });
-
-    if (vpError) {
-      console.error('❌ Error inserting into video_playlists:', vpError);
-      // لا نعيد خطأ للمستخدم، فقط نسجل، لأن القائمة تم إنشاؤها بالفعل
-      // لكن يمكننا محاولة حذف القائمة إذا فشل الإدراج في video_playlists
-      // أو نتركها ونكتفي بتسجيل الخطأ
+    // 2. التأكد من وجود القائمة في video_playlists (باستخدام الدالة المعدلة)
+    const ensured = await ensurePlaylistInVideoPlaylists(supabase, playlist.id);
+    if (!ensured) {
+      console.warn(`⚠️ Could not ensure playlist ${playlist.id} in video_playlists`);
+      // لا نعيد خطأ، بل نسجل فقط
     }
 
     return NextResponse.json(
