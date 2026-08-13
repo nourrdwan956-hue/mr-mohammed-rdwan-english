@@ -5,6 +5,7 @@
 // ✅ تقليل المسافات العمودية لتقليل الحاجة للتمرير
 // ✅ تحسين التمرير ليكون سلساً وسريعاً
 // ✅ تنسيق متوازن للفراغات على جميع الأحجام
+// ✅ إصلاح التقدم: يعتمد على الامتحانات المجتازة بدلاً من الفيديوهات
 // ================================================================
 
 'use client';
@@ -344,7 +345,7 @@ const StatCard = memo(({ icon: Icon, label, value, styles, delay = 0 }) => {
 StatCard.displayName = 'StatCard';
 
 // ================================================================
-// 6. بطاقة كورس
+// 6. بطاقة كورس (معدلة: تستقبل progress محسوب من الامتحانات)
 // ================================================================
 const CourseCard = memo(({ course, progress, styles, language }) => {
   const router = useRouter();
@@ -725,7 +726,7 @@ const TipCarousel = memo(({ language, styles }) => {
 TipCarousel.displayName = 'TipCarousel';
 
 // ================================================================
-// 10. نظام التخزين المؤقت (Cache)
+// 10. نظام التخزين المؤقت (Cache) – معدل لتخزين progressMap
 // ================================================================
 const CACHE_KEY = 'dashboard_data_cache';
 const CACHE_EXPIRY_MS = 5 * 60 * 1000;
@@ -771,6 +772,7 @@ export default function StudentDashboard() {
   });
   const [loading, setLoading] = useState(true);
   const [daysSinceJoin, setDaysSinceJoin] = useState(0);
+  const [courseProgressMap, setCourseProgressMap] = useState({}); // 🔥 حالة جديدة لتخزين التقدم المحسوب
   const fetchedRef = useRef(false);
   const cacheUsedRef = useRef(false);
 
@@ -780,7 +782,7 @@ export default function StudentDashboard() {
 
   const { isMobile, isDesktop } = useDevice();
 
-  // دوال جلب البيانات (بدون تغيير)
+  // دوال مساعدة
   const looksLikeEmailOrUsername = (text) => {
     if (!text) return true;
     if (text.includes('@')) return true;
@@ -804,15 +806,18 @@ export default function StudentDashboard() {
     return currentProfile;
   }, []);
 
+  // ===== جلب البيانات (معدل لحساب التقدم من الامتحانات) =====
   const fetchData = useCallback(async (userId, useCache = true) => {
     if (useCache) {
       const cached = getCachedData();
       if (cached && cached.userId === userId) {
-        const { user: cachedUser, enrollments: cachedEnrolls, courses: cachedCourses,
-                upcomingExams: cachedExams, recentActivity: cachedActivity,
-                announcements: cachedAnns, messages: cachedMsgs, latestNote: cachedNote,
-                stats: cachedStats, daysSinceJoin: cachedDays, notificationsEnabled: cachedNotif,
-                teacherId: cachedTeacherId } = cached;
+        const {
+          user: cachedUser, enrollments: cachedEnrolls, courses: cachedCourses,
+          upcomingExams: cachedExams, recentActivity: cachedActivity,
+          announcements: cachedAnns, messages: cachedMsgs, latestNote: cachedNote,
+          stats: cachedStats, daysSinceJoin: cachedDays, notificationsEnabled: cachedNotif,
+          teacherId: cachedTeacherId, courseProgressMap: cachedProgressMap
+        } = cached;
         setUser(cachedUser);
         setEnrollments(cachedEnrolls || []);
         setCourses(cachedCourses || []);
@@ -825,6 +830,7 @@ export default function StudentDashboard() {
         setDaysSinceJoin(cachedDays || 0);
         setNotificationsEnabled(cachedNotif ?? true);
         setTeacherId(cachedTeacherId || null);
+        setCourseProgressMap(cachedProgressMap || {}); // 🔥 استعادة التقدم المخزن
         setLoading(false);
         cacheUsedRef.current = true;
         return true;
@@ -865,6 +871,7 @@ export default function StudentDashboard() {
       const joinDays = getDaysSinceJoin(profile?.created_at || profile?.updated_at || new Date().toISOString());
       setDaysSinceJoin(joinDays);
 
+      // 1. جلب التسجيلات
       const { data: enrolls } = await supabase
         .from('enrollments')
         .select('*, courses(*)')
@@ -878,6 +885,7 @@ export default function StudentDashboard() {
         setTeacherId(validEnrolls[0].courses.teacher_id);
       }
 
+      // 2. إحصائيات (فيديوهات، امتحانات) – نتركها كما هي
       const [compVids, attemptedExams] = await Promise.all([
         supabase.from('watch_history').select('id', { count: 'exact', head: true }).eq('student_id', userId).eq('completed', true),
         supabase.from('exam_attempts').select('score, total_marks').eq('student_id', userId)
@@ -894,6 +902,7 @@ export default function StudentDashboard() {
       };
       setStats(newStats);
 
+      // 3. الامتحانات القادمة
       if (validEnrolls.length) {
         const courseIds = validEnrolls.map(e => e.course_id);
         const { data: exams } = await supabase
@@ -906,6 +915,7 @@ export default function StudentDashboard() {
         setUpcomingExams(exams || []);
       }
 
+      // 4. النشاط الحديث (فيديوهات وامتحانات)
       const [recentWatch, examAttempts] = await Promise.all([
         supabase.from('watch_history').select('id, progress, completed, watched_at, video:videos(title)').eq('student_id', userId).order('watched_at', { ascending: false }).limit(5),
         supabase.from('exam_attempts').select('id, score, total_marks, created_at, exam:exams(title)').eq('student_id', userId).order('created_at', { ascending: false }).limit(5)
@@ -915,6 +925,7 @@ export default function StudentDashboard() {
       const allActivity = [...videoActivity, ...examActivity].filter(item => item.date).sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 5);
       setRecentActivity(allActivity);
 
+      // 5. الإعلانات
       const { data: anns, error: annError } = await supabase
         .from('announcements')
         .select(`
@@ -934,6 +945,7 @@ export default function StudentDashboard() {
       });
       setAnnouncements(processedAnns);
 
+      // 6. الرسائل
       const teacherIdFromState = validEnrolls.length > 0 && validEnrolls[0].courses?.teacher_id;
       let msgs = [];
       if (teacherIdFromState) {
@@ -948,9 +960,69 @@ export default function StudentDashboard() {
       }
       setMessages(msgs);
 
+      // 7. الملاحظات
       const note = await getLatestNote();
       setLatestNote(note);
 
+      // ============================================================
+      // 🔥 حساب التقدم لكل كورس بناءً على الامتحانات
+      // ============================================================
+      const progressMap = {};
+      if (validEnrolls.length > 0) {
+        const courseIds = validEnrolls.map(e => e.course_id);
+        // جلب جميع الامتحانات لهذه الكورسات
+        const { data: allExams } = await supabase
+          .from('exams')
+          .select('id, course_id, passing_marks, total_marks')
+          .in('course_id', courseIds);
+        const examsByCourse = {};
+        allExams?.forEach(exam => {
+          if (!examsByCourse[exam.course_id]) examsByCourse[exam.course_id] = [];
+          examsByCourse[exam.course_id].push(exam);
+        });
+
+        // جلب جميع محاولات الطالب لهذه الامتحانات
+        const examIds = allExams?.map(e => e.id) || [];
+        const { data: attempts } = await supabase
+          .from('exam_attempts')
+          .select('exam_id, score, total_marks, passed, status')
+          .eq('student_id', userId)
+          .in('exam_id', examIds)
+          .eq('status', 'completed');
+
+        // تجميع المحاولات (الأحدث/الأعلى درجة لكل امتحان)
+        const bestAttempts = {};
+        attempts?.forEach(att => {
+          const existing = bestAttempts[att.exam_id];
+          if (!existing || att.score > existing.score) {
+            bestAttempts[att.exam_id] = att;
+          }
+        });
+
+        // حساب التقدم لكل كورس
+        for (const courseId of courseIds) {
+          const courseExams = examsByCourse[courseId] || [];
+          const total = courseExams.length;
+          if (total === 0) {
+            progressMap[courseId] = 0;
+            continue;
+          }
+          let passedCount = 0;
+          courseExams.forEach(exam => {
+            const att = bestAttempts[exam.id];
+            if (att) {
+              // تحديد النجاح: إما من حقل passed أو مقارنة score مع passing_marks
+              const isPassed = att.passed === true || (att.score >= (exam.passing_marks || 0));
+              if (isPassed) passedCount++;
+            }
+          });
+          const progress = (passedCount / total) * 100;
+          progressMap[courseId] = Math.min(progress, 100);
+        }
+      }
+      setCourseProgressMap(progressMap);
+
+      // 8. حفظ الكاش مع progressMap
       const cacheData = {
         userId,
         user: profile,
@@ -965,6 +1037,7 @@ export default function StudentDashboard() {
         daysSinceJoin: joinDays,
         notificationsEnabled: profile?.notifications_enabled ?? true,
         teacherId: teacherIdFromState || null,
+        courseProgressMap: progressMap, // 🔥 حفظ التقدم
       };
       setCachedData(cacheData);
       setLoading(false);
@@ -1137,7 +1210,7 @@ export default function StudentDashboard() {
               <AnnouncementsCard announcements={announcements} styles={styles} language={language} />
             </div>
 
-            {/* كورساتي النشطة */}
+            {/* كورساتي النشطة – تعرض progress محسوب من الامتحانات */}
             <div>
               <div className="flex justify-between items-center mb-1.5 xs:mb-2 sm:mb-3">
                 <h2 className={`text-base xs:text-lg sm:text-xl font-black ${styles.text} flex items-center gap-1.5 xs:gap-2`}>
@@ -1151,7 +1224,8 @@ export default function StudentDashboard() {
               {courses.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 xs:gap-3 sm:gap-4">
                   {courses.slice(0, 4).map(course => {
-                    const progress = enrollments.find(e => e.course_id === course.id)?.progress || 0;
+                    // 🔥 استخدام التقدم المحسوب من courseProgressMap
+                    const progress = courseProgressMap[course.id] || 0;
                     return <CourseCard key={course.id} course={course} progress={progress} styles={styles} language={language} />;
                   })}
                 </div>
@@ -1210,7 +1284,7 @@ export default function StudentDashboard() {
           </div>
         </div>
 
-        {/* ===== روابط سريعة – معدلة لظهور كامل ===== */}
+        {/* ===== روابط سريعة ===== */}
         <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5 xs:gap-2 sm:gap-3 lg:gap-4">
           {[
             { href: '/dashboard/student/courses', icon: Search, label: { ar: 'كورسات', en: 'Courses' } },
