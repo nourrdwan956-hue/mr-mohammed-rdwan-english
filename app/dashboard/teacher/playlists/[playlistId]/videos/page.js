@@ -2,7 +2,7 @@
 
 // app/dashboard/teacher/playlists/[playlistId]/videos/page.js
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useTheme } from '@/lib/hooks/useTheme';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -19,6 +19,10 @@ import {
   GripVertical,
   ExternalLink,
   AlertCircle,
+  Clock,
+  SortAsc,
+  SortDesc,
+  Calendar,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -45,8 +49,18 @@ const Modal = ({ isOpen, onClose, title, children }) => {
   );
 };
 
-// مكون عرض فيديو في القائمة مع أزرار التحكم
+// مكون عرض فيديو في القائمة
 const VideoItem = ({ video, index, total, onMoveUp, onMoveDown, onRemove, isDark }) => {
+  // تنسيق المدة من ثواني إلى HH:MM:SS
+  const formatDuration = (seconds) => {
+    if (!seconds || seconds === 0) return 'غير محدد';
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = Math.floor(seconds % 60);
+    if (h > 0) return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  };
+
   return (
     <motion.div
       layout
@@ -63,9 +77,18 @@ const VideoItem = ({ video, index, total, onMoveUp, onMoveDown, onRemove, isDark
       </div>
       <div className="flex-1 min-w-0">
         <h4 className="font-medium truncate">{video.title}</h4>
-        <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-          {video.duration ? `المدة: ${video.duration}s` : 'بدون مدة'}
-        </p>
+        <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+          {video.duration && video.duration > 0 ? (
+            <span className="flex items-center gap-1">
+              <Clock className="w-3 h-3" /> {formatDuration(video.duration)}
+            </span>
+          ) : null}
+          {video.created_at && (
+            <span className="flex items-center gap-1">
+              <Calendar className="w-3 h-3" /> {new Date(video.created_at).toLocaleDateString('ar-EG')}
+            </span>
+          )}
+        </div>
       </div>
       <div className="flex items-center gap-1">
         <button
@@ -102,29 +125,36 @@ const VideoItem = ({ video, index, total, onMoveUp, onMoveDown, onRemove, isDark
 
 export default function TeacherPlaylistVideosPage() {
   const params = useParams();
-  // ⚠️ تأكد من اسم المجلد: إذا كان [id] استخدم params.id
   const playlistId = params?.playlistId;
   const router = useRouter();
   const { theme } = useTheme();
   const isDark = theme === 'dark';
 
+  // حالات البيانات
   const [playlist, setPlaylist] = useState(null);
   const [videos, setVideos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // حالات المودال
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
+  // حالات الفورم
   const [availableVideos, setAvailableVideos] = useState([]);
   const [selectedVideoId, setSelectedVideoId] = useState('');
   const [newVideoTitle, setNewVideoTitle] = useState('');
   const [newVideoDescription, setNewVideoDescription] = useState('');
   const [newVideoUrl, setNewVideoUrl] = useState('');
   const [newVideoDisplayMode, setNewVideoDisplayMode] = useState('platform');
+  const [newVideoDuration, setNewVideoDuration] = useState(''); // ✅ حقل المدة
+
+  // حالة الفرز
+  const [sortMode, setSortMode] = useState('custom'); // 'custom' | 'newest' | 'oldest'
 
   const fetchedRef = useRef(false);
 
+  // جلب بيانات القائمة
   const fetchPlaylistData = useCallback(async () => {
     if (!playlistId) {
       setLoading(false);
@@ -134,9 +164,7 @@ export default function TeacherPlaylistVideosPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/playlists/${playlistId}`, {
-        cache: 'no-store',
-      });
+      const res = await fetch(`/api/playlists/${playlistId}`, { cache: 'no-store' });
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
         throw new Error(errorData.error || 'فشل في جلب بيانات القائمة');
@@ -154,6 +182,7 @@ export default function TeacherPlaylistVideosPage() {
     }
   }, [playlistId]);
 
+  // جلب الفيديوهات المتاحة (غير المرتبطة بقائمة)
   const fetchAvailableVideos = useCallback(async () => {
     if (!playlist) return;
     try {
@@ -182,6 +211,8 @@ export default function TeacherPlaylistVideosPage() {
   useEffect(() => {
     if (playlist) fetchAvailableVideos();
   }, [playlist, fetchAvailableVideos]);
+
+  // ========== دوال إدارة الفيديوهات ==========
 
   const handleMoveVideo = async (index, direction) => {
     const newIndex = direction === 'up' ? index - 1 : index + 1;
@@ -220,9 +251,7 @@ export default function TeacherPlaylistVideosPage() {
         throw new Error(errData.error || 'فشل في إزالة الفيديو');
       }
       toast.success('تم إزالة الفيديو من القائمة');
-      // تحديث القائمة محلياً
       setVideos((prev) => prev.filter((v) => v.id !== videoId));
-      // تحديث الفيديوهات المتاحة
       fetchAvailableVideos();
     } catch (err) {
       toast.error(err.message);
@@ -249,12 +278,9 @@ export default function TeacherPlaylistVideosPage() {
         const errData = await res.json().catch(() => ({}));
         throw new Error(errData.error || 'فشل في إضافة الفيديو');
       }
-      const data = await res.json();
       toast.success('تم إضافة الفيديو إلى القائمة');
       setSelectedVideoId('');
       setIsAddModalOpen(false);
-      
-      // تحديث القائمة والفيديوهات المتاحة
       await fetchPlaylistData();
       await fetchAvailableVideos();
     } catch (err) {
@@ -273,6 +299,9 @@ export default function TeacherPlaylistVideosPage() {
       return;
     }
 
+    // تحويل المدة إلى رقم
+    const duration = parseInt(newVideoDuration) || 0;
+
     try {
       const payload = {
         courseId: playlist.course_id,
@@ -280,7 +309,7 @@ export default function TeacherPlaylistVideosPage() {
         description: newVideoDescription.trim() || null,
         videoUrl: newVideoUrl.trim(),
         displayMode: newVideoDisplayMode,
-        duration: 0,
+        duration: duration,
         playlistId: playlistId,
         playlistOrder: videos.length,
       };
@@ -297,7 +326,6 @@ export default function TeacherPlaylistVideosPage() {
         throw new Error(data.error || 'فشل في إنشاء الفيديو');
       }
 
-      // ✅ إضافة الفيديو الجديد إلى القائمة المحلية مباشرة
       const newVideo = data.data;
       setVideos((prev) => [...prev, newVideo]);
 
@@ -306,9 +334,9 @@ export default function TeacherPlaylistVideosPage() {
       setNewVideoDescription('');
       setNewVideoUrl('');
       setNewVideoDisplayMode('platform');
+      setNewVideoDuration('');
       setIsCreateModalOpen(false);
 
-      // تحديث قائمة الفيديوهات المتاحة
       await fetchAvailableVideos();
     } catch (err) {
       console.error('❌ Create video error:', err);
@@ -316,6 +344,19 @@ export default function TeacherPlaylistVideosPage() {
     }
   };
 
+  // ========== دوال الفرز ==========
+  const getSortedVideos = useMemo(() => {
+    if (sortMode === 'custom') {
+      return [...videos]; // حسب playlist_order (الترتيب المخصص)
+    } else if (sortMode === 'newest') {
+      return [...videos].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    } else if (sortMode === 'oldest') {
+      return [...videos].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+    }
+    return videos;
+  }, [videos, sortMode]);
+
+  // ========== دوال التنقل ==========
   const goBack = () => {
     if (playlist?.course_id) {
       router.push(`/dashboard/teacher/courses/${playlist.course_id}/playlists`);
@@ -324,6 +365,7 @@ export default function TeacherPlaylistVideosPage() {
     }
   };
 
+  // ========== ستايلات الثيم ==========
   const bg = isDark ? 'bg-gray-900' : 'bg-gray-50';
   const text = isDark ? 'text-white' : 'text-gray-900';
   const cardBg = isDark ? 'bg-gray-800' : 'bg-white';
@@ -331,6 +373,7 @@ export default function TeacherPlaylistVideosPage() {
   const inputBg = isDark ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300';
   const labelColor = isDark ? 'text-gray-300' : 'text-gray-700';
 
+  // ========== حالات الخطأ والتحميل ==========
   if (!playlistId) {
     return (
       <div className={`min-h-screen ${bg} ${text} p-6 flex items-center justify-center`}>
@@ -371,9 +414,11 @@ export default function TeacherPlaylistVideosPage() {
     );
   }
 
+  // ========== واجهة الصفحة ==========
   return (
     <div className={`min-h-screen ${bg} ${text} p-6 transition-colors duration-300`}>
       <div className="max-w-5xl mx-auto">
+        {/* شريط العنوان */}
         <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
           <div className="flex items-center gap-3">
             <button onClick={goBack} className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition">
@@ -386,15 +431,52 @@ export default function TeacherPlaylistVideosPage() {
               )}
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* أزرار الفرز */}
+            <div className="flex items-center gap-1 bg-gray-200 dark:bg-gray-700 rounded-lg p-1">
+              <button
+                onClick={() => setSortMode('custom')}
+                className={`px-3 py-1.5 text-xs rounded-md transition ${
+                  sortMode === 'custom'
+                    ? 'bg-amber-500 text-white'
+                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+                }`}
+                title="الترتيب المخصص"
+              >
+                <GripVertical className="w-3 h-3 inline" /> مخصص
+              </button>
+              <button
+                onClick={() => setSortMode('newest')}
+                className={`px-3 py-1.5 text-xs rounded-md transition flex items-center gap-1 ${
+                  sortMode === 'newest'
+                    ? 'bg-amber-500 text-white'
+                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+                }`}
+                title="الأحدث أولاً"
+              >
+                <SortDesc className="w-3 h-3" /> الأحدث
+              </button>
+              <button
+                onClick={() => setSortMode('oldest')}
+                className={`px-3 py-1.5 text-xs rounded-md transition flex items-center gap-1 ${
+                  sortMode === 'oldest'
+                    ? 'bg-amber-500 text-white'
+                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+                }`}
+                title="الأقدم أولاً"
+              >
+                <SortAsc className="w-3 h-3" /> الأقدم
+              </button>
+            </div>
+
             <button
               onClick={() => {
                 setSelectedVideoId('');
                 setIsAddModalOpen(true);
               }}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg shadow transition"
+              className="flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg shadow transition text-sm"
             >
-              <Plus className="w-5 h-5" /> إضافة فيديو موجود
+              <Plus className="w-4 h-4" /> إضافة فيديو موجود
             </button>
             <button
               onClick={() => {
@@ -402,17 +484,19 @@ export default function TeacherPlaylistVideosPage() {
                 setNewVideoDescription('');
                 setNewVideoUrl('');
                 setNewVideoDisplayMode('platform');
+                setNewVideoDuration('');
                 setIsCreateModalOpen(true);
               }}
-              className="flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg shadow transition"
+              className="flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg shadow transition text-sm"
             >
-              <Plus className="w-5 h-5" /> فيديو جديد
+              <Plus className="w-4 h-4" /> فيديو جديد
             </button>
           </div>
         </div>
 
+        {/* إحصائيات سريعة */}
         <div className={`${cardBg} rounded-lg p-4 mb-6 border ${borderColor}`}>
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-6 flex-wrap">
             <div className="flex items-center gap-2">
               <Video className="w-5 h-5 text-amber-500" />
               <span className="font-medium">{videos.length} فيديو</span>
@@ -421,10 +505,26 @@ export default function TeacherPlaylistVideosPage() {
               <ListVideo className="w-4 h-4" />
               <span>القائمة: {playlist.title}</span>
             </div>
+            {sortMode === 'custom' && (
+              <span className="text-xs text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded-full">
+                ترتيب مخصص
+              </span>
+            )}
+            {sortMode === 'newest' && (
+              <span className="text-xs text-blue-500 bg-blue-500/10 px-2 py-0.5 rounded-full">
+                الأحدث أولاً
+              </span>
+            )}
+            {sortMode === 'oldest' && (
+              <span className="text-xs text-green-500 bg-green-500/10 px-2 py-0.5 rounded-full">
+                الأقدم أولاً
+              </span>
+            )}
           </div>
         </div>
 
-        {videos.length === 0 ? (
+        {/* قائمة الفيديوهات */}
+        {getSortedVideos.length === 0 ? (
           <div className="text-center py-16">
             <Video className="w-16 h-16 text-gray-400 mx-auto mb-4" />
             <p className="text-gray-500 dark:text-gray-400 text-lg">لا توجد فيديوهات في هذه القائمة</p>
@@ -433,12 +533,12 @@ export default function TeacherPlaylistVideosPage() {
         ) : (
           <div className="space-y-3">
             <AnimatePresence>
-              {videos.map((video, idx) => (
+              {getSortedVideos.map((video, idx) => (
                 <VideoItem
                   key={video.id}
                   video={video}
                   index={idx}
-                  total={videos.length}
+                  total={getSortedVideos.length}
                   onMoveUp={(i) => handleMoveVideo(i, 'up')}
                   onMoveDown={(i) => handleMoveVideo(i, 'down')}
                   onRemove={handleRemoveVideo}
@@ -455,6 +555,7 @@ export default function TeacherPlaylistVideosPage() {
         </div>
       </div>
 
+      {/* ========== مودال إضافة فيديو موجود ========== */}
       <Modal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} title="إضافة فيديو موجود إلى القائمة">
         <form onSubmit={handleAddExistingVideo} className="space-y-4">
           <div>
@@ -468,7 +569,7 @@ export default function TeacherPlaylistVideosPage() {
               <option value="">-- اختر فيديو --</option>
               {availableVideos.map((video) => (
                 <option key={video.id} value={video.id}>
-                  {video.title}
+                  {video.title} {video.duration ? `(${Math.floor(video.duration / 60)}د)` : ''}
                 </option>
               ))}
             </select>
@@ -497,6 +598,7 @@ export default function TeacherPlaylistVideosPage() {
         </form>
       </Modal>
 
+      {/* ========== مودال إنشاء فيديو جديد (مع حقل المدة) ========== */}
       <Modal isOpen={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} title="إنشاء فيديو جديد وإضافته للقائمة">
         <form onSubmit={handleCreateVideo} className="space-y-4">
           <div>
@@ -530,6 +632,19 @@ export default function TeacherPlaylistVideosPage() {
               placeholder="https://example.com/video.mp4"
               required
             />
+          </div>
+          <div>
+            <label className={`block text-sm font-medium ${labelColor} mb-1`}>المدة (بالثواني - اختياري)</label>
+            <input
+              type="number"
+              value={newVideoDuration}
+              onChange={(e) => setNewVideoDuration(e.target.value)}
+              className={`w-full px-3 py-2 rounded-lg border ${inputBg} focus:ring-2 focus:ring-amber-500 outline-none transition`}
+              placeholder="مثال: 3600 (لـ 1 ساعة)"
+              min="0"
+              step="1"
+            />
+            <p className="text-xs text-gray-400 mt-1">اتركه فارغاً إذا كنت لا تعرف المدة، ستظهر كـ 0</p>
           </div>
           <div>
             <label className={`block text-sm font-medium ${labelColor} mb-1`}>وضع العرض</label>
