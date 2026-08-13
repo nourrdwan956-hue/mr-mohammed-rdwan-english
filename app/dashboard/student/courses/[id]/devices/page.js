@@ -158,7 +158,8 @@ const DeviceCard = ({ device, isCurrentDevice, onDelete, styles, language, isDar
             </div>
           </div>
           <div className="flex flex-row sm:flex-col gap-1.5 flex-shrink-0 self-start sm:self-center">
-            {device.is_active && !isCurrentDevice && (
+            {/* زر الحذف – معطل للجهاز الأساسي */}
+            {device.is_active && !isCurrentDevice && !device.is_primary && (
               <button
                 onClick={() => onDelete(device.id)}
                 className={`p-1.5 rounded-lg transition ${isDark ? 'hover:bg-red-500/20 text-red-400' : 'hover:bg-red-100 text-red-600'}`}
@@ -167,7 +168,16 @@ const DeviceCard = ({ device, isCurrentDevice, onDelete, styles, language, isDar
                 <Icons.Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               </button>
             )}
-            {isCurrentDevice && (
+            {/* إذا كان الجهاز أساسياً، نعرض أيقونة قفل مع تلميح */}
+            {device.is_primary && (
+              <div
+                className="p-1.5 rounded-lg text-yellow-400"
+                title={language === 'ar' ? 'جهاز أساسي لا يمكن حذفه' : 'Primary device cannot be removed'}
+              >
+                <Icons.Lock className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              </div>
+            )}
+            {isCurrentDevice && !device.is_primary && (
               <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400">
                 <Icons.Check className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               </div>

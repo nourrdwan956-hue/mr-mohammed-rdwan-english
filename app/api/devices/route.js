@@ -1,5 +1,3 @@
-
-
 // app/api/devices/route.js
 // API لإدارة أجهزة الطلاب (جلب، حذف، تحديث الحالة)
 // يدعم: الطالب (أجهزته الخاصة) والمعلم (أجهزة طلابه في كورساته)
@@ -118,7 +116,7 @@ export async function GET(request) {
 }
 
 // ================================================================
-// 🗑️ DELETE – حذف جهاز
+// 🗑️ DELETE – إلغاء تنشيط جهاز (بدلاً من الحذف الفعلي)
 // ================================================================
 export async function DELETE(request) {
   try {
@@ -132,7 +130,6 @@ export async function DELETE(request) {
       );
     }
 
-    // قراءة معرف الجهاز من جسم الطلب أو من معاملات الاستعلام
     const body = await request.json().catch(() => ({}));
     const deviceId = body.deviceId || new URL(request.url).searchParams.get('deviceId');
 
@@ -143,12 +140,13 @@ export async function DELETE(request) {
       );
     }
 
-    // جلب معلومات الجهاز للتحقق من الملكية
+    // جلب معلومات الجهاز
     const { data: device, error: deviceError } = await supabase
       .from('course_devices')
       .select(`
         id,
         student_id,
+        is_primary,
         course:course_id (teacher_id)
       `)
       .eq('id', deviceId)
@@ -161,45 +159,55 @@ export async function DELETE(request) {
       );
     }
 
-    // التحقق من الصلاحية: الطالب يحذف جهازه الخاص، أو المعلم يحذف جهاز طالب في كورسه
+    // التحقق من الصلاحية
     const isOwner = device.student_id === user.id;
     const isTeacher = device.course?.teacher_id === user.id;
-
     if (!isOwner && !isTeacher) {
       return NextResponse.json(
-        { success: false, error: 'غير مصرح لك بحذف هذا الجهاز' },
+        { success: false, error: 'غير مصرح لك' },
         { status: 403 }
       );
     }
 
-    // حذف الجهاز
-    const { error: deleteError } = await supabase
+    // ⛔ منع حذف الجهاز الأساسي
+    if (device.is_primary === true) {
+      return NextResponse.json(
+        { success: false, error: 'لا يمكن حذف الجهاز الأساسي' },
+        { status: 403 }
+      );
+    }
+
+    // ✅ تحديث الحالة إلى غير نشط (بدلاً من الحذف الفعلي)
+    const { error: updateError } = await supabase
       .from('course_devices')
-      .delete()
+      .update({
+        is_active: false,
+        updated_at: new Date().toISOString(),
+      })
       .eq('id', deviceId);
 
-    if (deleteError) {
-      console.error('Error deleting device:', deleteError);
+    if (updateError) {
+      console.error('Error deactivating device:', updateError);
       return NextResponse.json(
-        { success: false, error: 'حدث خطأ أثناء حذف الجهاز' },
+        { success: false, error: 'حدث خطأ أثناء إلغاء تنشيط الجهاز' },
         { status: 500 }
       );
     }
 
-    // تسجيل النشاط (اختياري)
+    // تسجيل النشاط
     await supabase
       .from('course_access_logs')
       .insert({
         student_id: device.student_id,
         course_id: device.course?.id || null,
-        device_fingerprint: 'deleted',
-        access_status: 'device_deleted',
+        device_fingerprint: 'deactivated',
+        access_status: 'device_deactivated',
         created_at: new Date().toISOString(),
       });
 
     return NextResponse.json({
       success: true,
-      message: 'تم حذف الجهاز بنجاح',
+      message: 'تم إلغاء تنشيط الجهاز بنجاح',
       deviceId,
     });
 

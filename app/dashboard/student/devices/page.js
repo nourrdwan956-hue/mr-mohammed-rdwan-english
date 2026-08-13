@@ -94,7 +94,7 @@ const WaveBorderCard = ({ children, className = '', initialColor = 'blue', onCol
 };
 
 // ================================================================
-// مكون بطاقة الجهاز – مضغوط ومتجاوب
+// مكون بطاقة الجهاز – مضغوط ومتجاوب (مع منع حذف الأساسي)
 // ================================================================
 const DeviceCard = ({ device, courseTitle, isCurrentDevice, onDelete, styles, language, isDark }) => {
   const [isHovered, setIsHovered] = useState(false);
@@ -164,7 +164,17 @@ const DeviceCard = ({ device, courseTitle, isCurrentDevice, onDelete, styles, la
             </div>
           </div>
           <div className="flex flex-row sm:flex-col gap-1.5 flex-shrink-0 self-start sm:self-center">
-            {device.is_active && !isCurrentDevice && (
+            {/* إذا كان الجهاز أساسياً → عرض قفل (يمنع الحذف) */}
+            {device.is_primary && (
+              <div
+                className="p-1.5 rounded-lg text-yellow-400"
+                title={language === 'ar' ? 'جهاز أساسي لا يمكن حذفه' : 'Primary device cannot be removed'}
+              >
+                <Icons.Lock className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              </div>
+            )}
+            {/* إذا لم يكن أساسياً: زر حذف إذا كان نشطاً وليس الجهاز الحالي */}
+            {!device.is_primary && device.is_active && !isCurrentDevice && (
               <button
                 onClick={() => onDelete(device.id)}
                 className={`p-1.5 rounded-lg transition ${isDark ? 'hover:bg-red-500/20 text-red-400' : 'hover:bg-red-100 text-red-600'}`}
@@ -173,7 +183,8 @@ const DeviceCard = ({ device, courseTitle, isCurrentDevice, onDelete, styles, la
                 <Icons.Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               </button>
             )}
-            {isCurrentDevice && (
+            {/* إذا لم يكن أساسياً وهو الجهاز الحالي → عرض علامة صح */}
+            {!device.is_primary && isCurrentDevice && (
               <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400">
                 <Icons.Check className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               </div>
