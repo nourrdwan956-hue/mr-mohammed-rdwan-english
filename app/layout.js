@@ -5,15 +5,74 @@ import { DeviceProvider } from '@/app/context/DeviceContext';
 import { Toaster } from 'react-hot-toast';
 
 export const metadata = {
-  title: 'منصة محمد رضوان التعليمية',
-  description: 'منصة تعليمية متكاملة تجمع بين أحدث التقنيات وأعلى معايير الجودة',
-  keywords: 'تعليم, منصة تعليمية, محمد رضوان, كورسات, فيديوهات, امتحانات',
+  // ✅ العنوان المطلوب: "منصة محمد رضوان" (بدون كلمة "التعليمية" لتكون مختصرة)
+  title: 'منصة محمد رضوان',
+  
+  // ✅ الوصف المطلوب: "منصة تعليم اللغة الإنجليزية بطريقة سهلة ومبسطة"
+  description: 'منصة تعليم اللغة الإنجليزية بطريقة سهلة ومبسطة',
+  
+  // ✅ كلمات مفتاحية محسنة
+  keywords: 'تعليم, منصة تعليمية, محمد رضوان, كورسات, فيديوهات, امتحانات, إنجليزي, تعلم إنجليزي',
+  
   authors: [{ name: 'محمد رضوان' }],
+  
+  // ✅ إعدادات Open Graph (للمشاركة على فيسبوك، واتساب، تويتر، إلخ)
   openGraph: {
-    title: 'منصة محمد رضوان التعليمية',
-    description: 'منصة تعليمية متكاملة',
+    title: 'منصة محمد رضوان',
+    description: 'منصة تعليم اللغة الإنجليزية بطريقة سهلة ومبسطة',
     type: 'website',
     locale: 'ar_EG',
+    siteName: 'منصة محمد رضوان',
+    // ✅ اللوجو الموجود في public/images/logo.png
+    images: [
+      {
+        url: '/images/logo.png',  // المسار الصحيح للوجو
+        width: 512,
+        height: 512,
+        alt: 'لوجو منصة محمد رضوان',
+      },
+    ],
+  },
+  
+  // ✅ إعدادات تويتر (للمشاركة على تويتر)
+  twitter: {
+    card: 'summary_large_image',
+    title: 'منصة محمد رضوان',
+    description: 'منصة تعليم اللغة الإنجليزية بطريقة سهلة ومبسطة',
+    images: ['/images/logo.png'],
+  },
+  
+  // ✅ إعدادات الأيقونة (favicon و apple-touch-icon)
+  icons: {
+    icon: '/images/logo.png',
+    apple: '/images/logo.png',
+    shortcut: '/images/logo.png',
+  },
+  
+  // ✅ إعدادات إضافية
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+    },
+  },
+  
+  // ✅ إعدادات عرض الصفحة (للتطبيقات)
+  viewport: {
+    width: 'device-width',
+    initialScale: 1.0,
+    maximumScale: 5.0,
+    userScalable: true,
+  },
+  
+  // ✅ لون السمة (يستخدم في المتصفحات الحديثة)
+  themeColor: '#0b0e1a',
+  
+  // ✅ تعيين اللغة والاتجاه
+  alternates: {
+    canonical: 'https://mr-mohammed-rdwan-english.vercel.app',
   },
 };
 
@@ -22,12 +81,11 @@ export default function RootLayout({ children }) {
     <html lang="ar" dir="rtl" data-scroll-behavior="smooth" suppressHydrationWarning>
       <head>
         {/* ✅ Cloudinary Upload Widget */}
-        <script src="https://upload-widget.cloudinary.com/global/all.js" async></script>
-        <link rel="icon" href="/favicon.ico" sizes="any" />
-        {/* ✅ تحسين viewport ليكون متجاوباً مع السماح بالتكبير على الأجهزة الصغيرة */}
+        <script src="https://upload-widget.cloudinary.com/global/all.js" async />
+        <link rel="icon" href="/images/logo.png" sizes="any" />
+        <link rel="apple-touch-icon" href="/images/logo.png" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
         <meta name="theme-color" content="#0b0e1a" />
-        {/* ✅ إعدادات إضافية للأجهزة المحمولة */}
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="format-detection" content="telephone=no" />
@@ -35,7 +93,6 @@ export default function RootLayout({ children }) {
       <body className="font-cairo antialiased min-h-screen bg-[#0b0e1a] text-white overflow-x-hidden" suppressHydrationWarning>
         <ThemeProvider>
           <DeviceProvider>
-            {/* ✅ حاوية رئيسية بمرونة كاملة مع حواف داخلية متجاوبة */}
             <div className="min-h-screen w-full max-w-full overflow-x-hidden">
               {children}
             </div>
