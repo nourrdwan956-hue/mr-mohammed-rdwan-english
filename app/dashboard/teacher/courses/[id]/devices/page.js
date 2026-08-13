@@ -11,22 +11,21 @@ import {
   Smartphone,
   Laptop,
   Tablet,
-  MoreVertical,
   CheckCircle,
   XCircle,
   AlertCircle,
-  Clock,
   Users,
   Search,
-  Filter,
-  ChevronDown,
   Trash2,
   RefreshCw,
   ArrowLeft,
+  User,
+  Eye,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format } from 'date-fns';
 import { ar } from 'date-fns/locale';
+import Link from 'next/link';
 
 // ================================================================
 // 1. مكونات مساعدة
@@ -77,11 +76,11 @@ export default function TeacherCourseDevicesPage() {
 
   const [loading, setLoading] = useState(true);
   const [course, setCourse] = useState(null);
-  const [devices, setDevices] = useState([]);
-  const [filteredDevices, setFilteredDevices] = useState([]);
+  const [students, setStudents] = useState([]); // ✅ الطلاب المسجلين
+  const [devices, setDevices] = useState([]); // ✅ الأجهزة المسجلة
+  const [filteredStudents, setFilteredStudents] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [showOnlyActive, setShowOnlyActive] = useState(false);
-  const [showOnlyBlocked, setShowOnlyBlocked] = useState(false);
+  const [showOnlyWithDevices, setShowOnlyWithDevices] = useState(false);
   const [updatingDeviceId, setUpdatingDeviceId] = useState(null);
   const [deletingDeviceId, setDeletingDeviceId] = useState(null);
   const fetchedRef = useRef(false);
@@ -91,7 +90,7 @@ export default function TeacherCourseDevicesPage() {
     try {
       setLoading(true);
 
-      // جلب معلومات الكورس
+      // 1. جلب معلومات الكورس
       const { data: courseData, error: courseError } = await supabase
         .from('courses')
         .select('id, title, max_devices, subscription_duration_days')
@@ -101,7 +100,31 @@ export default function TeacherCourseDevicesPage() {
       if (courseError) throw courseError;
       setCourse(courseData);
 
-      // جلب الأجهزة مع بيانات الطلاب
+      // 2. جلب الطلاب المسجلين في الكورس مع بياناتهم
+      const { data: enrollmentsData, error: enrollError } = await supabase
+        .from('enrollments')
+        .select(`
+          student_id,
+          progress,
+          completed_at,
+          profiles:student_id (id, full_name, email, avatar_url)
+        `)
+        .eq('course_id', courseId);
+
+      if (enrollError) throw enrollError;
+
+      const studentsList = (enrollmentsData || []).map((en) => ({
+        id: en.student_id,
+        full_name: en.profiles?.full_name || 'طالب غير معروف',
+        email: en.profiles?.email || '',
+        avatar_url: en.profiles?.avatar_url || null,
+        progress: en.progress || 0,
+        completed_at: en.completed_at,
+      }));
+
+      setStudents(studentsList);
+
+      // 3. جلب الأجهزة المسجلة لهذا الكورس
       const { data: devicesData, error: devicesError } = await supabase
         .from('course_devices')
         .select(
@@ -114,25 +137,36 @@ export default function TeacherCourseDevicesPage() {
           is_primary,
           first_used_at,
           last_used_at,
-          student:student_id (id, full_name, email, avatar_url)
+          student_id
         `
         )
         .eq('course_id', courseId)
         .order('last_used_at', { ascending: false });
 
       if (devicesError) throw devicesError;
+      setDevices(devicesData || []);
 
-      // معالجة البيانات
-      const devicesList = (devicesData || []).map((item) => ({
-        ...item,
-        student: item.student || { id: null, full_name: 'غير معروف', email: '', avatar_url: null },
-      }));
+      // 4. دمج الأجهزة مع الطلاب
+      // نضيف لكل طالب قائمة أجهزته
+      const studentsWithDevices = studentsList.map((student) => {
+        const studentDevices = (devicesData || []).filter(
+          (d) => d.student_id === student.id
+        );
+        return {
+          ...student,
+          devices: studentDevices,
+          deviceCount: studentDevices.length,
+          activeDeviceCount: studentDevices.filter((d) => d.is_active).length,
+        };
+      });
 
-      setDevices(devicesList);
-      setFilteredDevices(devicesList);
+      setFilteredStudents(studentsWithDevices);
+
+      // تحديث الأجهزة الكلية للعرض
+      setDevices(devicesData || []);
     } catch (error) {
-      console.error('Error loading devices:', error);
-      toast.error('حدث خطأ أثناء تحميل الأجهزة');
+      console.error('Error loading data:', error);
+      toast.error('حدث خطأ أثناء تحميل البيانات');
     } finally {
       setLoading(false);
     }
@@ -144,32 +178,32 @@ export default function TeacherCourseDevicesPage() {
     loadData();
   }, [loadData]);
 
-  // ===== فلترة الأجهزة =====
+  // ===== فلترة الطلاب =====
   useEffect(() => {
-    let filtered = devices;
+    let filtered = students.map((student) => ({
+      ...student,
+      devices: devices.filter((d) => d.student_id === student.id),
+      deviceCount: devices.filter((d) => d.student_id === student.id).length,
+      activeDeviceCount: devices.filter((d) => d.student_id === student.id && d.is_active).length,
+    }));
 
     if (searchTerm.trim()) {
       const term = searchTerm.trim().toLowerCase();
       filtered = filtered.filter(
-        (d) =>
-          d.student?.full_name?.toLowerCase().includes(term) ||
-          d.device_name?.toLowerCase().includes(term) ||
-          d.device_fingerprint?.toLowerCase().includes(term)
+        (s) =>
+          s.full_name.toLowerCase().includes(term) ||
+          s.email.toLowerCase().includes(term)
       );
     }
 
-    if (showOnlyActive) {
-      filtered = filtered.filter((d) => d.is_active === true);
+    if (showOnlyWithDevices) {
+      filtered = filtered.filter((s) => s.deviceCount > 0);
     }
 
-    if (showOnlyBlocked) {
-      filtered = filtered.filter((d) => d.is_active === false);
-    }
+    setFilteredStudents(filtered);
+  }, [searchTerm, showOnlyWithDevices, students, devices]);
 
-    setFilteredDevices(filtered);
-  }, [searchTerm, showOnlyActive, showOnlyBlocked, devices]);
-
-  // ===== تبديل حالة الجهاز (تفعيل/تعطيل) =====
+  // ===== تبديل حالة الجهاز =====
   const toggleDeviceStatus = async (deviceId, currentStatus) => {
     try {
       setUpdatingDeviceId(deviceId);
@@ -195,7 +229,7 @@ export default function TeacherCourseDevicesPage() {
     }
   };
 
-  // ===== ✅ حذف جهاز (نهائياً) =====
+  // ===== حذف جهاز =====
   const deleteDevice = async (deviceId) => {
     if (!confirm('هل أنت متأكد من حذف هذا الجهاز نهائياً؟')) return;
 
@@ -215,7 +249,7 @@ export default function TeacherCourseDevicesPage() {
     }
   };
 
-  // ===== إعادة ضبط أجهزة طالب معين (حذف جميع أجهزته في هذا الكورس) =====
+  // ===== إعادة ضبط أجهزة طالب =====
   const resetStudentDevices = async (studentId) => {
     if (!confirm('هل أنت متأكد من حذف جميع أجهزة هذا الطالب في هذا الكورس؟')) return;
 
@@ -228,7 +262,7 @@ export default function TeacherCourseDevicesPage() {
 
       if (error) throw error;
 
-      setDevices((prev) => prev.filter((d) => d.student?.id !== studentId));
+      setDevices((prev) => prev.filter((d) => d.student_id !== studentId));
       toast.success('تم حذف جميع أجهزة الطالب بنجاح');
     } catch (error) {
       console.error('Error resetting student devices:', error);
@@ -236,14 +270,22 @@ export default function TeacherCourseDevicesPage() {
     }
   };
 
-  // ===== إحصائيات الأجهزة =====
+  // ===== إحصائيات =====
   const stats = useMemo(() => {
-    const total = devices.length;
-    const active = devices.filter((d) => d.is_active).length;
-    const inactive = devices.filter((d) => !d.is_active).length;
-    const students = new Set(devices.map((d) => d.student?.id).filter(Boolean)).size;
-    return { total, active, inactive, students };
-  }, [devices]);
+    const totalStudents = students.length;
+    const totalDevices = devices.length;
+    const activeDevices = devices.filter((d) => d.is_active).length;
+    const inactiveDevices = devices.filter((d) => !d.is_active).length;
+    const studentsWithDevices = new Set(devices.map((d) => d.student_id)).size;
+
+    return {
+      totalStudents,
+      totalDevices,
+      activeDevices,
+      inactiveDevices,
+      studentsWithDevices,
+    };
+  }, [students, devices]);
 
   // ===== العودة =====
   const goBack = () => {
@@ -292,7 +334,7 @@ export default function TeacherCourseDevicesPage() {
           >
             <Users className="w-4 h-4 text-amber-500" />
             <span className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-700'}`}>
-              {stats.students} طالب
+              {stats.totalStudents} طالب
             </span>
           </div>
           <div
@@ -302,7 +344,7 @@ export default function TeacherCourseDevicesPage() {
           >
             <Monitor className="w-4 h-4 text-amber-500" />
             <span className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-700'}`}>
-              {stats.total} جهاز
+              {stats.totalDevices} جهاز
             </span>
           </div>
           <div
@@ -312,7 +354,7 @@ export default function TeacherCourseDevicesPage() {
           >
             <CheckCircle className="w-4 h-4 text-green-500" />
             <span className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-700'}`}>
-              {stats.active} نشط
+              {stats.activeDevices} نشط
             </span>
           </div>
           <div
@@ -322,7 +364,7 @@ export default function TeacherCourseDevicesPage() {
           >
             <XCircle className="w-4 h-4 text-red-500" />
             <span className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-700'}`}>
-              {stats.inactive} غير نشط
+              {stats.inactiveDevices} غير نشط
             </span>
           </div>
           <button
@@ -348,7 +390,7 @@ export default function TeacherCourseDevicesPage() {
             />
             <input
               type="text"
-              placeholder="بحث باسم الطالب، الجهاز، أو البصمة..."
+              placeholder="بحث باسم الطالب أو البريد الإلكتروني..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className={`w-full pl-10 pr-4 py-2.5 rounded-xl border ${
@@ -360,35 +402,22 @@ export default function TeacherCourseDevicesPage() {
           </div>
           <div className="flex gap-2 flex-wrap">
             <button
-              onClick={() => setShowOnlyActive(!showOnlyActive)}
+              onClick={() => setShowOnlyWithDevices(!showOnlyWithDevices)}
               className={`px-4 py-2.5 rounded-xl border transition ${
-                showOnlyActive
+                showOnlyWithDevices
                   ? 'bg-amber-500 text-white border-amber-500'
                   : isDark
                   ? 'bg-gray-800/50 border-gray-700 text-gray-300 hover:bg-gray-700/50'
                   : 'bg-white/50 border-gray-200 text-gray-600 hover:bg-gray-100/50'
               }`}
             >
-              نشط فقط
+              لديهم أجهزة فقط
             </button>
-            <button
-              onClick={() => setShowOnlyBlocked(!showOnlyBlocked)}
-              className={`px-4 py-2.5 rounded-xl border transition ${
-                showOnlyBlocked
-                  ? 'bg-red-500 text-white border-red-500'
-                  : isDark
-                  ? 'bg-gray-800/50 border-gray-700 text-gray-300 hover:bg-gray-700/50'
-                  : 'bg-white/50 border-gray-200 text-gray-600 hover:bg-gray-100/50'
-              }`}
-            >
-              غير نشط فقط
-            </button>
-            {(showOnlyActive || showOnlyBlocked || searchTerm) && (
+            {(showOnlyWithDevices || searchTerm) && (
               <button
                 onClick={() => {
                   setSearchTerm('');
-                  setShowOnlyActive(false);
-                  setShowOnlyBlocked(false);
+                  setShowOnlyWithDevices(false);
                 }}
                 className={`px-4 py-2.5 rounded-xl border ${
                   isDark
@@ -403,25 +432,31 @@ export default function TeacherCourseDevicesPage() {
         </div>
       </WaveBorderCard>
 
-      {/* قائمة الأجهزة */}
-      {filteredDevices.length === 0 ? (
+      {/* ===== قائمة الطلاب مع أجهزتهم ===== */}
+      {filteredStudents.length === 0 ? (
         <WaveBorderCard isDark={isDark} className="p-8 text-center">
           <AlertCircle
             className={`w-12 h-12 mx-auto mb-3 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}
           />
           <h3 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-800'}`}>
-            لا توجد أجهزة مسجلة
+            لا يوجد طلاب مسجلين في هذا الكورس
           </h3>
           <p className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
-            لم يقم أي طالب بتسجيل جهاز لهذا الكورس بعد.
+            حتى الآن لم يقم أي طالب بالتسجيل في هذا الكورس.
           </p>
+          <Link
+            href={`/dashboard/teacher/courses/${courseId}`}
+            className="mt-4 inline-block px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition"
+          >
+            العودة إلى الكورس
+          </Link>
         </WaveBorderCard>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <AnimatePresence>
-            {filteredDevices.map((device, index) => (
+            {filteredStudents.map((student, index) => (
               <motion.div
-                key={device.id}
+                key={student.id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95 }}
@@ -429,7 +464,7 @@ export default function TeacherCourseDevicesPage() {
               >
                 <WaveBorderCard isDark={isDark} className="p-4 hover:shadow-2xl transition-shadow">
                   <div className="flex flex-col gap-3">
-                    {/* رأس البطاقة: اسم الطالب + حالة الجهاز */}
+                    {/* رأس البطاقة: اسم الطالب + إحصائيات أجهزته */}
                     <div className="flex items-start justify-between">
                       <div className="flex items-center gap-3">
                         <div
@@ -437,110 +472,136 @@ export default function TeacherCourseDevicesPage() {
                             isDark ? 'bg-gray-800/50' : 'bg-white/50'
                           } border ${isDark ? 'border-gray-700' : 'border-gray-200'}`}
                         >
-                          <DeviceIcon deviceInfo={device.device_info} />
+                          {student.avatar_url ? (
+                            <img
+                              src={student.avatar_url}
+                              alt={student.full_name}
+                              className="w-8 h-8 rounded-full object-cover"
+                            />
+                          ) : (
+                            <User className="w-5 h-5 text-amber-500" />
+                          )}
                         </div>
                         <div>
                           <h3 className={`font-semibold ${isDark ? 'text-white' : 'text-gray-800'}`}>
-                            {device.student?.full_name || 'طالب غير معروف'}
+                            {student.full_name}
                           </h3>
-                          {device.student?.email && (
+                          {student.email && (
                             <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                              {device.student.email}
+                              {student.email}
                             </p>
                           )}
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="text-xs bg-blue-500/10 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded-full">
+                              {student.deviceCount} جهاز
+                            </span>
+                            <span className="text-xs bg-green-500/10 text-green-600 dark:text-green-400 px-2 py-0.5 rounded-full">
+                              {student.activeDeviceCount} نشط
+                            </span>
+                            {student.progress > 0 && (
+                              <span className="text-xs bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 px-2 py-0.5 rounded-full">
+                                تقدم {student.progress}%
+                              </span>
+                            )}
+                            {student.completed_at && (
+                              <span className="text-xs bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-full">
+                                ✅ مكتمل
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
-                      <StatusBadge active={device.is_active} />
+                      <Link
+                        href={`/dashboard/teacher/students/${student.id}`}
+                        className={`p-1.5 rounded-lg transition ${
+                          isDark ? 'hover:bg-gray-700/50' : 'hover:bg-gray-100/50'
+                        }`}
+                        title="عرض الطالب"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </Link>
                     </div>
 
-                    {/* تفاصيل الجهاز */}
-                    <div className={`grid grid-cols-2 gap-2 text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
-                      <div>
-                        <span className="font-medium">اسم الجهاز:</span>
-                        <span className="mr-1">{device.device_name || 'غير مسمى'}</span>
+                    {/* أجهزة الطالب (إن وجدت) */}
+                    {student.devices.length > 0 ? (
+                      <div className="space-y-2">
+                        {student.devices.map((device) => (
+                          <div
+                            key={device.id}
+                            className={`flex items-center justify-between p-2 rounded-lg ${
+                              isDark ? 'bg-gray-800/30' : 'bg-gray-50'
+                            } border ${isDark ? 'border-gray-700' : 'border-gray-200'}`}
+                          >
+                            <div className="flex items-center gap-2 min-w-0">
+                              <DeviceIcon deviceInfo={device.device_info} />
+                              <div className="min-w-0">
+                                <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-800'} truncate`}>
+                                  {device.device_name || 'جهاز غير مسمى'}
+                                </p>
+                                <p className="text-xs text-gray-400 truncate">
+                                  {device.device_fingerprint?.slice(0, 12)}...
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-1 flex-shrink-0">
+                              <StatusBadge active={device.is_active} />
+                              <button
+                                onClick={() => toggleDeviceStatus(device.id, device.is_active)}
+                                disabled={updatingDeviceId === device.id}
+                                className={`px-2 py-1 rounded text-xs font-medium transition ${
+                                  device.is_active
+                                    ? isDark
+                                      ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
+                                      : 'bg-red-50 text-red-600 hover:bg-red-100'
+                                    : isDark
+                                    ? 'bg-green-500/20 text-green-400 hover:bg-green-500/30'
+                                    : 'bg-green-50 text-green-600 hover:bg-green-100'
+                                }`}
+                              >
+                                {updatingDeviceId === device.id ? (
+                                  <span className="inline-block w-3 h-3 border-2 border-t-transparent rounded-full animate-spin" />
+                                ) : device.is_active ? (
+                                  'تعطيل'
+                                ) : (
+                                  'تفعيل'
+                                )}
+                              </button>
+                              <button
+                                onClick={() => deleteDevice(device.id)}
+                                disabled={deletingDeviceId === device.id}
+                                className={`p-1 rounded transition ${
+                                  isDark
+                                    ? 'hover:bg-red-500/20 text-red-400'
+                                    : 'hover:bg-red-100 text-red-600'
+                                }`}
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                      <div>
-                        <span className="font-medium">البصمة:</span>
-                        <span className="mr-1 font-mono text-xs truncate" title={device.device_fingerprint}>
-                          {device.device_fingerprint?.slice(0, 12)}...
-                        </span>
-                      </div>
-                      <div>
-                        <span className="font-medium">أول استخدام:</span>
-                        <span className="mr-1" dir="ltr">
-                          {format(new Date(device.first_used_at), 'dd/MM/yyyy HH:mm', { locale: ar })}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="font-medium">آخر استخدام:</span>
-                        <span className="mr-1" dir="ltr">
-                          {format(new Date(device.last_used_at), 'dd/MM/yyyy HH:mm', { locale: ar })}
-                        </span>
-                      </div>
-                      {device.is_primary && (
-                        <div className="col-span-2">
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-500/20 text-amber-600 dark:text-amber-400 text-xs">
-                            <CheckCircle className="w-3 h-3" /> الجهاز الأساسي
-                          </span>
-                        </div>
-                      )}
-                    </div>
+                    ) : (
+                      <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'} text-center py-2`}>
+                        لم يسجل هذا الطالب أي جهاز بعد.
+                      </p>
+                    )}
 
-                    {/* أزرار الإجراءات */}
-                    <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-200/20 flex-wrap">
-                      <button
-                        onClick={() => toggleDeviceStatus(device.id, device.is_active)}
-                        disabled={updatingDeviceId === device.id}
-                        className={`px-3 py-1.5 rounded-lg text-sm font-medium transition ${
-                          device.is_active
-                            ? isDark
-                              ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
-                              : 'bg-red-50 text-red-600 hover:bg-red-100'
-                            : isDark
-                            ? 'bg-green-500/20 text-green-400 hover:bg-green-500/30'
-                            : 'bg-green-50 text-green-600 hover:bg-green-100'
-                        }`}
-                      >
-                        {updatingDeviceId === device.id ? (
-                          <span className="inline-block w-4 h-4 border-2 border-t-transparent rounded-full animate-spin" />
-                        ) : device.is_active ? (
-                          'تعطيل'
-                        ) : (
-                          'تفعيل'
-                        )}
-                      </button>
-
-                      {/* ✅ زر حذف الجهاز */}
-                      <button
-                        onClick={() => deleteDevice(device.id)}
-                        disabled={deletingDeviceId === device.id}
-                        className={`px-3 py-1.5 rounded-lg text-sm font-medium transition flex items-center gap-1 ${
-                          isDark
-                            ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
-                            : 'bg-red-50 text-red-600 hover:bg-red-100'
-                        }`}
-                      >
-                        {deletingDeviceId === device.id ? (
-                          <span className="inline-block w-4 h-4 border-2 border-t-transparent rounded-full animate-spin" />
-                        ) : (
-                          <>
-                            <Trash2 className="w-3.5 h-3.5" />
-                            حذف
-                          </>
-                        )}
-                      </button>
-
-                      <button
-                        onClick={() => resetStudentDevices(device.student?.id)}
-                        className={`px-3 py-1.5 rounded-lg text-sm font-medium transition ${
-                          isDark
-                            ? 'bg-amber-500/20 text-amber-400 hover:bg-amber-500/30'
-                            : 'bg-amber-50 text-amber-600 hover:bg-amber-100'
-                        }`}
-                      >
-                        إعادة ضبط الكل
-                      </button>
-                    </div>
+                    {/* زر إعادة ضبط جميع أجهزة الطالب */}
+                    {student.devices.length > 0 && (
+                      <div className="flex justify-end">
+                        <button
+                          onClick={() => resetStudentDevices(student.id)}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${
+                            isDark
+                              ? 'bg-amber-500/20 text-amber-400 hover:bg-amber-500/30'
+                              : 'bg-amber-50 text-amber-600 hover:bg-amber-100'
+                          }`}
+                        >
+                          إعادة ضبط جميع أجهزة هذا الطالب
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </WaveBorderCard>
               </motion.div>
