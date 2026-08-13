@@ -3,9 +3,6 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { verifyCourseOwnership } from '@/lib/playlist-utils';
 
-// ============================================================
-// GET: جلب فيديو واحد
-// ============================================================
 export async function GET(request, { params }) {
   try {
     const { id } = await params;
@@ -49,12 +46,10 @@ export async function GET(request, { params }) {
     const userId = session.user.id;
     const courseId = video.course_id;
 
-    // معلم
     if (video.courses?.teacher_id === userId) {
       return NextResponse.json({ success: true, data: video });
     }
 
-    // طالب مشترك
     const { data: enrollment, error: enrollError } = await supabase
       .from('enrollments')
       .select('id, status')
@@ -94,9 +89,6 @@ export async function GET(request, { params }) {
   }
 }
 
-// ============================================================
-// PUT: تحديث فيديو (بما في ذلك playlist_id)
-// ============================================================
 export async function PUT(request, { params }) {
   try {
     const { id } = await params;
@@ -129,7 +121,6 @@ export async function PUT(request, { params }) {
       );
     }
 
-    // جلب الفيديو الحالي للتأكد من وجوده والحصول على course_id
     const { data: existingVideo, error: fetchError } = await supabase
       .from('videos')
       .select('id, course_id')
@@ -143,7 +134,6 @@ export async function PUT(request, { params }) {
       );
     }
 
-    // التحقق من صلاحية المعلم
     const { isAuthorized, error: authzError } = await verifyCourseOwnership(
       user.id,
       existingVideo.course_id
@@ -155,7 +145,6 @@ export async function PUT(request, { params }) {
       );
     }
 
-    // ===================== بناء كائن التحديث =====================
     const updateData = { updated_at: new Date().toISOString() };
     if (title !== undefined) updateData.title = title.trim();
     if (description !== undefined) updateData.description = description?.trim() || null;
@@ -163,69 +152,64 @@ export async function PUT(request, { params }) {
     if (displayMode !== undefined) updateData.display_mode = displayMode;
     if (duration !== undefined) updateData.duration = duration;
 
-    // ===================== معالجة playlistId =====================
+    // ===================== معالجة playlistId مع التحقق من كلا الجدولين =====================
     let finalPlaylistId = null;
     if (playlistId !== undefined) {
       // إذا كانت القيمة null أو undefined أو سلسلة فارغة، نضع null
       if (playlistId === null || playlistId === undefined || String(playlistId).trim() === '') {
         finalPlaylistId = null;
+        console.log('ℹ️ playlistId is empty or null — setting to NULL');
       } else {
         const idStr = String(playlistId).trim();
         const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
         if (!uuidRegex.test(idStr)) {
-          console.warn(`⚠️ Invalid UUID in PUT: "${idStr}" — Setting to NULL`);
+          console.warn(`⚠️ Invalid UUID format: "${idStr}" — setting to NULL`);
           finalPlaylistId = null;
         } else {
-          // ✅ التحقق من وجود القائمة في video_playlists (أو playlists)
-          // نتحقق من كلا الجدولين لضمان المرونة
-          let playlistExists = null;
-          // أولاً نتحقق من video_playlists
-          const { data: vp, error: vpError } = await supabase
-            .from('video_playlists')
+          // 1. التحقق من جدول playlists (الأساسي)
+          console.log(`🔍 Checking playlists table for id: ${idStr}`);
+          const { data: p, error: pError } = await supabase
+            .from('playlists')
             .select('id')
             .eq('id', idStr)
             .maybeSingle();
-          if (!vpError && vp) {
-            playlistExists = true;
+
+          if (!pError && p) {
+            finalPlaylistId = idStr;
+            console.log(`✅ Playlist found in 'playlists' table: ${finalPlaylistId}`);
           } else {
-            // ثانياً نتحقق من playlists (إن وجد)
-            const { data: p, error: pError } = await supabase
-              .from('playlists')
+            // 2. إذا لم يوجد في playlists، تحقق من video_playlists
+            console.log(`🔍 Checking video_playlists table for id: ${idStr}`);
+            const { data: vp, error: vpError } = await supabase
+              .from('video_playlists')
               .select('id')
               .eq('id', idStr)
               .maybeSingle();
-            if (!pError && p) {
-              playlistExists = true;
-            }
-          }
 
-          if (playlistExists) {
-            finalPlaylistId = idStr;
-            console.log(`✅ Playlist found: ${finalPlaylistId}`);
-          } else {
-            console.warn(`⚠️ Playlist NOT found: "${idStr}" — Setting to NULL`);
-            finalPlaylistId = null;
+            if (!vpError && vp) {
+              finalPlaylistId = idStr;
+              console.log(`✅ Playlist found in 'video_playlists' table: ${finalPlaylistId}`);
+            } else {
+              console.warn(`⚠️ Playlist NOT found in any table: "${idStr}" — setting to NULL`);
+              finalPlaylistId = null;
+            }
           }
         }
       }
 
       // تحديث playlist_id
       updateData.playlist_id = finalPlaylistId;
-
-      // إذا تم إزالة الفيديو من القائمة (finalPlaylistId = null)، امسح الترتيب
       if (finalPlaylistId === null) {
         updateData.playlist_order = null;
       }
     }
 
-    // إذا تم تحديد playlistOrder وكانت القائمة موجودة
     if (playlistOrder !== undefined && finalPlaylistId !== null) {
       updateData.playlist_order = playlistOrder;
     }
 
     console.log('📝 Final updateData:', JSON.stringify(updateData, null, 2));
 
-    // ===================== تنفيذ التحديث =====================
     const { data, error } = await supabase
       .from('videos')
       .update(updateData)
@@ -264,9 +248,6 @@ export async function PUT(request, { params }) {
   }
 }
 
-// ============================================================
-// DELETE: حذف فيديو
-// ============================================================
 export async function DELETE(request, { params }) {
   try {
     const { id } = await params;

@@ -1,4 +1,4 @@
-// /app/api/videos/route.js
+// app/api/videos/route.js
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { verifyCourseOwnership, getNextPlaylistOrder } from '@/lib/playlist-utils';
@@ -101,7 +101,6 @@ export async function POST(request) {
       );
     }
 
-    // ===================== معالجة playlistId =====================
     let finalPlaylistId = null;
     let finalPlaylistOrder = playlistOrder !== undefined ? playlistOrder : null;
 
@@ -112,23 +111,33 @@ export async function POST(request) {
         console.warn(`⚠️ Invalid UUID format: "${idStr}" — Setting playlist_id to NULL`);
         finalPlaylistId = null;
       } else {
-        // ✅ التحقق من وجود القيمة في جدول video_playlists
-        console.log(`🔍 Checking if playlist exists in video_playlists: ${idStr}`);
-        const { data: playlistExists, error: checkError } = await supabase
-          .from('video_playlists')
+        // التحقق من playlists أولاً
+        console.log(`🔍 Checking playlists table for id: ${idStr}`);
+        const { data: p, error: pError } = await supabase
+          .from('playlists')
           .select('id')
           .eq('id', idStr)
           .maybeSingle();
 
-        if (checkError) {
-          console.error('❌ Error checking playlist existence:', checkError);
-          finalPlaylistId = null;
-        } else if (playlistExists) {
+        if (!pError && p) {
           finalPlaylistId = idStr;
-          console.log(`✅ Playlist found in video_playlists: ${finalPlaylistId}`);
+          console.log(`✅ Playlist found in 'playlists' table: ${finalPlaylistId}`);
         } else {
-          console.warn(`⚠️ Playlist NOT found in video_playlists: "${idStr}" — Setting playlist_id to NULL`);
-          finalPlaylistId = null;
+          // ثم video_playlists
+          console.log(`🔍 Checking video_playlists table for id: ${idStr}`);
+          const { data: vp, error: vpError } = await supabase
+            .from('video_playlists')
+            .select('id')
+            .eq('id', idStr)
+            .maybeSingle();
+
+          if (!vpError && vp) {
+            finalPlaylistId = idStr;
+            console.log(`✅ Playlist found in 'video_playlists' table: ${finalPlaylistId}`);
+          } else {
+            console.warn(`⚠️ Playlist NOT found in any table: "${idStr}" — Setting playlist_id to NULL`);
+            finalPlaylistId = null;
+          }
         }
       }
     } else {
