@@ -3,6 +3,7 @@
 // 💳 صفحة الدفع للطالب – نسخة فاخرة مع Wave Border
 // 🔧 ملاحظة: Paymob غير مفعّل حالياً – النظام الحالي هو شراء كود الشحن من المستر
 // 🔑 الكود يسمح بجهازين (تم التعديل)
+// ✅ زر التواصل يفتح واتساب مباشرة
 // ================================================================
 
 'use client';
@@ -120,8 +121,9 @@ export default function CoursePaymentPage() {
   const [codeColor, setCodeColor] = useState(CARD_COLORS[4]);
   const [constructionColor, setConstructionColor] = useState(CARD_COLORS[3]);
 
-  // رقم المستر للتواصل
+  // رقم المستر للتواصل (واتساب)
   const MASTER_PHONE = '01552191172';
+  const WHATSAPP_LINK = `https://wa.me/201552191172`;
 
   // ===== جلب بيانات الكورس والتحقق من الاشتراك =====
   useEffect(() => {
@@ -198,7 +200,6 @@ export default function CoursePaymentPage() {
         return;
       }
 
-      // ✅ استخدام API بدلاً من RPC
       const response = await fetch('/api/codes/activate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -313,7 +314,7 @@ export default function CoursePaymentPage() {
       />
 
       <div className="relative z-10 max-w-5xl mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8 space-y-5 sm:space-y-6 md:space-y-8">
-        {/* ===== رأس الصفحة مع Wave Border – متجاوب ===== */}
+        {/* ===== رأس الصفحة مع Wave Border ===== */}
         <WaveBorderCard initialColor={headerColor.name} onColorChange={setHeaderColor}>
           <div className="p-4 sm:p-5 md:p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
             <div>
@@ -336,7 +337,7 @@ export default function CoursePaymentPage() {
           </div>
         </WaveBorderCard>
 
-        {/* ===== معلومات الكورس – متجاوبة ===== */}
+        {/* ===== معلومات الكورس ===== */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-5 md:gap-6">
           <div className="lg:col-span-2 space-y-4 sm:space-y-5 md:space-y-6">
             {/* تفاصيل الكورس */}
@@ -420,7 +421,7 @@ export default function CoursePaymentPage() {
                     </div>
                   </div>
 
-                  {/* ===== رسالة التفعيل عبر الكود + رقم المستر ===== */}
+                  {/* ===== رسالة التفعيل عبر الكود + رقم المستر (واتساب) ===== */}
                   <div className="mt-3 sm:mt-4 p-4 sm:p-5 md:p-6 rounded-xl border-2 border-yellow-400/40 bg-gradient-to-br from-yellow-500/10 via-amber-500/5 to-orange-500/10 backdrop-blur-sm shadow-xl shadow-yellow-500/20">
                     <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
                       <div className="flex-shrink-0 flex items-center justify-center">
@@ -436,24 +437,26 @@ export default function CoursePaymentPage() {
                         </p>
                         <p className={`text-xs sm:text-sm ${styles.subtext} mt-0.5 sm:mt-1 leading-relaxed`}>
                           {language === 'ar'
-                            ? 'للحصول على كود الشحن، تواصل مع المستر محمد رضوان عبر الرقم التالي:'
-                            : 'To get an access code, contact Mr. Mohamed Radwan via the number below:'}
+                            ? 'للحصول على كود الشحن، تواصل مع المستر محمد رضوان عبر واتساب:'
+                            : 'To get an access code, contact Mr. Mohamed Radwan via WhatsApp:'}
                         </p>
                       </div>
                     </div>
 
-                    {/* ===== رقم الهاتف – زر اتصال مباشر ===== */}
+                    {/* ===== زر واتساب – يفتح المحادثة مباشرة ===== */}
                     <div className="mt-3 sm:mt-4 flex flex-col sm:flex-row items-center gap-3 sm:gap-4 justify-center">
                       <a
-                        href={`tel:${MASTER_PHONE}`}
+                        href={WHATSAPP_LINK}
+                        target="_blank"
+                        rel="noopener noreferrer"
                         className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 sm:px-6 sm:py-3.5 md:px-8 md:py-4 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold rounded-xl sm:rounded-2xl hover:scale-105 transition-all duration-300 shadow-xl shadow-green-500/40 text-sm sm:text-base md:text-lg"
                       >
-                        <Icons.Phone className="h-5 w-5 sm:h-6 sm:w-6" />
+                        <Icons.MessageCircle className="h-5 w-5 sm:h-6 sm:w-6" />
                         <span className="font-mono tracking-wider">{MASTER_PHONE}</span>
                         <Icons.ExternalLink className="h-4 w-4 sm:h-5 sm:w-5" />
                       </a>
                       <span className={`text-xs sm:text-sm ${styles.subtext}`}>
-                        {language === 'ar' ? '📞 اضغط للاتصال المباشر' : '📞 Tap to call directly'}
+                        {language === 'ar' ? '💬 اضغط للتواصل عبر واتساب' : '💬 Tap to chat on WhatsApp'}
                       </span>
                     </div>
 
@@ -466,7 +469,7 @@ export default function CoursePaymentPage() {
                 </div>
               </WaveBorderCard>
 
-              {/* ===== خيار كود الشحن – متجاوب ===== */}
+              {/* ===== خيار كود الشحن ===== */}
               <WaveBorderCard initialColor={codeColor.name} onColorChange={setCodeColor}>
                 <div className={`p-4 sm:p-5 md:p-6 cursor-pointer transition ${paymentMethod === 'code' ? 'ring-2 ring-purple-500' : ''}`}
                   onClick={() => setPaymentMethod('code')}
@@ -512,7 +515,6 @@ export default function CoursePaymentPage() {
                           )}
                         </button>
                       </div>
-                      {/* ✅ النص المعدل: الكود يسمح بجهازين */}
                       <p className={`text-[10px] sm:text-xs ${styles.subtext} mt-1.5 sm:mt-2`}>
                         {language === 'ar'
                           ? '⚠️ الكود صالح لجهازين فقط ولمدة 30 يوماً'
@@ -596,7 +598,7 @@ export default function CoursePaymentPage() {
           </div>
         </div>
 
-        {/* ===== روابط سريعة – متجاوبة ===== */}
+        {/* ===== روابط سريعة ===== */}
         <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-6 gap-2 sm:gap-3">
           {[
             { href: '/dashboard/student', icon: Icons.Home, label: language === 'ar' ? 'الرئيسية' : 'Home' },
