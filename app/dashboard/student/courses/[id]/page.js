@@ -2,10 +2,9 @@
 // ================================================================
 // 🏛️ صفحة تفاصيل الكورس – نسخة فاخرة وسريعة
 // ✅ التقدم يعتمد على الامتحانات فقط (لا علاقة بالفيديوهات)
-// ✅ إصلاح مشكلة عدم جلب المحاولات بسبب stale enrollment
-// ✅ شاشة تحميل فاخرة (دائرة متحركة بألوان متغيرة)
-// ✅ أيقونات صغيرة جداً (h-3 w-3)
-// ✅ معالجة الأخطاء (لا 406 ولا ReferenceError)
+// ✅ إضافة دعم قوائم التشغيل (Playlists) مع عرض فيديوهاتها
+// ✅ تبويب "فيديوهات" يعرض الفيديوهات الفردية فقط
+// ✅ تبويب "قوائم" يعرض القوائم مع فيديوهاتها (قابلة للتوسيع)
 // ================================================================
 
 'use client';
@@ -33,6 +32,9 @@ import {
   Award,
   TrendingUp,
   AlertCircle,
+  ListVideo,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import { useTheme } from '@/lib/hooks/useTheme';
 import { supabase } from '@/lib/supabaseClient';
@@ -277,7 +279,7 @@ const CircularProgress = ({ percentage, size = 44, strokeWidth = 3, styles, labe
   );
 };
 
-// ✅ VideoItem
+// ✅ VideoItem (للفيديوهات الفردية)
 const VideoItem = memo(({ video, bookmarked, onToggleBookmark, styles, language }) => {
   const [color, setColor] = useState(CARD_COLORS[Math.floor(Math.random() * CARD_COLORS.length)]);
   return (
@@ -354,6 +356,60 @@ const BookItem = memo(({ book, styles, language }) => {
 });
 BookItem.displayName = 'BookItem';
 
+// ✅ PlaylistItem – لعرض قائمة تشغيل مع فيديوهاتها (قابلة للتوسيع)
+const PlaylistItem = memo(({ playlist, styles, language }) => {
+  const [color, setColor] = useState(CARD_COLORS[Math.floor(Math.random() * CARD_COLORS.length)]);
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <WaveBorderCard initialColor={color.name} onColorChange={setColor}>
+      <div className="p-2">
+        <div 
+          className="flex items-center justify-between cursor-pointer hover:bg-white/5 rounded-lg p-1 transition" 
+          onClick={() => setExpanded(!expanded)}
+        >
+          <div className="flex items-center gap-2 min-w-0">
+            <ListVideo className="h-4 w-4 text-yellow-400 flex-shrink-0" />
+            <h4 className="text-xs sm:text-sm font-bold truncate">{playlist.title}</h4>
+            <span className="text-[8px] sm:text-[10px] text-gray-400 flex-shrink-0">
+              ({playlist.videos?.length || 0} فيديو)
+            </span>
+          </div>
+          <button className="text-gray-400 p-1 hover:text-yellow-400 transition flex-shrink-0">
+            {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          </button>
+        </div>
+
+        {expanded && (
+          <div className="mt-2 space-y-1 pr-2">
+            {playlist.videos && playlist.videos.length > 0 ? (
+              playlist.videos.map((video, idx) => (
+                <Link 
+                  key={video.id} 
+                  href={`/watch/${video.id}`} 
+                  className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-white/5 transition group"
+                >
+                  <span className="text-[8px] text-gray-500 w-4 text-center">{idx + 1}</span>
+                  <Play className="h-2.5 w-2.5 text-blue-400 flex-shrink-0" />
+                  <span className="text-[9px] sm:text-[10px] truncate group-hover:text-blue-400 transition">
+                    {video.title}
+                  </span>
+                  {video.duration && (
+                    <span className="text-[7px] text-gray-500 ml-auto flex-shrink-0">{video.duration}</span>
+                  )}
+                </Link>
+              ))
+            ) : (
+              <p className="text-[8px] text-gray-400 text-center py-2">لا توجد فيديوهات في هذه القائمة</p>
+            )}
+          </div>
+        )}
+      </div>
+    </WaveBorderCard>
+  );
+});
+PlaylistItem.displayName = 'PlaylistItem';
+
 // ✅ OrderToggleButton
 const OrderToggleButton = ({ order, onToggle, styles, language }) => {
   const isDesc = order === 'desc';
@@ -410,6 +466,7 @@ export default function StudentCourseDetailsPage() {
   const [videos, setVideos] = useState([]);
   const [exams, setExams] = useState([]);
   const [books, setBooks] = useState([]);
+  const [playlists, setPlaylists] = useState([]); // ✅ حالة القوائم
   const [enrollment, setEnrollment] = useState(null);
   const [loading, setLoading] = useState(true);
   const [contentLoading, setContentLoading] = useState(false);
@@ -431,7 +488,7 @@ export default function StudentCourseDetailsPage() {
 
   const [headerColor, setHeaderColor] = useState(CARD_COLORS[0]);
 
-  // ===== إحصائيات الامتحانات (محسوبة بشكل صحيح) =====
+  // ===== إحصائيات الامتحانات =====
   const examStats = useMemo(() => {
     const total = exams.length;
     if (total === 0) {
@@ -469,23 +526,38 @@ export default function StudentCourseDetailsPage() {
     return 'red';
   }, [examStats.percentage]);
 
-  // ===== جلب المحتوى (معدل بالكامل) =====
+  // ✅ الفيديوهات الفردية (غير المرتبطة بقائمة)
+  const individualVideos = useMemo(() => {
+    return videos.filter(v => !v.playlist_id);
+  }, [videos]);
+
+  // ===== جلب المحتوى (معدل لجلب القوائم) =====
   const fetchContent = useCallback(async () => {
     if (!id) return;
     setContentLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
 
-      const [vidRes, exRes, bkRes] = await Promise.all([
+      // جلب الفيديوهات والامتحانات والكتب والقوائم
+      const [vidRes, exRes, bkRes, playlistsRes] = await Promise.all([
         supabase.from('videos').select('*').eq('course_id', id).order('created_at', { ascending: videoOrder === 'asc' }),
         supabase.from('exams').select('*').eq('course_id', id).order('created_at', { ascending: examOrder === 'asc' }),
         supabase.from('books').select('*').eq('course_id', id).order('created_at', { ascending: bookOrder === 'asc' }),
+        fetch(`/api/playlists?courseId=${id}`).then(res => res.json()).catch(() => ({ success: false, data: [] })),
       ]);
 
       setVideos(vidRes.data || []);
       setExams(exRes.data || []);
       setBooks(bkRes.data || []);
+      
+      // تعيين القوائم (تأتي مع فيديوهاتها من الـ API)
+      if (playlistsRes.success && Array.isArray(playlistsRes.data)) {
+        setPlaylists(playlistsRes.data);
+      } else {
+        setPlaylists([]);
+      }
 
+      // حساب المدة الكلية
       const totalSecs = (vidRes.data || []).reduce((sum, v) => {
         if (v.duration) {
           const parts = v.duration.split(':');
@@ -496,7 +568,7 @@ export default function StudentCourseDetailsPage() {
       }, 0);
       setTotalDuration(totalSecs);
 
-      // ✅ جلب محاولات الامتحانات – بغض النظر عن حالة enrollment
+      // جلب محاولات الامتحانات
       if (user) {
         const examIds = exRes.data?.map(e => e.id) || [];
         if (examIds.length > 0) {
@@ -542,7 +614,7 @@ export default function StudentCourseDetailsPage() {
     }
   }, [id, videoOrder, examOrder, bookOrder, language]);
 
-  // ===== جلب بيانات الكورس =====
+  // ===== جلب بيانات الكورس (كما هي) =====
   const fetchCourseData = useCallback(async () => {
     if (!id) return;
     setLoading(true);
@@ -553,7 +625,7 @@ export default function StudentCourseDetailsPage() {
         return;
       }
 
-      // ✅ استخدام maybeSingle() لتجنب 406
+      // تحقق من وجود الملف الشخصي
       const { data: existingProfile } = await supabase
         .from('profiles')
         .select('id')
@@ -570,7 +642,7 @@ export default function StudentCourseDetailsPage() {
         });
       }
 
-      // ✅ جلب الكورس
+      // جلب الكورس
       const { data: courseData, error: courseError } = await supabase
         .from('courses')
         .select('*, teacher:teacher_id(full_name, email)')
@@ -586,7 +658,7 @@ export default function StudentCourseDetailsPage() {
       setCourse(courseData);
       setTeacher(courseData.teacher);
 
-      // ✅ التحقق من صلاحية الوصول
+      // التحقق من صلاحية الوصول
       if (courseData && !courseData.is_free && courseData.price > 0) {
         setIsCheckingAccess(true);
         const accessResult = await checkCourseAccess(courseData.id, user.id);
@@ -599,7 +671,7 @@ export default function StudentCourseDetailsPage() {
         }
       }
 
-      // ✅ جلب التسجيل
+      // جلب التسجيل
       const { data: enrollData } = await supabase
         .from('enrollments')
         .select('*')
@@ -609,7 +681,7 @@ export default function StudentCourseDetailsPage() {
 
       setEnrollment(enrollData);
 
-      // ✅ التحقق من اشتراك نشط
+      // التحقق من اشتراك نشط
       const { data: subscription } = await supabase
         .from('course_subscriptions')
         .select('*')
@@ -622,12 +694,11 @@ export default function StudentCourseDetailsPage() {
         await supabase
           .from('enrollments')
           .insert({ student_id: user.id, course_id: id, progress: 0 });
-        // سنقوم بجلب المحتوى في useEffect الخاص بالتسجيل
         setEnrollment({ progress: 0 });
         setActiveTab('videos');
       }
 
-      // ✅ جلب كورسات ذات صلة
+      // جلب كورسات ذات صلة
       if (courseData.grade_stage && courseData.grade_level) {
         const { data: related } = await supabase
           .from('courses')
@@ -658,12 +729,12 @@ export default function StudentCourseDetailsPage() {
     }
   }, [enrollment, id, fetchContent]);
 
-  // ===== جلب المحتوى عند تغير الترتيب (بغض النظر عن التسجيل) =====
+  // ===== جلب المحتوى عند تغير الترتيب =====
   useEffect(() => {
-    if (id) {
+    if (id && enrollment) {
       fetchContent();
     }
-  }, [videoOrder, examOrder, bookOrder, id, fetchContent]);
+  }, [videoOrder, examOrder, bookOrder, id, fetchContent, enrollment]);
 
   // ===== التحميل الأولي =====
   useEffect(() => {
@@ -672,7 +743,7 @@ export default function StudentCourseDetailsPage() {
     fetchCourseData();
   }, [fetchCourseData]);
 
-  // ===== الاشتراك =====
+  // ===== الاشتراك (كما هو) =====
   const handleEnroll = async () => {
     setEnrolling(true);
     try {
@@ -682,7 +753,7 @@ export default function StudentCourseDetailsPage() {
         return;
       }
 
-      // ✅ التحقق من اشتراك نشط
+      // التحقق من اشتراك نشط
       const { data: subscription } = await supabase
         .from('course_subscriptions')
         .select('*')
@@ -817,7 +888,7 @@ export default function StudentCourseDetailsPage() {
     <div className={`w-full min-h-screen ${styles.bg} overflow-x-hidden`}>
       <div className="max-w-6xl mx-auto px-2 sm:px-4 py-1.5 space-y-2">
 
-        {/* ===== هيدر الكورس ===== */}
+        {/* ===== هيدر الكورس (كما هو) ===== */}
         <WaveBorderCard initialColor={headerColor.name} onColorChange={setHeaderColor}>
           <div className="p-2 sm:p-3">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
@@ -956,7 +1027,8 @@ export default function StudentCourseDetailsPage() {
         {enrollment && (
           <>
             <div className="flex gap-0.5 border-b-2 pb-0.5 overflow-x-auto no-scrollbar">
-              <TabButton active={activeTab === 'videos'} onClick={() => setActiveTab('videos')} icon={Video} label="فيديوهات" count={videos.length} styles={styles} />
+              <TabButton active={activeTab === 'videos'} onClick={() => setActiveTab('videos')} icon={Video} label="فيديوهات" count={individualVideos.length} styles={styles} />
+              <TabButton active={activeTab === 'playlists'} onClick={() => setActiveTab('playlists')} icon={ListVideo} label="قوائم" count={playlists.length} styles={styles} />
               <TabButton active={activeTab === 'exams'} onClick={() => setActiveTab('exams')} icon={FileQuestion} label="امتحانات" count={exams.length} styles={styles} />
               <TabButton active={activeTab === 'books'} onClick={() => setActiveTab('books')} icon={Book} label="كتب" count={books.length} styles={styles} />
               <TabButton active={activeTab === 'academic'} onClick={() => router.push(`/dashboard/student/support/academic?course=${id}`)} icon={MessageCircle} label="سؤال" styles={styles} />
@@ -972,14 +1044,29 @@ export default function StudentCourseDetailsPage() {
                   {activeTab === 'videos' && (
                     <div>
                       <div className="flex items-center justify-between mb-1">
-                        <span className="text-[9px] sm:text-[10px] font-bold text-gray-400">{videos.length} فيديو</span>
+                        <span className="text-[9px] sm:text-[10px] font-bold text-gray-400">{individualVideos.length} فيديو</span>
                         <OrderToggleButton order={videoOrder} onToggle={toggleVideoOrder} styles={styles} language={language} />
                       </div>
                       <div className="space-y-1">
-                        {videos.length > 0 ? videos.map(v => (
+                        {individualVideos.length > 0 ? individualVideos.map(v => (
                           <VideoItem key={v.id} video={v} bookmarked={!!bookmarks[v.id]} onToggleBookmark={toggleBookmark} styles={styles} language={language} />
                         )) : (
-                          <p className="text-[9px] sm:text-[10px] text-gray-400 text-center py-2">لا توجد فيديوهات</p>
+                          <p className="text-[9px] sm:text-[10px] text-gray-400 text-center py-2">لا توجد فيديوهات فردية</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {activeTab === 'playlists' && (
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-[9px] sm:text-[10px] font-bold text-gray-400">{playlists.length} قائمة</span>
+                      </div>
+                      <div className="space-y-1.5">
+                        {playlists.length > 0 ? playlists.map(p => (
+                          <PlaylistItem key={p.id} playlist={p} styles={styles} language={language} />
+                        )) : (
+                          <p className="text-[9px] sm:text-[10px] text-gray-400 text-center py-2">لا توجد قوائم تشغيل في هذا الكورس</p>
                         )}
                       </div>
                     </div>
