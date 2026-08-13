@@ -2,11 +2,11 @@
 // ================================================================
 // 🏛️ صفحة تفاصيل الكورس – نسخة فاخرة وسريعة
 // ✅ التقدم يعتمد على الامتحانات فقط (لا علاقة بالفيديوهات)
-// ✅ إضافة دعم قوائم التشغيل (Playlists) مع عرض فيديوهاتها
+// ✅ دعم قوائم التشغيل (Playlists) مع عرض فيديوهاتها
 // ✅ تبويب "فيديوهات" يعرض الفيديوهات الفردية فقط
 // ✅ تبويب "قوائم" يعرض القوائم مع فيديوهاتها (قابلة للتوسيع)
+// ✅ كل قائمة لها فلتر ترتيب خاص (الأحدث/الأقدم) مستقل عن القوائم الأخرى
 // ✅ تسجيل الجهاز تلقائياً عند دخول الكورس (للمدفوع فقط)
-// ✅ إضافة سجلات مفصلة لتتبع عملية تسجيل الجهاز
 // ================================================================
 
 'use client';
@@ -358,60 +358,6 @@ const BookItem = memo(({ book, styles, language }) => {
 });
 BookItem.displayName = 'BookItem';
 
-// ✅ PlaylistItem – لعرض قائمة تشغيل مع فيديوهاتها (قابلة للتوسيع)
-const PlaylistItem = memo(({ playlist, styles, language }) => {
-  const [color, setColor] = useState(CARD_COLORS[Math.floor(Math.random() * CARD_COLORS.length)]);
-  const [expanded, setExpanded] = useState(false);
-
-  return (
-    <WaveBorderCard initialColor={color.name} onColorChange={setColor}>
-      <div className="p-2">
-        <div 
-          className="flex items-center justify-between cursor-pointer hover:bg-white/5 rounded-lg p-1 transition" 
-          onClick={() => setExpanded(!expanded)}
-        >
-          <div className="flex items-center gap-2 min-w-0">
-            <ListVideo className="h-4 w-4 text-yellow-400 flex-shrink-0" />
-            <h4 className="text-xs sm:text-sm font-bold truncate">{playlist.title}</h4>
-            <span className="text-[8px] sm:text-[10px] text-gray-400 flex-shrink-0">
-              ({playlist.videos?.length || 0} فيديو)
-            </span>
-          </div>
-          <button className="text-gray-400 p-1 hover:text-yellow-400 transition flex-shrink-0">
-            {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-          </button>
-        </div>
-
-        {expanded && (
-          <div className="mt-2 space-y-1 pr-2">
-            {playlist.videos && playlist.videos.length > 0 ? (
-              playlist.videos.map((video, idx) => (
-                <Link 
-                  key={video.id} 
-                  href={`/watch/${video.id}`} 
-                  className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-white/5 transition group"
-                >
-                  <span className="text-[8px] text-gray-500 w-4 text-center">{idx + 1}</span>
-                  <Play className="h-2.5 w-2.5 text-blue-400 flex-shrink-0" />
-                  <span className="text-[9px] sm:text-[10px] truncate group-hover:text-blue-400 transition">
-                    {video.title}
-                  </span>
-                  {video.duration && (
-                    <span className="text-[7px] text-gray-500 ml-auto flex-shrink-0">{video.duration}</span>
-                  )}
-                </Link>
-              ))
-            ) : (
-              <p className="text-[8px] text-gray-400 text-center py-2">لا توجد فيديوهات في هذه القائمة</p>
-            )}
-          </div>
-        )}
-      </div>
-    </WaveBorderCard>
-  );
-});
-PlaylistItem.displayName = 'PlaylistItem';
-
 // ✅ OrderToggleButton
 const OrderToggleButton = ({ order, onToggle, styles, language }) => {
   const isDesc = order === 'desc';
@@ -455,6 +401,95 @@ const MotivationalCard = ({ message, icon: Icon, styles, color = 'yellow' }) => 
 };
 
 // ================================================================
+// ✅ PlaylistItem – معدل: كل قائمة لها فلتر ترتيب مستقل
+// ================================================================
+const PlaylistItem = memo(({ playlist, styles, language }) => {
+  const [color, setColor] = useState(CARD_COLORS[Math.floor(Math.random() * CARD_COLORS.length)]);
+  const [expanded, setExpanded] = useState(false);
+  const [order, setOrder] = useState('desc'); // ✅ ترتيب خاص بالقائمة فقط
+
+  // ✅ دالة تبديل الترتيب
+  const toggleOrder = () => {
+    setOrder(prev => prev === 'desc' ? 'asc' : 'desc');
+  };
+
+  // ✅ ترتيب الفيديوهات حسب الحالة (منفصل لكل قائمة)
+  const sortedVideos = useMemo(() => {
+    if (!playlist.videos || playlist.videos.length === 0) return [];
+    const sorted = [...playlist.videos];
+    sorted.sort((a, b) => {
+      const dateA = new Date(a.created_at);
+      const dateB = new Date(b.created_at);
+      return order === 'desc' ? dateB - dateA : dateA - dateB;
+    });
+    return sorted;
+  }, [playlist.videos, order]);
+
+  return (
+    <WaveBorderCard initialColor={color.name} onColorChange={setColor}>
+      <div className="p-2">
+        {/* رأس القائمة */}
+        <div 
+          className="flex items-center justify-between cursor-pointer hover:bg-white/5 rounded-lg p-1 transition" 
+          onClick={() => setExpanded(!expanded)}
+        >
+          <div className="flex items-center gap-2 min-w-0">
+            <ListVideo className="h-4 w-4 text-yellow-400 flex-shrink-0" />
+            <h4 className="text-xs sm:text-sm font-bold truncate">{playlist.title}</h4>
+            <span className="text-[8px] sm:text-[10px] text-gray-400 flex-shrink-0">
+              ({playlist.videos?.length || 0} فيديو)
+            </span>
+          </div>
+          <button className="text-gray-400 p-1 hover:text-yellow-400 transition flex-shrink-0">
+            {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          </button>
+        </div>
+
+        {/* ✅ المحتوى الموسع مع فلتر الترتيب الخاص بالقائمة */}
+        {expanded && (
+          <div className="mt-2 space-y-1 pr-2">
+            {/* ✅ فلتر الترتيب – خاص بالقائمة الحالية */}
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[8px] text-gray-400">
+                {language === 'ar' ? 'ترتيب الفيديوهات' : 'Sort Videos'}
+              </span>
+              <OrderToggleButton 
+                order={order} 
+                onToggle={toggleOrder} 
+                styles={styles} 
+                language={language} 
+              />
+            </div>
+
+            {sortedVideos.length > 0 ? (
+              sortedVideos.map((video, idx) => (
+                <Link 
+                  key={video.id} 
+                  href={`/watch/${video.id}`} 
+                  className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-white/5 transition group"
+                >
+                  <span className="text-[8px] text-gray-500 w-4 text-center">{idx + 1}</span>
+                  <Play className="h-2.5 w-2.5 text-blue-400 flex-shrink-0" />
+                  <span className="text-[9px] sm:text-[10px] truncate group-hover:text-blue-400 transition">
+                    {video.title}
+                  </span>
+                  {video.duration && (
+                    <span className="text-[7px] text-gray-500 ml-auto flex-shrink-0">{video.duration}</span>
+                  )}
+                </Link>
+              ))
+            ) : (
+              <p className="text-[8px] text-gray-400 text-center py-2">لا توجد فيديوهات في هذه القائمة</p>
+            )}
+          </div>
+        )}
+      </div>
+    </WaveBorderCard>
+  );
+});
+PlaylistItem.displayName = 'PlaylistItem';
+
+// ================================================================
 // 7. الصفحة الرئيسية
 // ================================================================
 export default function StudentCourseDetailsPage() {
@@ -468,7 +503,7 @@ export default function StudentCourseDetailsPage() {
   const [videos, setVideos] = useState([]);
   const [exams, setExams] = useState([]);
   const [books, setBooks] = useState([]);
-  const [playlists, setPlaylists] = useState([]); // ✅ حالة القوائم
+  const [playlists, setPlaylists] = useState([]);
   const [enrollment, setEnrollment] = useState(null);
   const [loading, setLoading] = useState(true);
   const [contentLoading, setContentLoading] = useState(false);
@@ -492,13 +527,11 @@ export default function StudentCourseDetailsPage() {
 
   // ================================================================
   // 🔥 تسجيل الجهاز تلقائياً عند دخول الطالب إلى صفحة الكورس
-  // (بدون مشاهدة فيديو) مع سجلات مفصلة
   // ================================================================
   useEffect(() => {
     const registerDeviceOnCourseEntry = async () => {
       console.log('🔍 [Device Registration] useEffect triggered');
       
-      // 1. التحقق من وجود الكورس والتسجيل
       if (!course) {
         console.log('⚠️ [Device Registration] No course loaded yet');
         return;
@@ -515,7 +548,6 @@ export default function StudentCourseDetailsPage() {
       console.log('✅ [Device Registration] Course is paid, proceeding...');
 
       try {
-        // 2. جلب المستخدم الحالي
         const { data: { user }, error: userError } = await supabase.auth.getUser();
         if (userError || !user) {
           console.error('❌ [Device Registration] Failed to get user:', userError);
@@ -523,7 +555,6 @@ export default function StudentCourseDetailsPage() {
         }
         console.log('👤 [Device Registration] User ID:', user.id);
 
-        // 3. التحقق من وجود أجهزة مسجلة مسبقاً
         const { data: devices, error: devError } = await supabase
           .from('course_devices')
           .select('id')
@@ -542,7 +573,6 @@ export default function StudentCourseDetailsPage() {
           return;
         }
 
-        // 4. لا يوجد جهاز → نسجله
         console.log('🔍 [Device Registration] No device found, registering current device...');
         const result = await registerDeviceIfNeeded(user.id, id);
         console.log('📝 [Device Registration] RegisterDeviceIfNeeded result:', result);
@@ -560,7 +590,7 @@ export default function StudentCourseDetailsPage() {
     };
 
     registerDeviceOnCourseEntry();
-  }, [course, enrollment, id]); // يعتمد على course و enrollment للتأكد من تحميلهما
+  }, [course, enrollment, id]);
 
   // ===== إحصائيات الامتحانات =====
   const examStats = useMemo(() => {
@@ -605,14 +635,13 @@ export default function StudentCourseDetailsPage() {
     return videos.filter(v => !v.playlist_id);
   }, [videos]);
 
-  // ===== جلب المحتوى (معدل لجلب القوائم) =====
+  // ===== جلب المحتوى =====
   const fetchContent = useCallback(async () => {
     if (!id) return;
     setContentLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
 
-      // جلب الفيديوهات والامتحانات والكتب والقوائم
       const [vidRes, exRes, bkRes, playlistsRes] = await Promise.all([
         supabase.from('videos').select('*').eq('course_id', id).order('created_at', { ascending: videoOrder === 'asc' }),
         supabase.from('exams').select('*').eq('course_id', id).order('created_at', { ascending: examOrder === 'asc' }),
@@ -624,14 +653,12 @@ export default function StudentCourseDetailsPage() {
       setExams(exRes.data || []);
       setBooks(bkRes.data || []);
       
-      // تعيين القوائم (تأتي مع فيديوهاتها من الـ API)
       if (playlistsRes.success && Array.isArray(playlistsRes.data)) {
         setPlaylists(playlistsRes.data);
       } else {
         setPlaylists([]);
       }
 
-      // حساب المدة الكلية
       const totalSecs = (vidRes.data || []).reduce((sum, v) => {
         if (v.duration) {
           const parts = v.duration.split(':');
@@ -642,7 +669,6 @@ export default function StudentCourseDetailsPage() {
       }, 0);
       setTotalDuration(totalSecs);
 
-      // جلب محاولات الامتحانات
       if (user) {
         const examIds = exRes.data?.map(e => e.id) || [];
         if (examIds.length > 0) {
@@ -688,7 +714,7 @@ export default function StudentCourseDetailsPage() {
     }
   }, [id, videoOrder, examOrder, bookOrder, language]);
 
-  // ===== جلب بيانات الكورس (كما هي) =====
+  // ===== جلب بيانات الكورس =====
   const fetchCourseData = useCallback(async () => {
     if (!id) return;
     setLoading(true);
@@ -699,7 +725,6 @@ export default function StudentCourseDetailsPage() {
         return;
       }
 
-      // تحقق من وجود الملف الشخصي
       const { data: existingProfile } = await supabase
         .from('profiles')
         .select('id')
@@ -716,7 +741,6 @@ export default function StudentCourseDetailsPage() {
         });
       }
 
-      // جلب الكورس
       const { data: courseData, error: courseError } = await supabase
         .from('courses')
         .select('*, teacher:teacher_id(full_name, email)')
@@ -732,7 +756,6 @@ export default function StudentCourseDetailsPage() {
       setCourse(courseData);
       setTeacher(courseData.teacher);
 
-      // التحقق من صلاحية الوصول
       if (courseData && !courseData.is_free && courseData.price > 0) {
         setIsCheckingAccess(true);
         const accessResult = await checkCourseAccess(courseData.id, user.id);
@@ -745,7 +768,6 @@ export default function StudentCourseDetailsPage() {
         }
       }
 
-      // جلب التسجيل
       const { data: enrollData } = await supabase
         .from('enrollments')
         .select('*')
@@ -755,7 +777,6 @@ export default function StudentCourseDetailsPage() {
 
       setEnrollment(enrollData);
 
-      // التحقق من اشتراك نشط
       const { data: subscription } = await supabase
         .from('course_subscriptions')
         .select('*')
@@ -772,7 +793,6 @@ export default function StudentCourseDetailsPage() {
         setActiveTab('videos');
       }
 
-      // جلب كورسات ذات صلة
       if (courseData.grade_stage && courseData.grade_level) {
         const { data: related } = await supabase
           .from('courses')
@@ -817,7 +837,7 @@ export default function StudentCourseDetailsPage() {
     fetchCourseData();
   }, [fetchCourseData]);
 
-  // ===== الاشتراك (كما هو) =====
+  // ===== الاشتراك =====
   const handleEnroll = async () => {
     setEnrolling(true);
     try {
@@ -827,7 +847,6 @@ export default function StudentCourseDetailsPage() {
         return;
       }
 
-      // التحقق من اشتراك نشط
       const { data: subscription } = await supabase
         .from('course_subscriptions')
         .select('*')
@@ -872,7 +891,6 @@ export default function StudentCourseDetailsPage() {
         return;
       }
 
-      // كورس مجاني
       const { data: existing } = await supabase
         .from('enrollments')
         .select('*')
@@ -962,11 +980,10 @@ export default function StudentCourseDetailsPage() {
     <div className={`w-full min-h-screen ${styles.bg} overflow-x-hidden`}>
       <div className="max-w-6xl mx-auto px-2 sm:px-4 py-1.5 space-y-2">
 
-        {/* ===== هيدر الكورس (كما هو) ===== */}
+        {/* ===== هيدر الكورس ===== */}
         <WaveBorderCard initialColor={headerColor.name} onColorChange={setHeaderColor}>
           <div className="p-2 sm:p-3">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-              {/* الصورة */}
               <div className="md:col-span-1">
                 <div className="aspect-video rounded-lg overflow-hidden bg-gray-800/50 border relative">
                   {course.cover_image ? (
@@ -987,7 +1004,6 @@ export default function StudentCourseDetailsPage() {
                 </div>
               </div>
 
-              {/* المعلومات */}
               <div className="md:col-span-2 space-y-1.5">
                 <div className="flex flex-wrap items-center gap-1">
                   <span className={`px-1.5 py-0.5 rounded-full text-[7px] sm:text-[8px] font-bold ${course.is_free ? 'bg-green-500/20 text-green-400' : 'bg-blue-500/20 text-blue-400'}`}>
