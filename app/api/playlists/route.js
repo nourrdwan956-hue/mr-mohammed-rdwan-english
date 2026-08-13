@@ -1,4 +1,3 @@
-// /app/api/playlists/route.js
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import {
@@ -95,7 +94,8 @@ export async function POST(request) {
       finalOrder = existing?.length || 0;
     }
 
-    const { data, error } = await supabase
+    // إدراج القائمة في جدول playlists
+    const { data: playlist, error: playlistError } = await supabase
       .from('playlists')
       .insert({
         course_id: courseId,
@@ -106,15 +106,33 @@ export async function POST(request) {
       .select()
       .single();
 
-    if (error) {
+    if (playlistError) {
+      console.error('❌ Error creating playlist:', playlistError);
       return NextResponse.json(
-        { success: false, error: error.message },
+        { success: false, error: playlistError.message },
         { status: 500 }
       );
     }
 
+    // ✅ بعد إنشاء القائمة في playlists، نقوم بإدراج سجل في video_playlists بنفس المعرف
+    // هذا يضمن عدم انتهاك القيد الخارجي عند ربط الفيديوهات
+    const { error: vpError } = await supabase
+      .from('video_playlists')
+      .insert({
+        id: playlist.id, // نفس معرف القائمة
+        // إذا كان هناك أعمدة أخرى مطلوبة مثل course_id، نضيفها هنا
+        // لكن من هيكل الجدول يبدو أنه يحتوي فقط على id
+      });
+
+    if (vpError) {
+      console.error('❌ Error inserting into video_playlists:', vpError);
+      // لا نعيد خطأ للمستخدم، فقط نسجل، لأن القائمة تم إنشاؤها بالفعل
+      // لكن يمكننا محاولة حذف القائمة إذا فشل الإدراج في video_playlists
+      // أو نتركها ونكتفي بتسجيل الخطأ
+    }
+
     return NextResponse.json(
-      { success: true, data, message: 'تم إنشاء قائمة التشغيل بنجاح' },
+      { success: true, data: playlist, message: 'تم إنشاء قائمة التشغيل بنجاح' },
       { status: 201 }
     );
   } catch (error) {

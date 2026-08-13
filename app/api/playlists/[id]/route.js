@@ -7,9 +7,9 @@ import {
   verifyCourseOwnership,
 } from '@/lib/playlist-utils';
 
+// ===================== GET =====================
 export async function GET(request, { params }) {
   try {
-    // ✅ استخراج id من params مع await (للتأكد من أنها Promise)
     const { id } = await params;
     if (!id) {
       return NextResponse.json(
@@ -51,6 +51,7 @@ export async function GET(request, { params }) {
   }
 }
 
+// ===================== PUT =====================
 export async function PUT(request, { params }) {
   try {
     const { id } = await params;
@@ -132,6 +133,7 @@ export async function PUT(request, { params }) {
   }
 }
 
+// ===================== DELETE (معدل) =====================
 export async function DELETE(request, { params }) {
   try {
     const { id } = await params;
@@ -152,6 +154,7 @@ export async function DELETE(request, { params }) {
       );
     }
 
+    // جلب course_id للتحقق من الصلاحية
     const { data: playlist, error: fetchError } = await supabase
       .from('playlists')
       .select('course_id')
@@ -176,6 +179,20 @@ export async function DELETE(request, { params }) {
       );
     }
 
+    // ✅ حذف السجل من video_playlists أولاً (لتجنب انتهاك القيد الخارجي)
+    const { error: vpError } = await supabase
+      .from('video_playlists')
+      .delete()
+      .eq('id', id);
+
+    if (vpError) {
+      console.error('❌ Error deleting from video_playlists:', vpError);
+      // نستمر في الحذف من playlists حتى لو فشل حذف video_playlists
+    } else {
+      console.log(`✅ Deleted playlist ${id} from video_playlists`);
+    }
+
+    // حذف القائمة من playlists (بما في ذلك إعادة ترتيب الفيديوهات)
     const { data, error } = await deletePlaylist(id);
     if (error) {
       return NextResponse.json(

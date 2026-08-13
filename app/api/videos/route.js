@@ -3,6 +3,39 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { verifyCourseOwnership, getNextPlaylistOrder } from '@/lib/playlist-utils';
 
+// ===================== دالة مساعدة للتأكد من وجود القائمة في video_playlists =====================
+async function ensurePlaylistInVideoPlaylists(supabase, playlistId) {
+  // التحقق من وجود القائمة في video_playlists
+  const { data: existing, error: checkError } = await supabase
+    .from('video_playlists')
+    .select('id')
+    .eq('id', playlistId)
+    .maybeSingle();
+
+  if (checkError) {
+    console.error('❌ Error checking video_playlists:', checkError);
+    return false;
+  }
+
+  if (existing) {
+    return true; // موجود بالفعل
+  }
+
+  // إذا غير موجود، نقوم بإدراجه
+  const { error: insertError } = await supabase
+    .from('video_playlists')
+    .insert({ id: playlistId });
+
+  if (insertError) {
+    console.error('❌ Error inserting into video_playlists:', insertError);
+    return false;
+  }
+
+  console.log(`✅ Inserted playlist ${playlistId} into video_playlists`);
+  return true;
+}
+
+// ===================== GET =====================
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -58,6 +91,7 @@ export async function GET(request) {
   }
 }
 
+// ===================== POST (معدل) =====================
 export async function POST(request) {
   try {
     const body = await request.json();
@@ -101,6 +135,7 @@ export async function POST(request) {
       );
     }
 
+    // ===================== معالجة playlistId =====================
     let finalPlaylistId = null;
     let finalPlaylistOrder = playlistOrder !== undefined ? playlistOrder : null;
 
@@ -111,20 +146,26 @@ export async function POST(request) {
         console.warn(`⚠️ Invalid UUID format: "${idStr}" — Setting playlist_id to NULL`);
         finalPlaylistId = null;
       } else {
-        // ✅ التحقق من جدول video_playlists فقط (لأن القيد الخارجي يشير إليه)
-        console.log(`🔍 Checking video_playlists table for id: ${idStr}`);
-        const { data: vp, error: vpError } = await supabase
-          .from('video_playlists')
+        // 1. التحقق من وجود القائمة في playlists
+        const { data: playlist, error: pError } = await supabase
+          .from('playlists')
           .select('id')
           .eq('id', idStr)
           .maybeSingle();
 
-        if (!vpError && vp) {
-          finalPlaylistId = idStr;
-          console.log(`✅ Playlist found in 'video_playlists': ${finalPlaylistId}`);
-        } else {
-          console.warn(`⚠️ Playlist NOT found in video_playlists: "${idStr}" — Setting playlist_id to NULL`);
+        if (pError || !playlist) {
+          console.warn(`⚠️ Playlist not found in playlists: "${idStr}" — setting to NULL`);
           finalPlaylistId = null;
+        } else {
+          // 2. التأكد من وجودها في video_playlists (وإنشائها إذا لزم الأمر)
+          const ensured = await ensurePlaylistInVideoPlaylists(supabase, idStr);
+          if (ensured) {
+            finalPlaylistId = idStr;
+            console.log(`✅ Playlist ${finalPlaylistId} is ready in video_playlists`);
+          } else {
+            console.warn(`⚠️ Could not ensure playlist in video_playlists — setting to NULL`);
+            finalPlaylistId = null;
+          }
         }
       }
     } else {
@@ -187,6 +228,7 @@ export async function POST(request) {
   }
 }
 
+// ===================== DELETE =====================
 export async function DELETE(request) {
   try {
     const { searchParams } = new URL(request.url);
