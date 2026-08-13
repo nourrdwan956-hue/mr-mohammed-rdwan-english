@@ -82,7 +82,6 @@ export async function POST(request) {
       );
     }
 
-    // حساب order_index تلقائياً
     let finalOrder = orderIndex;
     if (finalOrder === undefined || finalOrder === null) {
       const { data: existing, error: countError } = await supabase
@@ -94,7 +93,6 @@ export async function POST(request) {
       finalOrder = existing?.length || 0;
     }
 
-    // 1. إدراج القائمة في playlists
     const { data: playlist, error: playlistError } = await supabase
       .from('playlists')
       .insert({
@@ -114,11 +112,10 @@ export async function POST(request) {
       );
     }
 
-    // 2. التأكد من وجود القائمة في video_playlists (باستخدام الدالة المعدلة)
+    // ✅ استخدام الدالة المعدلة لإدراج القائمة في video_playlists
     const ensured = await ensurePlaylistInVideoPlaylists(supabase, playlist.id);
     if (!ensured) {
       console.warn(`⚠️ Could not ensure playlist ${playlist.id} in video_playlists`);
-      // لا نعيد خطأ، بل نسجل فقط
     }
 
     return NextResponse.json(
