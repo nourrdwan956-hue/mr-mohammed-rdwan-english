@@ -111,33 +111,20 @@ export async function POST(request) {
         console.warn(`⚠️ Invalid UUID format: "${idStr}" — Setting playlist_id to NULL`);
         finalPlaylistId = null;
       } else {
-        // التحقق من playlists أولاً
-        console.log(`🔍 Checking playlists table for id: ${idStr}`);
-        const { data: p, error: pError } = await supabase
-          .from('playlists')
+        // ✅ التحقق من جدول video_playlists فقط (لأن القيد الخارجي يشير إليه)
+        console.log(`🔍 Checking video_playlists table for id: ${idStr}`);
+        const { data: vp, error: vpError } = await supabase
+          .from('video_playlists')
           .select('id')
           .eq('id', idStr)
           .maybeSingle();
 
-        if (!pError && p) {
+        if (!vpError && vp) {
           finalPlaylistId = idStr;
-          console.log(`✅ Playlist found in 'playlists' table: ${finalPlaylistId}`);
+          console.log(`✅ Playlist found in 'video_playlists': ${finalPlaylistId}`);
         } else {
-          // ثم video_playlists
-          console.log(`🔍 Checking video_playlists table for id: ${idStr}`);
-          const { data: vp, error: vpError } = await supabase
-            .from('video_playlists')
-            .select('id')
-            .eq('id', idStr)
-            .maybeSingle();
-
-          if (!vpError && vp) {
-            finalPlaylistId = idStr;
-            console.log(`✅ Playlist found in 'video_playlists' table: ${finalPlaylistId}`);
-          } else {
-            console.warn(`⚠️ Playlist NOT found in any table: "${idStr}" — Setting playlist_id to NULL`);
-            finalPlaylistId = null;
-          }
+          console.warn(`⚠️ Playlist NOT found in video_playlists: "${idStr}" — Setting playlist_id to NULL`);
+          finalPlaylistId = null;
         }
       }
     } else {

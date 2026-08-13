@@ -152,10 +152,9 @@ export async function PUT(request, { params }) {
     if (displayMode !== undefined) updateData.display_mode = displayMode;
     if (duration !== undefined) updateData.duration = duration;
 
-    // ===================== معالجة playlistId مع التحقق من كلا الجدولين =====================
+    // ===================== معالجة playlistId بالتحقق من video_playlists فقط =====================
     let finalPlaylistId = null;
     if (playlistId !== undefined) {
-      // إذا كانت القيمة null أو undefined أو سلسلة فارغة، نضع null
       if (playlistId === null || playlistId === undefined || String(playlistId).trim() === '') {
         finalPlaylistId = null;
         console.log('ℹ️ playlistId is empty or null — setting to NULL');
@@ -166,38 +165,24 @@ export async function PUT(request, { params }) {
           console.warn(`⚠️ Invalid UUID format: "${idStr}" — setting to NULL`);
           finalPlaylistId = null;
         } else {
-          // 1. التحقق من جدول playlists (الأساسي)
-          console.log(`🔍 Checking playlists table for id: ${idStr}`);
-          const { data: p, error: pError } = await supabase
-            .from('playlists')
+          // ✅ التحقق من جدول video_playlists فقط (لأن القيد الخارجي يشير إليه)
+          console.log(`🔍 Checking video_playlists table for id: ${idStr}`);
+          const { data: vp, error: vpError } = await supabase
+            .from('video_playlists')
             .select('id')
             .eq('id', idStr)
             .maybeSingle();
 
-          if (!pError && p) {
+          if (!vpError && vp) {
             finalPlaylistId = idStr;
-            console.log(`✅ Playlist found in 'playlists' table: ${finalPlaylistId}`);
+            console.log(`✅ Playlist found in 'video_playlists': ${finalPlaylistId}`);
           } else {
-            // 2. إذا لم يوجد في playlists، تحقق من video_playlists
-            console.log(`🔍 Checking video_playlists table for id: ${idStr}`);
-            const { data: vp, error: vpError } = await supabase
-              .from('video_playlists')
-              .select('id')
-              .eq('id', idStr)
-              .maybeSingle();
-
-            if (!vpError && vp) {
-              finalPlaylistId = idStr;
-              console.log(`✅ Playlist found in 'video_playlists' table: ${finalPlaylistId}`);
-            } else {
-              console.warn(`⚠️ Playlist NOT found in any table: "${idStr}" — setting to NULL`);
-              finalPlaylistId = null;
-            }
+            console.warn(`⚠️ Playlist NOT found in video_playlists: "${idStr}" — setting to NULL`);
+            finalPlaylistId = null;
           }
         }
       }
 
-      // تحديث playlist_id
       updateData.playlist_id = finalPlaylistId;
       if (finalPlaylistId === null) {
         updateData.playlist_order = null;
