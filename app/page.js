@@ -1047,146 +1047,169 @@ const SocialCard = ({ link, index }) => {
 // 📐 أقسام الصفحة الرئيسية (بدون تغيير)
 // ================================================================
 
+// ================================================================
+// 🏠 HeroSection – تم تعديله ليصبح بتنسيق شبكي مع صورة المستر
+// ================================================================
+
 const HeroSection = ({ isDark }) => {
   const { scrollY } = useScroll();
   const y = useTransform(scrollY, [0, 500], [0, 30]);
 
   return (
     <section className="relative min-h-[85vh] flex items-center justify-center px-3 sm:px-4 pt-10 sm:pt-12 pb-4 sm:pb-6 overflow-hidden">
-      <motion.div style={{ y }} className="container mx-auto max-w-4xl text-center relative z-10">
+      <motion.div style={{ y }} className="container mx-auto max-w-6xl text-center relative z-10">
         <motion.div
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, ease: [0.25, 0.1, 0.25, 1] }}
+          className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center"
         >
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.15, duration: 0.35 }}
-            className="mb-2 sm:mb-3"
-          >
-            <div className="inline-block px-3 py-0.5 sm:px-4 sm:py-1 rounded-full bg-blue-400/10 border border-blue-400/20 backdrop-blur">
-              <p className="text-[7px] sm:text-[10px] text-blue-400 font-arabic tracking-wider">
-                اللهم صل على سيدنا محمد
-              </p>
-            </div>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: -3 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.25, duration: 0.3 }}
-            className="inline-flex items-center gap-1 px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full bg-blue-400/15 border border-blue-400/20 text-blue-400 text-[7px] sm:text-[9px] mb-2 sm:mb-3"
-          >
-            <Icons.Sparkles className="h-2 w-2 sm:h-2.5 sm:w-2.5 animate-pulse" />
-            <span>تعلم اللغة الإنجليزية بطريقة مختلفة</span>
-          </motion.div>
-
-          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold leading-[1.05] mb-1.5 sm:mb-3 tracking-tight">
-            <span className="bg-gradient-to-r from-blue-400 via-cyan-400 to-green-400 bg-clip-text text-transparent bg-[length:200%] animate-gradient">
-              مستر محمد رضوان
-            </span>
-          </h1>
-
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.35, duration: 0.4 }}
-            className={`text-xs sm:text-sm md:text-base max-w-2xl mx-auto leading-relaxed mb-3 sm:mb-4 ${
-              isDark ? 'text-gray-300' : 'text-gray-600'
-            }`}
-          >
-            لو عايز تتعلم إنجليزي باحترافية، تفهم القواعد بسهولة، وتتكلم بثقة، فأنت في المكان الصح.
-            هنا مش هتلاقي مجرد فيديوهات، هتلاقي نظام متكامل بيخليك تحب اللغة وتتقدم خطوة بخطوة مع متابعة شخصية من المستر.
-          </motion.p>
-
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.45, duration: 0.35 }}
-            className="flex flex-wrap justify-center gap-2 sm:gap-3 mb-3 sm:mb-4"
-          >
-            <motion.a
-              whileHover={{ scale: 1.04 }}
-              whileTap={{ scale: 0.95 }}
-              href="#courses"
-              className="inline-flex items-center gap-1 bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-bold px-4 py-1.5 sm:px-6 sm:py-2 rounded-full shadow-lg shadow-blue-500/40 hover:shadow-blue-500/60 transition-all duration-300 text-[9px] sm:text-xs md:text-sm"
+          {/* ===== العمود الأيسر: النصوص ===== */}
+          <div className="text-center lg:text-right order-2 lg:order-1">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.15, duration: 0.35 }}
+              className="mb-2 sm:mb-3"
             >
-              <Icons.Play className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
-              شوف الكورسات
-            </motion.a>
-            <motion.a
-              whileHover={{ scale: 1.04 }}
-              whileTap={{ scale: 0.95 }}
-              href="#features"
-              className={`inline-flex items-center gap-1 px-4 py-1.5 sm:px-6 sm:py-2 rounded-full border-2 transition-all duration-300 text-[9px] sm:text-xs md:text-sm font-bold ${
-                isDark
-                  ? 'border-blue-400/30 bg-white/5 hover:bg-white/10 hover:border-blue-400/60 text-white'
-                  : 'border-blue-400/30 bg-white/40 hover:bg-white hover:border-blue-400/60 text-gray-800'
+              <div className="inline-block px-3 py-0.5 sm:px-4 sm:py-1 rounded-full bg-blue-400/10 border border-blue-400/20 backdrop-blur">
+                <p className="text-[7px] sm:text-[10px] text-blue-400 font-arabic tracking-wider">
+                  اللهم صل على سيدنا محمد
+                </p>
+              </div>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: -3 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.25, duration: 0.3 }}
+              className="inline-flex items-center gap-1 px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full bg-blue-400/15 border border-blue-400/20 text-blue-400 text-[7px] sm:text-[9px] mb-2 sm:mb-3"
+            >
+              <Icons.Sparkles className="h-2 w-2 sm:h-2.5 sm:w-2.5 animate-pulse" />
+              <span>تعلم اللغة الإنجليزية بطريقة مختلفة</span>
+            </motion.div>
+
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold leading-[1.05] mb-1.5 sm:mb-3 tracking-tight">
+              <span className="bg-gradient-to-r from-blue-400 via-cyan-400 to-green-400 bg-clip-text text-transparent bg-[length:200%] animate-gradient">
+                مستر محمد رضوان
+              </span>
+            </h1>
+
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.35, duration: 0.4 }}
+              className={`text-xs sm:text-sm md:text-base max-w-2xl mx-auto lg:mx-0 leading-relaxed mb-3 sm:mb-4 ${
+                isDark ? 'text-gray-300' : 'text-gray-600'
               }`}
             >
-              <Icons.Eye className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
-              شوف المميزات
-            </motion.a>
-          </motion.div>
+              لو عايز تتعلم إنجليزي باحترافية، تفهم القواعد بسهولة، وتتكلم بثقة، فأنت في المكان الصح.
+              هنا مش هتلاقي مجرد فيديوهات، هتلاقي نظام متكامل بيخليك تحب اللغة وتتقدم خطوة بخطوة مع متابعة شخصية من المستر.
+            </motion.p>
 
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.55, duration: 0.4 }}
-            className="max-w-2xl mx-auto"
-          >
-            <div
-              className={`relative p-3 sm:p-4 rounded-xl border-2 ${
-                isDark
-                  ? 'bg-gradient-to-br from-amber-500/20 to-yellow-500/20 border-yellow-400/40'
-                  : 'bg-gradient-to-br from-amber-100/80 to-yellow-100/80 border-yellow-400/60'
-              } backdrop-blur shadow-lg shadow-yellow-400/20 hover:shadow-yellow-400/40 transition-all duration-400 overflow-hidden`}
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.45, duration: 0.35 }}
+              className="flex flex-wrap justify-center lg:justify-start gap-2 sm:gap-3 mb-3 sm:mb-4"
             >
-              <div className="absolute inset-0 bg-gradient-to-br from-yellow-400/10 via-transparent to-amber-400/10 animate-pulse" />
+              <motion.a
+                whileHover={{ scale: 1.04 }}
+                whileTap={{ scale: 0.95 }}
+                href="#courses"
+                className="inline-flex items-center gap-1 bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-bold px-4 py-1.5 sm:px-6 sm:py-2 rounded-full shadow-lg shadow-blue-500/40 hover:shadow-blue-500/60 transition-all duration-300 text-[9px] sm:text-xs md:text-sm"
+              >
+                <Icons.Play className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+                شوف الكورسات
+              </motion.a>
+              <motion.a
+                whileHover={{ scale: 1.04 }}
+                whileTap={{ scale: 0.95 }}
+                href="#features"
+                className={`inline-flex items-center gap-1 px-4 py-1.5 sm:px-6 sm:py-2 rounded-full border-2 transition-all duration-300 text-[9px] sm:text-xs md:text-sm font-bold ${
+                  isDark
+                    ? 'border-blue-400/30 bg-white/5 hover:bg-white/10 hover:border-blue-400/60 text-white'
+                    : 'border-blue-400/30 bg-white/40 hover:bg-white hover:border-blue-400/60 text-gray-800'
+                }`}
+              >
+                <Icons.Eye className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+                شوف المميزات
+              </motion.a>
+            </motion.div>
 
-              <div className="relative flex flex-col sm:flex-row items-center gap-2 sm:gap-3 text-center sm:text-right">
-                <motion.div
-                  className="flex-shrink-0 p-2 rounded-full bg-gradient-to-br from-yellow-400 to-amber-500 shadow-lg shadow-yellow-400/30"
-                  animate={{
-                    scale: [1, 1.06, 1],
-                    rotate: [0, 3, -3, 0],
-                  }}
-                  transition={{
-                    duration: 3,
-                    repeat: Infinity,
-                    ease: 'easeInOut',
-                  }}
-                >
-                  <Icons.Trophy className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
-                </motion.div>
+            {/* العرض الترويجي */}
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.55, duration: 0.4 }}
+              className="max-w-2xl mx-auto lg:mx-0"
+            >
+              <div
+                className={`relative p-3 sm:p-4 rounded-xl border-2 ${
+                  isDark
+                    ? 'bg-gradient-to-br from-amber-500/20 to-yellow-500/20 border-yellow-400/40'
+                    : 'bg-gradient-to-br from-amber-100/80 to-yellow-100/80 border-yellow-400/60'
+                } backdrop-blur shadow-lg shadow-yellow-400/20 hover:shadow-yellow-400/40 transition-all duration-400 overflow-hidden`}
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-yellow-400/10 via-transparent to-amber-400/10 animate-pulse" />
 
-                <div className="flex-1">
-                  <p className={`text-xs sm:text-sm font-bold ${isDark ? 'text-yellow-300' : 'text-amber-700'}`}>
-                    {PROMO_TOP_STUDENTS.title}
-                  </p>
-                  <p className={`text-[10px] sm:text-xs font-bold ${isDark ? 'text-amber-300' : 'text-amber-600'}`}>
-                    {PROMO_TOP_STUDENTS.subtitle}
-                  </p>
-                  <p className={`text-[8px] sm:text-[10px] ${isDark ? 'text-gray-300' : 'text-gray-600'} max-w-lg mx-auto sm:mx-0 mt-0.5 leading-relaxed`}>
-                    {PROMO_TOP_STUDENTS.description}
-                  </p>
+                <div className="relative flex flex-col sm:flex-row items-center gap-2 sm:gap-3 text-center sm:text-right">
+                  <motion.div
+                    className="flex-shrink-0 p-2 rounded-full bg-gradient-to-br from-yellow-400 to-amber-500 shadow-lg shadow-yellow-400/30"
+                    animate={{
+                      scale: [1, 1.06, 1],
+                      rotate: [0, 3, -3, 0],
+                    }}
+                    transition={{
+                      duration: 3,
+                      repeat: Infinity,
+                      ease: 'easeInOut',
+                    }}
+                  >
+                    <Icons.Trophy className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
+                  </motion.div>
+
+                  <div className="flex-1">
+                    <p className={`text-xs sm:text-sm font-bold ${isDark ? 'text-yellow-300' : 'text-amber-700'}`}>
+                      {PROMO_TOP_STUDENTS.title}
+                    </p>
+                    <p className={`text-[10px] sm:text-xs font-bold ${isDark ? 'text-amber-300' : 'text-amber-600'}`}>
+                      {PROMO_TOP_STUDENTS.subtitle}
+                    </p>
+                    <p className={`text-[8px] sm:text-[10px] ${isDark ? 'text-gray-300' : 'text-gray-600'} max-w-lg mx-auto sm:mx-0 mt-0.5 leading-relaxed`}>
+                      {PROMO_TOP_STUDENTS.description}
+                    </p>
+                  </div>
+
+                  <motion.a
+                    href={PROMO_TOP_STUDENTS.ctaLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-shrink-0 px-3 py-1.5 sm:px-4 sm:py-2 bg-gradient-to-r from-yellow-500 to-amber-500 text-white font-bold rounded-lg hover:from-yellow-600 hover:to-amber-600 transition shadow-lg shadow-yellow-500/30 hover:shadow-yellow-500/50 text-[8px] sm:text-[10px] flex items-center gap-1"
+                    whileHover={{ scale: 1.04 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <Icons.MessageCircle className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+                    {PROMO_TOP_STUDENTS.cta}
+                  </motion.a>
                 </div>
-
-                <motion.a
-                  href={PROMO_TOP_STUDENTS.ctaLink}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex-shrink-0 px-3 py-1.5 sm:px-4 sm:py-2 bg-gradient-to-r from-yellow-500 to-amber-500 text-white font-bold rounded-lg hover:from-yellow-600 hover:to-amber-600 transition shadow-lg shadow-yellow-500/30 hover:shadow-yellow-500/50 text-[8px] sm:text-[10px] flex items-center gap-1"
-                  whileHover={{ scale: 1.04 }}
-                  whileTap={{ scale: 0.95 }}
-                >
-                  <Icons.MessageCircle className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
-                  {PROMO_TOP_STUDENTS.cta}
-                </motion.a>
               </div>
+            </motion.div>
+          </div>
+
+          {/* ===== العمود الأيمن: صورة المستر ===== */}
+          <div className="order-1 lg:order-2 flex justify-center lg:justify-end">
+            <div className="relative w-48 h-48 sm:w-56 sm:h-56 md:w-64 md:h-64 lg:w-72 lg:h-72 xl:w-80 xl:h-80 rounded-full overflow-hidden border-4 border-yellow-400/30 shadow-2xl shadow-yellow-400/20 hover:shadow-yellow-400/40 transition-all duration-300 group">
+              <img
+                src="/images/teacher.jpg"
+                alt="مستر محمد رضوان"
+                className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              {/* إطار ذهبي متحرك (اختياري) */}
+              <div className="absolute inset-[-4px] rounded-full border-2 border-yellow-400/10 animate-pulse pointer-events-none" />
             </div>
-          </motion.div>
+          </div>
         </motion.div>
       </motion.div>
 
