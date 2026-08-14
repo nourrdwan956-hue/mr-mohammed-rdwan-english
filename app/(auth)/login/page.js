@@ -8,6 +8,7 @@ import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import * as Icons from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
+import { useTheme } from '@/lib/hooks/useTheme';
 
 // نصوص دينية
 const DHIKR = [
@@ -20,13 +21,15 @@ const DHIKR = [
 ];
 
 // ================================================================
-// 🧩 مكون المحتوى الداخلي (اللي بيستخدم useSearchParams)
+// 🧩 مكون المحتوى الداخلي
 // ================================================================
 
 function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectedFrom = searchParams.get('redirectedFrom');
+  const { theme, styles, toggleTheme } = useTheme();
+  const isDark = theme === 'dark';
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -102,40 +105,59 @@ function LoginContent() {
       icon: Icons.Video,
       title: 'فيديوهات تعليمية عالية الجودة',
       desc: 'محتوى مسجل بدقة عالية مع شرح وافٍ لكل التفاصيل',
-      color: 'from-blue-500/20 to-blue-600/20 border-blue-500/30',
-      iconColor: 'text-blue-400',
+      color: isDark ? 'from-blue-500/20 to-blue-600/20 border-blue-500/30' : 'from-blue-100/80 to-blue-200/80 border-blue-300/50',
+      iconColor: isDark ? 'text-blue-400' : 'text-blue-600',
+      textColor: isDark ? 'text-white' : 'text-gray-800',
+      descColor: isDark ? 'text-gray-300' : 'text-gray-600',
     },
     {
       icon: Icons.FileText,
       title: 'امتحانات تفاعلية وتصحيح فوري',
       desc: 'اختبر مستواك مع امتحانات ذكية وتصحيح آلي فوري',
-      color: 'from-purple-500/20 to-purple-600/20 border-purple-500/30',
-      iconColor: 'text-purple-400',
+      color: isDark ? 'from-purple-500/20 to-purple-600/20 border-purple-500/30' : 'from-purple-100/80 to-purple-200/80 border-purple-300/50',
+      iconColor: isDark ? 'text-purple-400' : 'text-purple-600',
+      textColor: isDark ? 'text-white' : 'text-gray-800',
+      descColor: isDark ? 'text-gray-300' : 'text-gray-600',
     },
     {
       icon: Icons.Headphones,
       title: 'متابعة مستمرة مع المعلم',
       desc: 'تواصل مباشر مع معلمك للإجابة عن أسئلتك',
-      color: 'from-emerald-500/20 to-emerald-600/20 border-emerald-500/30',
-      iconColor: 'text-emerald-400',
+      color: isDark ? 'from-emerald-500/20 to-emerald-600/20 border-emerald-500/30' : 'from-emerald-100/80 to-emerald-200/80 border-emerald-300/50',
+      iconColor: isDark ? 'text-emerald-400' : 'text-emerald-600',
+      textColor: isDark ? 'text-white' : 'text-gray-800',
+      descColor: isDark ? 'text-gray-300' : 'text-gray-600',
     },
     {
       icon: Icons.Award,
       title: 'شهادات معتمدة بعد الإتمام',
       desc: 'احصل على شهادة إلكترونية بعد إكمال كل كورس',
-      color: 'from-yellow-500/20 to-yellow-600/20 border-yellow-500/30',
-      iconColor: 'text-yellow-400',
+      color: isDark ? 'from-yellow-500/20 to-yellow-600/20 border-yellow-500/30' : 'from-yellow-100/80 to-yellow-200/80 border-yellow-300/50',
+      iconColor: isDark ? 'text-yellow-400' : 'text-yellow-600',
+      textColor: isDark ? 'text-white' : 'text-gray-800',
+      descColor: isDark ? 'text-gray-300' : 'text-gray-600',
     },
   ];
 
   return (
-    <div className="min-h-screen flex bg-gradient-to-br from-[#0b0e1a] via-[#0f1225] to-[#0a0d18] relative overflow-hidden">
-      {/* خلفية الجسيمات */}
+    <div className={`min-h-screen flex ${styles.bg} transition-colors duration-300 relative overflow-hidden`}>
+      {/* خلفية الجسيمات – تتغير حسب الوضع */}
       <div className="absolute inset-0 -z-10 pointer-events-none">
-        <div className="absolute top-0 -left-20 w-[600px] h-[600px] bg-yellow-400/10 rounded-full blur-[120px] animate-pulse" />
-        <div className="absolute top-1/2 -right-20 w-[500px] h-[500px] bg-purple-500/8 rounded-full blur-[100px] animate-pulse delay-1000" />
-        <div className="absolute bottom-0 left-1/3 w-[700px] h-[700px] bg-blue-500/5 rounded-full blur-[130px] animate-pulse delay-2000" />
-        <div className="absolute top-1/4 left-1/2 w-[300px] h-[300px] bg-yellow-400/5 rounded-full blur-[80px] animate-pulse delay-1500" />
+        {isDark ? (
+          <>
+            <div className="absolute top-0 -left-20 w-[600px] h-[600px] bg-yellow-400/10 rounded-full blur-[120px] animate-pulse" />
+            <div className="absolute top-1/2 -right-20 w-[500px] h-[500px] bg-purple-500/8 rounded-full blur-[100px] animate-pulse delay-1000" />
+            <div className="absolute bottom-0 left-1/3 w-[700px] h-[700px] bg-blue-500/5 rounded-full blur-[130px] animate-pulse delay-2000" />
+            <div className="absolute top-1/4 left-1/2 w-[300px] h-[300px] bg-yellow-400/5 rounded-full blur-[80px] animate-pulse delay-1500" />
+          </>
+        ) : (
+          <>
+            <div className="absolute top-0 -left-20 w-[600px] h-[600px] bg-yellow-200/30 rounded-full blur-[120px] animate-pulse" />
+            <div className="absolute top-1/2 -right-20 w-[500px] h-[500px] bg-purple-200/20 rounded-full blur-[100px] animate-pulse delay-1000" />
+            <div className="absolute bottom-0 left-1/3 w-[700px] h-[700px] bg-blue-200/15 rounded-full blur-[130px] animate-pulse delay-2000" />
+            <div className="absolute top-1/4 left-1/2 w-[300px] h-[300px] bg-yellow-200/15 rounded-full blur-[80px] animate-pulse delay-1500" />
+          </>
+        )}
       </div>
 
       <div className="relative z-10 w-full max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 min-h-screen">
@@ -146,15 +168,25 @@ function LoginContent() {
           transition={{ duration: 0.5, delay: 0.2 }}
           className="flex items-center justify-center p-4 md:p-8 order-2 md:order-1"
         >
-          <div className="w-full max-w-md bg-white/5 backdrop-blur-2xl border border-white/10 rounded-3xl shadow-2xl shadow-yellow-400/5 p-8 relative">
-            {/* ✅ زر العودة للصفحة الرئيسية – في الزاوية العلوية اليمنى */}
-            <Link
-              href="/"
-              className="absolute top-4 right-4 md:top-6 md:right-6 flex items-center gap-2 px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/10 transition-all duration-300 group text-sm text-gray-300 hover:text-white"
-            >
-              <Icons.ArrowRight className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />
-              <span className="hidden sm:inline">الرئيسية</span>
-            </Link>
+          <div className={`w-full max-w-md ${styles.card} backdrop-blur-2xl border ${styles.border} rounded-3xl shadow-2xl shadow-yellow-400/5 p-8 relative transition-colors duration-300`}>
+            {/* ✅ زر العودة للصفحة الرئيسية + تبديل الثيم */}
+            <div className="absolute top-4 right-4 md:top-6 md:right-6 flex items-center gap-2">
+              {/* زر تبديل الثيم */}
+              <button
+                onClick={toggleTheme}
+                className="p-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/10 transition-all duration-300 text-gray-300 hover:text-white"
+                title={isDark ? 'الوضع الفاتح' : 'الوضع الداكن'}
+              >
+                {isDark ? <Icons.Sun className="h-4 w-4" /> : <Icons.Moon className="h-4 w-4" />}
+              </button>
+              <Link
+                href="/"
+                className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/10 transition-all duration-300 group text-sm text-gray-300 hover:text-white"
+              >
+                <Icons.ArrowRight className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />
+                <span className="hidden sm:inline">الرئيسية</span>
+              </Link>
+            </div>
 
             {/* شعار المنصة */}
             <motion.div
@@ -166,7 +198,7 @@ function LoginContent() {
               <motion.div
                 animate={{ scale: [1, 1.05, 1], rotate: [0, 1, -1, 0] }}
                 transition={{ duration: 4, repeat: Infinity }}
-                className="mx-auto h-24 w-24 rounded-2xl bg-white/10 backdrop-blur-sm border border-white/20 flex items-center justify-center shadow-2xl shadow-yellow-400/20 overflow-hidden"
+                className={`mx-auto h-24 w-24 rounded-2xl ${styles.card} backdrop-blur-sm border ${styles.border} flex items-center justify-center shadow-2xl shadow-yellow-400/20 overflow-hidden`}
               >
                 <img
                   src="/images/logo.png"
@@ -178,7 +210,7 @@ function LoginContent() {
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.4 }}
-                className="text-3xl font-extrabold text-white mt-4"
+                className={`text-3xl font-extrabold ${styles.text} mt-4`}
               >
                 مرحباً بعودتك
               </motion.h1>
@@ -186,7 +218,7 @@ function LoginContent() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.5 }}
-                className="text-gray-400 text-sm mt-1"
+                className={`${styles.subtext} text-sm mt-1`}
               >
                 سجل الدخول إلى منصة محمد رضوان للغة الإنجليزية
               </motion.p>
@@ -214,7 +246,7 @@ function LoginContent() {
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.6 }}
               >
-                <label className="block text-sm font-semibold text-gray-300 mb-1.5 flex items-center gap-1.5">
+                <label className={`block text-sm font-semibold ${styles.text} mb-1.5 flex items-center gap-1.5`}>
                   <Icons.Mail className="h-4 w-4 text-yellow-400" />
                   البريد الإلكتروني
                 </label>
@@ -228,7 +260,7 @@ function LoginContent() {
                     onFocus={() => setFocusedField('email')}
                     onBlur={() => setFocusedField(null)}
                     placeholder="example@email.com"
-                    className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-gray-500 focus:outline-none transition-all"
+                    className={`w-full px-4 py-3 ${styles.card} border ${styles.border} rounded-xl ${styles.text} placeholder-gray-500 focus:outline-none transition-all`}
                     required
                     disabled={loading}
                   />
@@ -246,7 +278,7 @@ function LoginContent() {
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.7 }}
               >
-                <label className="block text-sm font-semibold text-gray-300 mb-1.5 flex items-center gap-1.5">
+                <label className={`block text-sm font-semibold ${styles.text} mb-1.5 flex items-center gap-1.5`}>
                   <Icons.Lock className="h-4 w-4 text-yellow-400" />
                   كلمة المرور
                 </label>
@@ -260,14 +292,14 @@ function LoginContent() {
                     onFocus={() => setFocusedField('password')}
                     onBlur={() => setFocusedField(null)}
                     placeholder="••••••••"
-                    className="w-full px-4 py-3 pr-11 bg-white/10 border border-white/20 rounded-xl text-white placeholder-gray-500 focus:outline-none transition-all"
+                    className={`w-full px-4 py-3 pr-11 ${styles.card} border ${styles.border} rounded-xl ${styles.text} placeholder-gray-500 focus:outline-none transition-all`}
                     required
                     disabled={loading}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition"
+                    className={`absolute left-3 top-1/2 -translate-y-1/2 ${styles.subtext} hover:${styles.text} transition`}
                   >
                     {showPassword ? <Icons.EyeOff className="h-5 w-5" /> : <Icons.Eye className="h-5 w-5" />}
                   </button>
@@ -280,7 +312,7 @@ function LoginContent() {
                 transition={{ delay: 0.8 }}
                 className="flex items-center justify-between text-sm"
               >
-                <label className="flex items-center gap-2 cursor-pointer text-gray-400 hover:text-gray-300 transition">
+                <label className={`flex items-center gap-2 cursor-pointer ${styles.subtext} hover:${styles.text} transition`}>
                   <input
                     type="checkbox"
                     checked={rememberMe}
@@ -322,7 +354,7 @@ function LoginContent() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 1 }}
-                className="text-center text-sm text-gray-400 mt-2"
+                className={`text-center text-sm ${styles.subtext} mt-2`}
               >
                 ليس لديك حساب؟{' '}
                 <Link href="/register" className="text-yellow-400 hover:text-yellow-300 font-semibold transition">
@@ -338,11 +370,11 @@ function LoginContent() {
               transition={{ delay: 1.1 }}
               className="mt-6 pt-6 border-t border-white/5"
             >
-              <p className="text-xs text-gray-500 text-center mb-3">تواصل مع الدعم الفني</p>
+              <p className={`text-xs ${styles.subtext} text-center mb-3`}>تواصل مع الدعم الفني</p>
               <div className="grid grid-cols-2 gap-3">
                 <a
                   href="tel:01552191172"
-                  className="flex items-center justify-center gap-2 py-2.5 rounded-xl bg-white/5 border border-white/10 text-gray-300 text-sm hover:bg-white/10 transition group"
+                  className={`flex items-center justify-center gap-2 py-2.5 rounded-xl ${styles.card} border ${styles.border} ${styles.subtext} text-sm hover:bg-white/10 transition group`}
                 >
                   <Icons.Phone className="h-4 w-4 text-blue-400 group-hover:scale-110 transition" />
                   اتصال
@@ -373,7 +405,7 @@ function LoginContent() {
             <motion.div
               animate={{ y: [0, -10, 0] }}
               transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
-              className="inline-flex p-6 rounded-3xl bg-gradient-to-br from-yellow-400/20 to-yellow-600/20 border border-yellow-400/30 backdrop-blur-xl mb-8 overflow-hidden"
+              className={`inline-flex p-6 rounded-3xl bg-gradient-to-br from-yellow-400/20 to-yellow-600/20 border border-yellow-400/30 backdrop-blur-xl mb-8 overflow-hidden`}
             >
               <img
                 src="/images/logo.png"
@@ -382,10 +414,10 @@ function LoginContent() {
               />
             </motion.div>
 
-            <h2 className="text-4xl font-extrabold text-white mb-2">
+            <h2 className={`text-4xl font-extrabold ${styles.text} mb-2`}>
               منصة محمد رضوان
             </h2>
-            <p className="text-lg text-gray-400 mb-8">
+            <p className={`text-lg ${styles.subtext} mb-8`}>
               للغة الإنجليزية
             </p>
 
@@ -403,8 +435,8 @@ function LoginContent() {
                     <feature.icon className="h-6 w-6" />
                   </div>
                   <div className="flex-1">
-                    <h3 className="text-sm font-bold text-white mb-0.5">{feature.title}</h3>
-                    <p className="text-xs text-gray-300">{feature.desc}</p>
+                    <h3 className={`text-sm font-bold ${feature.textColor} mb-0.5`}>{feature.title}</h3>
+                    <p className={`text-xs ${feature.descColor}`}>{feature.desc}</p>
                   </div>
                 </motion.div>
               ))}
@@ -427,9 +459,9 @@ function LoginContent() {
             </div>
 
             {/* اقتباس تحفيزي */}
-            <div className="relative p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm">
+            <div className={`relative p-6 rounded-2xl ${styles.card} border ${styles.border} backdrop-blur-sm`}>
               <Icons.Quote className="absolute -top-3 -right-3 h-10 w-10 text-yellow-400/20" />
-              <p className="text-sm text-gray-300 italic leading-relaxed">
+              <p className={`text-sm ${styles.subtext} italic leading-relaxed`}>
                 "التعليم هو أقوى سلاح يمكنك استخدامه لتغيير العالم."
               </p>
               <p className="text-xs text-yellow-400 mt-2 font-semibold">نيلسون مانديلا</p>
@@ -446,7 +478,7 @@ function LoginContent() {
                 className={`bg-gradient-to-br ${feature.color} backdrop-blur-md border rounded-xl p-3 text-center`}
               >
                 <feature.icon className={`h-6 w-6 mx-auto mb-1 ${feature.iconColor}`} />
-                <p className="text-xs text-white font-medium">{feature.title}</p>
+                <p className={`text-xs font-medium ${feature.textColor}`}>{feature.title}</p>
               </div>
             ))}
           </div>
@@ -464,7 +496,7 @@ function LoginContent() {
               </motion.p>
             </AnimatePresence>
           </div>
-          <p className="text-[10px] text-gray-600 mt-4">
+          <p className={`text-[10px] ${styles.subtext} mt-4`}>
             © 2026 منصة محمد رضوان - جميع الحقوق محفوظة
           </p>
         </div>
@@ -474,7 +506,7 @@ function LoginContent() {
 }
 
 // ================================================================
-// 🏠 المكون الرئيسي – مع Suspense لحل مشكلة useSearchParams
+// 🏠 المكون الرئيسي – مع Suspense
 // ================================================================
 
 export default function LoginPage() {
