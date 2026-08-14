@@ -1048,7 +1048,7 @@ const SocialCard = ({ link, index }) => {
 // ================================================================
 
 // ================================================================
-// 🏠 HeroSection – تم تعديله لتكون الصورة أكبر في جميع الشاشات
+// 🏠 HeroSection – صورة المستر أصبحت أعرض مع ارتفاع ثابت
 // ================================================================
 
 const HeroSection = ({ isDark }) => {
@@ -1197,14 +1197,13 @@ const HeroSection = ({ isDark }) => {
             </motion.div>
           </div>
 
-          {/* ===== العمود الأيمن: صورة المستر (أكبر عرضاً) ===== */}
+          {/* ===== العمود الأيمن: صورة المستر (أعرض مع ارتفاع ثابت) ===== */}
           <div className="order-1 lg:order-2 flex justify-center lg:justify-end">
-            <div className="relative w-60 sm:w-64 md:w-72 lg:w-80 xl:w-96 rounded-2xl overflow-hidden border-4 border-yellow-400/30 shadow-2xl shadow-yellow-400/20 hover:shadow-yellow-400/40 transition-all duration-300 group">
+            <div className="relative w-72 sm:w-80 md:w-96 lg:w-[420px] xl:w-[480px] h-80 sm:h-96 md:h-[420px] lg:h-[460px] xl:h-[500px] rounded-2xl overflow-hidden border-4 border-yellow-400/30 shadow-2xl shadow-yellow-400/20 hover:shadow-yellow-400/40 transition-all duration-300 group">
               <img
                 src="/images/teacher-photo.jpg"
                 alt="مستر محمد رضوان"
-                className="w-full h-auto object-cover object-center group-hover:scale-105 transition-transform duration-500"
-                style={{ aspectRatio: '3/4' }}
+                className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
               <div className="absolute inset-[-4px] rounded-2xl border-2 border-yellow-400/10 animate-pulse pointer-events-none" />
