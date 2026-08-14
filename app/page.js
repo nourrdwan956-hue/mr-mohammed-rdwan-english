@@ -1048,7 +1048,7 @@ const SocialCard = ({ link, index }) => {
 // ================================================================
 
 // ================================================================
-// 🏠 HeroSection – تم تعديله ليصبح بتنسيق شبكي مع صورة مستر (طولية)
+// 🏠 HeroSection – تم تعديله لتكون الصورة أكبر في جميع الشاشات
 // ================================================================
 
 const HeroSection = ({ isDark }) => {
@@ -1197,9 +1197,9 @@ const HeroSection = ({ isDark }) => {
             </motion.div>
           </div>
 
-          {/* ===== العمود الأيمن: صورة المستر (طولية) ===== */}
+          {/* ===== العمود الأيمن: صورة المستر (أكبر عرضاً) ===== */}
           <div className="order-1 lg:order-2 flex justify-center lg:justify-end">
-            <div className="relative w-48 sm:w-56 md:w-64 lg:w-72 xl:w-80 rounded-2xl overflow-hidden border-4 border-yellow-400/30 shadow-2xl shadow-yellow-400/20 hover:shadow-yellow-400/40 transition-all duration-300 group">
+            <div className="relative w-60 sm:w-64 md:w-72 lg:w-80 xl:w-96 rounded-2xl overflow-hidden border-4 border-yellow-400/30 shadow-2xl shadow-yellow-400/20 hover:shadow-yellow-400/40 transition-all duration-300 group">
               <img
                 src="/images/teacher-photo.jpg"
                 alt="مستر محمد رضوان"
