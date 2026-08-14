@@ -1048,7 +1048,7 @@ const SocialCard = ({ link, index }) => {
 // ================================================================
 
 // ================================================================
-// 🏠 HeroSection – تم تعديله ليصبح بتنسيق شبكي مع صورة المستر
+// 🏠 HeroSection – تم تعديله ليصبح بتنسيق شبكي مع صورة مستر (طولية)
 // ================================================================
 
 const HeroSection = ({ isDark }) => {
@@ -1197,17 +1197,17 @@ const HeroSection = ({ isDark }) => {
             </motion.div>
           </div>
 
-          {/* ===== العمود الأيمن: صورة المستر ===== */}
+          {/* ===== العمود الأيمن: صورة المستر (طولية) ===== */}
           <div className="order-1 lg:order-2 flex justify-center lg:justify-end">
-            <div className="relative w-48 h-48 sm:w-56 sm:h-56 md:w-64 md:h-64 lg:w-72 lg:h-72 xl:w-80 xl:h-80 rounded-full overflow-hidden border-4 border-yellow-400/30 shadow-2xl shadow-yellow-400/20 hover:shadow-yellow-400/40 transition-all duration-300 group">
+            <div className="relative w-48 sm:w-56 md:w-64 lg:w-72 xl:w-80 rounded-2xl overflow-hidden border-4 border-yellow-400/30 shadow-2xl shadow-yellow-400/20 hover:shadow-yellow-400/40 transition-all duration-300 group">
               <img
-                src="/images/teacher.jpg"
+                src="/images/teacher-photo.jpg"
                 alt="مستر محمد رضوان"
-                className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
+                className="w-full h-auto object-cover object-center group-hover:scale-105 transition-transform duration-500"
+                style={{ aspectRatio: '3/4' }}
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-              {/* إطار ذهبي متحرك (اختياري) */}
-              <div className="absolute inset-[-4px] rounded-full border-2 border-yellow-400/10 animate-pulse pointer-events-none" />
+              <div className="absolute inset-[-4px] rounded-2xl border-2 border-yellow-400/10 animate-pulse pointer-events-none" />
             </div>
           </div>
         </motion.div>
