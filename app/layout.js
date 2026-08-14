@@ -5,28 +5,27 @@ import { DeviceProvider } from '@/app/context/DeviceContext';
 import { Toaster } from 'react-hot-toast';
 
 export const metadata = {
-  // ✅ العنوان المطلوب: "منصة محمد رضوان" (بدون كلمة "التعليمية" لتكون مختصرة)
+  // ✅ العنوان: "منصة محمد رضوان"
   title: 'منصة محمد رضوان',
   
-  // ✅ الوصف المطلوب: "منصة تعليم اللغة الإنجليزية بطريقة سهلة ومبسطة"
+  // ✅ الوصف: "منصة تعليم اللغة الإنجليزية بطريقة سهلة ومبسطة"
   description: 'منصة تعليم اللغة الإنجليزية بطريقة سهلة ومبسطة',
   
-  // ✅ كلمات مفتاحية محسنة
   keywords: 'تعليم, منصة تعليمية, محمد رضوان, كورسات, فيديوهات, امتحانات, إنجليزي, تعلم إنجليزي',
   
   authors: [{ name: 'محمد رضوان' }],
   
-  // ✅ إعدادات Open Graph (للمشاركة على فيسبوك، واتساب، تويتر، إلخ)
+  // ✅ Open Graph – مع تحديث الصورة إلى Absolute URL باستخدام الدومين الجديد
   openGraph: {
     title: 'منصة محمد رضوان',
     description: 'منصة تعليم اللغة الإنجليزية بطريقة سهلة ومبسطة',
     type: 'website',
     locale: 'ar_EG',
     siteName: 'منصة محمد رضوان',
-    // ✅ اللوجو الموجود في public/images/logo.png
+    url: 'https://mrmohamedradwan.com', // ✅ إضافة URL الدومين الجديد
     images: [
       {
-        url: '/images/logo.png',  // المسار الصحيح للوجو
+        url: 'https://mrmohamedradwan.com/images/logo.png', // ✅ مسار مطلق للوجو
         width: 512,
         height: 512,
         alt: 'لوجو منصة محمد رضوان',
@@ -34,22 +33,21 @@ export const metadata = {
     ],
   },
   
-  // ✅ إعدادات تويتر (للمشاركة على تويتر)
+  // ✅ إعدادات تويتر – مع تحديث الصورة إلى Absolute URL
   twitter: {
     card: 'summary_large_image',
     title: 'منصة محمد رضوان',
     description: 'منصة تعليم اللغة الإنجليزية بطريقة سهلة ومبسطة',
-    images: ['/images/logo.png'],
+    images: ['https://mrmohamedradwan.com/images/logo.png'], // ✅ مسار مطلق للوجو
   },
   
-  // ✅ إعدادات الأيقونة (favicon و apple-touch-icon)
+  // ✅ إعدادات الأيقونة
   icons: {
     icon: '/images/logo.png',
     apple: '/images/logo.png',
     shortcut: '/images/logo.png',
   },
   
-  // ✅ إعدادات إضافية
   robots: {
     index: true,
     follow: true,
@@ -59,7 +57,6 @@ export const metadata = {
     },
   },
   
-  // ✅ إعدادات عرض الصفحة (للتطبيقات)
   viewport: {
     width: 'device-width',
     initialScale: 1.0,
@@ -67,12 +64,11 @@ export const metadata = {
     userScalable: true,
   },
   
-  // ✅ لون السمة (يستخدم في المتصفحات الحديثة)
   themeColor: '#0b0e1a',
   
-  // ✅ تعيين اللغة والاتجاه
+  // ✅ تعيين اللغة والاتجاه – مع تحديث الدومين الجديد
   alternates: {
-    canonical: 'https://mr-mohammed-rdwan-english.vercel.app',
+    canonical: 'https://mrmohamedradwan.com', // ✅ الدومين الجديد
   },
 };
 
@@ -80,7 +76,6 @@ export default function RootLayout({ children }) {
   return (
     <html lang="ar" dir="rtl" data-scroll-behavior="smooth" suppressHydrationWarning>
       <head>
-        {/* ✅ Cloudinary Upload Widget */}
         <script src="https://upload-widget.cloudinary.com/global/all.js" async />
         <link rel="icon" href="/images/logo.png" sizes="any" />
         <link rel="apple-touch-icon" href="/images/logo.png" />
