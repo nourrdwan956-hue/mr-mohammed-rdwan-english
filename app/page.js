@@ -322,63 +322,50 @@ const ElegantBackground = ({ isDark }) => {
 };
 
 // ================================================================
-// 🧭 مؤشر التمرير (بدون تغيير)
+// 🧭 مؤشر التمرير (تم إزالته واستبداله بنظام السهمين)
 // ================================================================
 
-const ScrollIndicator = ({ targetId }) => {
-  const [visible, setVisible] = useState(true);
+// ================================================================
+// ⬆️⬇️ أزرار التنقل الجديدة (سهمان أخضر وأحمر)
+// ================================================================
 
-  useEffect(() => {
-    const handler = () => setVisible(window.scrollY < 80);
-    window.addEventListener('scroll', handler);
-    return () => window.removeEventListener('scroll', handler);
-  }, []);
-
-  if (!visible) return null;
-
+const NavigationArrows = ({ onNext, onPrev, canNext, canPrev, isDark }) => {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 15 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 1.2, duration: 0.6 }}
-      className="absolute bottom-2 left-1/2 -translate-x-1/2 cursor-pointer z-20"
-      onClick={() => document.getElementById(targetId)?.scrollIntoView({ behavior: 'smooth' })}
-    >
-      <div className="flex flex-col items-center gap-0.5">
-        <motion.div
-          animate={{ y: [0, -5, 0] }}
-          transition={{ repeat: Infinity, duration: 2, ease: 'easeInOut' }}
-          className="w-px h-6 bg-gradient-to-b from-blue-400 to-transparent"
-        />
-        <div className="w-5 h-5 rounded-full border border-blue-400/30 bg-white/5 backdrop-blur flex items-center justify-center hover:border-blue-400/70 transition-all duration-300 group">
-          <Icons.ChevronDown className="h-2.5 w-2.5 text-blue-400 group-hover:text-blue-300 transition-colors" />
-        </div>
-      </div>
-    </motion.div>
+    <div className="fixed bottom-4 right-3 sm:bottom-6 sm:right-4 z-50 flex flex-col gap-2">
+      {/* السهم الأخضر (لأسفل) */}
+      <motion.button
+        onClick={onNext}
+        whileHover={{ scale: 1.15 }}
+        whileTap={{ scale: 0.9 }}
+        className={`p-1.5 sm:p-2 rounded-full shadow-lg transition-all duration-300 ${
+          canNext
+            ? 'bg-green-500 hover:bg-green-600 shadow-green-500/40 hover:shadow-green-600/60'
+            : 'bg-gray-500/50 cursor-not-allowed opacity-40'
+        }`}
+        disabled={!canNext}
+        aria-label="القسم التالي"
+      >
+        <Icons.ChevronDown className="h-3 w-3 sm:h-4 sm:w-4 text-white" strokeWidth={2.5} />
+      </motion.button>
+
+      {/* السهم الأحمر (لأعلى) */}
+      <motion.button
+        onClick={onPrev}
+        whileHover={{ scale: 1.15 }}
+        whileTap={{ scale: 0.9 }}
+        className={`p-1.5 sm:p-2 rounded-full shadow-lg transition-all duration-300 ${
+          canPrev
+            ? 'bg-red-500 hover:bg-red-600 shadow-red-500/40 hover:shadow-red-600/60'
+            : 'bg-gray-500/50 cursor-not-allowed opacity-40'
+        }`}
+        disabled={!canPrev}
+        aria-label="القسم السابق / أعلى الصفحة"
+      >
+        <Icons.ChevronUp className="h-3 w-3 sm:h-4 sm:w-4 text-white" strokeWidth={2.5} />
+      </motion.button>
+    </div>
   );
 };
-
-// ================================================================
-// ⬆️ زر العودة للأعلى (بدون تغيير)
-// ================================================================
-
-const ScrollToTopButton = ({ show, onClick }) => (
-  <AnimatePresence>
-    {show && (
-      <motion.button
-        initial={{ opacity: 0, scale: 0.8 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.8 }}
-        whileHover={{ scale: 1.1 }}
-        whileTap={{ scale: 0.9 }}
-        onClick={onClick}
-        className="fixed bottom-3 right-3 sm:bottom-4 sm:right-4 z-50 p-1.5 sm:p-2 rounded-full bg-gradient-to-r from-blue-500 to-green-500 text-white shadow-lg shadow-blue-500/40 hover:shadow-blue-500/60 transition-all duration-300 group"
-      >
-        <Icons.ChevronUp className="h-3 w-3 sm:h-3.5 sm:w-3.5 group-hover:-translate-y-0.5 transition-transform" />
-      </motion.button>
-    )}
-  </AnimatePresence>
-);
 
 // ================================================================
 // 🎨 لون المشبك الموحد (ذهبي فاتح)
@@ -1044,11 +1031,7 @@ const SocialCard = ({ link, index }) => {
 };
 
 // ================================================================
-// 📐 أقسام الصفحة الرئيسية (بدون تغيير)
-// ================================================================
-
-// ================================================================
-// 🏠 HeroSection – صورة المستر مصغرة على الهواتف مع ظهورها كاملاً
+// 🏠 HeroSection – صورة المستر أسفل النصوص على الهواتف
 // ================================================================
 
 const HeroSection = ({ isDark }) => {
@@ -1056,7 +1039,7 @@ const HeroSection = ({ isDark }) => {
   const y = useTransform(scrollY, [0, 500], [0, 30]);
 
   return (
-    <section className="relative min-h-[85vh] flex items-center justify-center px-3 sm:px-4 pt-10 sm:pt-12 pb-4 sm:pb-6 overflow-hidden">
+    <section id="hero" className="relative min-h-[85vh] flex items-center justify-center px-3 sm:px-4 pt-10 sm:pt-12 pb-4 sm:pb-6 overflow-hidden">
       <motion.div style={{ y }} className="container mx-auto max-w-6xl text-center relative z-10">
         <motion.div
           initial={{ opacity: 0, y: 15 }}
@@ -1064,8 +1047,8 @@ const HeroSection = ({ isDark }) => {
           transition={{ duration: 0.5, ease: [0.25, 0.1, 0.25, 1] }}
           className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center"
         >
-          {/* ===== العمود الأيسر: النصوص ===== */}
-          <div className="text-center lg:text-right order-2 lg:order-1">
+          {/* ===== العمود الأيسر: النصوص (يظهر أولاً على الهواتف) ===== */}
+          <div className="text-center lg:text-right order-1 lg:order-1">
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -1197,8 +1180,8 @@ const HeroSection = ({ isDark }) => {
             </motion.div>
           </div>
 
-          {/* ===== العمود الأيمن: صورة المستر (مرنة، تظهر كاملة على الهواتف) ===== */}
-          <div className="order-1 lg:order-2 flex justify-center lg:justify-end">
+          {/* ===== العمود الأيمن: صورة المستر (يظهر ثانياً على الهواتف) ===== */}
+          <div className="order-2 lg:order-2 flex justify-center lg:justify-end">
             <div className="relative w-44 sm:w-56 md:w-64 lg:w-80 xl:w-96 rounded-2xl overflow-hidden border-4 border-yellow-400/30 shadow-2xl shadow-yellow-400/20 hover:shadow-yellow-400/40 transition-all duration-300 group">
               <img
                 src="/images/teacher-photo.jpg"
@@ -1212,8 +1195,6 @@ const HeroSection = ({ isDark }) => {
           </div>
         </motion.div>
       </motion.div>
-
-      <ScrollIndicator targetId="courses" />
     </section>
   );
 };
@@ -1354,7 +1335,7 @@ const ContactSection = ({ isDark }) => {
 
 const FooterSection = ({ isDark }) => {
   return (
-    <footer className={`${isDark ? 'bg-[#030812]/90 border-white/5' : 'bg-white/90 border-gray-200/40'} border-t py-3 sm:py-4 px-3 sm:px-4 backdrop-blur`}>
+    <footer id="footer" className={`${isDark ? 'bg-[#030812]/90 border-white/5' : 'bg-white/90 border-gray-200/40'} border-t py-3 sm:py-4 px-3 sm:px-4 backdrop-blur`}>
       <div className="container mx-auto max-w-6xl">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <div className="md:col-span-2">
@@ -1456,20 +1437,72 @@ export default function Home() {
   const isDark = theme === 'dark';
 
   const [scrolled, setScrolled] = useState(false);
-  const [showBackToTop, setShowBackToTop] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [courses, setCourses] = useState([]);
   const [teachers, setTeachers] = useState({});
   const [loading, setLoading] = useState(true);
   const [scrollProgress, setScrollProgress] = useState(0);
 
-  const { scrollY } = useScroll();
+  // ============================================================
+  // نظام التنقل بين الأقسام (سهمين أخضر/أحمر)
+  // ============================================================
+  const sectionIds = ['hero', 'courses', 'features', 'countdown', 'contact', 'footer'];
+  const [currentSectionIndex, setCurrentSectionIndex] = useState(0);
+
+  // تحديث الفهرس الحالي بناءً على موضع التمرير
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollY = window.scrollY + 120; // تعويض للهيدر
+      let newIndex = 0;
+      for (let i = sectionIds.length - 1; i >= 0; i--) {
+        const el = document.getElementById(sectionIds[i]);
+        if (el && el.offsetTop <= scrollY) {
+          newIndex = i;
+          break;
+        }
+      }
+      setCurrentSectionIndex(newIndex);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    handleScroll(); // تحديث أولي
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [sectionIds]);
+
+  // الانتقال إلى قسم معين
+  const scrollToSection = useCallback((index) => {
+    const targetId = sectionIds[index];
+    const targetEl = document.getElementById(targetId);
+    if (targetEl) {
+      targetEl.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [sectionIds]);
+
+  // السهم الأخضر → القسم التالي
+  const handleNext = useCallback(() => {
+    if (currentSectionIndex < sectionIds.length - 1) {
+      scrollToSection(currentSectionIndex + 1);
+    }
+  }, [currentSectionIndex, scrollToSection, sectionIds.length]);
+
+  // السهم الأحمر → القسم السابق أو العودة للأعلى إذا كنا في القسم الأول
+  const handlePrev = useCallback(() => {
+    if (currentSectionIndex > 0) {
+      scrollToSection(currentSectionIndex - 1);
+    } else {
+      // في أول قسم → نرفع للأعلى مباشرة
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [currentSectionIndex, scrollToSection]);
+
+  // ============================================================
+  // باقي الـ hooks
+  // ============================================================
 
   useEffect(() => {
     const handleScroll = () => {
       const scrollY = window.scrollY;
       setScrolled(scrollY > 40);
-      setShowBackToTop(scrollY > 350);
       const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
       setScrollProgress(maxScroll > 0 ? scrollY / maxScroll : 0);
     };
@@ -1565,10 +1598,6 @@ export default function Home() {
 
   useEffect(() => {
     setMounted(true);
-  }, []);
-
-  const scrollToTop = useCallback(() => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
 
   if (!mounted) {
@@ -1673,7 +1702,14 @@ export default function Home() {
       <ContactSection isDark={isDark} />
       <FooterSection isDark={isDark} />
 
-      <ScrollToTopButton show={showBackToTop} onClick={scrollToTop} />
+      {/* ===== أزرار التنقل الجديدة ===== */}
+      <NavigationArrows
+        onNext={handleNext}
+        onPrev={handlePrev}
+        canNext={currentSectionIndex < sectionIds.length - 1}
+        canPrev={currentSectionIndex > 0}
+        isDark={isDark}
+      />
 
       <style jsx global>{`
         @keyframes gradient {
