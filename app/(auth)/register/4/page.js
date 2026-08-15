@@ -146,7 +146,7 @@ const SmartTips = ({ tips }) => {
 };
 
 // ================================================================
-// 4. ✅ مكون إدخال OTP (مع LTR للخانات) – متجاوب
+// 4. ✅ مكون إدخال OTP (مع LTR للخانات) – لوحة أرقام فقط
 // ================================================================
 const OtpInput = ({ value, onChange, error, onComplete }) => {
   const [otp, setOtp] = useState(value || ['', '', '', '', '', '']);
@@ -202,6 +202,8 @@ const OtpInput = ({ value, onChange, error, onComplete }) => {
           ref={(el) => (inputRefs.current[index] = el)}
           type="text"
           inputMode="numeric"
+          pattern="[0-9]*"
+          autoComplete="one-time-code"
           maxLength={1}
           value={digit}
           onChange={(e) => handleChange(index, e.target.value)}
@@ -438,7 +440,7 @@ export default function RegisterStep4() {
             </div>
           ) : (
             <form onSubmit={(e) => { e.preventDefault(); verifyOtp(otp); }}>
-              {/* ✅ خانات OTP متجاوبة مع LTR */}
+              {/* ✅ خانات OTP متجاوبة مع LTR – لوحة أرقام فقط */}
               <OtpInput
                 value={otp}
                 onChange={setOtp}
