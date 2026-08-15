@@ -108,12 +108,12 @@ const ProgressBar = ({ currentStep, totalSteps = 5 }) => {
   const progress = (currentStep / totalSteps) * 100;
 
   return (
-    <div className="space-y-2 mb-6">
-      <div className="flex justify-between text-sm">
+    <div className="space-y-2 mb-4 sm:mb-6">
+      <div className="flex justify-between text-xs sm:text-sm">
         <span className="text-gray-500 dark:text-gray-400">التقدم</span>
         <span className="text-yellow-500 dark:text-yellow-400 font-medium">{Math.round(progress)}%</span>
       </div>
-      <div className="w-full h-2 bg-gray-200 dark:bg-white/10 rounded-full overflow-hidden">
+      <div className="w-full h-1.5 sm:h-2 bg-gray-200 dark:bg-white/10 rounded-full overflow-hidden">
         <motion.div
           initial={{ width: 0 }}
           animate={{ width: `${progress}%` }}
@@ -142,15 +142,15 @@ const SmartTips = ({ tips }) => {
 
   return (
     <div
-      className="flex items-start gap-3 p-4 rounded-2xl bg-gradient-to-br from-yellow-400/10 to-yellow-600/5 dark:from-yellow-400/10 dark:to-yellow-600/5 border border-yellow-400/20 text-sm text-gray-700 dark:text-gray-300 transition-all duration-300 hover:shadow-lg hover:shadow-yellow-400/10 cursor-pointer"
+      className="flex items-start gap-2 sm:gap-3 p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-gradient-to-br from-yellow-400/10 to-yellow-600/5 dark:from-yellow-400/10 dark:to-yellow-600/5 border border-yellow-400/20 text-sm text-gray-700 dark:text-gray-300 transition-all duration-300 hover:shadow-lg hover:shadow-yellow-400/10 cursor-pointer"
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
     >
-      <div className="flex-shrink-0 p-2 rounded-xl bg-yellow-400/20 dark:bg-yellow-400/20">
-        <Icons.Lightbulb className="h-5 w-5 text-yellow-500 dark:text-yellow-400" />
+      <div className="flex-shrink-0 p-1.5 sm:p-2 rounded-xl bg-yellow-400/20 dark:bg-yellow-400/20">
+        <Icons.Lightbulb className="h-4 w-4 sm:h-5 sm:w-5 text-yellow-500 dark:text-yellow-400" />
       </div>
       <div>
-        <p className="text-xs font-semibold text-yellow-600 dark:text-yellow-400 mb-0.5">💡 نصيحة ذكية</p>
+        <p className="text-[10px] sm:text-xs font-semibold text-yellow-600 dark:text-yellow-400 mb-0.5">💡 نصيحة ذكية</p>
         <AnimatePresence mode="wait">
           <motion.p
             key={index}
@@ -158,7 +158,7 @@ const SmartTips = ({ tips }) => {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.4, ease: 'easeOut' }}
-            className="text-sm leading-relaxed"
+            className="text-xs sm:text-sm leading-relaxed"
           >
             {tips[index]}
           </motion.p>
@@ -169,7 +169,7 @@ const SmartTips = ({ tips }) => {
 };
 
 // ================================================================
-// 4. حقل الإدخال المحسّن – نسخة أنيقة
+// 4. حقل الإدخال المحسّن – مع زر إظهار/إخفاء كلمة المرور
 // ================================================================
 const FormInput = ({
   label,
@@ -185,6 +185,8 @@ const FormInput = ({
   autoComplete = 'off',
   className = '',
   onBlur: customOnBlur,
+  showPassword = false,
+  onToggleVisibility,
 }) => {
   const { styles } = useTheme();
   const [isFocused, setIsFocused] = useState(false);
@@ -199,22 +201,25 @@ const FormInput = ({
 
   const hasError = error && isTouched;
 
+  // تحديد نوع الإدخال الفعلي
+  const inputType = type === 'password' && showPassword ? 'text' : type;
+
   return (
     <div className={className}>
-      <label className={`block text-sm font-semibold ${styles.label} mb-1.5`} htmlFor={inputId}>
+      <label className={`block text-xs sm:text-sm font-semibold ${styles.label} mb-1`} htmlFor={inputId}>
         {label} {required && <span className="text-red-400">*</span>}
       </label>
       <div className="relative group">
         {Icon && (
-          <div className={`absolute right-3 top-1/2 -translate-y-1/2 transition-all duration-300 ${
+          <div className={`absolute right-2.5 sm:right-3 top-1/2 -translate-y-1/2 transition-all duration-300 ${
             isFocused ? 'text-yellow-400 scale-110' : 'text-gray-400'
           }`}>
-            <Icon className="h-5 w-5" />
+            <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
           </div>
         )}
         <input
           id={inputId}
-          type={type}
+          type={inputType}
           name={name}
           value={value}
           onChange={onChange}
@@ -225,10 +230,19 @@ const FormInput = ({
           autoComplete={autoComplete}
           aria-label={label}
           aria-invalid={!!error}
-          className={`w-full p-3 ${Icon ? 'pr-11' : 'pr-4'} ${styles.input} border ${
+          className={`w-full p-2.5 sm:p-3 ${Icon ? 'pr-9 sm:pr-11' : 'pr-3 sm:pr-4'} ${styles.input} border ${
             hasError ? 'border-red-400' : isFocused ? 'border-yellow-400 shadow-lg shadow-yellow-400/10' : 'border-gray-200 dark:border-white/20'
-          } rounded-xl focus:ring-2 focus:ring-yellow-400/50 outline-none transition-all duration-300 placeholder:text-gray-400 dark:placeholder:text-gray-500`}
+          } rounded-lg sm:rounded-xl focus:ring-2 focus:ring-yellow-400/50 outline-none transition-all duration-300 placeholder:text-gray-400 dark:placeholder:text-gray-500 text-sm sm:text-base`}
         />
+        {type === 'password' && (
+          <button
+            type="button"
+            onClick={onToggleVisibility}
+            className={`absolute left-2.5 sm:left-3 top-1/2 -translate-y-1/2 ${styles.subtext} hover:${styles.text} transition`}
+          >
+            {showPassword ? <Icons.EyeOff className="h-4 w-4 sm:h-5 sm:w-5" /> : <Icons.Eye className="h-4 w-4 sm:h-5 sm:w-5" />}
+          </button>
+        )}
         {isFocused && (
           <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-yellow-400 to-yellow-600 rounded-full transform scale-x-0 origin-right transition-transform duration-300 group-focus-within:scale-x-100" />
         )}
@@ -239,7 +253,7 @@ const FormInput = ({
             initial={{ opacity: 0, y: -5, height: 0 }}
             animate={{ opacity: 1, y: 0, height: 'auto' }}
             exit={{ opacity: 0, y: -5, height: 0 }}
-            className="text-red-400 text-xs mt-1"
+            className="text-red-400 text-[10px] sm:text-xs mt-1"
           >
             {error}
           </motion.p>
@@ -394,7 +408,6 @@ export default function RegisterStep1() {
 
       setIsSubmitting(true);
       try {
-        // ✅ استخدام localStorage بدلاً من sessionStorage (للتوحيد)
         localStorage.setItem('registerData', JSON.stringify(formData));
         toast.success('✅ تم حفظ البيانات بنجاح!');
         await new Promise((resolve) => setTimeout(resolve, 600));
@@ -410,7 +423,7 @@ export default function RegisterStep1() {
   );
 
   return (
-    <div key={theme} className={`min-h-screen w-full ${styles.bg} ${styles.text} relative overflow-hidden flex items-center justify-center p-4`}>
+    <div key={theme} className={`min-h-screen w-full ${styles.bg} ${styles.text} relative overflow-hidden flex items-center justify-center p-3 sm:p-4`}>
       <ParticleBackground theme={theme} />
 
       <motion.div
@@ -421,34 +434,34 @@ export default function RegisterStep1() {
         className="w-full max-w-2xl relative z-10"
       >
         {/* شعار المنصة */}
-        <div className="text-center mb-8">
+        <div className="text-center mb-4 sm:mb-8">
           <motion.div
             initial={{ scale: 0.8 }}
             animate={{ scale: 1 }}
             transition={{ duration: 0.5, delay: 0.2 }}
-            className="inline-flex p-3 rounded-2xl bg-yellow-400/10 dark:bg-yellow-400/10 mb-3"
+            className="inline-flex p-2 sm:p-3 rounded-2xl bg-yellow-400/10 dark:bg-yellow-400/10 mb-2 sm:mb-3"
           >
-            <Icons.GraduationCap className="h-10 w-10 text-yellow-500 dark:text-yellow-400" />
+            <Icons.GraduationCap className="h-8 w-8 sm:h-10 sm:w-10 text-yellow-500 dark:text-yellow-400" />
           </motion.div>
-          <h1 className="text-3xl font-extrabold bg-gradient-to-r from-yellow-500 to-yellow-700 dark:from-yellow-400 dark:to-yellow-600 bg-clip-text text-transparent">
+          <h1 className="text-xl sm:text-3xl font-extrabold bg-gradient-to-r from-yellow-500 to-yellow-700 dark:from-yellow-400 dark:to-yellow-600 bg-clip-text text-transparent">
             منصة محمد رضوان
           </h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">التعليمية المتكاملة</p>
+          <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-0.5 sm:mt-1">التعليمية المتكاملة</p>
         </div>
 
-        <div className={`${styles.card} border ${styles.border} rounded-3xl p-8 shadow-2xl backdrop-blur-xl transition-all duration-500`}>
-          <div className="text-center mb-6">
-            <div className="inline-flex p-3 rounded-2xl bg-yellow-400/10 dark:bg-yellow-400/10 mb-3">
-              <Icons.User className="h-7 w-7 text-yellow-500 dark:text-yellow-400" />
+        <div className={`${styles.card} border ${styles.border} rounded-2xl sm:rounded-3xl p-4 sm:p-8 shadow-2xl backdrop-blur-xl transition-all duration-500`}>
+          <div className="text-center mb-4 sm:mb-6">
+            <div className="inline-flex p-2 sm:p-3 rounded-2xl bg-yellow-400/10 dark:bg-yellow-400/10 mb-2 sm:mb-3">
+              <Icons.User className="h-6 w-6 sm:h-7 sm:w-7 text-yellow-500 dark:text-yellow-400" />
             </div>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">البيانات الأساسية</h2>
-            <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">أدخل اسمك الرباعي وبريدك الإلكتروني</p>
+            <h2 className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white">البيانات الأساسية</h2>
+            <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-0.5 sm:mt-1">أدخل اسمك الرباعي وبريدك الإلكتروني</p>
           </div>
 
           <ProgressBar currentStep={1} totalSteps={5} />
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3">
               {nameFields.map((field) => (
                 <FormInput
                   key={field.name}
@@ -460,6 +473,7 @@ export default function RegisterStep1() {
                   placeholder={field.placeholder}
                   icon={field.icon}
                   required
+                  className="col-span-1"
                 />
               ))}
             </div>
@@ -481,7 +495,7 @@ export default function RegisterStep1() {
               <FormInput
                 name="password"
                 label="كلمة المرور"
-                type={showPassword ? 'text' : 'password'}
+                type="password"
                 value={formData.password}
                 onChange={handleChange}
                 error={errors.password}
@@ -489,6 +503,8 @@ export default function RegisterStep1() {
                 icon={Icons.Lock}
                 required
                 autoComplete="new-password"
+                showPassword={showPassword}
+                onToggleVisibility={() => setShowPassword(!showPassword)}
               />
               {formData.password && (
                 <div className="flex items-center gap-2 mt-1.5">
@@ -502,7 +518,7 @@ export default function RegisterStep1() {
                       }`}
                     />
                   </div>
-                  <span className={`text-xs font-semibold ${passwordStrength.color}`}>
+                  <span className={`text-[10px] sm:text-xs font-semibold ${passwordStrength.color}`}>
                     {passwordStrength.label}
                   </span>
                 </div>
@@ -512,7 +528,7 @@ export default function RegisterStep1() {
             <FormInput
               name="confirmPassword"
               label="تأكيد كلمة المرور"
-              type={showConfirmPassword ? 'text' : 'password'}
+              type="password"
               value={formData.confirmPassword}
               onChange={handleChange}
               error={errors.confirmPassword}
@@ -520,10 +536,12 @@ export default function RegisterStep1() {
               icon={Icons.Lock}
               required
               autoComplete="new-password"
+              showPassword={showConfirmPassword}
+              onToggleVisibility={() => setShowConfirmPassword(!showConfirmPassword)}
             />
 
-            <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-              <Icons.Info className="h-4 w-4" />
+            <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+              <Icons.Info className="h-4 w-4 flex-shrink-0" />
               <span>سيتم استخدام هذا البريد لتسجيل الدخول واستعادة كلمة المرور</span>
             </div>
 
@@ -532,23 +550,23 @@ export default function RegisterStep1() {
             <button
               type="submit"
               disabled={isSubmitting || emailExists}
-              className="w-full py-3.5 bg-gradient-to-r from-yellow-400 to-yellow-600 hover:from-yellow-500 hover:to-yellow-700 text-white font-bold rounded-xl transition-all duration-300 shadow-lg shadow-yellow-400/20 hover:shadow-yellow-400/40 flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+              className="w-full py-2.5 sm:py-3.5 bg-gradient-to-r from-yellow-400 to-yellow-600 hover:from-yellow-500 hover:to-yellow-700 text-white font-bold rounded-lg sm:rounded-xl transition-all duration-300 shadow-lg shadow-yellow-400/20 hover:shadow-yellow-400/40 flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed text-sm sm:text-base"
             >
               {isSubmitting ? (
                 <>
-                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  <div className="w-4 h-4 sm:w-5 sm:h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                   جاري التحقق...
                 </>
               ) : (
                 <>
                   <span>التالي</span>
-                  <Icons.ArrowLeft className="h-5 w-5" />
+                  <Icons.ArrowLeft className="h-4 w-4 sm:h-5 sm:w-5" />
                 </>
               )}
             </button>
           </form>
 
-          <div className="mt-6 text-center text-sm text-gray-500 dark:text-gray-400">
+          <div className="mt-4 sm:mt-6 text-center text-xs sm:text-sm text-gray-500 dark:text-gray-400">
             لديك حساب بالفعل؟{' '}
             <button
               onClick={() => router.push('/login')}
@@ -559,7 +577,7 @@ export default function RegisterStep1() {
           </div>
         </div>
 
-        <div className="mt-6 text-center text-xs text-gray-400 dark:text-gray-500">
+        <div className="mt-4 sm:mt-6 text-center text-[10px] sm:text-xs text-gray-400 dark:text-gray-500">
           <span>🔒 جميع البيانات مشفرة • خطوة 1 من 5</span>
         </div>
       </motion.div>

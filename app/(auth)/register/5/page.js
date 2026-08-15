@@ -1,3 +1,4 @@
+// app/(auth)/register/5/page.js
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -120,12 +121,12 @@ const ParticleBackground = ({ theme }) => {
 };
 
 // ================================================================
-// 2. شريط التقدم (يعكس خطوة الإكمال)
+// 2. شريط التقدم (مصغر على الهواتف)
 // ================================================================
 const ProgressBar = ({ currentStep, totalSteps = 5 }) => {
   const progress = (currentStep / totalSteps) * 100;
   return (
-    <div className="w-full h-1.5 bg-gray-200 dark:bg-white/10 rounded-full overflow-hidden mb-6">
+    <div className="w-full h-1 sm:h-1.5 bg-gray-200 dark:bg-white/10 rounded-full overflow-hidden mb-4 sm:mb-6">
       <motion.div
         initial={{ width: 0 }}
         animate={{ width: `${progress}%` }}
@@ -137,33 +138,33 @@ const ProgressBar = ({ currentStep, totalSteps = 5 }) => {
 };
 
 // ================================================================
-// 3. بطاقة التحقق (حالة التحميل)
+// 3. بطاقة التحقق (حالة التحميل) – متجاوبة
 // ================================================================
 const LoadingCard = ({ styles }) => (
   <motion.div
     initial={{ opacity: 0, scale: 0.9 }}
     animate={{ opacity: 1, scale: 1 }}
-    className="text-center py-8"
+    className="text-center py-4 sm:py-8"
   >
-    <div className="relative w-24 h-24 mx-auto">
+    <div className="relative w-16 h-16 sm:w-24 sm:h-24 mx-auto">
       <div className="absolute inset-0 rounded-full border-4 border-yellow-400/20" />
       <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-yellow-400 animate-spin" />
       <div className="absolute inset-0 flex items-center justify-center">
-        <Icons.User className="h-10 w-10 text-yellow-400" />
+        <Icons.User className="h-6 w-6 sm:h-10 sm:w-10 text-yellow-400" />
       </div>
     </div>
-    <h3 className={`text-xl font-bold ${styles.text} mt-6`}>جاري إنشاء حسابك</h3>
-    <p className={`${styles.subtext} text-sm mt-2`}>نقوم بإعداد كل شيء لاستقبالك...</p>
-    <div className="flex items-center justify-center gap-3 mt-6">
-      <div className="w-2 h-2 bg-yellow-400 rounded-full animate-bounce" style={{ animationDelay: '0s' }} />
-      <div className="w-2 h-2 bg-yellow-400 rounded-full animate-bounce" style={{ animationDelay: '0.15s' }} />
-      <div className="w-2 h-2 bg-yellow-400 rounded-full animate-bounce" style={{ animationDelay: '0.3s' }} />
+    <h3 className={`text-lg sm:text-xl font-bold ${styles.text} mt-4 sm:mt-6`}>جاري إنشاء حسابك</h3>
+    <p className={`${styles.subtext} text-xs sm:text-sm mt-1.5 sm:mt-2`}>نقوم بإعداد كل شيء لاستقبالك...</p>
+    <div className="flex items-center justify-center gap-2 sm:gap-3 mt-4 sm:mt-6">
+      <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-yellow-400 rounded-full animate-bounce" style={{ animationDelay: '0s' }} />
+      <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-yellow-400 rounded-full animate-bounce" style={{ animationDelay: '0.15s' }} />
+      <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-yellow-400 rounded-full animate-bounce" style={{ animationDelay: '0.3s' }} />
     </div>
   </motion.div>
 );
 
 // ================================================================
-// 4. بطاقة النجاح (حالة النجاح)
+// 4. بطاقة النجاح (حالة النجاح) – متجاوبة
 // ================================================================
 const SuccessCard = ({ userData, styles }) => {
   const [countdown, setCountdown] = useState(5);
@@ -194,20 +195,20 @@ const SuccessCard = ({ userData, styles }) => {
         initial={{ scale: 0 }}
         animate={{ scale: 1 }}
         transition={{ type: 'spring', stiffness: 200, delay: 0.2 }}
-        className="w-20 h-20 mx-auto rounded-full bg-green-500/20 border-2 border-green-400/30 flex items-center justify-center"
+        className="w-16 h-16 sm:w-20 sm:h-20 mx-auto rounded-full bg-green-500/20 border-2 border-green-400/30 flex items-center justify-center"
       >
-        <Icons.CheckCircle className="h-10 w-10 text-green-400" />
+        <Icons.CheckCircle className="h-8 w-8 sm:h-10 sm:w-10 text-green-400" />
       </motion.div>
 
-      <h3 className={`text-2xl font-bold ${styles.text} mt-4`}>🎉 تم إنشاء الحساب بنجاح!</h3>
-      <p className={`${styles.subtext} text-sm mt-2`}>
+      <h3 className={`text-xl sm:text-2xl font-bold ${styles.text} mt-3 sm:mt-4`}>🎉 تم إنشاء الحساب بنجاح!</h3>
+      <p className={`${styles.subtext} text-xs sm:text-sm mt-1.5 sm:mt-2`}>
         مرحباً بك <span className="text-yellow-400 font-semibold">{fullName || 'الطالب'}</span> في منصة محمد رضوان
       </p>
 
       {/* صندوق الملخص */}
-      <div className={`mt-6 p-4 rounded-xl ${styles.card} border ${styles.border} text-right`}>
-        <p className={`text-xs font-semibold ${styles.subtext} mb-3`}>📋 ملخص الحساب</p>
-        <div className="space-y-1.5 text-sm">
+      <div className={`mt-4 sm:mt-6 p-3 sm:p-4 rounded-xl ${styles.card} border ${styles.border} text-right`}>
+        <p className={`text-[10px] sm:text-xs font-semibold ${styles.subtext} mb-2 sm:mb-3`}>📋 ملخص الحساب</p>
+        <div className="space-y-1 text-xs sm:text-sm">
           <div className="flex justify-between">
             <span className={styles.subtext}>الاسم</span>
             <span className={styles.text}>{fullName || '—'}</span>
@@ -228,11 +229,11 @@ const SuccessCard = ({ userData, styles }) => {
       </div>
 
       {/* عد تنازلي */}
-      <p className={`text-sm ${styles.subtext} mt-4`}>
+      <p className={`text-xs sm:text-sm ${styles.subtext} mt-3 sm:mt-4`}>
         سيتم توجيهك إلى لوحة التحكم خلال <span className="text-yellow-400 font-bold">{countdown}</span> ثانية
       </p>
 
-      <div className="w-full max-w-xs h-1 bg-gray-200 dark:bg-white/10 rounded-full overflow-hidden mx-auto mt-3">
+      <div className="w-full max-w-xs h-1 bg-gray-200 dark:bg-white/10 rounded-full overflow-hidden mx-auto mt-2 sm:mt-3">
         <motion.div
           className="h-full bg-gradient-to-r from-yellow-400 to-yellow-600 rounded-full"
           initial={{ width: '100%' }}
@@ -243,9 +244,9 @@ const SuccessCard = ({ userData, styles }) => {
 
       <Link
         href="/dashboard/student"
-        className="mt-6 inline-block px-8 py-3 bg-gradient-to-r from-yellow-400 to-yellow-600 text-white font-bold rounded-xl hover:scale-[1.02] transition shadow-lg shadow-yellow-400/20 flex items-center gap-2"
+        className="mt-4 sm:mt-6 inline-block px-6 py-2 sm:px-8 sm:py-3 bg-gradient-to-r from-yellow-400 to-yellow-600 text-white font-bold rounded-xl hover:scale-[1.02] transition shadow-lg shadow-yellow-400/20 flex items-center gap-1.5 sm:gap-2 text-sm sm:text-base"
       >
-        <Icons.ArrowLeft className="h-5 w-5" />
+        <Icons.ArrowLeft className="h-4 w-4 sm:h-5 sm:w-5" />
         الذهاب إلى لوحة التحكم
       </Link>
     </motion.div>
@@ -253,7 +254,7 @@ const SuccessCard = ({ userData, styles }) => {
 };
 
 // ================================================================
-// 5. بطاقة الخطأ (حالة الفشل)
+// 5. بطاقة الخطأ (حالة الفشل) – متجاوبة
 // ================================================================
 const ErrorCard = ({ error, onRetry, onBack, styles }) => (
   <motion.div
@@ -261,32 +262,32 @@ const ErrorCard = ({ error, onRetry, onBack, styles }) => (
     animate={{ opacity: 1, scale: 1 }}
     className="text-center"
   >
-    <div className="w-20 h-20 mx-auto rounded-full bg-red-500/20 border-2 border-red-400/30 flex items-center justify-center">
-      <Icons.AlertCircle className="h-10 w-10 text-red-400" />
+    <div className="w-16 h-16 sm:w-20 sm:h-20 mx-auto rounded-full bg-red-500/20 border-2 border-red-400/30 flex items-center justify-center">
+      <Icons.AlertCircle className="h-8 w-8 sm:h-10 sm:w-10 text-red-400" />
     </div>
-    <h3 className={`text-xl font-bold ${styles.text} mt-4`}>❌ فشل إنشاء الحساب</h3>
-    <div className={`mt-3 p-4 rounded-xl bg-red-500/10 border border-red-500/30 ${styles.subtext} text-sm`}>
-      <Icons.AlertTriangle className="h-5 w-5 inline ml-2 text-red-400" />
+    <h3 className={`text-lg sm:text-xl font-bold ${styles.text} mt-3 sm:mt-4`}>❌ فشل إنشاء الحساب</h3>
+    <div className={`mt-2 sm:mt-3 p-3 sm:p-4 rounded-xl bg-red-500/10 border border-red-500/30 ${styles.subtext} text-xs sm:text-sm`}>
+      <Icons.AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5 inline ml-1 sm:ml-2 text-red-400" />
       {error || 'حدث خطأ غير متوقع، يرجى المحاولة مرة أخرى'}
     </div>
-    <div className="flex flex-wrap gap-3 justify-center mt-6">
+    <div className="flex flex-wrap gap-2 sm:gap-3 justify-center mt-4 sm:mt-6">
       <button
         onClick={onRetry}
-        className="px-6 py-2.5 bg-yellow-400/20 hover:bg-yellow-400/30 text-yellow-300 rounded-xl transition font-semibold flex items-center gap-2"
+        className="px-4 py-2 sm:px-6 sm:py-2.5 bg-yellow-400/20 hover:bg-yellow-400/30 text-yellow-300 rounded-xl transition font-semibold flex items-center gap-1.5 sm:gap-2 text-sm sm:text-base"
       >
-        <Icons.RefreshCw className="h-4 w-4" />
+        <Icons.RefreshCw className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
         إعادة المحاولة
       </button>
       <button
         onClick={onBack}
-        className="px-6 py-2.5 bg-white/10 dark:bg-white/5 border border-gray-300 dark:border-white/20 text-gray-700 dark:text-white rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 transition flex items-center gap-2"
+        className="px-4 py-2 sm:px-6 sm:py-2.5 bg-white/10 dark:bg-white/5 border border-gray-300 dark:border-white/20 text-gray-700 dark:text-white rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 transition flex items-center gap-1.5 sm:gap-2 text-sm sm:text-base"
       >
-        <Icons.ArrowRight className="h-4 w-4" />
+        <Icons.ArrowRight className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
         العودة للتسجيل
       </button>
     </div>
     {error?.includes('مسجل بالفعل') && (
-      <Link href="/login" className="mt-4 inline-block text-yellow-400 hover:underline text-sm">
+      <Link href="/login" className="mt-3 sm:mt-4 inline-block text-yellow-400 hover:underline text-xs sm:text-sm">
         🚪 اذهب إلى تسجيل الدخول
       </Link>
     )}
@@ -294,7 +295,7 @@ const ErrorCard = ({ error, onRetry, onBack, styles }) => (
 );
 
 // ================================================================
-// 6. الصفحة الرئيسية – الخطوة الخامسة (الإكمال)
+// 6. الصفحة الرئيسية – الخطوة الخامسة (الإكمال) – متجاوبة
 // ================================================================
 export default function RegisterStep5() {
   const router = useRouter();
@@ -441,13 +442,13 @@ export default function RegisterStep5() {
   if (!isMounted) {
     return (
       <div className={`min-h-screen w-full ${styles.bg} ${styles.text} flex items-center justify-center`}>
-        <div className="w-10 h-10 border-4 border-yellow-400/30 border-t-yellow-400 rounded-full animate-spin" />
+        <div className="w-8 h-8 sm:w-10 sm:h-10 border-4 border-yellow-400/30 border-t-yellow-400 rounded-full animate-spin" />
       </div>
     );
   }
 
   return (
-    <div key={theme} className={`min-h-screen w-full ${styles.bg} ${styles.text} relative overflow-hidden flex items-center justify-center p-4`}>
+    <div key={theme} className={`min-h-screen w-full ${styles.bg} ${styles.text} relative overflow-hidden flex items-center justify-center p-3 sm:p-4`}>
       <ParticleBackground theme={theme} />
 
       <motion.div
@@ -456,30 +457,30 @@ export default function RegisterStep5() {
         transition={{ duration: 0.6, ease: 'easeOut' }}
         className="w-full max-w-2xl relative z-10"
       >
-        <div className="text-center mb-6">
+        <div className="text-center mb-4 sm:mb-6">
           <motion.div
             initial={{ scale: 0.8 }}
             animate={{ scale: 1 }}
             transition={{ duration: 0.5, delay: 0.2 }}
-            className="inline-flex p-3 rounded-2xl bg-yellow-400/10 dark:bg-yellow-400/10 mb-3"
+            className="inline-flex p-2.5 sm:p-3 rounded-2xl bg-yellow-400/10 dark:bg-yellow-400/10 mb-2 sm:mb-3"
           >
-            <Icons.CheckCircle className="h-8 w-8 text-yellow-500 dark:text-yellow-400" />
+            <Icons.CheckCircle className="h-6 w-6 sm:h-8 sm:w-8 text-yellow-500 dark:text-yellow-400" />
           </motion.div>
-          <h2 className={`text-2xl font-bold ${styles.text}`}>إكمال التسجيل</h2>
-          <p className={`text-sm ${styles.subtext} mt-1`}>
+          <h2 className={`text-xl sm:text-2xl font-bold ${styles.text}`}>إكمال التسجيل</h2>
+          <p className={`text-xs sm:text-sm ${styles.subtext} mt-0.5 sm:mt-1`}>
             {status === 'loading' && 'جاري إنشاء حسابك...'}
             {status === 'success' && '🎉 تم إنشاء الحساب بنجاح!'}
             {status === 'error' && '❌ فشل إنشاء الحساب'}
           </p>
-          <div className="flex items-center justify-center gap-2 mt-2 text-xs text-yellow-400">
-            <Icons.ChevronRight className="h-4 w-4" />
+          <div className="flex items-center justify-center gap-1.5 sm:gap-2 mt-1.5 text-[10px] sm:text-xs text-yellow-400">
+            <Icons.ChevronRight className="h-3 w-3 sm:h-4 sm:w-4" />
             <span>الخطوة 5 من 5</span>
           </div>
         </div>
 
         <ProgressBar currentStep={5} totalSteps={5} />
 
-        <div className={`${styles.card} border ${styles.border} rounded-3xl p-8 shadow-2xl backdrop-blur-xl transition-all duration-500 min-h-[400px] flex items-center justify-center`}>
+        <div className={`${styles.card} border ${styles.border} rounded-2xl sm:rounded-3xl p-4 sm:p-6 md:p-8 shadow-2xl backdrop-blur-xl transition-all duration-500 min-h-[320px] sm:min-h-[400px] flex items-center justify-center`}>
           <AnimatePresence mode="wait">
             {status === 'loading' && (
               <LoadingCard key="loading" styles={styles} />
@@ -500,14 +501,14 @@ export default function RegisterStep5() {
         </div>
 
         {status === 'loading' && (
-          <div className="mt-4 text-center">
+          <div className="mt-3 sm:mt-4 text-center">
             <AnimatePresence mode="wait">
               <motion.p
                 key={tipIndex}
                 initial={{ opacity: 0, y: 5 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -5 }}
-                className={`text-sm ${styles.subtext}`}
+                className={`text-xs sm:text-sm ${styles.subtext}`}
               >
                 💡 {tips[tipIndex]}
               </motion.p>
@@ -515,7 +516,7 @@ export default function RegisterStep5() {
           </div>
         )}
 
-        <div className="mt-4 text-center text-xs text-gray-400 dark:text-gray-500">
+        <div className="mt-3 sm:mt-4 text-center text-[10px] sm:text-xs text-gray-400 dark:text-gray-500">
           <span>🔒 جميع البيانات مشفرة • خطوة 5 من 5</span>
         </div>
       </motion.div>

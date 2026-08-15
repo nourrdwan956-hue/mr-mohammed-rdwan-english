@@ -95,12 +95,12 @@ const ParticleBackground = ({ theme }) => {
 };
 
 // ================================================================
-// 2. شريط التقدم
+// 2. شريط التقدم (مصغر على الهواتف)
 // ================================================================
 const ProgressBar = ({ currentStep, totalSteps = 5 }) => {
   const progress = (currentStep / totalSteps) * 100;
   return (
-    <div className="w-full h-1.5 bg-gray-200 dark:bg-white/10 rounded-full overflow-hidden mb-6">
+    <div className="w-full h-1 sm:h-1.5 bg-gray-200 dark:bg-white/10 rounded-full overflow-hidden mb-4 sm:mb-6">
       <motion.div
         initial={{ width: 0 }}
         animate={{ width: `${progress}%` }}
@@ -112,7 +112,7 @@ const ProgressBar = ({ currentStep, totalSteps = 5 }) => {
 };
 
 // ================================================================
-// 3. نصائح ذكية
+// 3. نصائح ذكية (مصغرة على الهواتف)
 // ================================================================
 const SmartTips = ({ tips }) => {
   const [index, setIndex] = useState(0);
@@ -122,12 +122,12 @@ const SmartTips = ({ tips }) => {
   }, [tips.length]);
 
   return (
-    <div className="flex items-start gap-3 p-4 rounded-2xl bg-gradient-to-br from-yellow-400/10 to-yellow-600/5 dark:from-yellow-400/10 dark:to-yellow-600/5 border border-yellow-400/20 text-sm text-gray-700 dark:text-gray-300 transition-all duration-300 hover:shadow-lg hover:shadow-yellow-400/10 cursor-pointer">
-      <div className="flex-shrink-0 p-2 rounded-xl bg-yellow-400/20 dark:bg-yellow-400/20">
-        <Icons.Lightbulb className="h-5 w-5 text-yellow-500 dark:text-yellow-400" />
+    <div className="flex items-start gap-2 sm:gap-3 p-3 sm:p-4 rounded-2xl bg-gradient-to-br from-yellow-400/10 to-yellow-600/5 dark:from-yellow-400/10 dark:to-yellow-600/5 border border-yellow-400/20 text-sm text-gray-700 dark:text-gray-300 transition-all duration-300 hover:shadow-lg hover:shadow-yellow-400/10 cursor-pointer">
+      <div className="flex-shrink-0 p-1.5 sm:p-2 rounded-xl bg-yellow-400/20 dark:bg-yellow-400/20">
+        <Icons.Lightbulb className="h-4 w-4 sm:h-5 sm:w-5 text-yellow-500 dark:text-yellow-400" />
       </div>
       <div>
-        <p className="text-xs font-medium text-yellow-600 dark:text-yellow-400 mb-0.5">💡 نصيحة ذكية</p>
+        <p className="text-[10px] sm:text-xs font-medium text-yellow-600 dark:text-yellow-400 mb-0.5">💡 نصيحة ذكية</p>
         <AnimatePresence mode="wait">
           <motion.p
             key={index}
@@ -135,7 +135,7 @@ const SmartTips = ({ tips }) => {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.4 }}
-            className="text-sm leading-relaxed"
+            className="text-xs sm:text-sm leading-relaxed"
           >
             {tips[index]}
           </motion.p>
@@ -146,7 +146,7 @@ const SmartTips = ({ tips }) => {
 };
 
 // ================================================================
-// 4. ✅ مكون إدخال OTP (مع LTR للخانات)
+// 4. ✅ مكون إدخال OTP (مع LTR للخانات) – متجاوب
 // ================================================================
 const OtpInput = ({ value, onChange, error, onComplete }) => {
   const [otp, setOtp] = useState(value || ['', '', '', '', '', '']);
@@ -165,7 +165,6 @@ const OtpInput = ({ value, onChange, error, onComplete }) => {
     setOtp(newOtp);
     onChange(newOtp.join(''));
 
-    // التركيز على الخانة التالية (من اليسار لليمين)
     if (val && index < 5) {
       inputRefs.current[index + 1]?.focus();
     }
@@ -196,8 +195,7 @@ const OtpInput = ({ value, onChange, error, onComplete }) => {
   };
 
   return (
-    // ✅ إضافة dir="ltr" لعرض الخانات من اليسار لليمين
-    <div className="flex justify-center gap-3 mb-6" dir="ltr" onPaste={handlePaste}>
+    <div className="flex justify-center gap-2 sm:gap-3 mb-6" dir="ltr" onPaste={handlePaste}>
       {otp.map((digit, index) => (
         <input
           key={index}
@@ -208,7 +206,7 @@ const OtpInput = ({ value, onChange, error, onComplete }) => {
           value={digit}
           onChange={(e) => handleChange(index, e.target.value)}
           onKeyDown={(e) => handleKeyDown(index, e)}
-          className={`w-14 h-16 text-center text-2xl font-bold bg-white/10 dark:bg-white/5 border-2 ${
+          className={`w-11 h-13 sm:w-14 sm:h-16 text-center text-xl sm:text-2xl font-bold bg-white/10 dark:bg-white/5 border-2 ${
             error ? 'border-red-400' : digit ? 'border-yellow-400' : 'border-gray-300 dark:border-white/20'
           } rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-yellow-400/50 focus:border-yellow-400 outline-none transition-all duration-300`}
           autoFocus={index === 0}
@@ -219,7 +217,7 @@ const OtpInput = ({ value, onChange, error, onComplete }) => {
 };
 
 // ================================================================
-// 5. الصفحة الرئيسية – الخطوة الرابعة
+// 5. الصفحة الرئيسية – الخطوة الرابعة (متجاوبة)
 // ================================================================
 export default function RegisterStep4() {
   const router = useRouter();
@@ -385,8 +383,8 @@ export default function RegisterStep4() {
     return (
       <div className={`min-h-screen w-full ${styles.bg} ${styles.text} flex items-center justify-center`}>
         <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 border-4 border-yellow-400/30 border-t-yellow-400 rounded-full animate-spin" />
-          <p className={`text-sm ${styles.subtext}`}>جاري التحقق من البيانات...</p>
+          <div className="w-8 h-8 sm:w-10 sm:h-10 border-4 border-yellow-400/30 border-t-yellow-400 rounded-full animate-spin" />
+          <p className={`text-xs sm:text-sm ${styles.subtext}`}>جاري التحقق من البيانات...</p>
         </div>
       </div>
     );
@@ -397,7 +395,7 @@ export default function RegisterStep4() {
   }
 
   return (
-    <div key={theme} className={`min-h-screen w-full ${styles.bg} ${styles.text} relative overflow-hidden flex items-center justify-center p-4`}>
+    <div key={theme} className={`min-h-screen w-full ${styles.bg} ${styles.text} relative overflow-hidden flex items-center justify-center p-3 sm:p-4`}>
       <ParticleBackground theme={theme} />
 
       <motion.div
@@ -407,40 +405,40 @@ export default function RegisterStep4() {
         className="w-full max-w-2xl relative z-10"
       >
         {/* العنوان */}
-        <div className="text-center mb-6">
+        <div className="text-center mb-4 sm:mb-6">
           <motion.div
             initial={{ scale: 0.8 }}
             animate={{ scale: 1 }}
             transition={{ duration: 0.5, delay: 0.2 }}
-            className="inline-flex p-3 rounded-2xl bg-yellow-400/10 dark:bg-yellow-400/10 mb-3"
+            className="inline-flex p-2.5 sm:p-3 rounded-2xl bg-yellow-400/10 dark:bg-yellow-400/10 mb-2 sm:mb-3"
           >
-            <Icons.Shield className="h-8 w-8 text-yellow-500 dark:text-yellow-400" />
+            <Icons.Shield className="h-6 w-6 sm:h-8 sm:w-8 text-yellow-500 dark:text-yellow-400" />
           </motion.div>
-          <h2 className={`text-2xl font-bold ${styles.text}`}>تأكيد الهوية</h2>
-          <p className={`text-sm ${styles.subtext} mt-1`}>
+          <h2 className={`text-xl sm:text-2xl font-bold ${styles.text}`}>تأكيد الهوية</h2>
+          <p className={`text-xs sm:text-sm ${styles.subtext} mt-0.5 sm:mt-1`}>
             أدخل الرمز المكون من 6 أرقام المرسل إلى بريدك الإلكتروني
           </p>
-          <div className="mt-2 flex items-center justify-center gap-2">
-            <Icons.Mail className="h-4 w-4 text-yellow-400" />
-            <span className={`text-sm font-medium ${styles.text}`}>{userEmail}</span>
+          <div className="mt-1.5 sm:mt-2 flex items-center justify-center gap-1.5 sm:gap-2">
+            <Icons.Mail className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-yellow-400" />
+            <span className={`text-xs sm:text-sm font-medium ${styles.text}`}>{userEmail}</span>
           </div>
-          <div className="flex items-center justify-center gap-2 mt-2 text-xs text-yellow-400">
-            <Icons.ChevronRight className="h-4 w-4" />
+          <div className="flex items-center justify-center gap-2 mt-1.5 text-[10px] sm:text-xs text-yellow-400">
+            <Icons.ChevronRight className="h-3 w-3 sm:h-4 sm:w-4" />
             <span>الخطوة 4 من 5</span>
           </div>
         </div>
 
         <ProgressBar currentStep={4} totalSteps={5} />
 
-        <div className={`${styles.card} border ${styles.border} rounded-3xl p-8 shadow-2xl backdrop-blur-xl transition-all duration-500`}>
+        <div className={`${styles.card} border ${styles.border} rounded-2xl sm:rounded-3xl p-4 sm:p-6 md:p-8 shadow-2xl backdrop-blur-xl transition-all duration-500`}>
           {isSendingOtp ? (
             <div className="text-center py-8">
-              <div className="w-12 h-12 border-4 border-yellow-400/30 border-t-yellow-400 rounded-full animate-spin mx-auto" />
-              <p className={`${styles.subtext} mt-3`}>جاري إرسال رمز التحقق...</p>
+              <div className="w-10 h-10 sm:w-12 sm:h-12 border-4 border-yellow-400/30 border-t-yellow-400 rounded-full animate-spin mx-auto" />
+              <p className={`${styles.subtext} mt-3 text-sm`}>جاري إرسال رمز التحقق...</p>
             </div>
           ) : (
             <form onSubmit={(e) => { e.preventDefault(); verifyOtp(otp); }}>
-              {/* ✅ خانات OTP واضحة مع LTR */}
+              {/* ✅ خانات OTP متجاوبة مع LTR */}
               <OtpInput
                 value={otp}
                 onChange={setOtp}
@@ -454,7 +452,7 @@ export default function RegisterStep4() {
                     initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -10 }}
-                    className="text-red-400 text-sm text-center mb-4 bg-red-500/10 border border-red-500/30 rounded-xl py-2 px-4"
+                    className="text-red-400 text-xs sm:text-sm text-center mb-4 bg-red-500/10 border border-red-500/30 rounded-xl py-2 px-4"
                   >
                     {error}
                   </motion.p>
@@ -463,14 +461,14 @@ export default function RegisterStep4() {
                   <motion.p
                     initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="text-green-400 text-sm text-center mb-4 bg-green-500/10 border border-green-500/30 rounded-xl py-2 px-4"
+                    className="text-green-400 text-xs sm:text-sm text-center mb-4 bg-green-500/10 border border-green-500/30 rounded-xl py-2 px-4"
                   >
                     ✅ تم التحقق بنجاح! جاري التوجيه...
                   </motion.p>
                 )}
               </AnimatePresence>
 
-              <div className="text-center text-sm text-gray-500 dark:text-gray-400 mb-6">
+              <div className="text-center text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-4 sm:mb-6">
                 {timer > 0 ? (
                   <span>إعادة الإرسال خلال <span className="font-bold text-yellow-400">{timer}</span> ثانية</span>
                 ) : (
@@ -487,34 +485,34 @@ export default function RegisterStep4() {
 
               <SmartTips tips={tips} />
 
-              <div className="flex gap-4 pt-2">
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 pt-2">
                 <button
                   type="button"
                   onClick={() => router.push('/register/3')}
-                  className="flex-1 py-3.5 bg-white/10 dark:bg-white/5 border border-gray-300 dark:border-white/20 text-gray-700 dark:text-white font-bold rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 transition-all duration-300 flex items-center justify-center gap-2"
+                  className="order-2 sm:order-1 w-full sm:flex-1 py-3 sm:py-3.5 bg-white/10 dark:bg-white/5 border border-gray-300 dark:border-white/20 text-gray-700 dark:text-white font-bold rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 transition-all duration-300 flex items-center justify-center gap-2 text-sm sm:text-base"
                 >
-                  <Icons.ArrowRight className="h-5 w-5" />
+                  <Icons.ArrowRight className="h-4 w-4 sm:h-5 sm:w-5" />
                   <span>السابق</span>
                 </button>
                 <button
                   type="submit"
                   disabled={isVerifying || success || otp.length < 6}
-                  className="flex-1 py-3.5 bg-gradient-to-r from-yellow-400 to-yellow-600 hover:from-yellow-500 hover:to-yellow-700 text-white font-bold rounded-xl transition-all duration-300 shadow-lg shadow-yellow-400/20 hover:shadow-yellow-400/40 flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+                  className="order-1 sm:order-2 w-full sm:flex-1 py-3 sm:py-3.5 bg-gradient-to-r from-yellow-400 to-yellow-600 hover:from-yellow-500 hover:to-yellow-700 text-white font-bold rounded-xl transition-all duration-300 shadow-lg shadow-yellow-400/20 hover:shadow-yellow-400/40 flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed text-sm sm:text-base"
                 >
                   {isVerifying ? (
                     <>
-                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      <div className="w-4 h-4 sm:w-5 sm:h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                       جاري التحقق...
                     </>
                   ) : success ? (
                     <>
-                      <Icons.CheckCircle className="h-5 w-5" />
+                      <Icons.CheckCircle className="h-4 w-4 sm:h-5 sm:w-5" />
                       تم التحقق
                     </>
                   ) : (
                     <>
                       <span>تأكيد</span>
-                      <Icons.ArrowLeft className="h-5 w-5" />
+                      <Icons.ArrowLeft className="h-4 w-4 sm:h-5 sm:w-5" />
                     </>
                   )}
                 </button>
@@ -522,7 +520,7 @@ export default function RegisterStep4() {
             </form>
           )}
 
-          <div className="mt-6 text-center text-sm text-gray-500 dark:text-gray-400">
+          <div className="mt-4 sm:mt-6 text-center text-xs sm:text-sm text-gray-500 dark:text-gray-400">
             <button
               onClick={() => router.push('/register/3')}
               className="text-yellow-600 dark:text-yellow-400 hover:underline font-medium transition-colors"
@@ -532,7 +530,7 @@ export default function RegisterStep4() {
           </div>
         </div>
 
-        <div className="mt-4 text-center text-xs text-gray-400 dark:text-gray-500">
+        <div className="mt-3 sm:mt-4 text-center text-[10px] sm:text-xs text-gray-400 dark:text-gray-500">
           <span>🔒 جميع البيانات مشفرة • خطوة 4 من 5</span>
         </div>
       </motion.div>

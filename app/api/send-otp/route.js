@@ -24,7 +24,7 @@ export async function POST(request) {
       },
     });
 
-    // ✅ محتوى نصي عادي – محسن (الرمز في سطر منفصل)
+    // محتوى نصي عادي – محسن
     const plainText = `مرحباً ${studentName || 'الطالب'}،
 
 رمز تأكيد التسجيل في منصة محمد رضوان هو:
@@ -37,12 +37,12 @@ ${otp}
 
 مع تحيات فريق الدعم.`;
 
-    // ✅ محتوى HTML – تحسينات كبيرة للوضوح
+    // ✅ محتوى HTML – محسن للهواتف
     const htmlContent = `
 <!DOCTYPE html>
 <html dir="rtl" lang="ar">
 <head><meta charset="UTF-8"></head>
-<body style="font-family: 'Segoe UI', Arial, sans-serif; background: #f9fafb; padding: 20px;">
+<body style="font-family: 'Segoe UI', Arial, sans-serif; background: #f9fafb; padding: 20px; margin: 0;">
   <div style="max-width: 550px; margin: auto; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 8px 24px rgba(0,0,0,0.08);">
     <!-- الهيدر -->
     <div style="background: #1a1f2e; padding: 24px 20px; text-align: center;">
@@ -55,9 +55,23 @@ ${otp}
       <p style="font-size: 18px; margin-top: 0;">مرحباً <strong>${studentName || 'الطالب'}</strong>،</p>
       <p style="font-size: 16px; color: #333;">تم إنشاء طلب تسجيل جديد لحسابك. لإكمال العملية، استخدم رمز التحقق التالي:</p>
 
-      <!-- ✅ رمز التحقق – كبير وواضح جداً -->
-      <div style="text-align: center; margin: 30px 0; padding: 20px; background: #fef9e7; border: 2px solid #fbbf24; border-radius: 16px; box-shadow: 0 4px 12px rgba(251, 191, 36, 0.2);">
-        <span style="font-size: 52px; letter-spacing: 8px; font-weight: 900; color: #1a1a1a; background: #ffffff; padding: 12px 28px; border-radius: 12px; display: inline-block; border: 1px dashed #f59e0b; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+      <!-- ✅ رمز التحقق – يتكيف مع حجم الشاشة -->
+      <div style="text-align: center; margin: 30px 0; padding: 20px 10px; background: #fef9e7; border: 2px solid #fbbf24; border-radius: 16px; box-shadow: 0 4px 12px rgba(251, 191, 36, 0.2);">
+        <span style="
+          font-size: clamp(36px, 8vw, 52px);
+          letter-spacing: clamp(4px, 1.5vw, 8px);
+          font-weight: 900;
+          color: #1a1a1a;
+          background: #ffffff;
+          padding: clamp(8px, 1.5vw, 16px) clamp(16px, 3vw, 32px);
+          border-radius: 12px;
+          display: inline-block;
+          border: 1px dashed #f59e0b;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+          max-width: 100%;
+          word-break: break-all;
+          overflow-wrap: break-word;
+        ">
           ${otp}
         </span>
       </div>

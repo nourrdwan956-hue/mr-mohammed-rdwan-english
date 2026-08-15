@@ -95,12 +95,12 @@ const ParticleBackground = ({ theme }) => {
 };
 
 // ================================================================
-// 2. شريط التقدم
+// 2. شريط التقدم (مصغر على الهواتف)
 // ================================================================
 const ProgressBar = ({ currentStep, totalSteps = 5 }) => {
   const progress = (currentStep / totalSteps) * 100;
   return (
-    <div className="w-full h-1.5 bg-gray-200 dark:bg-white/10 rounded-full overflow-hidden mb-6">
+    <div className="w-full h-1 sm:h-1.5 bg-gray-200 dark:bg-white/10 rounded-full overflow-hidden mb-4 sm:mb-6">
       <motion.div
         initial={{ width: 0 }}
         animate={{ width: `${progress}%` }}
@@ -112,7 +112,7 @@ const ProgressBar = ({ currentStep, totalSteps = 5 }) => {
 };
 
 // ================================================================
-// 3. نصائح ذكية
+// 3. نصائح ذكية (مصغرة على الهواتف)
 // ================================================================
 const SmartTips = ({ tips }) => {
   const [index, setIndex] = useState(0);
@@ -122,12 +122,12 @@ const SmartTips = ({ tips }) => {
   }, [tips.length]);
 
   return (
-    <div className="flex items-start gap-3 p-4 rounded-2xl bg-gradient-to-br from-yellow-400/10 to-yellow-600/5 dark:from-yellow-400/10 dark:to-yellow-600/5 border border-yellow-400/20 text-sm text-gray-700 dark:text-gray-300 transition-all duration-300 hover:shadow-lg hover:shadow-yellow-400/10 cursor-pointer">
-      <div className="flex-shrink-0 p-2 rounded-xl bg-yellow-400/20 dark:bg-yellow-400/20">
-        <Icons.Lightbulb className="h-5 w-5 text-yellow-500 dark:text-yellow-400" />
+    <div className="flex items-start gap-2 sm:gap-3 p-3 sm:p-4 rounded-2xl bg-gradient-to-br from-yellow-400/10 to-yellow-600/5 dark:from-yellow-400/10 dark:to-yellow-600/5 border border-yellow-400/20 text-sm text-gray-700 dark:text-gray-300 transition-all duration-300 hover:shadow-lg hover:shadow-yellow-400/10 cursor-pointer">
+      <div className="flex-shrink-0 p-1.5 sm:p-2 rounded-xl bg-yellow-400/20 dark:bg-yellow-400/20">
+        <Icons.Lightbulb className="h-4 w-4 sm:h-5 sm:w-5 text-yellow-500 dark:text-yellow-400" />
       </div>
       <div>
-        <p className="text-xs font-medium text-yellow-600 dark:text-yellow-400 mb-0.5">💡 نصيحة ذكية</p>
+        <p className="text-[10px] sm:text-xs font-medium text-yellow-600 dark:text-yellow-400 mb-0.5">💡 نصيحة ذكية</p>
         <AnimatePresence mode="wait">
           <motion.p
             key={index}
@@ -135,7 +135,7 @@ const SmartTips = ({ tips }) => {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.4 }}
-            className="text-sm leading-relaxed"
+            className="text-xs sm:text-sm leading-relaxed"
           >
             {tips[index]}
           </motion.p>
@@ -146,7 +146,7 @@ const SmartTips = ({ tips }) => {
 };
 
 // ================================================================
-// 4. حقل الإدخال المحسّن (مع دعم Select)
+// 4. حقل الإدخال المحسّن (متجاوب + Select)
 // ================================================================
 const FormInput = ({
   label,
@@ -169,15 +169,15 @@ const FormInput = ({
 
   return (
     <div>
-      <label className={`block text-sm font-medium ${styles.label} mb-1.5`} htmlFor={name}>
+      <label className={`block text-xs sm:text-sm font-medium ${styles.label} mb-1 sm:mb-1.5`} htmlFor={name}>
         {label} {required && <span className="text-red-400">*</span>}
       </label>
       <div className="relative group">
         {Icon && (
-          <div className={`absolute right-3 top-1/2 -translate-y-1/2 transition-all duration-300 z-10 ${
+          <div className={`absolute right-2.5 sm:right-3 top-1/2 -translate-y-1/2 transition-all duration-300 z-10 ${
             isFocused ? 'text-yellow-400 scale-110' : 'text-gray-400'
           }`}>
-            <Icon className="h-5 w-5" />
+            <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
           </div>
         )}
         {isSelect ? (
@@ -188,9 +188,9 @@ const FormInput = ({
             onChange={onChange}
             onFocus={() => setIsFocused(true)}
             onBlur={() => { setIsFocused(false); setIsTouched(true); }}
-            className={`w-full p-3 ${Icon ? 'pr-11' : 'pr-4'} ${styles.input} border ${
+            className={`w-full p-2.5 sm:p-3 ${Icon ? 'pr-9 sm:pr-11' : 'pr-3 sm:pr-4'} ${styles.input} border ${
               hasError ? 'border-red-400' : isFocused ? 'border-yellow-400 shadow-lg shadow-yellow-400/10' : 'border-gray-200 dark:border-white/20'
-            } rounded-xl focus:ring-2 focus:ring-yellow-400/50 outline-none transition-all duration-300 appearance-none`}
+            } rounded-xl focus:ring-2 focus:ring-yellow-400/50 outline-none transition-all duration-300 appearance-none text-sm sm:text-base`}
           >
             <option value="" className="bg-gray-50 dark:bg-[#0b0e1a] text-gray-400 dark:text-gray-400">
               {placeholder || 'اختر...'}
@@ -216,9 +216,9 @@ const FormInput = ({
             onBlur={() => { setIsFocused(false); setIsTouched(true); }}
             placeholder={placeholder}
             maxLength={maxLength}
-            className={`w-full p-3 ${Icon ? 'pr-11' : 'pr-4'} ${styles.input} border ${
+            className={`w-full p-2.5 sm:p-3 ${Icon ? 'pr-9 sm:pr-11' : 'pr-3 sm:pr-4'} ${styles.input} border ${
               hasError ? 'border-red-400' : isFocused ? 'border-yellow-400 shadow-lg shadow-yellow-400/10' : 'border-gray-200 dark:border-white/20'
-            } rounded-xl focus:ring-2 focus:ring-yellow-400/50 outline-none transition-all duration-300 placeholder:text-gray-400 dark:placeholder:text-gray-500`}
+            } rounded-xl focus:ring-2 focus:ring-yellow-400/50 outline-none transition-all duration-300 placeholder:text-gray-400 dark:placeholder:text-gray-500 text-sm sm:text-base`}
           />
         )}
         {isFocused && (
@@ -231,7 +231,7 @@ const FormInput = ({
             initial={{ opacity: 0, y: -5 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -5 }}
-            className="text-red-400 text-xs mt-1"
+            className="text-red-400 text-[10px] sm:text-xs mt-0.5 sm:mt-1"
           >
             {error}
           </motion.p>
@@ -242,7 +242,7 @@ const FormInput = ({
 };
 
 // ================================================================
-// 5. الصفحة الرئيسية – الخطوة الثالثة
+// 5. الصفحة الرئيسية – الخطوة الثالثة (متجاوبة)
 // ================================================================
 export default function RegisterStep3() {
   const router = useRouter();
@@ -351,8 +351,8 @@ export default function RegisterStep3() {
     return (
       <div className={`min-h-screen w-full ${styles.bg} ${styles.text} flex items-center justify-center`}>
         <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 border-4 border-yellow-400/30 border-t-yellow-400 rounded-full animate-spin" />
-          <p className={`text-sm ${styles.subtext}`}>جاري التحقق من البيانات...</p>
+          <div className="w-8 h-8 sm:w-10 sm:h-10 border-4 border-yellow-400/30 border-t-yellow-400 rounded-full animate-spin" />
+          <p className={`text-xs sm:text-sm ${styles.subtext}`}>جاري التحقق من البيانات...</p>
         </div>
       </div>
     );
@@ -363,7 +363,7 @@ export default function RegisterStep3() {
   }
 
   return (
-    <div key={theme} className={`min-h-screen w-full ${styles.bg} ${styles.text} relative overflow-hidden flex items-center justify-center p-4`}>
+    <div key={theme} className={`min-h-screen w-full ${styles.bg} ${styles.text} relative overflow-hidden flex items-center justify-center p-3 sm:p-4`}>
       <ParticleBackground theme={theme} />
 
       <motion.div
@@ -373,23 +373,23 @@ export default function RegisterStep3() {
         className="w-full max-w-2xl relative z-10"
       >
         {/* العنوان */}
-        <div className="text-center mb-6">
+        <div className="text-center mb-4 sm:mb-6">
           <motion.div
             initial={{ scale: 0.8 }}
             animate={{ scale: 1 }}
             transition={{ duration: 0.5, delay: 0.2 }}
-            className="inline-flex p-3 rounded-2xl bg-yellow-400/10 dark:bg-yellow-400/10 mb-3"
+            className="inline-flex p-2.5 sm:p-3 rounded-2xl bg-yellow-400/10 dark:bg-yellow-400/10 mb-2 sm:mb-3"
           >
-            <Icons.School className="h-8 w-8 text-yellow-500 dark:text-yellow-400" />
+            <Icons.School className="h-6 w-6 sm:h-8 sm:w-8 text-yellow-500 dark:text-yellow-400" />
           </motion.div>
-          <h2 className={`text-2xl font-bold ${styles.text}`}>البيانات التعليمية</h2>
-          <p className={`text-sm ${styles.subtext} mt-1`}>أدخل معلومات مدرستك وصفك الدراسي</p>
+          <h2 className={`text-xl sm:text-2xl font-bold ${styles.text}`}>البيانات التعليمية</h2>
+          <p className={`text-xs sm:text-sm ${styles.subtext} mt-0.5 sm:mt-1`}>أدخل معلومات مدرستك وصفك الدراسي</p>
         </div>
 
         <ProgressBar currentStep={3} totalSteps={5} />
 
-        <div className={`${styles.card} border ${styles.border} rounded-3xl p-8 shadow-2xl backdrop-blur-xl transition-all duration-500`}>
-          <form onSubmit={handleSubmit} className="space-y-5">
+        <div className={`${styles.card} border ${styles.border} rounded-2xl sm:rounded-3xl p-4 sm:p-6 md:p-8 shadow-2xl backdrop-blur-xl transition-all duration-500`}>
+          <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
             <FormInput
               name="school"
               label="اسم المدرسة"
@@ -430,36 +430,36 @@ export default function RegisterStep3() {
 
             <SmartTips tips={tips} />
 
-            <div className="flex gap-4 pt-2">
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 pt-2">
               <button
                 type="button"
                 onClick={() => router.push('/register/2')}
-                className="flex-1 py-3.5 bg-white/10 dark:bg-white/5 border border-gray-300 dark:border-white/20 text-gray-700 dark:text-white font-bold rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 transition-all duration-300 flex items-center justify-center gap-2"
+                className="order-2 sm:order-1 w-full sm:flex-1 py-3 sm:py-3.5 bg-white/10 dark:bg-white/5 border border-gray-300 dark:border-white/20 text-gray-700 dark:text-white font-bold rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 transition-all duration-300 flex items-center justify-center gap-2 text-sm sm:text-base"
               >
-                <Icons.ArrowRight className="h-5 w-5" />
+                <Icons.ArrowRight className="h-4 w-4 sm:h-5 sm:w-5" />
                 <span>السابق</span>
               </button>
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="flex-1 py-3.5 bg-gradient-to-r from-yellow-400 to-yellow-600 hover:from-yellow-500 hover:to-yellow-700 text-white font-bold rounded-xl transition-all duration-300 shadow-lg shadow-yellow-400/20 hover:shadow-yellow-400/40 flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+                className="order-1 sm:order-2 w-full sm:flex-1 py-3 sm:py-3.5 bg-gradient-to-r from-yellow-400 to-yellow-600 hover:from-yellow-500 hover:to-yellow-700 text-white font-bold rounded-xl transition-all duration-300 shadow-lg shadow-yellow-400/20 hover:shadow-yellow-400/40 flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed text-sm sm:text-base"
               >
                 {isSubmitting ? (
                   <>
-                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <div className="w-4 h-4 sm:w-5 sm:h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                     جاري الحفظ...
                   </>
                 ) : (
                   <>
                     <span>التالي</span>
-                    <Icons.ArrowLeft className="h-5 w-5" />
+                    <Icons.ArrowLeft className="h-4 w-4 sm:h-5 sm:w-5" />
                   </>
                 )}
               </button>
             </div>
           </form>
 
-          <div className="mt-6 text-center text-sm text-gray-500 dark:text-gray-400">
+          <div className="mt-4 sm:mt-6 text-center text-xs sm:text-sm text-gray-500 dark:text-gray-400">
             <button
               onClick={() => router.push('/register/2')}
               className="text-yellow-600 dark:text-yellow-400 hover:underline font-medium transition-colors"
@@ -469,7 +469,7 @@ export default function RegisterStep3() {
           </div>
         </div>
 
-        <div className="mt-4 text-center text-xs text-gray-400 dark:text-gray-500">
+        <div className="mt-3 sm:mt-4 text-center text-[10px] sm:text-xs text-gray-400 dark:text-gray-500">
           <span>🔒 جميع البيانات مشفرة • خطوة 3 من 5</span>
         </div>
       </motion.div>
