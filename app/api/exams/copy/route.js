@@ -1,48 +1,42 @@
 // app/api/exams/copy/route.js
 import { createClient } from '@supabase/supabase-js';
-import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 
 export async function POST(request) {
   try {
-    // قراءة الكوكيز من الطلب
-    const cookieStore = cookies();
-    
-    // الحصول على جميع الكوكيز ككائن
-    const allCookies = cookieStore.getAll();
-    const cookieString = allCookies.map(c => `${c.name}=${c.value}`).join('; ');
+    // 1. استخراج الـ Cookie من رأس الطلب
+    const cookieHeader = request.headers.get('cookie') || '';
 
-    // إنشاء عميل Supabase مع تمرير الكوكيز في الهيدر
+    // 2. إنشاء عميل Supabase مع تمرير الـ Cookie يدوياً
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
       {
         auth: {
-          autoRefreshToken: false,
-          persistSession: false,
-          detectSessionInUrl: false,
+          persistSession: false,      // لا نحتاج لتخزين الجلسة على الخادم
+          autoRefreshToken: false,    // لا نحتاج لتجديد التوكن تلقائياً
+          detectSessionInUrl: false,  // لا نتعامل مع URL
         },
         global: {
           headers: {
-            Cookie: cookieString,
+            Cookie: cookieHeader,     // إرسال الـ Cookie كما هو
           },
         },
       }
     );
 
-    // محاولة الحصول على المستخدم
+    // 3. التحقق من المستخدم
     const { data: { user }, error: userError } = await supabase.auth.getUser();
 
     if (userError || !user) {
-      console.error('Auth error details:', userError);
+      console.error('❌ Auth error:', userError?.message || 'No user found');
       return NextResponse.json(
-        { error: 'Authentication failed: ' + (userError?.message || 'No user found') },
+        { error: 'Authentication failed: ' + (userError?.message || 'Session missing') },
         { status: 401 }
       );
     }
 
-    console.log('User authenticated:', user.id);
-
+    // 4. قراءة بيانات الطلب
     const { examId, targetCourseId } = await request.json();
 
     if (!examId || !targetCourseId) {
@@ -52,7 +46,7 @@ export async function POST(request) {
       );
     }
 
-    // جلب الامتحان الأصلي
+    // 5. جلب الامتحان الأصلي
     const { data: exam, error: examError } = await supabase
       .from('exams')
       .select('*')
@@ -67,7 +61,7 @@ export async function POST(request) {
       );
     }
 
-    // التحقق من الكورس الهدف
+    // 6. التحقق من الكورس الهدف
     const { data: targetCourse, error: courseError } = await supabase
       .from('courses')
       .select('id')
@@ -82,7 +76,7 @@ export async function POST(request) {
       );
     }
 
-    // إنشاء نسخة الامتحان
+    // 7. إنشاء نسخة الامتحان
     const { data: newExam, error: insertError } = await supabase
       .from('exams')
       .insert({
@@ -108,14 +102,14 @@ export async function POST(request) {
       .single();
 
     if (insertError) {
-      console.error('Error inserting new exam:', insertError);
+      console.error('❌ Error inserting new exam:', insertError);
       return NextResponse.json(
         { error: 'Failed to copy exam: ' + insertError.message },
         { status: 500 }
       );
     }
 
-    // نسخ الأسئلة
+    // 8. نسخ الأسئلة
     const { data: questions, error: qError } = await supabase
       .from('exam_questions')
       .select('*')
@@ -123,12 +117,14 @@ export async function POST(request) {
       .order('order_index', { ascending: true });
 
     if (qError) {
-      console.error('Error fetching questions:', qError);
-      // نستمر حتى لو فشل جلب الأسئلة
-      return NextResponse.json({
-        exam: newExam,
-        warning: 'Exam copied but questions could not be retrieved'
-      }, { status: 207 });
+      console.error('❌ Error fetching questions:', qError);
+      return NextResponse.json(
+        { 
+          exam: newExam, 
+          warning: 'Exam copied but questions could not be retrieved' 
+        },
+        { status: 207 }
+      );
     }
 
     if (questions && questions.length > 0) {
@@ -148,24 +144,27 @@ export async function POST(request) {
         .insert(newQuestions);
 
       if (insertQError) {
-        console.error('Error copying questions:', insertQError);
-        return NextResponse.json({
-          exam: newExam,
-          warning: 'Exam copied but questions could not be copied'
-        }, { status: 207 });
+        console.error('❌ Error copying questions:', insertQError);
+        return NextResponse.json(
+          { 
+            exam: newExam, 
+            warning: 'Exam copied but questions could not be copied' 
+          },
+          { status: 207 }
+        );
       }
     }
 
+    // 9. نجاح العملية
     return NextResponse.json({
       exam: newExam,
       message: 'Exam copied successfully',
-      questionsCopied: questions?.length || 0
     });
 
-  } catch (err) {
-    console.error('Unexpected error:', err);
+  } catch (error) {
+    console.error('❌ Unexpected error:', error);
     return NextResponse.json(
-      { error: 'Internal server error: ' + err.message },
+      { error: 'Internal server error: ' + error.message },
       { status: 500 }
     );
   }
