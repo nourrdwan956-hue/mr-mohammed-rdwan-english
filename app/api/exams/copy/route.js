@@ -1,58 +1,77 @@
 // app/api/exams/copy/route.js
-import { createClient } from '@supabase/supabase-js';
+import { createServerClient } from '@supabase/ssr';
+import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 
 export async function POST(request) {
   try {
-    // 🔑 استخراج الكوكيز من الطلب (أفضل طريقة)
+    // ============================================================
+    // 1. محاولة استخراج الكوكيز بأي طريقة ممكنة
+    // ============================================================
     let cookieString = '';
 
-    // 1. محاولة استخدام request.cookies (Next.js 14+)
-    if (request.cookies) {
-      if (typeof request.cookies.getAll === 'function') {
-        const all = request.cookies.getAll();
-        cookieString = all.map(c => `${c.name}=${c.value}`).join('; ');
-      } else if (typeof request.cookies.get === 'function') {
-        // محاولة الحصول على الكوكي المعروف (يعتمد على اسم الكوكي)
-        // لكننا لا نعرف الاسم، لذا نستخدم رأس cookie كاحتياطي
-        cookieString = request.headers.get('cookie') || '';
-      } else {
-        // request.cookies قد يكون كائنًا بسيطًا
-        cookieString = request.headers.get('cookie') || '';
-      }
-    } else {
-      // 2. إذا لم يكن request.cookies متاحاً، نقرأ من الرأس مباشرة
-      cookieString = request.headers.get('cookie') || '';
+    // الطريقة الأولى: من رأس الطلب (الأكثر استقراراً)
+    const headerCookie = request.headers.get('cookie');
+    if (headerCookie) {
+      cookieString = headerCookie;
     }
 
-    // إذا لم نجد كوكيز، نرفض
+    // الطريقة الثانية: من next/headers (إذا كانت الأولى فاشلة)
+    if (!cookieString) {
+      try {
+        const cookieStore = cookies();
+        if (typeof cookieStore.getAll === 'function') {
+          const all = cookieStore.getAll();
+          cookieString = all.map(c => `${c.name}=${c.value}`).join('; ');
+        } else {
+          // محاولة الحصول على الكوكيز الأساسية
+          const possibleNames = [
+            'supabase-auth-token',
+            'sb-auth-token',
+            'sb-access-token',
+            'sb-refresh-token'
+          ];
+          const parts = [];
+          for (const name of possibleNames) {
+            const value = cookieStore.get(name)?.value;
+            if (value) parts.push(`${name}=${value}`);
+          }
+          cookieString = parts.join('; ');
+        }
+      } catch (err) {
+        console.warn('⚠️ Error reading cookies via next/headers:', err.message);
+      }
+    }
+
+    // إذا لم نجد أي كوكيز، نرفض
     if (!cookieString) {
       console.error('❌ No cookies found in request');
       return NextResponse.json(
-        { error: 'Authentication failed: No cookies. Please login again.' },
+        { error: 'Authentication failed: No cookies found. Please login again.' },
         { status: 401 }
       );
     }
 
-    // 🔧 إنشاء عميل Supabase مع الكوكيز
-    const supabase = createClient(
+    // ============================================================
+    // 2. إنشاء عميل Supabase مع الكوكيز
+    // ============================================================
+    const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
       {
-        auth: {
-          persistSession: false,
-          autoRefreshToken: false,
-          detectSessionInUrl: false,
-        },
-        global: {
-          headers: {
-            Cookie: cookieString,
+        cookies: {
+          get(name) {
+            // استخراج قيمة كوكي معين من السلسلة
+            const match = cookieString.match(new RegExp(`(^|; )${name}=([^;]*)`));
+            return match ? match[2] : null;
           },
         },
       }
     );
 
-    // 👤 التحقق من المستخدم
+    // ============================================================
+    // 3. التحقق من المستخدم
+    // ============================================================
     const { data: { user }, error: userError } = await supabase.auth.getUser();
 
     if (userError || !user) {
@@ -63,7 +82,9 @@ export async function POST(request) {
       );
     }
 
-    // 📦 قراءة البيانات
+    // ============================================================
+    // 4. بقية العمليات (نسخ الامتحان والأسئلة)
+    // ============================================================
     const { examId, targetCourseId } = await request.json();
 
     if (!examId || !targetCourseId) {
@@ -73,7 +94,7 @@ export async function POST(request) {
       );
     }
 
-    // 📝 جلب الامتحان الأصلي
+    // جلب الامتحان الأصلي
     const { data: exam, error: examError } = await supabase
       .from('exams')
       .select('*')
@@ -88,7 +109,7 @@ export async function POST(request) {
       );
     }
 
-    // 🎯 التحقق من الكورس الهدف
+    // التحقق من الكورس الهدف
     const { data: targetCourse, error: courseError } = await supabase
       .from('courses')
       .select('id')
@@ -103,7 +124,7 @@ export async function POST(request) {
       );
     }
 
-    // 🆕 نسخ الامتحان
+    // نسخ الامتحان
     const { data: newExam, error: insertError } = await supabase
       .from('exams')
       .insert({
@@ -136,7 +157,7 @@ export async function POST(request) {
       );
     }
 
-    // 📋 نسخ الأسئلة
+    // نسخ الأسئلة
     const { data: questions, error: qError } = await supabase
       .from('exam_questions')
       .select('*')
@@ -164,7 +185,6 @@ export async function POST(request) {
       }
     }
 
-    // ✅ نجاح
     return NextResponse.json({
       exam: newExam,
       message: 'Exam copied successfully',
