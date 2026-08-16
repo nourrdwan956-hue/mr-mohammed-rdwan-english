@@ -1,15 +1,14 @@
 // app/api/exams/copy/route.js
-import { createClient } from '@supabase/supabase-js';
+import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 
 export async function POST(request) {
   try {
-    // قراءة الكوكيز للحصول على جلسة المستخدم
     const cookieStore = cookies();
 
-    // إنشاء عميل Supabase مع دعم الكوكيز
-    const supabase = createClient(
+    // إنشاء عميل Supabase للخادم
+    const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
       {
@@ -17,7 +16,6 @@ export async function POST(request) {
           get(name) {
             return cookieStore.get(name)?.value;
           },
-          // لا نحتاج لتعيين أو حذف الكوكيز هنا
         },
       }
     );
@@ -48,7 +46,7 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Exam not found or you do not have permission' }, { status: 404 });
     }
 
-    // التحقق من أن الكورس الهدف يخص نفس المعلم
+    // التحقق من الكورس الهدف
     const { data: targetCourse, error: courseError } = await supabase
       .from('courses')
       .select('id')
