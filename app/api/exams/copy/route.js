@@ -5,55 +5,54 @@ import { NextResponse } from 'next/server';
 
 export async function POST(request) {
   try {
-    // 1. قراءة الكوكيز
+    // قراءة الكوكيز من الطلب
     const cookieStore = cookies();
-    const cookieHeader = cookieStore.toString();
+    
+    // الحصول على جميع الكوكيز ككائن
+    const allCookies = cookieStore.getAll();
+    const cookieString = allCookies.map(c => `${c.name}=${c.value}`).join('; ');
 
-    // 2. إنشاء عميل Supabase مع تمرير الكوكيز يدوياً
+    // إنشاء عميل Supabase مع تمرير الكوكيز في الهيدر
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
       {
         auth: {
-          persistSession: false,
           autoRefreshToken: false,
+          persistSession: false,
           detectSessionInUrl: false,
         },
         global: {
           headers: {
-            Cookie: cookieHeader,
+            Cookie: cookieString,
           },
         },
       }
     );
 
-    // 3. الحصول على المستخدم
+    // محاولة الحصول على المستخدم
     const { data: { user }, error: userError } = await supabase.auth.getUser();
 
-    if (userError) {
-      console.error('Auth error:', userError);
-      return NextResponse.json({ error: 'Authentication failed: ' + userError.message }, { status: 401 });
+    if (userError || !user) {
+      console.error('Auth error details:', userError);
+      return NextResponse.json(
+        { error: 'Authentication failed: ' + (userError?.message || 'No user found') },
+        { status: 401 }
+      );
     }
 
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 401 });
-    }
+    console.log('User authenticated:', user.id);
 
-    // 4. قراءة البيانات من الطلب
-    let examId, targetCourseId;
-    try {
-      const body = await request.json();
-      examId = body.examId;
-      targetCourseId = body.targetCourseId;
-    } catch (e) {
-      return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
-    }
+    const { examId, targetCourseId } = await request.json();
 
     if (!examId || !targetCourseId) {
-      return NextResponse.json({ error: 'examId and targetCourseId are required' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'examId and targetCourseId are required' },
+        { status: 400 }
+      );
     }
 
-    // 5. جلب الامتحان الأصلي
+    // جلب الامتحان الأصلي
     const { data: exam, error: examError } = await supabase
       .from('exams')
       .select('*')
@@ -61,16 +60,14 @@ export async function POST(request) {
       .eq('teacher_id', user.id)
       .single();
 
-    if (examError) {
-      console.error('Error fetching exam:', examError);
-      return NextResponse.json({ error: 'Exam not found or you do not have permission' }, { status: 404 });
+    if (examError || !exam) {
+      return NextResponse.json(
+        { error: 'Exam not found or you do not have permission' },
+        { status: 404 }
+      );
     }
 
-    if (!exam) {
-      return NextResponse.json({ error: 'Exam not found' }, { status: 404 });
-    }
-
-    // 6. التحقق من الكورس الهدف
+    // التحقق من الكورس الهدف
     const { data: targetCourse, error: courseError } = await supabase
       .from('courses')
       .select('id')
@@ -78,48 +75,47 @@ export async function POST(request) {
       .eq('teacher_id', user.id)
       .single();
 
-    if (courseError) {
-      console.error('Error fetching target course:', courseError);
-      return NextResponse.json({ error: 'Target course not found or you do not have permission' }, { status: 404 });
+    if (courseError || !targetCourse) {
+      return NextResponse.json(
+        { error: 'Target course not found or you do not have permission' },
+        { status: 404 }
+      );
     }
 
-    if (!targetCourse) {
-      return NextResponse.json({ error: 'Target course not found' }, { status: 404 });
-    }
-
-    // 7. إنشاء نسخة جديدة من الامتحان
-    const newExamData = {
-      teacher_id: user.id,
-      title: exam.title + ' (منسوخ)',
-      description: exam.description,
-      course_id: targetCourseId,
-      duration_minutes: exam.duration_minutes,
-      start_date: exam.start_date,
-      end_date: exam.end_date,
-      total_marks: exam.total_marks,
-      passing_marks: exam.passing_marks,
-      shuffle_questions: exam.shuffle_questions,
-      shuffle_options: exam.shuffle_options,
-      allow_backward: exam.allow_backward,
-      show_results_immediately: exam.show_results_immediately,
-      attempts_allowed: exam.attempts_allowed,
-      password: exam.password,
-      settings: exam.settings || {},
-      is_published: false,
-    };
-
+    // إنشاء نسخة الامتحان
     const { data: newExam, error: insertError } = await supabase
       .from('exams')
-      .insert(newExamData)
+      .insert({
+        teacher_id: user.id,
+        title: exam.title + ' (منسوخ)',
+        description: exam.description,
+        course_id: targetCourseId,
+        duration_minutes: exam.duration_minutes,
+        start_date: exam.start_date,
+        end_date: exam.end_date,
+        total_marks: exam.total_marks,
+        passing_marks: exam.passing_marks,
+        shuffle_questions: exam.shuffle_questions,
+        shuffle_options: exam.shuffle_options,
+        allow_backward: exam.allow_backward,
+        show_results_immediately: exam.show_results_immediately,
+        attempts_allowed: exam.attempts_allowed,
+        password: exam.password,
+        settings: exam.settings || {},
+        is_published: false,
+      })
       .select()
       .single();
 
     if (insertError) {
       console.error('Error inserting new exam:', insertError);
-      return NextResponse.json({ error: 'Failed to copy exam: ' + insertError.message }, { status: 500 });
+      return NextResponse.json(
+        { error: 'Failed to copy exam: ' + insertError.message },
+        { status: 500 }
+      );
     }
 
-    // 8. نسخ الأسئلة
+    // نسخ الأسئلة
     const { data: questions, error: qError } = await supabase
       .from('exam_questions')
       .select('*')
@@ -128,7 +124,7 @@ export async function POST(request) {
 
     if (qError) {
       console.error('Error fetching questions:', qError);
-      // لا نعتبر هذا خطأ فادحاً، نستمر مع تحذير
+      // نستمر حتى لو فشل جلب الأسئلة
       return NextResponse.json({
         exam: newExam,
         warning: 'Exam copied but questions could not be retrieved'
@@ -145,7 +141,6 @@ export async function POST(request) {
         marks: q.marks || 1,
         order_index: q.order_index || 0,
         explanation: q.explanation || '',
-        // لا ننسخ bank_question_id
       }));
 
       const { error: insertQError } = await supabase
@@ -161,10 +156,17 @@ export async function POST(request) {
       }
     }
 
-    return NextResponse.json({ exam: newExam, message: 'Exam copied successfully' });
+    return NextResponse.json({
+      exam: newExam,
+      message: 'Exam copied successfully',
+      questionsCopied: questions?.length || 0
+    });
 
   } catch (err) {
     console.error('Unexpected error:', err);
-    return NextResponse.json({ error: 'Internal server error: ' + err.message }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Internal server error: ' + err.message },
+      { status: 500 }
+    );
   }
 }
