@@ -1,15 +1,32 @@
 // app/api/exams/copy/route.js
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 
 export async function POST(request) {
   try {
-    // 1. إنشاء عميل Supabase مع الكوكيز
-    const supabase = createRouteHandlerClient({ cookies });
+    // قراءة الكوكيز للحصول على جلسة المستخدم
+    const cookieStore = cookies();
+
+    // إنشاء عميل Supabase مع دعم الكوكيز
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+      {
+        cookies: {
+          get(name) {
+            return cookieStore.get(name)?.value;
+          },
+          // لا نحتاج لتعيين أو حذف الكوكيز هنا
+        },
+      }
+    );
+
+    // التحقق من المستخدم
     const { data: { user }, error: userError } = await supabase.auth.getUser();
 
     if (userError || !user) {
+      console.error('Auth error:', userError);
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -98,7 +115,6 @@ export async function POST(request) {
         marks: q.marks || 1,
         order_index: q.order_index || 0,
         explanation: q.explanation || '',
-        // لا ننسخ bank_question_id
       }));
 
       const { error: insertQError } = await supabase
