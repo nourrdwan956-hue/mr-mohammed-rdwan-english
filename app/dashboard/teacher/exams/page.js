@@ -4,6 +4,7 @@
 // ✅ تم توحيد استخدام useTheme عبر جميع المكونات
 // ✅ استخدام CSS Variables لضمان تباين عالٍ في الوضعين
 // ✅ إعادة هيكلة الأنماط لتكون قابلة لإعادة الاستخدام
+// ✅ إضافة ميزة نسخ الامتحان إلى كورس آخر
 // ============================================================
 
 'use client';
@@ -147,6 +148,7 @@ const ExamCard = ({
   onViewResults,
   onDuplicate,
   onViewBank,
+  onCopyToCourse, // <-- جديد
   courseTitle,
   index,
   permissions,
@@ -301,6 +303,16 @@ const ExamCard = ({
                 </button>
               )}
 
+              {/* زر نسخ إلى كورس (جديد) */}
+              {(!isAssistant || hasPermission(permissions, 'exams', 'can_create')) && (
+                <button
+                  onClick={() => onCopyToCourse(exam)}
+                  className="px-3 py-1.5 bg-indigo-500/20 text-indigo-400 rounded-xl text-xs font-semibold hover:bg-indigo-500/30 transition flex items-center gap-1"
+                >
+                  <Icons.Copy className="h-3 w-3" /> نسخ إلى كورس
+                </button>
+              )}
+
               {(!isAssistant || hasPermission(permissions, 'exams', 'can_delete')) && (
                 <button
                   onClick={() => onDelete(exam)}
@@ -435,6 +447,12 @@ export default function TeacherExamsPage() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isBatchDeleteModalOpen, setIsBatchDeleteModalOpen] = useState(false);
+
+  // ===== حالات نسخ الامتحان إلى كورس آخر (جديدة) =====
+  const [isCopyModalOpen, setIsCopyModalOpen] = useState(false);
+  const [selectedExamToCopy, setSelectedExamToCopy] = useState(null);
+  const [targetCourseId, setTargetCourseId] = useState('');
+  const [copying, setCopying] = useState(false);
 
   // ===== جلب الامتحانات =====
   const fetchExams = useCallback(async () => {
@@ -802,6 +820,51 @@ export default function TeacherExamsPage() {
     }
   };
 
+  // ===== دوال نسخ الامتحان إلى كورس آخر (جديدة) =====
+  const handleOpenCopyModal = (exam) => {
+    setSelectedExamToCopy(exam);
+    setTargetCourseId('');
+    setIsCopyModalOpen(true);
+  };
+
+  const handleCopyToCourse = async () => {
+    if (!selectedExamToCopy || !targetCourseId) {
+      toast.error('يرجى اختيار كورس');
+      return;
+    }
+
+    // التأكد من أن الكورس مختلف عن الكورس الأصلي (اختياري)
+    if (targetCourseId === selectedExamToCopy.course_id) {
+      toast.warning('الكورس المختار هو نفس الكورس الأصلي');
+      return;
+    }
+
+    setCopying(true);
+    try {
+      const response = await fetch('/api/exams/copy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          examId: selectedExamToCopy.id,
+          targetCourseId,
+        }),
+      });
+
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'فشل النسخ');
+
+      toast.success(`✅ تم نسخ الامتحان إلى الكورس بنجاح`);
+      setIsCopyModalOpen(false);
+      setSelectedExamToCopy(null);
+      fetchExams(); // إعادة تحميل القائمة
+    } catch (err) {
+      console.error(err);
+      toast.error('فشل نسخ الامتحان: ' + err.message);
+    } finally {
+      setCopying(false);
+    }
+  };
+
   // ===== تحديد متعدد =====
   const toggleSelectAll = () => {
     if (selectedIds.length === filteredExams.length) {
@@ -1106,6 +1169,7 @@ export default function TeacherExamsPage() {
                 onViewResults={handleViewResults}
                 onDuplicate={handleDuplicate}
                 onViewBank={handleViewBank}
+                onCopyToCourse={handleOpenCopyModal} // <-- تمرير الدالة الجديدة
                 permissions={permissions}
                 isAssistant={isAssistant}
               />
@@ -1131,6 +1195,70 @@ export default function TeacherExamsPage() {
         isBatch={true}
       />
 
+      {/* ===== مودال نسخ الامتحان إلى كورس آخر (جديد) ===== */}
+      <AnimatePresence>
+        {isCopyModalOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 px-4"
+            onClick={() => setIsCopyModalOpen(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              style={{
+                backgroundColor: isDark ? '#1a1f2e' : '#ffffff',
+                borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(200,200,200,0.6)',
+                borderWidth: '1px',
+                borderStyle: 'solid',
+              }}
+              className="rounded-3xl p-8 max-w-md w-full"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'} mb-2`}>
+                نسخ الامتحان إلى كورس آخر
+              </h3>
+              <p className={`${isDark ? 'text-gray-400' : 'text-gray-600'} text-sm mb-4`}>
+                سيتم نسخ الامتحان مع جميع أسئلته إلى الكورس المختار.
+              </p>
+              <div className="mb-4">
+                <label className={`block text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'} mb-1`}>
+                  اختر الكورس الهدف
+                </label>
+                <select
+                  value={targetCourseId}
+                  onChange={(e) => setTargetCourseId(e.target.value)}
+                  className={`w-full p-2.5 ${isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-gray-100 border-gray-300 text-gray-900'} border rounded-xl focus:ring-2 focus:ring-yellow-400/50 outline-none transition`}
+                >
+                  <option value="">-- اختر كورس --</option>
+                  {Object.entries(courses).map(([id, title]) => (
+                    <option key={id} value={id}>{title}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={() => setIsCopyModalOpen(false)}
+                  className="px-6 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-white transition"
+                >
+                  إلغاء
+                </button>
+                <button
+                  onClick={handleCopyToCourse}
+                  disabled={copying || !targetCourseId}
+                  className="px-6 py-2.5 bg-indigo-500 hover:bg-indigo-600 text-white font-bold rounded-xl transition disabled:opacity-50"
+                >
+                  {copying ? 'جاري النسخ...' : 'نسخ'}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* ===== روابط سريعة ===== */}
       <div className={`mt-6 ${isDark ? 'bg-white/5 border-white/10' : 'bg-white/90 border-gray-200'} backdrop-blur-sm border rounded-2xl p-4`}>
         <h3 className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-gray-900'} mb-2 flex items-center gap-2`}>
@@ -1149,3 +1277,4 @@ export default function TeacherExamsPage() {
   );
 }
 // ✅ تم تحديث الثيم بنجاح – تباين عالٍ في كلا الوضعين
+// ✅ تم إضافة ميزة نسخ الامتحان إلى كورس آخر
