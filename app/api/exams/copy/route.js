@@ -5,21 +5,52 @@ import { NextResponse } from 'next/server';
 
 export async function POST(request) {
   try {
-    // 1. جلب جميع الكوكيز من الطلب
-    const cookieStore = cookies();
-    // تحويل الكوكيز إلى سلسلة بالصيغة: name1=value1; name2=value2; ...
-    const cookieArray = cookieStore.getAll();
-    const cookieString = cookieArray.map(c => `${c.name}=${c.value}`).join('; ');
+    // ⭐ أولاً: محاولة قراءة الكوكيز من رأس الطلب (الأفضل)
+    let cookieString = request.headers.get('cookie') || '';
 
+    // ⭐ ثانياً: إذا لم توجد، استخدم cookies() من next/headers
+    if (!cookieString) {
+      try {
+        const cookieStore = cookies();
+        
+        // محاولة استخدام getAll إذا كانت متوفرة (Next.js 15+)
+        if (typeof cookieStore.getAll === 'function') {
+          const allCookies = cookieStore.getAll();
+          cookieString = allCookies.map(c => `${c.name}=${c.value}`).join('; ');
+        } else {
+          // الإصدارات الأقدم: استخدام get مع أسماء محتملة
+          const possibleNames = [
+            'supabase-auth-token',
+            'sb-ucwwejlbulvkixgnzayq-auth-token', // استبدل بـ project-ref الخاص بك
+            'sb-auth-token',
+            'sb-access-token',
+            'sb-refresh-token'
+          ];
+          const cookieParts = [];
+          for (const name of possibleNames) {
+            const value = cookieStore.get(name)?.value;
+            if (value) cookieParts.push(`${name}=${value}`);
+          }
+          // إذا وجدنا أي كوكي، نجمعها
+          if (cookieParts.length > 0) {
+            cookieString = cookieParts.join('; ');
+          }
+        }
+      } catch (err) {
+        console.warn('⚠️ Could not read cookies using cookies():', err.message);
+      }
+    }
+
+    // إذا لم نجد أي كوكيز، نرفض الطلب
     if (!cookieString) {
       console.error('❌ No cookies found in request');
       return NextResponse.json(
-        { error: 'Authentication failed: No cookies found. Please login again.' },
+        { error: 'Authentication failed: No cookies. Please login again.' },
         { status: 401 }
       );
     }
 
-    // 2. إنشاء عميل Supabase مع تمرير الكوكيز
+    // 🔧 إنشاء عميل Supabase مع تمرير الكوكيز
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
@@ -37,7 +68,7 @@ export async function POST(request) {
       }
     );
 
-    // 3. التحقق من المستخدم
+    // 👤 التحقق من المستخدم
     const { data: { user }, error: userError } = await supabase.auth.getUser();
 
     if (userError || !user) {
@@ -48,7 +79,7 @@ export async function POST(request) {
       );
     }
 
-    // 4. قراءة بيانات الطلب
+    // 📦 قراءة بيانات الطلب
     const { examId, targetCourseId } = await request.json();
 
     if (!examId || !targetCourseId) {
@@ -58,7 +89,7 @@ export async function POST(request) {
       );
     }
 
-    // 5. جلب الامتحان الأصلي
+    // 📝 جلب الامتحان الأصلي
     const { data: exam, error: examError } = await supabase
       .from('exams')
       .select('*')
@@ -73,7 +104,7 @@ export async function POST(request) {
       );
     }
 
-    // 6. التحقق من الكورس الهدف
+    // 🎯 التحقق من الكورس الهدف
     const { data: targetCourse, error: courseError } = await supabase
       .from('courses')
       .select('id')
@@ -88,7 +119,7 @@ export async function POST(request) {
       );
     }
 
-    // 7. نسخ الامتحان
+    // 🆕 نسخ الامتحان
     const { data: newExam, error: insertError } = await supabase
       .from('exams')
       .insert({
@@ -121,7 +152,7 @@ export async function POST(request) {
       );
     }
 
-    // 8. نسخ الأسئلة
+    // 📋 نسخ الأسئلة
     const { data: questions, error: qError } = await supabase
       .from('exam_questions')
       .select('*')
@@ -146,10 +177,11 @@ export async function POST(request) {
 
       if (insertQError) {
         console.warn('⚠️ Questions copied with warnings:', insertQError);
-        // نستمر رغم الخطأ
+        // نستمر رغم الخطأ (جزئي)
       }
     }
 
+    // ✅ نجاح
     return NextResponse.json({
       exam: newExam,
       message: 'Exam copied successfully',
