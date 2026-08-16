@@ -1,28 +1,58 @@
 // app/api/exams/copy/route.js
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
+import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 
 export async function POST(request) {
   try {
-    // 1. الحصول على الكوكيز من الطلب
-    const cookieStore = cookies();
+    // 🔑 استخراج الكوكيز من الطلب (أفضل طريقة)
+    let cookieString = '';
 
-    // 2. إنشاء عميل Supabase للخادم
-    const supabase = createServerClient(
+    // 1. محاولة استخدام request.cookies (Next.js 14+)
+    if (request.cookies) {
+      if (typeof request.cookies.getAll === 'function') {
+        const all = request.cookies.getAll();
+        cookieString = all.map(c => `${c.name}=${c.value}`).join('; ');
+      } else if (typeof request.cookies.get === 'function') {
+        // محاولة الحصول على الكوكي المعروف (يعتمد على اسم الكوكي)
+        // لكننا لا نعرف الاسم، لذا نستخدم رأس cookie كاحتياطي
+        cookieString = request.headers.get('cookie') || '';
+      } else {
+        // request.cookies قد يكون كائنًا بسيطًا
+        cookieString = request.headers.get('cookie') || '';
+      }
+    } else {
+      // 2. إذا لم يكن request.cookies متاحاً، نقرأ من الرأس مباشرة
+      cookieString = request.headers.get('cookie') || '';
+    }
+
+    // إذا لم نجد كوكيز، نرفض
+    if (!cookieString) {
+      console.error('❌ No cookies found in request');
+      return NextResponse.json(
+        { error: 'Authentication failed: No cookies. Please login again.' },
+        { status: 401 }
+      );
+    }
+
+    // 🔧 إنشاء عميل Supabase مع الكوكيز
+    const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
       {
-        cookies: {
-          get(name) {
-            return cookieStore.get(name)?.value;
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false,
+          detectSessionInUrl: false,
+        },
+        global: {
+          headers: {
+            Cookie: cookieString,
           },
-          // لا نحتاج إلى set لأننا فقط نقرأ
         },
       }
     );
 
-    // 3. التحقق من المستخدم
+    // 👤 التحقق من المستخدم
     const { data: { user }, error: userError } = await supabase.auth.getUser();
 
     if (userError || !user) {
@@ -33,7 +63,7 @@ export async function POST(request) {
       );
     }
 
-    // 4. قراءة بيانات الطلب
+    // 📦 قراءة البيانات
     const { examId, targetCourseId } = await request.json();
 
     if (!examId || !targetCourseId) {
@@ -43,7 +73,7 @@ export async function POST(request) {
       );
     }
 
-    // 5. جلب الامتحان الأصلي
+    // 📝 جلب الامتحان الأصلي
     const { data: exam, error: examError } = await supabase
       .from('exams')
       .select('*')
@@ -58,7 +88,7 @@ export async function POST(request) {
       );
     }
 
-    // 6. التحقق من الكورس الهدف
+    // 🎯 التحقق من الكورس الهدف
     const { data: targetCourse, error: courseError } = await supabase
       .from('courses')
       .select('id')
@@ -73,7 +103,7 @@ export async function POST(request) {
       );
     }
 
-    // 7. نسخ الامتحان
+    // 🆕 نسخ الامتحان
     const { data: newExam, error: insertError } = await supabase
       .from('exams')
       .insert({
@@ -106,7 +136,7 @@ export async function POST(request) {
       );
     }
 
-    // 8. نسخ الأسئلة
+    // 📋 نسخ الأسئلة
     const { data: questions, error: qError } = await supabase
       .from('exam_questions')
       .select('*')
@@ -131,7 +161,6 @@ export async function POST(request) {
 
       if (insertQError) {
         console.warn('⚠️ Questions copied with warnings:', insertQError);
-        // نستمر رغم الخطأ
       }
     }
 
