@@ -5,6 +5,7 @@
 // ✅ استخدام CSS Variables لضمان تباين عالٍ في الوضعين
 // ✅ إعادة هيكلة الأنماط لتكون قابلة لإعادة الاستخدام
 // ✅ إضافة ميزة نسخ الامتحان إلى كورس آخر
+// ✅ إضافة credentials: 'include' لضمان إرسال الجلسة
 // ============================================================
 
 'use client';
@@ -827,13 +828,13 @@ export default function TeacherExamsPage() {
     setIsCopyModalOpen(true);
   };
 
+  // 🔧 تم تحديث هذه الدالة بإضافة credentials: 'include'
   const handleCopyToCourse = async () => {
     if (!selectedExamToCopy || !targetCourseId) {
       toast.error('يرجى اختيار كورس');
       return;
     }
 
-    // التأكد من أن الكورس مختلف عن الكورس الأصلي (اختياري)
     if (targetCourseId === selectedExamToCopy.course_id) {
       toast.warning('الكورس المختار هو نفس الكورس الأصلي');
       return;
@@ -843,6 +844,7 @@ export default function TeacherExamsPage() {
     try {
       const response = await fetch('/api/exams/copy', {
         method: 'POST',
+        credentials: 'include', // ✅ إضافة لإرسال الجلسة مع الطلب
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           examId: selectedExamToCopy.id,
@@ -853,7 +855,7 @@ export default function TeacherExamsPage() {
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || 'فشل النسخ');
 
-      toast.success(`✅ تم نسخ الامتحان إلى الكورس بنجاح`);
+      toast.success('✅ تم نسخ الامتحان إلى الكورس بنجاح');
       setIsCopyModalOpen(false);
       setSelectedExamToCopy(null);
       fetchExams(); // إعادة تحميل القائمة
@@ -1278,3 +1280,4 @@ export default function TeacherExamsPage() {
 }
 // ✅ تم تحديث الثيم بنجاح – تباين عالٍ في كلا الوضعين
 // ✅ تم إضافة ميزة نسخ الامتحان إلى كورس آخر
+// ✅ إضافة credentials: 'include' إلى طلب نسخ الامتحان

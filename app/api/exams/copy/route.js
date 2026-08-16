@@ -1,24 +1,22 @@
 // app/api/exams/copy/route.js
-import { createClient } from '@supabase/supabase-js';
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY // استخدم مفتاح الخدمة لتجاوز RLS
-);
 
 export async function POST(request) {
   try {
+    // 1. إنشاء عميل Supabase مع الكوكيز
+    const supabase = createRouteHandlerClient({ cookies });
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { examId, targetCourseId } = await request.json();
 
     if (!examId || !targetCourseId) {
       return NextResponse.json({ error: 'examId and targetCourseId are required' }, { status: 400 });
-    }
-
-    // 1. التحقق من أن المستخدم هو مالك الامتحان والكورس الهدف
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     // جلب الامتحان الأصلي
@@ -45,7 +43,7 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Target course not found or you do not have permission' }, { status: 404 });
     }
 
-    // 2. نسخ الامتحان (بدون id, created_at, updated_at)
+    // 2. نسخ الامتحان
     const { data: newExam, error: insertError } = await supabase
       .from('exams')
       .insert({
@@ -65,7 +63,7 @@ export async function POST(request) {
         attempts_allowed: exam.attempts_allowed,
         password: exam.password,
         settings: exam.settings || {},
-        is_published: false, // دائماً مسودة
+        is_published: false,
       })
       .select()
       .single();
