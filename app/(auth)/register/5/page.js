@@ -353,13 +353,13 @@ export default function RegisterStep5() {
           password: parsed.password,
           options: {
             data: {
-              name: fullName, // <-- التعديل هنا: غيرنا full_name إلى name
+              name: fullName, // تأكد إن دي name زي ما اتفقنا
               phone: parsed.phone || '',
               parent_phone: parsed.parentPhone || '',
               school: parsed.school || '',
               grade: parsed.grade || '',
               governorate: parsed.governorate || '',
-              role: 'student',
+              // تم مسح سطر الـ role من هنا لأنه بيتعارض مع حماية الـ Database
             },
           },
         });
