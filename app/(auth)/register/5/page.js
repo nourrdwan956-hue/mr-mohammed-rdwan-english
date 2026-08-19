@@ -353,7 +353,7 @@ export default function RegisterStep5() {
           password: parsed.password,
           options: {
             data: {
-              full_name: fullName,
+              name: fullName, // <-- التعديل هنا: غيرنا full_name إلى name
               phone: parsed.phone || '',
               parent_phone: parsed.parentPhone || '',
               school: parsed.school || '',
