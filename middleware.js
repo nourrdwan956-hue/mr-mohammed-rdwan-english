@@ -1,0 +1,112 @@
+// middleware.js
+import { NextResponse } from 'next/server';
+import { createServerClient } from '@supabase/ssr';
+
+export async function middleware(request) {
+  const path = request.nextUrl.pathname;
+
+  // ✅ مسارات عامة لا تحتاج تسجيل دخول
+  // ملاحظة: مسارات API (/api/*) لا تمر عبر هذا الميدل وير لأنها غير مدرجة في config.matcher،
+  // وبالتالي فهي عامة ولا تحتاج جلسة. لذا لا داعي لإضافتها هنا.
+  const publicPaths = ['/', '/login', '/register', '/reset-password', '/update-password', '/assistant-login'];
+  if (publicPaths.some(p => path === p) || path.startsWith('/api/')) {
+    return NextResponse.next();
+  }
+
+  // ✅ استثناء مسار لوحة المساعدين من فحص الجلسة (لأنه يستخدم نظام مصادقة مختلف)
+  if (path.startsWith('/dashboard/assistant')) {
+    return NextResponse.next();
+  }
+
+  // ✅ إنشاء استجابة مبدئية (سنعدل الكوكيز عليها)
+  let response = NextResponse.next({
+    request: {
+      headers: request.headers,
+    },
+  });
+
+  // ✅ التحقق من الجلسة مع دعم تحديث الكوكيز
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    {
+      cookies: {
+        get(name) {
+          return request.cookies.get(name)?.value;
+        },
+        set(name, value, options) {
+          response.cookies.set({
+            name,
+            value,
+            ...options,
+          });
+        },
+        remove(name, options) {
+          response.cookies.set({
+            name,
+            value: '',
+            ...options,
+          });
+        },
+      },
+    }
+  );
+
+  const { data: { session } } = await supabase.auth.getSession();
+
+  // ❌ لو مش مسجل دخول → منع الوصول للمسارات المحمية (ما عدا assistant)
+  if (!session) {
+    if (path.startsWith('/dashboard/') || path.startsWith('/watch/')) {
+      const loginUrl = new URL('/login', request.url);
+      loginUrl.searchParams.set('redirectedFrom', path);
+      return NextResponse.redirect(loginUrl);
+    }
+    return response;
+  }
+
+  // ✅ مسجل دخول → نتحقق من الأدوار حسب المسار
+  const role = session.user.user_metadata?.role || 'student';
+
+  // 1. منع الوصول لصفحات المعلم
+  if (path.startsWith('/dashboard/teacher') && role !== 'teacher') {
+    const redirectPath = role === 'assistant' ? '/dashboard/assistant' : '/dashboard/student';
+    return NextResponse.redirect(new URL(redirectPath, request.url));
+  }
+
+  // 2. منع الوصول لصفحات الطالب (للمعلم فقط)
+  if (path.startsWith('/dashboard/student') && role === 'teacher') {
+    return NextResponse.redirect(new URL('/dashboard/teacher', request.url));
+  }
+
+  // 3. منع المساعد من دخول صفحة المعلم (تأكيد إضافي)
+  if (path.startsWith('/dashboard/teacher') && role === 'assistant') {
+    return NextResponse.redirect(new URL('/dashboard/assistant', request.url));
+  }
+
+  // 4. منع غير المساعد من دخول صفحة المساعد (لكننا استثنيناها أعلاه)
+  if (path.startsWith('/dashboard/assistant') && role !== 'assistant') {
+    const redirectPath = role === 'teacher' ? '/dashboard/teacher' : '/dashboard/student';
+    return NextResponse.redirect(new URL(redirectPath, request.url));
+  }
+
+  // 5. لو مسجل دخول ويحاول يدخل على صفحات تسجيل الدخول → نوجهه للوحة
+  if (session && (path === '/login' || path === '/register')) {
+    const redirectPath = role === 'teacher' ? '/dashboard/teacher' : 
+                         role === 'assistant' ? '/dashboard/assistant' : '/dashboard/student';
+    return NextResponse.redirect(new URL(redirectPath, request.url));
+  }
+
+  return response;
+}
+
+export const config = {
+  matcher: [
+    '/dashboard/:path*',
+    '/watch/:path*',
+    '/login',
+    '/register',
+    '/reset-password',
+    '/update-password',
+    '/assistant-login',
+  ],
+};

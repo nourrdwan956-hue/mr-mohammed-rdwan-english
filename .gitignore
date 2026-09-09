@@ -1,0 +1,19 @@
+# Next.js build output
+.next/
+out/
+build/
+dist/
+
+# OpenNext build output
+.open-next/
+
+# Dependencies
+node_modules/
+
+# Environment variables
+.env.local
+.env*.local
+
+# Large cache files
+*.sst
+*.cache
